@@ -33,7 +33,7 @@ int accPeriod = 10;
 
 //runs constructor to make opjebt test of class tempHumid from humiditySensor.h
 TempHumid thSen (term_dataPin, term_clockPin);
-//Accelerometer acSen;
+Accelerometer acSen;
 
 
 void readTemp(){
