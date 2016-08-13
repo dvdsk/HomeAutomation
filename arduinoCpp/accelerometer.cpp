@@ -1,8 +1,6 @@
 #include "Arduino.h"
 #include "accelerometer.h"
 
-void setup();
-void loop();
 
 // MMA7455 Accelerometer
 // ---------------------

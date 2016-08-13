@@ -36,17 +36,6 @@ TempHumid thSen (term_dataPin, term_clockPin);
 //Accelerometer acSen;
 
 
-void setup()
-{ 
-   Serial.begin(9600); // Open serial connection to report values to host
-   Serial.println("Starting up");
-     
-   //give the pir sensor some time to calibrate
-   delay(2000);
-   Serial.println("Done with startup");
-}
-
-
 void readTemp(){
   // Read values from the sensor
   temp_c = thSen.readTemperatureC();
@@ -92,14 +81,18 @@ void readRoomSensors(){
 //}
 
 
+
+
+
+
 void setup()
 { 
    Serial.begin(9600); // Open serial connection to report values to host
-   delay(10000);
-   Serial.println("Starting up");
+   Serial.println("calibrating PIR");
      
    //give the pir sensor some time to calibrate
    delay(2000);
+   Serial.println("Starting up respons loop");
 }
 
 
