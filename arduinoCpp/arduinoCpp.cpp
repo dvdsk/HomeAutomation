@@ -32,24 +32,13 @@ int accPeriod = 10;
 
 
 //runs constructor to make opjebt test of class tempHumid from humiditySensor.h
-TempHumid test (term_dataPin, term_clockPin);
-Accelerometer accl;
-
-
-void setup()
-{ 
-   Serial.begin(9600); // Open serial connection to report values to host
-   delay(10000);
-   Serial.println("Starting up");
-     
-   //give the pir sensor some time to calibrate
-   delay(2000);
-}
+TempHumid thSen (term_dataPin, term_clockPin);
+Accelerometer acSen;
 
 void readTemp(){
   // Read values from the sensor
-  temp_c = test.readTemperatureC();
-  humidity = test.readHumidity();
+  temp_c = thSen.readTemperatureC();
+  humidity = thSen.readHumidity();
   
   // Print the values to the serial port
   Serial.print("r");
@@ -71,8 +60,8 @@ void readLight(){
 
 void readRoomSensors(){
   // Read values from the sensor
-  temp_c = test.readTemperatureC();
-  humidity = test.readHumidity();    
+  temp_c = thSen.readTemperatureC();
+  humidity = thSen.readHumidity();    
   light = analogRead(light_signal);    // read the input pin
 
   Serial.print("t");
@@ -86,8 +75,20 @@ void readRoomSensors(){
 
 void readAcc(){
   Serial.print("started bad sensors readout speed");
-  accl.readOut();
+  acSen.readOut();
 }
+
+
+void setup()
+{ 
+   Serial.begin(9600); // Open serial connection to report values to host
+   delay(10000);
+   Serial.println("Starting up");
+     
+   //give the pir sensor some time to calibrate
+   delay(2000);
+}
+
 
 void loop(){
   // serial read section
@@ -133,7 +134,7 @@ void loop(){
   }//if
 
   bufferLen = 0;//empty the string*/
-  test.readPIR();
+  thSen.readPIR();
 
   if (lightCounter > 10) {
     readLight();  
