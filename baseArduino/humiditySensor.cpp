@@ -16,16 +16,16 @@ void TempHumid::skipCrcSHT(int _dataPin, int _clockPin)
 {
   // Skip acknowledge to end trans (no CRC)
   
-  //pinMode(_dataPin, OUTPUT); B2
-  //pinMode(_clockPin, OUTPUT); B0
+  //pinMode(_dataPin, OUTPUT); //PA2
+  //pinMode(_clockPin, OUTPUT); //PA0
   //-> relaced with port manipulation
-  DDRA = PIN_TERM_DATA & PIN_TERM_CLOCK;
+  DDRA = PIN_TERM_DATA | PIN_TERM_CLOCK;
 
   //digitalWrite(_dataPin, HIGH);
   //digitalWrite(_clockPin, HIGH);
   //digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation
-  PORTA = PIN_TERM_DATA & PIN_TERM_CLOCK;
+  PORTA = PIN_TERM_DATA | PIN_TERM_CLOCK;
   PORTA = PIN_TERM_DATA;
 }
 
@@ -63,34 +63,33 @@ int TempHumid::getData16SHT(int _dataPin, int _clockPin)
   int val;
 
   // Get the most significant bits
-  //pinMode(_dataPin, INPUT);
-  //pinMode(_clockPin, OUTPUT);
+  //  pinMode(_dataPin, INPUT);
+  //  pinMode(_clockPin, OUTPUT);
   //-> replaced with port manipulation
-    
   DDRA = PIN_TERM_CLOCK;
   
   val = shiftIn(_dataPin, _clockPin, 8);
   val *= 256;
 
   // Send the required ack
-  //pinMode(_dataPin, OUTPUT);
+  //  pinMode(_dataPin, OUTPUT);
   //-> replaced with port manipulation
-  DDRA = PIN_TERM_CLOCK & PIN_TERM_DATA;
+  DDRA = PIN_TERM_CLOCK | PIN_TERM_DATA;
 
-  //digitalWrite(_dataPin, HIGH);
-  //digitalWrite(_dataPin, LOW);
+  //  digitalWrite(_dataPin, HIGH);
+  //  digitalWrite(_dataPin, LOW);
   //-> replaced with port manipulation
   PORTA = PIN_TERM_DATA;
   PORTA = NULL;
 
-  //digitalWrite(_clockPin, HIGH);
-  //digitalWrite(_clockPin, LOW);
+  //  digitalWrite(_clockPin, HIGH);
+  //  digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation  
   PORTA = PIN_TERM_CLOCK;
   PORTA = NULL;
 
   // Get the least significant bits
-  //pinMode(_dataPin, INPUT);
+//  pinMode(_dataPin, INPUT);
   //-> replaced with port manipulation
   DDRA = PIN_TERM_CLOCK;
   
@@ -103,28 +102,28 @@ void TempHumid::sendCommandSHT(int _command, int _dataPin, int _clockPin)
 /*  unsigned int ack;*/
 
   // Transmission Start
-  //pinMode(_dataPin, OUTPUT);
-  //pinMode(_clockPin, OUTPUT);
+  //  pinMode(_dataPin, OUTPUT);
+  //  pinMode(_clockPin, OUTPUT);
   //-> replaced with port manipulation
-  DDRA = PIN_TERM_CLOCK & PIN_TERM_DATA;
+  DDRA = PIN_TERM_CLOCK | PIN_TERM_DATA;
   
-  //digitalWrite(_dataPin, HIGH);
-  //digitalWrite(_clockPin, HIGH);
+  digitalWrite(_dataPin, HIGH);
+  digitalWrite(_clockPin, HIGH);
   //-> replaced with port manipulation
-  PORTA = PIN_TERM_CLOCK & PIN_TERM_DATA;
+  PORTA = PIN_TERM_CLOCK | PIN_TERM_DATA;
     
-  //digitalWrite(_dataPin, LOW);
-  //digitalWrite(_clockPin, LOW);
+  //  digitalWrite(_dataPin, LOW);
+  //  digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation
   PORTA = PIN_TERM_CLOCK;
   PORTA = NULL;
   
-  //digitalWrite(_clockPin, HIGH);
-  //digitalWrite(_dataPin, HIGH);
+  //  digitalWrite(_clockPin, HIGH);
+  //  digitalWrite(_dataPin, HIGH);
   //-> replaced with port manipulation
-  PORTA = PIN_TERM_CLOCK & PIN_TERM_DATA;
+  PORTA = PIN_TERM_CLOCK | PIN_TERM_DATA;
   
-  //digitalWrite(_clockPin, LOW);
+  //  digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation
   PORTA = PIN_TERM_DATA;
 
@@ -134,11 +133,11 @@ void TempHumid::sendCommandSHT(int _command, int _dataPin, int _clockPin)
   //skipping data verificatin for MOAR SPEEED
   // Verify we get the correct ack
   
-  //digitalWrite(_clockPin, HIGH);
+  //  digitalWrite(_clockPin, HIGH);
   //-> replaced with port manipulation
-  PORTA = PIN_TERM_CLOCK & PIN_TERM_DATA;
+  PORTA = PIN_TERM_CLOCK | PIN_TERM_DATA;
   
-  //pinMode(_dataPin, INPUT);
+  //  pinMode(_dataPin, INPUT);
   //-> replaced with port manipulation
   DDRA = PIN_TERM_CLOCK;
   
@@ -154,7 +153,7 @@ void TempHumid::sendCommandSHT(int _command, int _dataPin, int _clockPin)
 /*      Serial.println("Ack Error 0");*/
 /*  }*/
   
-  //digitalWrite(_clockPin, LOW);
+//  digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation
   PORTA = PIN_TERM_DATA;
   
@@ -176,7 +175,7 @@ float TempHumid::readTemperatureRaw(void (*f1)(void), void (*f2)(void), void (*f
   int _val;
 
   // Command to send to the SHT1x to request Temperature
-  int _gTempCmd  = PIN_TERM_CLOCK;
+  int _gTempCmd  = 0b00000011;
 
   sendCommandSHT(_gTempCmd, _dataPin, _clockPin);
   waitForResultSHT(_dataPin, f1, f2, f3);
