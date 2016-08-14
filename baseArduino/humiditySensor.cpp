@@ -1,34 +1,17 @@
 #include "Arduino.h"
 #include "humiditySensor.h"
 
+//rewritten all ports to new bank, thus pin 51 (PB2) [term_dataPin] and 53 (PB0)[term_clockPin] 
+//to: pin 24 (PA2) and 22 (PA0)
 
 //constructor
 TempHumid::TempHumid(int dataPin, int clockPin)
 {
    _dataPin = dataPin;
    _clockPin = clockPin;
-   
-   // gives power to the termp sensor
-   //pinMode(term_vcc, OUTPUT);
-   //-> replaced with port manipulation   
-   DDRB = B00001010; 
 
-   //digitalWrite(term_vcc, HIGH);   
-   //-> replaced with port manipulation
-   PORTB = B00001010; 
 }
 
-//function to fill delay with usefull shit
-void TempHumid::readPIR(){
-  //read registery of pin bank L (fast way to read state), 
-  //returns byte on is high bit off is low. See this chart for which bit in the 
-  //byte corrosponds to which pin http://forum.arduino.cc/index.php?topic=45329.0
-  delay(1);//crashes if removed  
-  if ((PINL & 1) != 0){
-    Serial.print("m");
-    }
-  Serial.print("\n");
-  }
   
 void TempHumid::skipCrcSHT(int _dataPin, int _clockPin)
 {
@@ -37,15 +20,15 @@ void TempHumid::skipCrcSHT(int _dataPin, int _clockPin)
   //pinMode(_dataPin, OUTPUT); B2
   //pinMode(_clockPin, OUTPUT); B0
   //-> relaced with port manipulation
-  DDRB = B00001111; //second LSB bit too since we want the vcc of the light sensor
+  DDRA = PIN_TERM_DATA & PIN_TERM_CLOCK; //second LSB bit too since we want the vcc of the light sensor
                     //on
 
   //digitalWrite(_dataPin, HIGH);
   //digitalWrite(_clockPin, HIGH);
   //digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation
-  PORTB = B00001111;
-  PORTB = B00001110;
+  PORTA = PIN_TERM_DATA & PIN_TERM_CLOCK;
+  PORTA = PIN_TERM_DATA;
 }
 
 void TempHumid::waitForResultSHT(int _dataPin, void (*f1)(void), void (*f2)(void), void (*f3)(void))
@@ -65,8 +48,8 @@ void TempHumid::waitForResultSHT(int _dataPin, void (*f1)(void), void (*f2)(void
     f2(); //readlight    
     //Possibility for an f3() here but it is currently not used
 
-    ack = PINB;
-    if ((ack & 4) == 0){ //if xxxx xxxx AND 0000 0100 = 1 or if the 3e bit is set
+    ack = PINA;
+    if ((ack & 0b0100) == 0){ //if xxxx xxxx AND 0000 0100 = 1 or if the 3e bit is set // FIXME: die 0b0100 heeft vast een betekenis -> dat kan in een constante! 
       break;
     }
   }
@@ -86,7 +69,7 @@ int TempHumid::getData16SHT(int _dataPin, int _clockPin)
   //pinMode(_clockPin, OUTPUT);
   //-> replaced with port manipulation
     
-  DDRB = B00001011;
+  DDRA = PIN_TERM_CLOCK;
   
   val = shiftIn(_dataPin, _clockPin, 8);
   val *= 256;
@@ -94,24 +77,24 @@ int TempHumid::getData16SHT(int _dataPin, int _clockPin)
   // Send the required ack
   //pinMode(_dataPin, OUTPUT);
   //-> replaced with port manipulation
-  DDRB = B00001111;
+  DDRA = PIN_TERM_CLOCK & PIN_TERM_DATA;
 
   //digitalWrite(_dataPin, HIGH);
   //digitalWrite(_dataPin, LOW);
   //-> replaced with port manipulation
-  PORTB = B00001110;
-  PORTB = B00001010;
+  PORTA = PIN_TERM_DATA;
+  PORTA = NULL;
 
   //digitalWrite(_clockPin, HIGH);
   //digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation  
-  PORTB = B00001011;
-  PORTB = B00001010;
+  PORTA = PIN_TERM_CLOCK;
+  PORTA = NULL;
 
   // Get the least significant bits
   //pinMode(_dataPin, INPUT);
   //-> replaced with port manipulation
-  DDRB = B00001011;
+  DDRA = PIN_TERM_CLOCK;
   
   val |= shiftIn(_dataPin, _clockPin, 8);
   return val;
@@ -125,27 +108,27 @@ void TempHumid::sendCommandSHT(int _command, int _dataPin, int _clockPin)
   //pinMode(_dataPin, OUTPUT);
   //pinMode(_clockPin, OUTPUT);
   //-> replaced with port manipulation
-  DDRB = B00001111;  
+  DDRA = PIN_TERM_CLOCK & PIN_TERM_DATA;
   
   //digitalWrite(_dataPin, HIGH);
   //digitalWrite(_clockPin, HIGH);
   //-> replaced with port manipulation
-  PORTB = B00001111;
+  PORTA = PIN_TERM_CLOCK & PIN_TERM_DATA;
     
   //digitalWrite(_dataPin, LOW);
   //digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation
-  PORTB = B00001011;
-  PORTB = B00001010;
+  PORTA = PIN_TERM_CLOCK;
+  PORTA = NULL;
   
   //digitalWrite(_clockPin, HIGH);
   //digitalWrite(_dataPin, HIGH);
   //-> replaced with port manipulation
-  PORTB = B00001111;
+  PORTA = PIN_TERM_CLOCK & PIN_TERM_DATA;
   
   //digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation
-  PORTB = B00001110;
+  PORTA = PIN_TERM_DATA;
 
   // The command (3 msb are address and must be 000, and last 5 bits are command)
   shiftOut(_dataPin, _clockPin, MSBFIRST, _command);
@@ -155,11 +138,11 @@ void TempHumid::sendCommandSHT(int _command, int _dataPin, int _clockPin)
   
   //digitalWrite(_clockPin, HIGH);
   //-> replaced with port manipulation
-  PORTB = B00001111;  
+  PORTA = PIN_TERM_CLOCK & PIN_TERM_DATA;
   
   //pinMode(_dataPin, INPUT);
   //-> replaced with port manipulation
-  DDRB = B00001011; 
+  DDRA = PIN_TERM_CLOCK;
   
   //ack = digitalRead(_dataPin);
   //if (ack != LOW) {
@@ -175,7 +158,7 @@ void TempHumid::sendCommandSHT(int _command, int _dataPin, int _clockPin)
   
   //digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation
-  PORTB = B0001110; 
+  PORTA = PIN_TERM_DATA;
   
   //ack = digitalRead(_dataPin);
   //if (ack != HIGH) {
@@ -195,7 +178,7 @@ float TempHumid::readTemperatureRaw(void (*f1)(void), void (*f2)(void), void (*f
   int _val;
 
   // Command to send to the SHT1x to request Temperature
-  int _gTempCmd  = 0b00000011;
+  int _gTempCmd  = PIN_TERM_CLOCK;
 
   sendCommandSHT(_gTempCmd, _dataPin, _clockPin);
   waitForResultSHT(_dataPin, f1, f2, f3);

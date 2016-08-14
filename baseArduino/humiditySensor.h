@@ -21,6 +21,9 @@ class TempHumid
     void waitForResultSHT(int _dataPin, void (*f1)(void), void (*f2)(void), void (*f3)(void));
 };
 
+const short PIN_TERM_DATA = 0b00000100;
+const short PIN_TERM_CLOCK = 0b00000001;
+
 
 //this prevents problems if someone accidently #include's your library twice.
 #endif
