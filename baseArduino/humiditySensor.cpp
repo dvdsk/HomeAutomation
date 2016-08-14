@@ -9,7 +9,6 @@ TempHumid::TempHumid(int dataPin, int clockPin)
 {
    _dataPin = dataPin;
    _clockPin = clockPin;
-
 }
 
   
@@ -20,8 +19,7 @@ void TempHumid::skipCrcSHT(int _dataPin, int _clockPin)
   //pinMode(_dataPin, OUTPUT); B2
   //pinMode(_clockPin, OUTPUT); B0
   //-> relaced with port manipulation
-  DDRA = PIN_TERM_DATA & PIN_TERM_CLOCK; //second LSB bit too since we want the vcc of the light sensor
-                    //on
+  DDRA = PIN_TERM_DATA & PIN_TERM_CLOCK;
 
   //digitalWrite(_dataPin, HIGH);
   //digitalWrite(_clockPin, HIGH);
@@ -41,7 +39,7 @@ void TempHumid::waitForResultSHT(int _dataPin, void (*f1)(void), void (*f2)(void
 
   for(i= 0; i < 100; ++i)
   {
-    //delay(10);
+    delay(10);
     //instead of using the above delay (and wasting cycles) we run readPir
     //and other functions
     f1(); //readpir
@@ -209,15 +207,15 @@ float TempHumid::readTemperatureC(void (*f1)(void), void (*f2)(void), void (*f3)
 float TempHumid::readHumidity(float _temperature, void (*f1)(void), void (*f2)(void), void (*f3)(void))
 {
   int _val;                    // Raw humidity value returned from sensor
-  float _linearHumidity;       // Humidity with linear correction applied
+  double _linearHumidity;       // Humidity with linear correction applied
   float _correctedHumidity;    // Temperature-corrected humidity
 
   // Conversion coefficients from SHT15 datasheet
   const float C1 = -4.0;       // for 12 Bit
-  const float C2 =  0.0405;    // for 12 Bit
-  const float C3 = -0.0000028; // for 12 Bit
+  const double C2 =  0.0405;    // for 12 Bit
+  const double C3 = -0.0000028; // for 12 Bit
   const float T1 =  0.01;      // for 14 Bit @ 5V
-  const float T2 =  0.00008;   // for 14 Bit @ 5V
+  const double T2 =  0.00008;   // for 14 Bit @ 5V
 
   // Command to send to the SHT1x to request humidity
   int _gHumidCmd = 0b00000101;

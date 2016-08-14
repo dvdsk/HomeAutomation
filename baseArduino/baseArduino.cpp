@@ -6,11 +6,8 @@
 #include "accelerometer.h"
 
 // Specify data and clock connections
-const int term_dataPin = 51; //PB2
-const int term_clockPin = 53; //PB0
-//const int term_vcc = 52; //PB1
-
-const int light_vcc = 50;
+const int term_dataPin = 24; //PB2
+const int term_clockPin = 22; //PB0
 
 // Specify signal connections
 const int pir_signal = 49;
