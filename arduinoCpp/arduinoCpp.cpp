@@ -30,7 +30,6 @@ int lightCounter = 0;
 int accCounter = 100;
 int accPeriod = 10;
 
-
 //runs constructor to make opjebt test of class tempHumid from humiditySensor.h
 TempHumid thSen (term_dataPin, term_clockPin);
 Accelerometer acSen;
@@ -89,6 +88,8 @@ void setup()
 { 
    Serial.begin(9600); // Open serial connection to report values to host
    Serial.println("calibrating PIR");
+   
+   acSen.setup();
      
    //give the pir sensor some time to calibrate
    delay(2000);
