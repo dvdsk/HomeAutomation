@@ -123,10 +123,12 @@ void loop(){
             readTemp();            
             break;
           case 50: //acii 2
-            accPeriod = 10;            
+            accPeriod = 10;  
+            Serial.print("low accPeriod\n");          
             break;
           case 51: //acii 3
             accPeriod = 500;            
+            Serial.print("high accPeriod\n");    
             break;
           default:
             Serial.print("error not a sensor\n");

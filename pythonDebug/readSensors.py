@@ -19,9 +19,9 @@ def timeReadSpeed(extraSensorTask):
 
     i = 0
     b = ['none']
-    with serial.Serial('/dev/ttyUSB0', boudrate, timeout=2) as ser:
+    with serial.Serial(devicePort, boudrate, timeout=2) as ser:
         time.sleep(4)
-        ser.reset_input_buffer()
+        ser.flushInput()
         program_starts = time.time()
         while True and i < 1000:
             if not extraSensorTask.empty():
@@ -36,7 +36,7 @@ def timeReadSpeed(extraSensorTask):
     print("Time between updates: {0} milli second".format((now - program_starts)))
     return
 
-def maxTimeBetwMovementSensor(extraSensorTask):
+def timePIR(extraSensorTask):
     #read in analyse for short latency requests and ouput all data to buffer, 
     #then after 10 seconds put the buffer into a Queue to be further processed
     def putFast(extraSensorTask):
@@ -54,7 +54,7 @@ def maxTimeBetwMovementSensor(extraSensorTask):
     deltaT = 0
     with serial.Serial('/dev/ttyUSB0', boudrate, timeout=2) as ser:
         time.sleep(4)
-        ser.reset_input_buffer()
+        ser.flushInput()
         t1 = time.clock()
         while True and i < 10:
             if not extraSensorTask.empty():
@@ -72,12 +72,47 @@ def maxTimeBetwMovementSensor(extraSensorTask):
     print("Max time between movement data recieved: {} milli seconds".format(deltaT*1000))
     return    
 
+def timeACC(extraSensorTask):
+    #read in analyse for short latency requests and ouput all data to buffer, 
+    #then after 10 seconds put the buffer into a Queue to be further processed
+
+
+    i = 0
+    deltaT = 0
+    sample = 100
+    with serial.Serial('/dev/ttyUSB0', boudrate, timeout=2) as ser:
+
+        time.sleep(2)        
+        ser.write(b'02') #switch to fast polling       
+        time.sleep(2)
+        
+        ser.flushInput()
+        program_starts = time.time()
+        t1 = time.clock()
+        while True and i < sample:
+            if not extraSensorTask.empty():
+                request = extraSensorTask.get()
+                ser.write(request)
+            output = ser.readline()
+            if b"error" in output:
+                t0 = t1
+                t1 = time.clock()
+                if t1-t0 > deltaT:
+                    deltaT = t1-t0                  
+                i += 1
+
+    now = time.time()
+    print("Max time between accl data recieved: {} milli seconds".format(deltaT*1000))
+    print("avg between accl data: {0} second".format((now - program_starts)/sample))
+    return    
+
 def timeSHT(extraSensorTask):
     #read in analyse for short latency requests and ouput all data to buffer, 
     #then after 10 seconds put the buffer into a Queue to be further processed
     def putFast(extraSensorTask):
         while True:
             extraSensorTask.put(b'00c')
+            time.sleep(0.5) #keep this lower then the avg time
         return
 
     t = threading.Thread(target = putFast, 
@@ -91,16 +126,14 @@ def timeSHT(extraSensorTask):
         while True and i < 10:
             if not extraSensorTask.empty():
                 request = extraSensorTask.get()
-#                print('sending request:',request)
+                print('sending request:',request)
                 ser.write(request)
             output = ser.readline()
-            print(output)
-            if b"bufferlen" in output:
-                print(output)            
+#            print(output)         
             if b'h' in output: #if reply contains shit
                 i += 1
     now = time.time()
-    print("Time between SHT data: {0} second".format((now - program_starts)))
+    print("avg between SHT data: {0} second".format((now - program_starts)/10))
     return
     
             
@@ -110,14 +143,13 @@ def read(extraSensorTask):
 
     with serial.Serial('/dev/ttyUSB0', boudrate, timeout = 1) as ser:
         time.sleep(4) #allow the arduino to initialise
-        ser.reset_input_buffer()
+        ser.flushInput()
         while True:
             output = ser.readline()
             if not extraSensorTask.empty():
                 request = extraSensorTask.get()
                 ser.write(request)           
-            print("output:",output)
-            if output != b'm0\n':  #if something happening not sensor stdby
+            if output != b'\n':  #if something happening not sensor stdby
                 process(output)    
     return
     
@@ -129,16 +161,14 @@ def lamptrigger():
 def process(output):
     #get new data from the queue and store it in a global variable and save it 
     #to the disk in binairy form
-    if output == b'm1\n':
-        lamptrigger()
-    elif b't' in output:#if the first part of output is letter t 
-        print("temperature is:")
-        print(output)
-        pass
+#    print(output)
+#    if output == b'm1\n':
+#        lamptrigger()
+#    elif b't' in output:#if the first part of output is letter t 
+#        print("temperature is:")
+#        print(output)
+#        pass
     return
-
-    
-
 
 
 def queueput(extraSensorTask):
@@ -147,10 +177,10 @@ def queueput(extraSensorTask):
 #   or controlling something (0 or 1), then a number for the sensor to request
 #   this number can be 2 digets
     time.sleep(1.1)
-    extraSensorTask.put(b'00')
+    extraSensorTask.put(b'03')
     while True:
         time.sleep(0.1)
-        extraSensorTask.put(b'00')
+        extraSensorTask.put(b'3')
 #    time.sleep(4)
 #    extraSensorTask.put(b'00')
 #    time.sleep(4)
@@ -158,9 +188,12 @@ def queueput(extraSensorTask):
     return    
 
 #timeSHT(extraSensorTask)
-t = threading.Thread(target = read, 
-                     args   = (extraSensorTask,))
-t.start()
-queueput(extraSensorTask)
-#    
+
+timeACC(extraSensorTask)
+#t = threading.Thread(target = read, 
+#                     args   = (extraSensorTask,))
+#t.start()
+#extraSensorTask.put(b'02')
+#queueput(extraSensorTask)
+
 
