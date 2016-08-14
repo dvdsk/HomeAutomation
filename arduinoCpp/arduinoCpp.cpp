@@ -27,8 +27,8 @@ int light;
 int buffer[3];
 int bufferLen = 0;
 int lightCounter = 0;
-int accCounter = 100;
-int accPeriod = 10;
+int accCounter = 0;
+int accPeriod = 500;
 
 //runs constructor to make opjebt test of class tempHumid from humiditySensor.h
 TempHumid thSen (term_dataPin, term_clockPin);
@@ -74,10 +74,9 @@ void readRoomSensors(){
   }
 
 
-//void readAcc(){
-//  Serial.print("started bad sensors readout speed");
-//  acSen.readOut();
-//}
+void readAcc(){
+  acSen.readOut();
+}
 
 
 
@@ -117,14 +116,17 @@ void loop(){
     switch(buffer[0]) {
       case 48:
         switch(buffer[1]){
-          case 48:
+          case 48: //acii 0
             readRoomSensors();
             break;
-          case 49:
+          case 49: //acii 1
             readTemp();            
             break;
-          case 50:
+          case 50: //acii 2
             accPeriod = 10;            
+            break;
+          case 51: //acii 3
+            accPeriod = 500;            
             break;
           default:
             Serial.print("error not a sensor\n");
@@ -149,7 +151,7 @@ void loop(){
     }
   if (accCounter > accPeriod) {
     accCounter = 0;
-    //readAcc();
+    readAcc();
     }
   
   lightCounter++;
