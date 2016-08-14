@@ -1,7 +1,6 @@
 #include "Arduino.h"
 #include "accelerometer.h"
 
-
 // MMA7455 Accelerometer
 // ---------------------
 //
@@ -158,8 +157,6 @@ typedef union xyz_union
   } value;
 };
 
-  int led = 13;
-
 //setup things
 Accelerometer::Accelerometer()
 {      
@@ -201,7 +198,6 @@ void Accelerometer::setup()
   MMA7455_read(MMA7455_TOUT, &c, 1);
   Serial.print("TOUT : ");
   Serial.println(c,DEC);
-    pinMode(led, OUTPUT);
 }
 
 
@@ -221,25 +217,20 @@ void Accelerometer::readOut()
   dY = (int16_t) y / 64.0;
   dZ = (int16_t) z / 64.0;
 
-  Serial.print("error = ");
-  Serial.print(error, DEC);
-  Serial.print(", xyz g-forces = ");
-  Serial.print(dX, 3);
-  Serial.print(", ");
-  Serial.print(dY, 3);
-  Serial.print(", ");
-  Serial.print(dZ, 3);
-  Serial.println("");
-
-  if (dZ < 0.8)
+  if (error != 0)
   {
-      digitalWrite(led, HIGH);   // turn the LED on (HIGH is the voltage level)
+    Serial.print("9,9,9");
   }
   else
   {
-    digitalWrite(led, LOW);    // turn the LED off by making the voltage LOW
+  Serial.print(dX, 3);
+  Serial.print(",");
+  Serial.print(dY, 3);
+  Serial.print(",");
+  Serial.print(dZ, 3);
+  Serial.print("\n");
   }
-
+  
   delay(100);
 }
 

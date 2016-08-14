@@ -34,11 +34,38 @@ int accPeriod = 500;
 TempHumid thSen (term_dataPin, term_clockPin);
 Accelerometer acSen;
 
+void readAcc(){
+  acSen.readOut();
+}
+
+void readPIR(){
+  //check the PIR sensor for movement as fast as possible, this happens
+  //many many times a second
+  
+  //read registery of pin bank L (fast way to read state), 
+  //returns byte on is high bit off is low. See this chart for which bit in the 
+  //byte corrosponds to which pin http://forum.arduino.cc/index.php?topic=45329.0
+  delay(1);//crashes if removed  
+  if ((PINL & 1) != 0){
+    Serial.print("m");
+    }
+  Serial.print("\n");
+  }
+
+void readLight(){
+  //read light sensor (anolog) and return over serial, this happens many times
+  //a second
+  light = analogRead(light_signal);    // read the input pin
+  Serial.print("l");//r to signal this is specially requested data
+  Serial.print(light);
+  Serial.print("\n");
+}
 
 void readTemp(){
-  // Read values from the sensor
-  temp_c = thSen.readTemperatureC();
-  humidity = thSen.readHumidity();
+  // Read values from the sensor, this function has a long sleep, we pass
+  // funtions to it we want it to run to fill this sleep
+  temp_c = thSen.readTemperatureC(readPIR,readLight,readAcc );
+  humidity = thSen.readHumidity(temp_c, readPIR,readLight,readAcc );
   
   // Print the values to the serial port
   Serial.print("r");
@@ -48,20 +75,12 @@ void readTemp(){
   Serial.print(humidity);
   Serial.print("\n");
   }
-  
-
-void readLight(){
-    light = analogRead(light_signal);    // read the input pin
-    Serial.print("l");//r to signal this is specially requested data
-    Serial.print(light);
-
-/*    Serial.print("\n"); */
-}
 
 void readRoomSensors(){
-  // Read values from the sensor
-  temp_c = thSen.readTemperatureC();
-  humidity = thSen.readHumidity();    
+  // Read temperature, humidity and light sensors and return there values over
+  // serial
+  temp_c = thSen.readTemperatureC(readPIR,readLight,readAcc );
+  humidity = thSen.readHumidity(temp_c, readPIR,readLight,readAcc );
   light = analogRead(light_signal);    // read the input pin
 
   Serial.print("t");
@@ -74,18 +93,11 @@ void readRoomSensors(){
   }
 
 
-void readAcc(){
-  acSen.readOut();
-}
-
-
-
-
 
 
 void setup()
 { 
-   Serial.begin(9600); // Open serial connection to report values to host
+   Serial.begin(115200); // Open serial connection to report values to host
    Serial.println("calibrating PIR");
    
    acSen.setup();
@@ -123,12 +135,10 @@ void loop(){
             readTemp();            
             break;
           case 50: //acii 2
-            accPeriod = 10;  
-            Serial.print("low accPeriod\n");          
+            accPeriod = 10;       
             break;
           case 51: //acii 3
-            accPeriod = 500;            
-            Serial.print("high accPeriod\n");    
+            accPeriod = 500;               
             break;
           default:
             Serial.print("error not a sensor\n");
@@ -145,15 +155,15 @@ void loop(){
   }//if
 
   bufferLen = 0;//empty the string*/
-  thSen.readPIR();
+//  readPIR();
 
   if (lightCounter > 10) {
-    readLight();  
+//    readLight();  
     lightCounter = 0;
     }
   if (accCounter > accPeriod) {
     accCounter = 0;
-    readAcc();
+//    acSen.readOut();
     }
   
   lightCounter++;

@@ -84,7 +84,7 @@ def timeACC(extraSensorTask):
 
         time.sleep(2)        
         ser.write(b'02') #switch to fast polling       
-        time.sleep(2)
+        time.sleep(4)
         
         ser.flushInput()
         program_starts = time.time()
@@ -100,6 +100,7 @@ def timeACC(extraSensorTask):
                 if t1-t0 > deltaT:
                     deltaT = t1-t0                  
                 i += 1
+                print(output)
 
     now = time.time()
     print("Max time between accl data recieved: {} milli seconds".format(deltaT*1000))
@@ -188,8 +189,9 @@ def queueput(extraSensorTask):
     return    
 
 #timeSHT(extraSensorTask)
-
 timeACC(extraSensorTask)
+
+
 #t = threading.Thread(target = read, 
 #                     args   = (extraSensorTask,))
 #t.start()
