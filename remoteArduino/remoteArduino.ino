@@ -1,4 +1,3 @@
-
 #include <SPI.h>
 #include <RH_NRF24.h>
 
@@ -6,7 +5,7 @@ RH_NRF24 nrf24;
 
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(9600);
+  Serial.begin(115200);
   if (!nrf24.init())
     Serial.println("init failed");
   // Defaults after init are 2.402 GHz (channel 2), 2Mbps, 0dBm
@@ -92,6 +91,6 @@ void sendRf()
 }
 
 void loop(){
-  //sendRf();
-  recieveRf();
+  sendRf();
+  //recieveRf();
 }

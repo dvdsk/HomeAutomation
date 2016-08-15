@@ -52,7 +52,7 @@ def timePIR(extraSensorTask):
 
     i = 0
     deltaT = 0
-    with serial.Serial('/dev/ttyUSB0', boudrate, timeout=2) as ser:
+    with serial.Serial(devicePort, boudrate, timeout=2) as ser:
         time.sleep(4)
         ser.flushInput()
         t1 = time.clock()
@@ -80,7 +80,7 @@ def timeACC(extraSensorTask):
     i = 0
     deltaT = 0
     sample = 100
-    with serial.Serial('/dev/ttyUSB0', boudrate, timeout=2) as ser:
+    with serial.Serial(devicePort, boudrate, timeout=2) as ser:
 
         time.sleep(2)        
         ser.write(b'02') #switch to fast polling       
@@ -122,7 +122,7 @@ def timeSHT(extraSensorTask):
 
 
     i = 0
-    with serial.Serial('/dev/ttyUSB0', boudrate, timeout=2) as ser:
+    with serial.Serial(devicePort, boudrate, timeout=2) as ser:
         program_starts = time.time()
         while True and i < 10:
             if not extraSensorTask.empty():
@@ -142,7 +142,7 @@ def read(extraSensorTask):
     #read in analyse for short latency requests and ouput all data to buffer, 
     #then after 10 seconds put the buffer into a Queue to be further processed
 
-    with serial.Serial('/dev/ttyUSB0', boudrate, timeout = 1) as ser:
+    with serial.Serial(devicePort, boudrate, timeout = 1) as ser:
         time.sleep(4) #allow the arduino to initialise
         ser.flushInput()
         while True:
@@ -162,7 +162,7 @@ def lamptrigger():
 def process(output):
     #get new data from the queue and store it in a global variable and save it 
     #to the disk in binairy form
-#    print(output)
+    print(output)
 #    if output == b'm1\n':
 #        lamptrigger()
 #    elif b't' in output:#if the first part of output is letter t 
@@ -177,11 +177,10 @@ def queueput(extraSensorTask):
 #   diget of number defines if we are requesting sensor data
 #   or controlling something (0 or 1), then a number for the sensor to request
 #   this number can be 2 digets
-    time.sleep(1.1)
-    extraSensorTask.put(b'03')
+    time.sleep(4)
     while True:
-        time.sleep(0.1)
-        extraSensorTask.put(b'3')
+        time.sleep(2)
+        extraSensorTask.put(b'00')
 #    time.sleep(4)
 #    extraSensorTask.put(b'00')
 #    time.sleep(4)
@@ -192,10 +191,10 @@ def queueput(extraSensorTask):
 timeACC(extraSensorTask)
 
 
-#t = threading.Thread(target = read, 
-#                     args   = (extraSensorTask,))
-#t.start()
+t = threading.Thread(target = read, 
+                     args   = (extraSensorTask,))
+t.start()
 #extraSensorTask.put(b'02')
-#queueput(extraSensorTask)
+queueput(extraSensorTask)
 
 

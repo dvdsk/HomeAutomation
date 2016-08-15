@@ -17,7 +17,7 @@ const int light_signal = 0; //anolog
 const int readSpeed = 1; //time between reading individual chars
 const int debugSpeed = 0; //time between reading and reply-ing used for debug
 const int resetSpeed = 1; //time for the connection to reset
-const int calibrationTime = 2; //setup wait period
+const int calibrationTime = 2000; //setup wait period
 
 
 float temp_c;
@@ -28,11 +28,14 @@ int bufferLen = 0;
 int lightCounter = 0;
 int accCounter = 0;
 int accPeriod = 500;
+uint8_t buf[RH_NRF24_MAX_MESSAGE_LEN];
+uint8_t len = sizeof(buf);
+
 
 //runs constructor to make opjebt test of class tempHumid from humiditySensor.h
 TempHumid thSen (term_dataPin, term_clockPin);
 Accelerometer acSen;
-RH_NRF24 nrf24;
+RH_NRF24 nrf24(8,53);//8 and 53 constructor for the arduino mega
 
 void readAcc(){
   acSen.readOut();
@@ -51,6 +54,15 @@ void readPIR(){
     }
   Serial.print("\n");
   }
+
+void readRemote(){
+  //send the request for reading data from remote sensor, recovery of awnser
+  //is done in the default loop. later this will be an int funct where the
+  //number corrosponds to a case switch on the remote station
+  uint8_t data[] = "0";
+  nrf24.send(data, sizeof(data));
+  Serial.print("send request to sensor node\n");
+}
 
 void readLight(){
   //read light sensor (anolog) and return over serial, this happens many times
@@ -112,7 +124,7 @@ void setup()
       Serial.println("setRF failed");
    
    //give the pir sensor some time to calibrate
-   delay(2000);
+   delay(calibrationTime);
    Serial.println("setup done, starting response loop");
 }
 
@@ -149,6 +161,9 @@ void loop(){
           case 51: //acii 3
             accPeriod = 500;               
             break;
+          case 52: //acii 4
+            readRemote();               
+            break;
           default:
             Serial.print("error not a sensor\n");
             break;
@@ -164,17 +179,26 @@ void loop(){
   }//if
 
   bufferLen = 0;//empty the string*/
-//  readPIR();
+//  readPIR(); TODO Re-enable after new features complete
+
+  //if anything is recieved through the wireless network forward it over serial
+  //to python for processing
+  if (nrf24.recv(buf, &len))
+  {
+    Serial.print("got wireless: ");
+    Serial.println((char*)buf);
+  }
+
 
   if (lightCounter > 10) {
-//    readLight();  
+//    readLight(); TODO Re-enable after new features complete  
     lightCounter = 0;
     }
   if (accCounter > accPeriod) {
     accCounter = 0;
-//    acSen.readOut();
+//    acSen.readOut(); TODO Re-enable after new features complete
     }
-  
+    
   lightCounter++;
   accCounter++;
   
