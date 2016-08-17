@@ -16,7 +16,7 @@ const int light_signal = 0; //anolog
 // script setup parameters
 const int readSpeed = 1; //time between reading individual chars
 const int debugSpeed = 0; //time between reading and reply-ing used for debug
-const int resetSpeed = 1; //time for the connection to reset
+const int resetSpeed = 1000; //time for the connection to reset
 const int calibrationTime = 2000; //setup wait period
 
 
@@ -131,62 +131,64 @@ void setup()
 
 void loop(){
   // serial read section
-  while (Serial.available()){ // this will be skipped if no data present, leading to
-                              // the code sitting in the delay function below
-    delay(readSpeed);  //delay to allow buffer to fill 
-    if (Serial.available() >0)
-    {
-      int c = Serial.read(); //gets one byte from serial buffer
-      if (c == 99){
-        break;
-      }
-      buffer[bufferLen] = c;
-      bufferLen++;
-    }
-  }
+//  while (Serial.available()){ // this will be skipped if no data present, leading to
+//                              // the code sitting in the delay function below
+//    delay(readSpeed);  //delay to allow buffer to fill 
+//    if (Serial.available() >0)
+//    {
+//      int c = Serial.read(); //gets one byte from serial buffer
+//      if (c == 99){
+//        break;
+//      }
+//      buffer[bufferLen] = c;
+//      bufferLen++;
+//    }
+//  }
 
-  if (bufferLen >0) {
-    switch(buffer[0]) {
-      case 48:
-        switch(buffer[1]){
-          case 48: //acii 0
-            readRoomSensors();
-            break;
-          case 49: //acii 1
-            readTemp();            
-            break;
-          case 50: //acii 2
-            accPeriod = 10;       
-            break;
-          case 51: //acii 3
-            accPeriod = 500;               
-            break;
-          case 52: //acii 4
-            readRemote();               
-            break;
-          default:
-            Serial.print("error not a sensor\n");
-            break;
-        }//switch
-        break;
-      case 49:
-        Serial.print("doing motor shit\n");   
-        break;   
-      default:
-        Serial.print("error not a sensor/motor command\n");
-        break;
-    }    
-  }//if
+//  if (bufferLen >0) {
+//    switch(buffer[0]) {
+//      case 48:
+//        switch(buffer[1]){
+//          case 48: //acii 0
+//            readRoomSensors();
+//            break;
+//          case 49: //acii 1
+//            readTemp();            
+//            break;
+//          case 50: //acii 2
+//            accPeriod = 10;       
+//            break;
+//          case 51: //acii 3
+//            accPeriod = 500;               
+//            break;
+//          case 52: //acii 4
+//            readRemote();               
+//            break;
+//          default:
+//            Serial.print("error not a sensor\n");
+//            break;
+//        }//switch
+//        break;
+//      case 49:
+//        Serial.print("doing motor shit\n");   
+//        break;   
+//      default:
+//        Serial.print("error not a sensor/motor command\n");
+//        break;
+//    }    
+//  }//if
 
   bufferLen = 0;//empty the string*/
 //  readPIR(); TODO Re-enable after new features complete
+
+  readRemote();
 
   //if anything is recieved through the wireless network forward it over serial
   //to python for processing
   if (nrf24.recv(buf, &len))
   {
     Serial.print("got wireless: ");
-    Serial.println((char*)buf);
+    Serial.println(buf[0]);
   }
 
 
