@@ -19,7 +19,7 @@
 RF24 radio(7,8); //cepin, cspin
 /**********************************************************/
                                                                            // Topology
-byte addresses[][6] = {"1Node","2Node"};              // Radio pipe addresses for the 2 nodes to communicate.
+byte addresses[][6] = {"1Node","2Node","3Node"};              // Radio pipe addresses for the 2 nodes to communicate.
 
 byte counter = 1;                                                          // A single byte to keep track of the data being sent back and forth
 
