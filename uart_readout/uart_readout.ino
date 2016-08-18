@@ -1,6 +1,6 @@
 
 const byte cmd[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; 
-char response[9]; 
+byte response[9]; 
 
 void setup()  
 { 
@@ -34,6 +34,7 @@ int readReturn(Stream& sensorSerial){
   return -1;
 }    
 
+
 void loop()  
 { 
   int ppm;
@@ -46,4 +47,3 @@ void loop()
   Serial.println("ppm: ");
   Serial.println(ppm);
 }
-

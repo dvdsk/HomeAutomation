@@ -86,7 +86,9 @@ int readCO2(Stream& sensorSerial){
   //needed to wait for a reply after the request, Will also not 
   //block if no reply present but return -1 instead
 
-  char response[9]; //FIXME why not byte?
+  byte response[9]; //changed was char, byte is better prevents issue with char
+                    //in reading out the array in hex (like values such as 
+                    //FFFFFFF86 instead of 86)
   int responseHigh;
   int responseLow;
   int ppm;
