@@ -1,100 +1,115 @@
 
-/*const byte checkValue = 0x01+0x86+00+00+00+00+00+1;*/
-/*const byte requestData[] = {0XFF, 0x01, 0x86, 00, 00, 00, 00, 00, checkValue};*/
-
-/*byte recievedData[8];*/
-/*int nbuff;*/
-
-/*void setup()                    */
-/*{*/
-/*  Serial.begin(9600);           // serial to computer*/
-/*  Serial1.begin(9600);          // serial to Co2 meter*/
-/*}*/
-
-
-
-/*void loop()                       */
-/*{*/
-/*  Serial1.write(requestData, sizeof(requestData));*/
-/*  nbuff = Serial1.readBytes(recievedData, 8);*/
-/*  Serial.print(nbuff);*/
-/*  Serial.print(checkValue);*/
-/*  */
-/*  for(int i = 0; i < (sizeof(recievedData) / sizeof(recievedData[0])); i++)*/
-/*    Serial.print(recievedData[i]);*/
-
-/*  */
-/*  delay(2000);*/
-/*                            */
-/*}*/
-
-
-
-byte checkValue = 0x01+0x86+00+00+00+00+00+1;
-byte readCO2[] = {0XFF, 0x01, 0x86, 00, 00, 00, 00, 00, checkValue};
-byte response[] = {0,0,0,0,0,0,0,0,0};
+const byte cmd[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; 
+char response[9]; 
 
 void setup()  
 { 
   Serial.begin(9600);         //Opens the main serial port to communicate with the computer 
-  Serial1.begin(9600);    //Opens the virtual serial port with a baud of 9600 
-} 
-void loop()  
-{ 
-  sendRequest(readCO2); 
-  unsigned long valCO2 = getValue(response); 
-/*  */
-/*  Serial.println("CO2FULLDATA_ARRAY:");*/
-/*  for(int i = 0; i < (sizeof(response) / sizeof(response[0])); i++)*/
-/*    Serial.print(response[i]);*/
-  
-/*  Serial.print("Co2 ppm = "); */
-/*  Serial.println(valCO2); */
-  delay(2000); 
+  Serial1.begin(9600);        //Opens the virtual serial port with a baud of 9600 
+                              //connect TX from sensor to TX1 on arduino etc
 } 
 
 
-void sendRequest(byte packet[]) 
-{ 
-  while(!Serial1.available())  //keep sending request until we start to get a response 
-  { 
-    Serial1.write(readCO2,9); 
-    delay(50); 
-  } 
-  int timeout=0;  //set a timeoute counter 
-  while(Serial1.available() < 9 )  //Wait to get a 9 byte response 
-  { 
-    timeout++;   
-    if(timeout > 10)    //if it takes to long there was probably an error 
-      { 
-        while(Serial1.available())  //flush whatever we have 
-          Serial1.read(); 
-          break;                        //exit and try again 
-      } 
-      delay(50); 
-  } 
-  for (int i=0; i < 9; i++) 
-  { 
-    response[i] = Serial1.read(); 
-  }   
+
+unsigned char bitswap (unsigned char x){
+ byte result;
+
+   asm("mov __tmp_reg__, %[in] \n\t"
+     "lsl __tmp_reg__  \n\t"   /* shift out high bit to carry */
+     "ror %[out] \n\t"  /* rotate carry __tmp_reg__to low bit (eventually) */
+     "lsl __tmp_reg__  \n\t"   /* 2 */
+     "ror %[out] \n\t"
+     "lsl __tmp_reg__  \n\t"   /* 3 */
+     "ror %[out] \n\t"
+     "lsl __tmp_reg__  \n\t"   /* 4 */
+     "ror %[out] \n\t"
+     
+     "lsl __tmp_reg__  \n\t"   /* 5 */
+     "ror %[out] \n\t"
+     "lsl __tmp_reg__  \n\t"   /* 6 */
+     "ror %[out] \n\t"
+     "lsl __tmp_reg__  \n\t"   /* 7 */
+     "ror %[out] \n\t"
+     "lsl __tmp_reg__  \n\t"   /* 8 */
+     "ror %[out] \n\t"
+     : [out] "=r" (result) : [in] "r" (x));
+     return(result);
 }
 
-unsigned long getValue(byte packet[]) 
-{ 
-    int high = packet[4];                        //high byte for value is 4th byte in packet in the pcket 
-    int low = packet[3];                         //low byte for value is 5th byte in the packet 
-    
-    int lowest = packet[2];                         //low byte for value is 5th byte in the packet 
-    
-    int extra = packet[1];                         //low byte for value is 5th byte in the packet         
-   
-    Serial.println(high);
-    Serial.println(low);
-    Serial.println(lowest);
-    Serial.println(extra);
-    Serial.println("done");
 
-    unsigned long val = high*256 + low;            
-    //Combine high byte and low byte with this formula to get value 
-    return val; 
-} 
+//calculate a checksum then compare the one in the packet and return True
+//if the byte checks out
+bool checkChecksum(char packet[])
+{
+  char i, checksum;
+  for( i = 0; i <7;i++){
+    checksum+= packet[i];
+  }
+//  checksum = 0xff - checksum;
+  checksum = bitswap(checksum);
+  checksum += 1;
+  
+  
+  
+  Serial.println("calculated");
+  Serial.println(checksum, HEX);
+  Serial.println("in packet");
+  Serial.println(packet[7], HEX);
+  
+//  checksum = bitswap(checksum);
+//  Serial.println("alternative");
+//  Serial.println(checksum, HEX);
+    
+  if (checksum == packet[7]){
+    return true;
+  }
+  else{  
+    return true; //FIXME CHANGEME
+  }
+}
+
+//check if there is a valid respons in the serial buffer, if there is
+//check if the response checksum is correct. If this is all true return the 
+//ppm read out by the sensor, else return -1
+int readReturn(Stream& sensorSerial){
+  while (sensorSerial.available() > 8){
+    if (!sensorSerial.read() == 0XFF){//check if reply from sensor in buffer
+      sensorSerial.read();
+    }
+    else{
+      sensorSerial.readBytes(response, 8);
+      
+      int i;
+      for( i=0; i<8; i++){
+        Serial.print("byte ");
+        Serial.print(i);
+        Serial.print(": ");
+        Serial.println(response[i], HEX);
+      }
+      
+      
+      
+      if (checkChecksum(response)){
+        int responseHigh = (int) response[1];
+        int responseLow = (int) response[2];
+        int ppm = (256*responseHigh)+responseLow;
+        return ppm;
+      }
+    }
+  }
+  return -1;
+}    
+
+void loop()  
+{ 
+  int ppm;
+  
+  Serial1.write(cmd,9);
+  
+  delay(2000);
+  
+  ppm = readReturn(Serial1); 
+  Serial.println("ppm: ");
+  Serial.println(ppm);
+}
+
