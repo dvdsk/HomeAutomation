@@ -19,23 +19,18 @@ const int debugSpeed = 0; //time between reading and reply-ing used for debug
 const int resetSpeed = 1000; //time for the connection to reset
 const int calibrationTime = 2000; //setup wait period
 
+const byte REQUESTCO2[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; 
 
-float temp_c;
-float humidity;
-int light;
 int buffer[3];
 int bufferLen = 0;
 int lightCounter = 0;
 int accCounter = 0;
 int accPeriod = 500;
-uint8_t buf[RH_NRF24_MAX_MESSAGE_LEN];
-uint8_t len = sizeof(buf);
 
 
 //runs constructor to make opjebt test of class tempHumid from humiditySensor.h
 TempHumid thSen (term_dataPin, term_clockPin);
 Accelerometer acSen;
-RH_NRF24 nrf24(8,53);//8 and 53 constructor for the arduino mega
 
 void readAcc(){
   acSen.readOut();
@@ -55,18 +50,12 @@ void readPIR(){
   Serial.print("\n");
   }
 
-void readRemote(){
-  //send the request for reading data from remote sensor, recovery of awnser
-  //is done in the default loop. later this will be an int funct where the
-  //number corrosponds to a case switch on the remote station
-  uint8_t data[] = "0";
-  nrf24.send(data, sizeof(data));
-  Serial.print("send request to sensor node\n");
-}
 
 void readLight(){
   //read light sensor (anolog) and return over serial, this happens many times
   //a second
+  int light;
+  
   light = analogRead(light_signal);    // read the input pin
   Serial.print("l");//r to signal this is specially requested data
   Serial.print(light);
@@ -76,6 +65,9 @@ void readLight(){
 void readTemp(){
   // Read values from the sensor, this function has a long sleep, we pass
   // funtions to it we want it to run to fill this sleep
+  int temp_c;
+  int humidity;
+  
   temp_c = thSen.readTemperatureC(readPIR,readLight,readAcc );
   humidity = thSen.readHumidity(temp_c, readPIR,readLight,readAcc );
   
@@ -88,12 +80,47 @@ void readTemp(){
   Serial.print("\n");
   }
 
+int readCO2(Stream& sensorSerial){
+  //reads awnser from Co2 sensor that resides in the hardware serial buffer
+  //this can be called some time after reqeusting the data thus it is not 
+  //needed to wait for a reply after the request, Will also not 
+  //block if no reply present but return -1 instead
+
+  char response[9]; //FIXME why not byte?
+  int responseHigh;
+  int responseLow;
+  int ppm;
+  
+  while (sensorSerial.available() > 8){
+    if (!sensorSerial.read() == 0XFF){//check if reply from sensor in buffer
+      sensorSerial.read();
+    }
+    else{
+      sensorSerial.readBytes(response, 8);
+
+      responseHigh = (int) response[1];
+      responseLow = (int) response[2];
+      ppm = (256*responseHigh)+responseLow;
+      return ppm;
+    }
+  }
+  return -1;
+}    
+
 void readRoomSensors(){
   // Read temperature, humidity and light sensors and return there values over
   // serial
+  int ppmCO2;
+  int light;
+  float humidity;
+  float temp_c;
+  
+  
+  Serial1.write(REQUESTCO2,9);// request the CO2 sensor to do a reading
   temp_c = thSen.readTemperatureC(readPIR,readLight,readAcc );
   humidity = thSen.readHumidity(temp_c, readPIR,readLight,readAcc );
   light = analogRead(light_signal);    // read the input pin
+  ppmCO2 = readCO2(Serial1);// retrieve the reading from the CO2 sensor
 
   Serial.print("t");
   Serial.print(temp_c);
@@ -101,6 +128,8 @@ void readRoomSensors(){
   Serial.print(humidity);
   Serial.print("l");  
   Serial.print(light);
+  Serial.print("c");  
+  Serial.print(ppmCO2);
   Serial.print("\n");
   }
 
@@ -109,20 +138,13 @@ void readRoomSensors(){
 
 void setup()
 { 
-   Serial.begin(115200); // Open serial connection to report values to host
+   Serial.begin(115200); //Open serial connection to report values to host
+   Serial1.begin(9600);  //Opens the second serial port with a baud of 9600 
+                         //connect TX from MH Co2 sensor to TX1 on arduino etc
    
    //initialising and calibrating accelerometer
    acSen.setup();
-   
-   //initialise wireless communication net
-     if (!nrf24.init())
-    Serial.println("init failed");
-    // Defaults after init are 2.402 GHz (channel 2), 2Mbps, 0dBm
-    if (!nrf24.setChannel(1))
-      Serial.println("setChannel failed");
-    if (!nrf24.setRF(RH_NRF24::DataRate2Mbps, RH_NRF24::TransmitPower0dBm))
-      Serial.println("setRF failed");
-   
+      
    //give the pir sensor some time to calibrate
    delay(calibrationTime);
    Serial.println("setup done, starting response loop");
@@ -131,65 +153,54 @@ void setup()
 
 void loop(){
   // serial read section
-//  while (Serial.available()){ // this will be skipped if no data present, leading to
-//                              // the code sitting in the delay function below
-//    delay(readSpeed);  //delay to allow buffer to fill 
-//    if (Serial.available() >0)
-//    {
-//      int c = Serial.read(); //gets one byte from serial buffer
-//      if (c == 99){
-//        break;
-//      }
-//      buffer[bufferLen] = c;
-//      bufferLen++;
-//    }
-//  }
+  while (Serial.available()){ // this will be skipped if no data present, leading to
+                              // the code sitting in the delay function below
+    delay(readSpeed);  //delay to allow buffer to fill 
+    if (Serial.available() >0)
+    {
+      int c = Serial.read(); //gets one byte from serial buffer
+      if (c == 99){
+        break;
+      }
+      buffer[bufferLen] = c;
+      bufferLen++;
+    }
+  }
 
-//  if (bufferLen >0) {
-//    switch(buffer[0]) {
-//      case 48:
-//        switch(buffer[1]){
-//          case 48: //acii 0
-//            readRoomSensors();
-//            break;
-//          case 49: //acii 1
-//            readTemp();            
-//            break;
-//          case 50: //acii 2
-//            accPeriod = 10;       
-//            break;
-//          case 51: //acii 3
-//            accPeriod = 500;               
-//            break;
-//          case 52: //acii 4
-//            readRemote();               
-//            break;
-//          default:
-//            Serial.print("error not a sensor\n");
-//            break;
-//        }//switch
-//        break;
-//      case 49:
-//        Serial.print("doing motor shit\n");   
-//        break;   
-//      default:
-//        Serial.print("error not a sensor/motor command\n");
-//        break;
-//    }    
-//  }//if
+  if (bufferLen >0) {
+    switch(buffer[0]) {
+      case 48:
+        switch(buffer[1]){
+          case 48: //acii 0
+            readRoomSensors();
+            break;
+          case 49: //acii 1
+            readTemp();            
+            break;
+          case 50: //acii 2
+            accPeriod = 10;       
+            break;
+          case 51: //acii 3
+            accPeriod = 500;               
+            break;
+          case 52: //acii 4               
+            break;
+          default:
+            Serial.print("error not a sensor\n");
+            break;
+        }//switch
+        break;
+      case 49:
+        Serial.print("doing motor shit\n");   
+        break;   
+      default:
+        Serial.print("error not a sensor/motor command\n");
+        break;
+    }    
+  }//if
 
   bufferLen = 0;//empty the string*/
 //  readPIR(); TODO Re-enable after new features complete
-
-  readRemote();
-
-  //if anything is recieved through the wireless network forward it over serial
-  //to python for processing
-  if (nrf24.recv(buf, &len))
-  {
-    Serial.print("got wireless: ");
-    Serial.println(buf[0]);
-  }
 
 
   if (lightCounter > 10) {
