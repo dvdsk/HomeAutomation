@@ -25,7 +25,7 @@ int buffer[3];
 int bufferLen = 0;
 int lightCounter = 0;
 int accCounter = 0;
-int accPeriod = 500;
+int accPeriod = 5;
 
 
 //runs constructor to make opjebt test of class tempHumid from humiditySensor.h
@@ -180,10 +180,10 @@ void loop(){
             readTemp();            
             break;
           case 50: //acii 2
-            accPeriod = 10;       
+            accPeriod = 1;       
             break;
           case 51: //acii 3
-            accPeriod = 500;               
+            accPeriod = 5;               
             break;
           case 52: //acii 4               
             break;
@@ -202,16 +202,16 @@ void loop(){
   }//if
 
   bufferLen = 0;//empty the string*/
-//  readPIR(); TODO Re-enable after new features complete
+  readPIR(); //TODO Re-enable after new features complete
 
 
   if (lightCounter > 10) {
-//    readLight(); TODO Re-enable after new features complete  
+    readLight(); //TODO Re-enable after new features complete  
     lightCounter = 0;
     }
   if (accCounter > accPeriod) {
     accCounter = 0;
-//    acSen.readOut(); TODO Re-enable after new features complete
+    acSen.readOut(); //TODO Re-enable after new features complete
     }
     
   lightCounter++;
