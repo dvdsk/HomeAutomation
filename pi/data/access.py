@@ -12,9 +12,9 @@ import threading
 #TODO reads and stores data to disk when needed
 def init():
     def loadFromDisk(varName, default):
-        print('loading:', '/home/pi/bin/homeAutomation/data/'+varName+'.json')
-        if os.path.isfile('/home/pi/bin/homeAutomation/data/'+varName+'.json'):   
-            with open('/home/pi/bin/homeAutomation/data/'+str(varName)+'.json', 'r') as readfile:
+        print('loading:', '/home/pi/HomeAutomation/pi/data/'+varName+'.json')
+        if os.path.isfile('/home/pi/HomeAutomation/pi/data/'+varName+'.json'):   
+            with open('/home/pi/HomeAutomation/pi/data/'+str(varName)+'.json', 'r') as readfile:
                 var = json.load(readfile)
         else:
             var = default
@@ -37,7 +37,7 @@ def init():
     return
 
 def writeToFile(varName, data):
-    with open('/home/pi/bin/homeAutomation/data/'+str(varName)+'.json', 'w') as writefile:
+    with open('/home/pi/HomeAutomation/pi/data/'+str(varName)+'.json', 'w') as writefile:
         json.dump(data, writefile)
 
 #DATA THAT NEED SAVING

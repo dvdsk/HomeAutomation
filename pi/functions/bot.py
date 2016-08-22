@@ -784,8 +784,8 @@ def graph(message, resourceLocks, analysisRq):
                    "/sendPhoto", params=botmessage, files={'photo': open('/home/pi/bin/homeAutomation/data/graph.png', 'rb')})
         return
     
-    plotOptions = ['time','temperature','humidity','light']
-    histOptions = ['temperature','humidity','light']
+    plotOptions = ['time','temperature','humidity','light','co2']
+    histOptions = ['temperature','humidity','light','co2']
     typePlotOpt = ['line','scatter']
     
     typePlot = None
@@ -793,7 +793,6 @@ def graph(message, resourceLocks, analysisRq):
     if 'type' in string:
         string, typePlot = string.split("type=", 2)
         typePlot = typePlot
-    
     
     try: #use try except to check if correct format is adhered to
         toGraph, times = string.split(" last ", 2)
@@ -818,14 +817,19 @@ def graph(message, resourceLocks, analysisRq):
         #get things to graph
         x, y = toGraph.split(" vs ", 2)
         if ',' in y and 'and' in y:
-            yList, rest = y.split(", ")
-            yList = [yList]
-            yList = yList + (rest.split(" and ") )
+            ysplitted = y.split(", ")
+            
+            yList = [ysplitted[0] ]
+            idx = 1
+            while "and" not in ysplitted[idx]:
+                yList.append(ysplitted[idx])
+                idx += 1
+                        
+            yList = yList + (ysplitted[idx].split(" and ") )
         elif ',' in toGraph:
             yList = y.split(", ")
         else:
             yList = y.split(" and ")
-
         
     except Exception as e:
         error()

@@ -20,7 +20,6 @@ import scenes
 
 import startTasks
 
-import bluetoothWatch
 import httpResponder
 import telegramBot
 import status

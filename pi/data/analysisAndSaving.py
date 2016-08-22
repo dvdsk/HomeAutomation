@@ -26,8 +26,8 @@ sns.set_context("paper",font_scale=0.9)
 #
 
 
-bufferSize = 5 #default non debugging size= 100
-hdf5_path = '/home/pi/bin/homeAutomation/data/sensors.hdf5'
+bufferSize = 2 #default non debugging size= 100
+hdf5_path = '/home/pi/HomeAutomation/pi/data/sensors.hdf5'
 
 def init():
     sensorGet = multiprocessing.Queue(maxsize=0)
@@ -46,7 +46,7 @@ def init():
             temperature100= tables.Int16Col(dflt=-40, pos = 1)
             humidity100= tables.Int16Col(dflt=-40, pos = 2)
             light= tables.Int16Col(dflt=-40, pos = 3)
-            co2ppm= tables.Int16Col(dflt=-40, pos = 4)
+            co2= tables.Int16Col(dflt=-40, pos = 4)
 
         class soilSensing(tables.IsDescription):
             time =           tables.UInt32Col(dflt = 0, pos = 0) # need long to fit time
@@ -71,19 +71,6 @@ def init():
         tab1.flush()
         tab2.flush()
         fileh.close()
-    else:
-#        fileh = tables.openFile(hdf5_path, mode = "a")
-#        table = fileh.root.tempHumidBright
-#        table.remove_row(1700)
-#        fileh.close()
-
-#        #find and print bad values
-#        fileh = tables.openFile(hdf5_path, mode = "r")
-#        table = fileh.root.tempHumidBright
-#        data = table.read_where("""(temperature100 == 0)""") #returns as 1d alas
-#        fileh.close()
-#        print(data)
-        pass
     return sensorGet, sensorGetBack, analysisRq
 
 
@@ -104,7 +91,7 @@ def analyseSensorData(analysisRq, resourceLocks):
         
         resourceLocks['sensorDb'].acquire(blocking=True, timeout = 10)
         fileh = tables.openFile(hdf5_path, mode = "r")
-        table = fileh.root.tempHumidBright
+        table = fileh.root.tempHumidBrightCo2
         data = table.read_where("""(time > t1) & (time < t2)""") #returns as 1d alas
         fileh.close()
         resourceLocks['sensorDb'].release()
@@ -225,7 +212,8 @@ def analyseSensorData(analysisRq, resourceLocks):
         #units translation dict 
         units = {'temperature': ' (°C)',
                  'humidity': ' (%)',
-                 'light': ''}
+                 'light': '',
+                 'co2': ' (ppm)'}
                  #for time we do complicated shit(no more, its wip)
         
         #'''plot the data:'''###########################################
@@ -348,7 +336,7 @@ def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks):
                              ('temperature100','i2'), 
                              ('humidity100','i2'), 
                              ('light','i2'),
-                             ('co2ppm','i2')])    
+                             ('co2','i2')])    
     rowCounter = 0
 
     #awnser code human readable to machine
@@ -402,4 +390,4 @@ def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks):
                                      ('temperature100','i2'), 
                                      ('humidity100','i2'), 
                                      ('light','i2'),
-                                     ('co2ppm','i2')])       
+                                     ('co2','i2')])       
