@@ -39,6 +39,18 @@ Thumbs.db
 # Gedit backups #
 #####################
 *~
+
 # Home made backups #
 #####################
 *.bak
+
+# Other files #
+#####################
+build-mega2560
+config.py
+sensorConfig.py
+*.hdf5
+*.json
+*.key
+*.pem
+

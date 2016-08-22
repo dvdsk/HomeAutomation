@@ -5,7 +5,7 @@ import time
 import queue
 import threading
 
-boudrate = 9600
+boudrate = 115200
 devicePort = '/dev/ttyUSB0'
 
 def init():
@@ -188,13 +188,13 @@ def queueput(extraSensorTask):
     return    
 
 #timeSHT(extraSensorTask)
-timeACC(extraSensorTask)
+#timeACC(extraSensorTask)
 
 
 t = threading.Thread(target = read, 
                      args   = (extraSensorTask,))
 t.start()
-#extraSensorTask.put(b'02')
+extraSensorTask.put(b'02')
 queueput(extraSensorTask)
 
 

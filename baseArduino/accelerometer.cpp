@@ -170,8 +170,8 @@ void Accelerometer::setup()
   int error;
   uint8_t c;
 
-  Serial.println("Freescale MMA7455 accelerometer");
-  Serial.println("May 2012");
+  Serial.print("Freescale MMA7455 accelerometer");
+  Serial.print("May 2012");
 
   // Initialize the 'Wire' class for I2C-bus communication.
   Wire.begin();
@@ -179,25 +179,25 @@ void Accelerometer::setup()
   // Initialize the MMA7455, and set the offset.
   error = MMA7455_init();
   if (error == 0)
-    Serial.println("The MMA7455 is okay");
+    Serial.print("The MMA7455 is okay");
   else
-    Serial.println("Check your wiring !");
+    Serial.print("Check your wiring !");
 
 
   // Read the Status Register
   MMA7455_read(MMA7455_STATUS, &c, 1);
   Serial.print("STATUS : ");
-  Serial.println(c,HEX);
+  Serial.print(c,HEX);
 
   // Read the "Who am I" value
   MMA7455_read(MMA7455_WHOAMI, &c, 1);
   Serial.print("WHOAMI : ");
-  Serial.println(c,HEX);
+  Serial.print(c,HEX);
 
   // Read the optional temperature output value (I always read zero)
   MMA7455_read(MMA7455_TOUT, &c, 1);
   Serial.print("TOUT : ");
-  Serial.println(c,DEC);
+  Serial.print(c,DEC);
 }
 
 
