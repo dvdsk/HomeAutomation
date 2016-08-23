@@ -16,7 +16,7 @@ const int light_signal = 0; //anolog
 // script setup parameters
 const int readSpeed = 1; //time between reading individual chars
 const int debugSpeed = 0; //time between reading and reply-ing used for debug
-const int resetSpeed = 1000; //time for the connection to reset
+const int resetSpeed = 0; //time for the connection to reset
 const int calibrationTime = 2000; //setup wait period
 
 const byte REQUESTCO2[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; 
@@ -25,7 +25,7 @@ int buffer[3];
 int bufferLen = 0;
 int lightCounter = 0;
 int accCounter = 0;
-int accPeriod = 5;
+int accPeriod = 200;
 
 
 //runs constructor to make opjebt test of class tempHumid from humiditySensor.h
@@ -182,10 +182,10 @@ void loop(){
             readTemp();            
             break;
           case 50: //acii 2
-            accPeriod = 1;  //fast polling    
+/*            accPeriod = 1;  //fast polling    */
             break;
           case 51: //acii 3
-            accPeriod = 5;  //slow polling             
+/*            accPeriod = 20;  //slow polling             */
             break;
           case 52: //acii 4               
             break;

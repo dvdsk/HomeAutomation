@@ -26,7 +26,7 @@ sns.set_context("paper",font_scale=0.9)
 #
 
 accTolerance = 0.1
-bufferSize = 2 #default non debugging size= 100
+bufferSize = 10 #default non debugging size= 100
 bufferSize2 = bufferSize*1 #non debugging *100
 hdf5_path = '/home/pi/HomeAutomation/pi/data/sensors.hdf5'
 
@@ -62,7 +62,7 @@ def init():
             #using custom time data type that takes 30 bit in stead of a long long (64 bit)
             #but still gives the minimum accuracy for fourier transform etc
             time_sec = tables.UInt32Col(dflt = 0, pos = 0)#saves seconds
-            time_10millisec = tables.UInt8Col(dflt = 0, pos = 1)#saves 10*millisconds    
+            time_10millisec = tables.UInt32Col(dflt = 0, pos = 1)#saves 10*millisconds    
             accelerometerX1000 = tables.Int16Col(dflt = -32765, pos = 2)
             accelerometerY1000 = tables.Int16Col(dflt = -32765, pos = 3) 
             accelerometerZ1000 = tables.Int16Col(dflt = -32765, pos = 4) 
@@ -80,7 +80,7 @@ def init():
         tab2 = fileh.create_table(fileh.root, 'plantMoisture', soilSensing, 
                                   "Moisture sensors data", expectedrows = expected2)
         expected3 = expected1*5*60*4 #four times per second
-        tab3 = fileh.create_table(fileh.root, 'accDataArray', sleepSensing, 
+        tab3 = fileh.create_table(fileh.root, 'accelerometer', sleepSensing, 
                                   "accelerometer values, the colums are x, y "+
                                   "and z. exept for the first 2 colums these "+
                                   "are the time and the number of milliseconds"+
@@ -288,7 +288,7 @@ def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks):
 
     global accDataArray 
     accDataArray = np.full(bufferSize2, 0, dtype=[('time_sec','u4'), 
-                             ('time_10millisec','u1'), #in deca milliseconds?
+                             ('time_10millisec','u4'), #in deca milliseconds?
                              ('accelerometerX1000','i2'), 
                              ('accelerometerY1000','i2'), 
                              ('accelerometerZ1000','i2')])                               
@@ -311,7 +311,6 @@ def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks):
     x1, y1, z1 = 0, 0, 1
     while True:
         raw = sensorData.get()
-        print(raw)
         #manage requests
         if not sensorGet.empty():
             request = sensorGet.get() #hier zit altijd maar 1 ding in thus
@@ -333,7 +332,7 @@ def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks):
             sensorDataArray[rowCounter1][3] = 1023-int(raw[l+1:c] )
             sensorDataArray[rowCounter1][4] = float(raw[c+1:-1] ) #co2ppm     
 
-            sensorDataArray[rowCounter1][0] = time.time() #last filled as we use this != 0 to 
+            sensorDataArray[rowCounter1][0] = int(time.time()) #last filled as we use this != 0 to 
                                                #check if there are values in the sensorarray
             rowCounter1 += 1 
         
@@ -341,8 +340,7 @@ def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks):
             raw = raw.decode()            
             x, y, z = raw[1:].split(",")
             x, y, z = float(x), float(y), float(z)
-            
-            
+                      
             #check if fast polling is no longer needed
             if abs((x+y+z)/(x1+y1+z1) -1) > accTolerance:
                 accUnstable += 1
@@ -351,9 +349,11 @@ def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks):
             
             if accUnstable > 10 and slowPolling:
                 sensorRequest.put(b'02') #switch to fast polling
+                print("switched to fast polling")
                 slowPolling = False
             elif accUnstable < 10 and not slowPolling:
                 sensorRequest.put(b'03') #switch to slow polling
+                print("switched to slow polling")
                 slowPolling = True                
             
             accDataArray[rowCounter2][2] = int(x*1000)
@@ -371,7 +371,7 @@ def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks):
         #if we have quite some data in memory, write it to disk
         if rowCounter1 == bufferSize:
             rowCounter1 = 0
-            resourceLocks['sensorDb'].acquire(blocking=True, timeout = 10)
+            resourceLocks['sensorDb'].acquire(blocking=True, timeout = 0)
             fileh = tables.openFile(hdf5_path, mode = "a")
             tab = fileh.root.tempHumidBrightCo2
             tab.append(sensorDataArray)
@@ -385,14 +385,14 @@ def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks):
                                      
         if rowCounter2 == bufferSize2:
             rowCounter2 = 0
-            resourceLocks['sensorDb'].acquire(blocking=True, timeout = 10)
-            fileh = tables.openFile(hdf5_path, mode = "a")
-            tab = fileh.root.accDataArray
+            resourceLocks['sensorDb'].acquire(blocking=True, timeout = 0)
+            fileh = tables.openFile(hdf5_path, mode = "a") #make with statment #TODO
+            tab = fileh.root.accelerometer
             tab.append(accDataArray)
             fileh.close()
             resourceLocks['sensorDb'].release()
-            sensorDataArray = np.full(bufferSize*100, 0, dtype=[('time_sec','u4'), 
-                             ('time_10millisec','u1'), #in deca milliseconds?
+            accDataArray = np.full(bufferSize2, 0, dtype=[('time_sec','u4'), 
+                             ('time_10millisec','u4'), #in deca milliseconds?
                              ('accelerometerX1000','i2'), 
                              ('accelerometerY1000','i2'), 
                              ('accelerometerZ1000','i2')])  
