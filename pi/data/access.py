@@ -40,18 +40,17 @@ def writeToFile(varName, data):
     with open('/home/pi/HomeAutomation/pi/data/'+str(varName)+'.json', 'w') as writefile:
         json.dump(data, writefile)
 
-#DATA THAT NEED SAVING
-def sensorDbPut():
-    
-    dataCounter = 0
-    dataArray = np.full((100,3))
-    
-    
-    return dataFromDb
+#DATA THAT NEED SAVING #commented to check if used #TODO remove from file 
+#def sensorDbPut():
+#    
+#    dataCounter = 0
+#    dataArray = np.full((100,3))
+#    
+#    return dataFromDb
 
-def sensorDbGetLine():
-    
-    return dataFromDb
+#def sensorDbGetLine():
+#    
+#    return dataFromDb
     
 
 def getNewData(resourceLocks, dataNeeded, sensorGet, sensorGetBack, sensorRequest):
@@ -72,7 +71,8 @@ def getNewData(resourceLocks, dataNeeded, sensorGet, sensorGetBack, sensorReques
     
     raw = raw[1::]
     if b"t" in raw:
-        T = raw[1:6].decode() #temp
+        h = raw.index('h')#TODO CHECK THE FORMAT FOR THIS #TODO NO RATHER JUST GET IT FROM DB 
+        T = raw[1:h].decode() #temp #TODO WITH WARNING IF DATA TOO OLD #KEEP THE FUNC FOR PLANT
         H = raw[7:12].decode()#humidity
         return T, H
     elif 'yolo' in raw:
@@ -81,7 +81,6 @@ def getNewData(resourceLocks, dataNeeded, sensorGet, sensorGetBack, sensorReques
 
 
 #VARS THAT NEED SAVING
-
 """codes"""
 def getCodes():
     global codes

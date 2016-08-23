@@ -25,8 +25,9 @@ sns.set_context("paper",font_scale=0.9)
 #process or thread
 #
 
-
+accTolerance = 0.1
 bufferSize = 2 #default non debugging size= 100
+bufferSize2 = bufferSize*1 #non debugging *100
 hdf5_path = '/home/pi/HomeAutomation/pi/data/sensors.hdf5'
 
 def init():
@@ -51,11 +52,21 @@ def init():
         class soilSensing(tables.IsDescription):
             time =           tables.UInt32Col(dflt = 0, pos = 0) # need long to fit time
             soil_moisture1 = tables.Float16Col(dflt=-40, pos = 1) # small float
-            soil_moisture2 = tables.Float16Col(dflt=-40, pos = 1) # small float
-            soil_moisture3 = tables.Float16Col(dflt=-40, pos = 1) # small float
-            soil_moisture4 = tables.Float16Col(dflt=-40, pos = 1) # small float
-            soil_moisture5 = tables.Float16Col(dflt=-40, pos = 1) # small float
-            soil_moisture6 = tables.Float16Col(dflt=-40, pos = 1) # small float
+            soil_moisture2 = tables.Float16Col(dflt=-40, pos = 2) # small float
+            soil_moisture3 = tables.Float16Col(dflt=-40, pos = 3) # small float
+            soil_moisture4 = tables.Float16Col(dflt=-40, pos = 4) # small float
+            soil_moisture5 = tables.Float16Col(dflt=-40, pos = 5) # small float
+            soil_moisture6 = tables.Float16Col(dflt=-40, pos = 6) # small float
+
+        class sleepSensing(tables.IsDescription):
+            #using custom time data type that takes 30 bit in stead of a long long (64 bit)
+            #but still gives the minimum accuracy for fourier transform etc
+            time_sec = tables.UInt32Col(dflt = 0, pos = 0)#saves seconds
+            time_10millisec = tables.UInt8Col(dflt = 0, pos = 1)#saves 10*millisconds    
+            accelerometerX1000 = tables.Int16Col(dflt = -32765, pos = 2)
+            accelerometerY1000 = tables.Int16Col(dflt = -32765, pos = 3) 
+            accelerometerZ1000 = tables.Int16Col(dflt = -32765, pos = 4) 
+         
         
         # Open a file in "w"rite mode
         fileh = tables.open_file(hdf5_path, mode = "w")
@@ -68,9 +79,17 @@ def init():
         expected2 = 365*24
         tab2 = fileh.create_table(fileh.root, 'plantMoisture', soilSensing, 
                                   "Moisture sensors data", expectedrows = expected2)
+        expected3 = expected1*5*60*4 #four times per second
+        tab3 = fileh.create_table(fileh.root, 'accDataArray', sleepSensing, 
+                                  "accelerometer values, the colums are x, y "+
+                                  "and z. exept for the first 2 colums these "+
+                                  "are the time and the number of milliseconds"+
+                                  "times 10", expectedrows = expected3)
         tab1.flush()
         tab2.flush()
+        tab3.flush()
         fileh.close()
+    
     return sensorGet, sensorGetBack, analysisRq
 
 
@@ -104,65 +123,7 @@ def analyseSensorData(analysisRq, resourceLocks):
         
         totData = np.concatenate((data,lastComplyingData), axis=0)
 
-        return totData
-    
-    def formatTime(ax, t1, t2, X):#TODO not used atm
-    #   take the time unit and axis and return axis setup for time viewing              
-        minorF = False
-
-        deltaT = t2-t1
-        print(deltaT)
-        if deltaT < 60*60:
-            #min+sec notation
-            minuteFraction = 60/(deltaT/60)
-            mj = matplotlib.dates.MinuteLocator(interval=int(10/minuteFraction))
-            fmj = '%S'#formatting major ticks
-            mn = matplotlib.dates.SecondLocator(interval=15)
-            fmn = '%M'#formatting minor ticks
-            label = "Minutes and Seconds"
-        
-        elif deltaT < 3600*24:
-            #hour+minutes
-            houreFraction = 24/(deltaT/3600)
-            mj = matplotlib.dates.HourLocator(interval=int(4/houreFraction))
-            fmj = '%H'
-            if deltaT < 3600*5:
-                minorF = True
-                mn = matplotlib.dates.MinuteLocator(interval=15)
-                fmn = '%M'
-                label = "Hours and Minutes"
-            else:
-                label = "Hours"
-            
-        elif deltaT < 3600*24*30:
-            #hours+days
-            dayFraction = 30/(deltaT/3600*24)
-            mj = matplotlib.dates.DayLocator(interval=int(5/dayFraction))
-            fmj = '%d'        
-            mn = matplotlib.dates.HourLocator(interval=4)
-            fmn = '%H'
-            label = "Day and Hour"
-        else :
-            dayFraction = 365/(deltaT/3600*24)
-            mj = matplotlib.dates.DayLocator(interval=int(5/dayFraction))
-            fmj = '%d-%m'
-            label = "Date"
-        
-        if X:
-            ax.xaxis.set_major_locator(mj)
-            ax.xaxis.set_major_formatter(matplotlib.dates.DateFormatter(fmj))
-            if minorF:
-                ax.xaxis.set_minor_locator(mn)
-                ax.xaxis.set_minor_formatter(matplotlib.dates.DateFormatter(fmn))
-        else:
-            ax.yaxis.set_major_locator(mj)
-            ax.yaxis.set_major_formatter(matplotlib.dates.DateFormatter(fmj))
-            if minorF:
-                ax.yaxis.set_minor_locator(mn)
-                ax.yaxis.set_minor_formatter(matplotlib.dates.DateFormatter(fmn))
-        
-        return ax, label
-        
+        return totData      
 
     while True:  
         x, yList, typePlot, t1, t2 = analysisRq.get()
@@ -212,7 +173,7 @@ def analyseSensorData(analysisRq, resourceLocks):
         #units translation dict 
         units = {'temperature': ' (°C)',
                  'humidity': ' (%)',
-                 'light': '',
+                 'light': ' (relative 0-1024)',
                  'co2': ' (ppm)'}
                  #for time we do complicated shit(no more, its wip)
         
@@ -232,13 +193,8 @@ def analyseSensorData(analysisRq, resourceLocks):
         plotAx = ax
         #setup axis
         if prevQuantity == 'time':
-#            plotAx, label = formatTime(plotAx, t1, t2, False)
             label = 'time'
         else:
-#            if prevQuantity == 'temperature':#TODO should not be nesescairy with the data
-#                plotAx.set_ylim(-5,40)
-#            elif prevQuantity == 'humidity':
-#                plotAx.set_ylim(0,100)
             label = yList[0]
             plotAx.set_ylabel(prevQuantity+units[prevQuantity])
         
@@ -256,19 +212,13 @@ def analyseSensorData(analysisRq, resourceLocks):
         #'''repeat for other lines/plots'''#
         for yData, label in zip(yDataList[1:], yList[1:]):   
             quantity = label.split(' ', 1)[0]
-            if quantity != prevQuantity: 
-            #   check if we need to go to the next axis
+            if quantity != prevQuantity: #check if we need a new axis
                 plotAx = ax.twinx()
                 axes.append(plotAx)
                 c=next(color)
                 if quantity == 'time':
                     label = 'time'
-#                    plotAx, label = formatTime(plotAx, t1, t2, False)
                 else:
-#                    if quantity == 'temperature':#TODO should not be nesescairy with the data
-#                        plotAx.set_ylim(-5,40)
-#                    elif quantity == 'humidity':
-#                        plotAx.set_ylim(0,100)
                     plotAx.set_ylabel(quantity+units[quantity])
                 prevQuantity = quantity
             else:
@@ -285,15 +235,14 @@ def analyseSensorData(analysisRq, resourceLocks):
         #move the axis so they dont overlap
         if len(axes) > 2:
             axes[2].spines["right"].set_position(("axes", 1.12))
-        if len(axes) > 3:#currently dont really use this
-            axes[3].spines["right"].set_position(("axes", 1.4))
+        if len(axes) > 3:
+            axes[3].spines["right"].set_position(("axes", 1.22))
+        #will need more axes setup when we get more exes then this
 
         #setup x-axis labels
         quantity = x.split(' ', 1)[0]
         if quantity == 'time':
-            fig.autofmt_xdate()
-#            axes[0], label = formatTime(axes[0], t1, t2, True)
-#            axes[0].set_xlabel(label)        
+            fig.autofmt_xdate()  
         else:
             ax.set_xlabel(quantity+'('+units[quantity]+')')
         
@@ -305,7 +254,6 @@ def analyseSensorData(analysisRq, resourceLocks):
                 for tl in ax.get_yticklabels():
                     tl.set_color(lc)
         
-#        ax.legend(lns, [l.get_label() for l in lns])#TODO FIX THIS
         plt.savefig('/home/pi/bin/homeAutomation/data/graph.png', dpi=300)
         analysisRq.put(True)
     return
@@ -331,13 +279,20 @@ def sensorSchedual(sensorRequest):
     
 def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks):
     global sensorDataArray 
-
     sensorDataArray = np.full(bufferSize, 0, dtype=[('time','u4'), 
                              ('temperature100','i2'), 
                              ('humidity100','i2'), 
                              ('light','i2'),
                              ('co2','i2')])    
-    rowCounter = 0
+    rowCounter1 = 0
+
+    global accDataArray 
+    accDataArray = np.full(bufferSize2, 0, dtype=[('time_sec','u4'), 
+                             ('time_10millisec','u1'), #in deca milliseconds?
+                             ('accelerometerX1000','i2'), 
+                             ('accelerometerY1000','i2'), 
+                             ('accelerometerZ1000','i2')])                               
+    rowCounter2 = 0
 
     #awnser code human readable to machine
     ACfromHR = {'temparature and humidity' :b'rt',#the r signals this is seperately requested data
@@ -346,12 +301,17 @@ def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks):
                                 #compare bytes with bytes
     request = 'None'
     
+    #graph thread started from here
     t = threading.Thread(target = analyseSensorData,
                           args   = (analysisRq, resourceLocks))
     t.start()
     
+    slowPolling = True
+    accUnstable = 0
+    x1, y1, z1 = 0, 0, 1
     while True:
         raw = sensorData.get()
+        print(raw)
         #manage requests
         if not sensorGet.empty():
             request = sensorGet.get() #hier zit altijd maar 1 ding in thus
@@ -363,23 +323,54 @@ def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks):
                                   #get really messy here (deal with it hard
                                   #coded somewhere else) 
                
-        if raw[0] == 116: #116 is ascii t
+        elif raw[0] == 116: #116 is ascii t
             raw = raw.decode()
             h = raw.index('h')
             l = raw.index('l')
             c = raw.index('c')
-            sensorDataArray[rowCounter][1] = float(raw[1:h] )*100#temp
-            sensorDataArray[rowCounter][2] = float(raw[h+1:l] )*100#humidity
-            sensorDataArray[rowCounter][3] = 1023-int(raw[l+1:c] )
-            sensorDataArray[rowCounter][4] = float(raw[c+1:-1] ) #co2ppm     
+            sensorDataArray[rowCounter1][1] = float(raw[1:h] )*100#temp
+            sensorDataArray[rowCounter1][2] = float(raw[h+1:l] )*100#humidity
+            sensorDataArray[rowCounter1][3] = 1023-int(raw[l+1:c] )
+            sensorDataArray[rowCounter1][4] = float(raw[c+1:-1] ) #co2ppm     
 
-            sensorDataArray[rowCounter][0] = time.time()#last filled as we use this != 0 to 
+            sensorDataArray[rowCounter1][0] = time.time() #last filled as we use this != 0 to 
                                                #check if there are values in the sensorarray
-            rowCounter += 1 
+            rowCounter1 += 1 
+        
+        elif raw[0] == 97:
+            raw = raw.decode()            
+            x, y, z = raw[1:].split(",")
+            x, y, z = float(x), float(y), float(z)
+            
+            
+            #check if fast polling is no longer needed
+            if abs((x+y+z)/(x1+y1+z1) -1) > accTolerance:
+                accUnstable += 1
+            else:
+                accUnstable -= 1
+            
+            if accUnstable > 10 and slowPolling:
+                sensorRequest.put(b'02') #switch to fast polling
+                slowPolling = False
+            elif accUnstable < 10 and not slowPolling:
+                sensorRequest.put(b'03') #switch to slow polling
+                slowPolling = True                
+            
+            accDataArray[rowCounter2][2] = int(x*1000)
+            accDataArray[rowCounter2][3] = int(y*1000)
+            accDataArray[rowCounter2][4] = int(z*1000 )           
+            
+            timesec = time.time()
+            millesec= int((timesec % 1)*100)
+            accDataArray[rowCounter2][0] = timesec   
+            accDataArray[rowCounter2][1] = millesec
+            
+            rowCounter2 += 1
+            x1, y1, z1 = x, y, z
         
         #if we have quite some data in memory, write it to disk
-        if rowCounter == bufferSize:
-            rowCounter = 0
+        if rowCounter1 == bufferSize:
+            rowCounter1 = 0
             resourceLocks['sensorDb'].acquire(blocking=True, timeout = 10)
             fileh = tables.openFile(hdf5_path, mode = "a")
             tab = fileh.root.tempHumidBrightCo2
@@ -390,4 +381,18 @@ def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks):
                                      ('temperature100','i2'), 
                                      ('humidity100','i2'), 
                                      ('light','i2'),
-                                     ('co2','i2')])       
+                                     ('co2','i2')])
+                                     
+        if rowCounter2 == bufferSize2:
+            rowCounter2 = 0
+            resourceLocks['sensorDb'].acquire(blocking=True, timeout = 10)
+            fileh = tables.openFile(hdf5_path, mode = "a")
+            tab = fileh.root.accDataArray
+            tab.append(accDataArray)
+            fileh.close()
+            resourceLocks['sensorDb'].release()
+            sensorDataArray = np.full(bufferSize*100, 0, dtype=[('time_sec','u4'), 
+                             ('time_10millisec','u1'), #in deca milliseconds?
+                             ('accelerometerX1000','i2'), 
+                             ('accelerometerY1000','i2'), 
+                             ('accelerometerZ1000','i2')])  

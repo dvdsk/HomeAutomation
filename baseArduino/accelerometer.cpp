@@ -223,6 +223,7 @@ void Accelerometer::readOut()
   }
   else
   {
+  Serial.print("a");
   Serial.print(dX, 3);
   Serial.print(",");
   Serial.print(dY, 3);

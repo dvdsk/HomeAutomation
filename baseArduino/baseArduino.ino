@@ -32,6 +32,7 @@ int accPeriod = 5;
 TempHumid thSen (term_dataPin, term_clockPin);
 Accelerometer acSen;
 
+//needed for passing function to a class, dont know why its needed though..
 void readAcc(){
   acSen.readOut();
 }
@@ -181,10 +182,10 @@ void loop(){
             readTemp();            
             break;
           case 50: //acii 2
-            accPeriod = 1;       
+            accPeriod = 1;  //fast polling    
             break;
           case 51: //acii 3
-            accPeriod = 5;               
+            accPeriod = 5;  //slow polling             
             break;
           case 52: //acii 4               
             break;
@@ -203,16 +204,16 @@ void loop(){
   }//if
 
   bufferLen = 0;//empty the string*/
-  readPIR(); //TODO Re-enable after new features complete
+  readPIR(); 
 
 
   if (lightCounter > 10) {
-    readLight(); //TODO Re-enable after new features complete  
+    readLight(); 
     lightCounter = 0;
     }
   if (accCounter > accPeriod) {
     accCounter = 0;
-    acSen.readOut(); //TODO Re-enable after new features complete
+    acSen.readOut();
     }
     
   lightCounter++;
