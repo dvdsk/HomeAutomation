@@ -39,7 +39,10 @@ def lampManager(lightSceneQueue, resourceLocks):
         next = lightSceneQueue.get()#blocking
         print('lampmanager got new function')
         newRdy.set()
-        prevDone.wait()
+        
+        prevDone.wait()#wait till the other thread signals its done
+        newRdy.clear()#clear the newrdy (thus stop now other thread) signal
+        prevDone.clear()
         
         #startScene
         t = threading.Thread(target = next, #advantage no need to pass arguments
@@ -73,7 +76,7 @@ def colorLoopScene(newRdy, prevDone, resourceLocks):
             b.set_light([1,2,3,4,5,6],command)
         
         if newRdy.wait(timeout=300): #if a new scene is waiting to start
-            newRdy.clear()           #return
+            newRdy.clear()           #return (used instead of sleep)
             prevDone.set()
             return
         
@@ -164,6 +167,25 @@ def randoms(newRdy, prevDone, resourceLocks):
                     return    
     colorLoopScene(newRdy, prevDone, resourceLocks)#default color loop shit             
 
+def wakeup(newRdy, prevDone, resourceLocks):
+    Time_ = int(config.wakeupPeriod*600)
+    
+    with resourceLocks['lamps']:
+        command = {'on' : True, 'bri': 0, 'ct': 500}
+        b.set_light([2,3,4,5,6], command)
+        command =  {'transitiontime' : Time_, 'on' : True, 'bri' : 255, 'ct' : 215}
+        b.set_light([2,3,4,5,6], command)
+
+    
+    if newRdy.wait(timeout=60*120): #if a new scene is waiting to start
+        newRdy.clear()              #return, 120 minutes allowes for an 
+        prevDone.set()              #maximum continues day light setting of
+        return                      #2 hours before 6 O clock (current default)
+    colorLoopScene()#default color loop shit   
+
+
+
+#TODO being developed
 def goNightPee(newRdy, prevDone, resourceLocks):
 #   put on lights on lowest level for mid night peeing, or maybe snacking? 
 #   BAD BAD USER!!!! no eeating at night!

@@ -102,17 +102,17 @@ def goingToSleep():
         if lampB > 120:
             lamps.dimm(lamp)
     
-    sleep(10)
+    time.sleep(10)
     lamps.dimmMax()
     
-    sleep(20)        
+    time.sleep(20)        
     lamps.Off() 
     audio.volumeFade(config.sleepVolume, 5)
 
 
 
 def wakeup():
-    
+    #not locked as locking is provided by the runtask function
     def playMusic(weekday):
         with mpdConnected(config.mpdIp, config.port) as mpd:       
             audio.clearQueue(mpd)
@@ -131,19 +131,17 @@ def wakeup():
             audio.volumeFade(config.wakeupVolume, 5)
         return    
     
-    Time_ = int(config.wakeupPeriod*600)
-    #fade to max brightness with current color 
-    b.set_light([2,3,4,5,6], {'on' : True, 'bri': 0, 'ct': 500})
-    command =  {'transitiontime' : Time_, 'on' : True, 'bri' : 255, 'ct' : 198}
-    b.set_light([2,3,4,5,6], command)
+    #color wakeup fade is done by the lightSceneQueue and lampmanager script
+    #here we simply sleep while that fades in the lights
+    Time_ = int(0.8*(config.wakeupPeriod*600))
+    time.sleep(Time_)
     
-    time.sleep(config.wakeupPeriod*60/2)
     
     #check if weekday
     d = datetime.datetime.now()
     weekday = True if d.isoweekday() in range(1, 6) else False
    
-    status, songId = startTasks.runLocked(play, resourceLocks['mpd'], streamingLink)   
+    playMusic(weekday)
 
 
 
@@ -243,10 +241,10 @@ def leftHome():
 
 def returnedHome():
     playlist = 'return'
-    time = strftime("%H")
+    time_ = strftime("%H")
 
     #time dep. playlist selection
-    if int(time) > 17:
+    if int(time_) > 17:
         playlist = 'return calm'
 
     b.set_light(3,'on', True) 
@@ -260,8 +258,7 @@ def returnedHome():
 
 def SetAlarm(raw):  
     minTillAlarm= raw[10::]
-    minTillWake= int(float(minTillAlarm)-wakeupPeriod)
+    minTillWake= int(float(minTillAlarm)-config.wakeupPeriod)
 
-    subprocess.call('at now + '+str(minTillWake)+
-                    ' minutes <<< "GET 192.168.1.10:8080/Scene/wakeup"'
+    subprocess.call('at now + '+str(minTillWake)+' minutes <<< "curl 192.168.1.10:8080/Scene/wakeup"'
                     ,shell=True, executable='/bin/bash')

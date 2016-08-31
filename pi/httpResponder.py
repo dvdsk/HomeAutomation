@@ -69,7 +69,8 @@ class MyHandler(BaseHTTPRequestHandler):
             elif sceneName == 'lockdown':
                 tasksQueue.put([scenes.lockdown, None])
             elif sceneName == 'wakeup':
-                tasksQueue.put([scenes.wakeup, None])  
+                tasksQueue.put([scenes.wakeup, None])
+                lightSceneQueue.put(status.wakeup) 
 
         elif 'pcOff' in self.path:           
             tasksQueue.put([comp.turnOffPc, None])

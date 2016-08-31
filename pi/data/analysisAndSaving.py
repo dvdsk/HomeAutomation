@@ -25,7 +25,7 @@ sns.set_context("paper",font_scale=0.9)
 #process or thread
 #
 
-accTolerance = 0.1
+accTolerance = 0.05
 bufferSize = 10 #default non debugging size= 100
 bufferSize2 = bufferSize*1 #non debugging *100
 hdf5_path = '/home/pi/HomeAutomation/pi/data/sensors.hdf5'
@@ -61,8 +61,8 @@ def init():
         class sleepSensing(tables.IsDescription):
             #using custom time data type that takes 30 bit in stead of a long long (64 bit)
             #but still gives the minimum accuracy for fourier transform etc
-            time_sec = tables.UInt32Col(dflt = 0, pos = 0)#saves seconds
-            time_10millisec = tables.UInt32Col(dflt = 0, pos = 1)#saves 10*millisconds    
+            time = tables.UInt32Col(dflt = 0, pos = 0)#saves seconds
+            time_10millisec = tables.UInt8Col(dflt = 0, pos = 1)#saves 10*millisconds    
             accelerometerX1000 = tables.Int16Col(dflt = -32765, pos = 2)
             accelerometerY1000 = tables.Int16Col(dflt = -32765, pos = 3) 
             accelerometerZ1000 = tables.Int16Col(dflt = -32765, pos = 4) 
@@ -277,7 +277,7 @@ def sensorSchedual(sensorRequest):
     return
     
     
-def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks):
+def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks, sensorRequest):
     global sensorDataArray 
     sensorDataArray = np.full(bufferSize, 0, dtype=[('time','u4'), 
                              ('temperature100','i2'), 
@@ -288,7 +288,7 @@ def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks):
 
     global accDataArray 
     accDataArray = np.full(bufferSize2, 0, dtype=[('time_sec','u4'), 
-                             ('time_10millisec','u4'), #in deca milliseconds?
+                             ('time_10millisec','u1'), #in deca milliseconds?
                              ('accelerometerX1000','i2'), 
                              ('accelerometerY1000','i2'), 
                              ('accelerometerZ1000','i2')])                               
@@ -341,20 +341,21 @@ def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks):
             x, y, z = raw[1:].split(",")
             x, y, z = float(x), float(y), float(z)
                       
-            #check if fast polling is no longer needed
-            if abs((x+y+z)/(x1+y1+z1) -1) > accTolerance:
-                accUnstable += 1
-            else:
-                accUnstable -= 1
-            
-            if accUnstable > 10 and slowPolling:
-                sensorRequest.put(b'02') #switch to fast polling
-                print("switched to fast polling")
-                slowPolling = False
-            elif accUnstable < 10 and not slowPolling:
-                sensorRequest.put(b'03') #switch to slow polling
-                print("switched to slow polling")
-                slowPolling = True                
+#            #check if fast polling is no longer needed #TODO check what z axis only does
+#            if abs((x+y+z)/(x1+y1+z1) -1) > accTolerance and accUnstable < 100:
+#                accUnstable += 1
+#            elif accUnstable > -4:
+#                accUnstable -= 0.5
+#            
+#            print(accUnstable)
+#            if accUnstable > 0 and slowPolling:
+#                sensorRequest.put(b'02') #switch to fast polling
+#                print("switched to fast polling")
+#                slowPolling = False
+#            elif accUnstable < 0 and not slowPolling:
+#                sensorRequest.put(b'03') #switch to slow polling
+#                print("switched to slow polling")
+#                slowPolling = True                
             
             accDataArray[rowCounter2][2] = int(x*1000)
             accDataArray[rowCounter2][3] = int(y*1000)
@@ -392,7 +393,7 @@ def process(sensorData, sensorGet, sensorGetBack, analysisRq, resourceLocks):
             fileh.close()
             resourceLocks['sensorDb'].release()
             accDataArray = np.full(bufferSize2, 0, dtype=[('time_sec','u4'), 
-                             ('time_10millisec','u4'), #in deca milliseconds?
+                             ('time_10millisec','u1'), #in deca milliseconds?
                              ('accelerometerX1000','i2'), 
                              ('accelerometerY1000','i2'), 
                              ('accelerometerZ1000','i2')])  

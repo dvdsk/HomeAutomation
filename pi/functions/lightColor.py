@@ -101,7 +101,7 @@ def getColorTemp(time):
     partOfDay = int(time) % (3600*24) #how far we are this day in seconds
     
     if partOfDay >= 6*3600 and partOfDay <= 18*3600:
-        temperature = 215 #day value
+        temperature = 215 #day value btw 6:00 uur sochtends en 18:00
     elif partOfDay > 23*3600 or partOfDay < 6*3600:
         temperature = 500 #night value
     else:

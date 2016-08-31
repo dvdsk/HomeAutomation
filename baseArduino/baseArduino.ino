@@ -182,10 +182,10 @@ void loop(){
             readTemp();            
             break;
           case 50: //acii 2
-/*            accPeriod = 1;  //fast polling    */
+            accPeriod = 1;  //fast polling    
             break;
           case 51: //acii 3
-/*            accPeriod = 20;  //slow polling             */
+            accPeriod = 200;  //slow polling             
             break;
           case 52: //acii 4               
             break;

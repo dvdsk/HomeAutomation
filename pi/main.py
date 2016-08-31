@@ -67,7 +67,7 @@ if __name__ == '__main__':
     #start database management     
     p5 = multiprocessing.Process(target=data.analysisAndSaving.process, 
                                  args=(sensorData, sensorGet, sensorGetBack,
-                                       analysisRq, resourceLocks))
+                                       analysisRq, resourceLocks, sensorRequest))
     p5.start()
 
 
