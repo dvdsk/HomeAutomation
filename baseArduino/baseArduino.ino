@@ -29,7 +29,7 @@ const uint8_t ADDRESSES[][4] = { "No1", "No2" }; // Radio pipe addresses 3 bytes
 // script setup parameters
 const int readSpeed = 1; //time between reading individual chars
 const int debugSpeed = 0; //time between reading and reply-ing used for debug
-const int resetSpeed = 1000; //time for the connection to reset
+const int resetSpeed = 2000; //time for the connection to reset
 const int calibrationTime = 2000; //setup wait period
 
 const byte REQUESTCO2[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; 
@@ -157,10 +157,9 @@ void remoteTemp(float &rtemp_c, float &rhumidity, void (*f1)(void), void (*f2)(v
   INTUNION_t temp_c, humidity;
   
   //request data and wait for reply
-  Serial.print("writing to radio\n");
   radio.write(RQ_TEMP,1);
-  for(int i= 0; i < 100; ++i) {
-    delay(10);// FIXME
+  for(int i= 0; i < 10; ++i) {
+    delay(1000);// FIXME
     //instead of using the above delay (and wasting cycles) we run readPir
     //and other functions
 //    f1(); //readpir 
@@ -169,16 +168,24 @@ void remoteTemp(float &rtemp_c, float &rhumidity, void (*f1)(void), void (*f2)(v
 
 //    Serial.print("checking radio");
     if (radio.available()) {
-      Serial.print("radio availible\n");
       radio.read( &rcBuffer, 5 );
-      if (rcBuffer[0] != -40){ //TODO rewrite voor 12 bit data structure
-          memcpy(temp_c.bytes, rcBuffer, 3); 
+      Serial.print(rcBuffer[0]);
+      if (rcBuffer[0] != 255){ //TODO rewrite voor 12 bit data structure
+          memcpy(temp_c.bytes, rcBuffer, 2); 
           memcpy(humidity.bytes, rcBuffer+2, 2); //copy from buffer[2] t/m buffer[3]
           
-          Serial.print("recieved data:");
-          Serial.print(temp_c.bytes[0], BIN);
+          Serial.print("rcBuffer: \n");
+          Serial.print(rcBuffer[0],HEX);
+          Serial.print(rcBuffer[1],HEX);
           Serial.print("\n");
-          Serial.print(temp_c.bytes[1], BIN);
+          Serial.print(rcBuffer[2],HEX);
+          Serial.print(rcBuffer[3],HEX);
+          Serial.print("\n");
+          Serial.print(rcBuffer[4],HEX);
+          Serial.print("\ndone: \n");
+          
+          
+          Serial.print("recieved data:");
           Serial.print("\n");
           Serial.print(temp_c.number);
           Serial.print("\n");
@@ -192,10 +199,10 @@ void remoteTemp(float &rtemp_c, float &rhumidity, void (*f1)(void), void (*f2)(v
           break;
       }
       else{//let analysis of this value be done on the arduino
-        Serial.print("rm");
-        Serial.print(buffer[0]);
+//        Serial.print("rm");
+//        Serial.print(buffer[0]);//TODO undo comment
+        radio.write(RQ_PIR, 1);
       }
-      radio.write(RQ_PIR, 1);
     }
   }
 }
@@ -267,7 +274,7 @@ void setup()
   Serial.print("setup done, starting response loop\n");
 }
 
-byte counter2 = 't';
+byte counter2 = 'p';
 void debugWireless(){
   radio.stopListening();                                  // First, stop listening so we can talk.
       
@@ -284,14 +291,12 @@ void debugWireless(){
       while(radio.available() ){
         unsigned long tim = micros();
         radio.read( &gotBytes, 5 );
-        printf("Got response %d, round-trip delay: %lu microseconds\n\r",gotBytes[1],tim-time);
+        printf("Got response %d, round-trip delay: %lu microseconds\n\r",gotBytes[0],tim-time);
         Serial.print(gotBytes[1]);
         counter2++;
       }
     }
   }
-  // Try again later
-  delay(1000);
 }
 
 void loop(){

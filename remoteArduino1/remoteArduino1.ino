@@ -40,10 +40,10 @@ int readPIRs(){
 
 void readAndSendPIRs(byte pipeNo){
   //check the PIR sensors then ack with the value
-  char sendBuffer[9] = {-40,0,0,0,0,0,0,0,0};
+  byte sendBuffer[5] = {255,0,0,0,0};
   
-  sendBuffer[8] = readPIRs();
-  radio.writeAckPayload(pipeNo, sendBuffer, 9);
+  sendBuffer[4] = readPIRs();
+  radio.writeAckPayload(pipeNo, sendBuffer, 5);
 }
   
 
@@ -69,8 +69,8 @@ void setup(){
 int counter = 1;  
 void loop(void){
   byte pipeNo, gotByte;                          // Declare variables for the pipe & byte received
-  byte sendBuffer[5] = {-40,0,0,0,0};
-  static const byte sendBuffer_def[5] = {-40,0,0,0,0};
+  byte sendBuffer[5] = {255,0,0,0,0};
+  static const byte sendBuffer_def[5] = {255,0,0,0,0};
   float temp_raw, humidity_raw;
   INTUNION_t temp_c, humidity, temp2; 
 
@@ -105,24 +105,35 @@ void loop(void){
       memcpy(sendBuffer+2, humidity.bytes, 2);//TODO dont empty this buffer ever, just keep the old values
       
       Serial.print("sendbuffer: \n");
-      Serial.print(sendBuffer[0],BIN);
-      Serial.print(sendBuffer[1],BIN);
+      Serial.print(sendBuffer[0]);
       Serial.print("\n");
-      Serial.print(sendBuffer[2],BIN);
-      Serial.print(sendBuffer[3],BIN);
-      Serial.print("\n");
-      Serial.print(sendBuffer[4],BIN);
-      Serial.print("\ndone: \n");
-      
-      memcpy(temp2.bytes, sendBuffer, 2);
-      Serial.print("\n");
-      Serial.print(temp2.number);
+//      Serial.print(sendBuffer[1],HEX);
+//      Serial.print("\n");
+//      Serial.print(sendBuffer[2],HEX);
+//      Serial.print("\n");
+//      Serial.print(sendBuffer[3],HEX);
+//      Serial.print("\n");
+//      Serial.print(sendBuffer[4],HEX);
+//      Serial.print("\ndone: \n");
       
       radio.writeAckPayload(pipeNo,sendBuffer, 5);
       memcpy(sendBuffer, sendBuffer_def, sizeof(sendBuffer_def));//reset buffer for sending PIR data again
     }
     
-    else{
+    else{    
+            
+//      Serial.print("sendbuffer: \n");
+//      Serial.print(sendBuffer[0],HEX);
+//      Serial.print("\n");
+//      Serial.print(sendBuffer[1],HEX);
+//      Serial.print("\n");
+//      Serial.print(sendBuffer[2],HEX);
+//      Serial.print("\n");
+//      Serial.print(sendBuffer[3],HEX);
+//      Serial.print("\n");
+//      Serial.print(sendBuffer[4],HEX);
+//      Serial.print("\ndone: \n");     
+      
       radio.writeAckPayload(pipeNo,sendBuffer, 5);    
       //readAndSendPIRs(pipeNo);      TODO temp disabled for debugging     
     }
