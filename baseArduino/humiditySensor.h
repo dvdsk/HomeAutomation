@@ -3,22 +3,33 @@
 
 #include <Arduino.h> //needed for Serial.print
 
+//type declaration for saving space and sanity in passing functions
+typedef void(*f1_type)(byte PIRs[2]);
+typedef void(*f2_type)(signed short int sensorData[9], byte PIRs[2]);
+typedef void(*f3_type)(signed short int sensorData[9]);
 
 class TempHumid
 {
   public:
     TempHumid(int dataPin, int clockPin);
     void readPIR();
-    float readTemperatureC(void (*f1)(void), void (*f2)(void), void (*f3)(void));
-    float readHumidity(float tempC, void (*f1)(void), void (*f2)(void), void (*f3)(void));
+    float readTemperatureC(f1_type f1, f2_type f2, f3_type f3,
+                           signed short int sensorData[9], byte PIRs[2]);
+    
+    float readHumidity(float tempC, f1_type f1, f2_type f2, f3_type f3, 
+                       signed short int sensorData[9], byte PIRs[2]);
   private:
     int _dataPin;
     int _clockPin;
     void skipCrcSHT(int _dataPin, int _clockPin);
     int getData16SHT(int _dataPin, int _clockPin);
     void sendCommandSHT(int _command, int _dataPin, int _clockPin);  
-    float readTemperatureRaw(void (*f1)(void), void (*f2)(void), void (*f3)(void));
-    void waitForResultSHT(int _dataPin, void (*f1)(void), void (*f2)(void), void (*f3)(void));
+    
+    float readTemperatureRaw(f1_type f1, f2_type f2, f3_type f3, 
+                             signed short int sensorData[9], byte PIRs[2]);
+                                 
+    void waitForResultSHT(int _dataPin, f1_type f1, f2_type f2, f3_type f3, 
+                          signed short int sensorData[9], byte PIRs[2]);
 };
 
 const short PIN_TERM_DATA = 0b00000100;

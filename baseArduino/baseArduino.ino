@@ -44,7 +44,7 @@ int accPeriod = 200;
 
 byte PIRs[2]; //stores pir data, first byte stores if a sensor has detected 
 //a signal (1 = yes, 0 = no) second byte stores which sensors are included in
-//this readout, [bedEast, bedWest, bathroomWest, bathroomEast, door, krukje,
+//this readout, [bedSouth, bedNorth, bathroomWest, bathroomEast, door, krukje,
 //trashcan, ??] 
 
 const static signed short int sensorData_def[9] = {32767,32767,32767,32767,32767,32767,0,0,0};
@@ -52,9 +52,6 @@ signed short int sensorData[9] = {32767,32767,32767,32767,32767,32767,0,0,0};
 //initialised as 32767 for every value stores: temp_bed, temp_bathroom, 
 //humidity_bed, humidity_bathroom, co2, light_bed, light_outside, light_door, 
 //light_kitchen, whenever data is send we reset to this value
-
-
-
 
 
 //runs constructor to make opjebt test of class tempHumid from humiditySensor.h
@@ -67,69 +64,34 @@ void readAcc(){
   acSen.readOut();
 }
 
-void readPIR(){
+void readLocalPIRs(byte PIRs[2]){
   //check the PIR sensor for movement as fast as possible, this happens
   //many many times a second
   
   //read registery of pin bank L (fast way to read state), 
   //returns byte on is high bit off is low. See this chart for which bit in the 
   //byte corrosponds to which pin http://forum.arduino.cc/index.php?topic=45329.0
-  delay(1);//crashes if removed  
+  delay(1);//crashes if removed  TODO checkthis!!!
   if ((PINL & 1) != 0){
-//TODO renable when debugging done
-//    Serial.print("m");
-    }
-//  Serial.print("\n");
+    PIRs[0] = PIRs[0] | 0b10000000;           //set bedSouth value to recieved data
+    PIRs[1] = PIRs[1] | 0b10000000;  //indicate bathroom sensors have been read
   }
+}
 
-void remotePIR(){
-  
-  char recieveBuffer[9];
-  const char RQ_PIR[1] = {'p'};
-  
-  //request pirData and wait at most 4 millisec for reply
-  radio.write(RQ_PIR,1);
-  for(int i= 0; i < 4; ++i) {
-    delay(1);// TODO [OPTIMISE] check if 1 is really needed
-    if (radio.available()) {
-      radio.read( &recieveBuffer, 9 );
-      //unpack pir data on python base
-      Serial.print("rm");
-      Serial.print(buffer[0]);
-      break;
-      }
-    }
-  }
-
-void readLight(){
+void readLight(signed short int sensorData[9]){
   //read light sensor (anolog) and return over serial, this happens many times
   //a second
   int light;
   
   light = analogRead(light_signal);    // read the input pin
-//TODO renable when debugging done
-//  Serial.print("l");//r to signal this is specially requested data
-//  Serial.print(light);
-//  Serial.print("\n");
+  sensorData[5] = light;
+  
+  //TODO rewrite for serial.write()
+  Serial.print("l");
+  Serial.print(light);
+  Serial.print("\n");
 }
 
-void readTemp(){
-  // Read values from the sensor, this function has a long sleep, we pass
-  // funtions to it we want it to run to fill this sleep
-  int temp_c; //FIXME this does not work
-  int humidity;
-  
-  temp_c = thSen.readTemperatureC(readPIR,readLight,readAcc );
-  humidity = thSen.readHumidity(temp_c, readPIR,readLight,readAcc );
-  
-  // Print the values to the serial port
-  Serial.print("r");
-  Serial.print("t");
-  Serial.print(temp_c);
-  Serial.print("h");
-  Serial.print(humidity);
-  Serial.print("\n");
-  }
 
 int readCO2(Stream& sensorSerial){
   //reads awnser from Co2 sensor that resides in the hardware serial buffer
@@ -195,10 +157,13 @@ void checkWirelessNodes(signed short int sensorData[9], byte PIRs[2]){
 }
 
   
-void readRoomSensors(signed short int sensorData[9]){
-  //Read temperature, humidity, co2 and light sensors wired to this device and
+void readRoomSensors(signed short int sensorData[9], byte PIRs[2]){
+  //Read temperature, humidity and co2 wired to this device and
   //store the outcome to be reported over serial later by sendSensorsdata
-  int light;
+  //light data though remote is not polled as this is done on a frequent basis
+  //it is polled way more often then this should be called.
+  //Function needs PIRs data since it also takes over pir and light checking
+  //while it runs
   
   float humidity;
   float temp_c;
@@ -209,15 +174,15 @@ void readRoomSensors(signed short int sensorData[9]){
   
   //geather data from the local sensors
   Serial1.write(REQUESTCO2,9);// request the CO2 sensor to do a reading
-  temp_c = thSen.readTemperatureC(readPIR,readLight,readAcc);//TODO adapt for remote sensors
-  humidity = thSen.readHumidity(temp_c, readPIR,readLight,readAcc);
-  light = analogRead(light_signal); // read the input pin
+  temp_c = thSen.readTemperatureC(readLocalPIRs,checkWirelessNodes,readLight,
+                                  sensorData, PIRs);
+  humidity = thSen.readHumidity(temp_c, readLocalPIRs,checkWirelessNodes,
+                                readLight,sensorData, PIRs);
   
   sensorData[0] = int(temp_c*100);
   sensorData[2] = int(humidity*100);
   
   sensorData[4] = int(readCO2(Serial1) );
-  sensorData[5] = light;
 }
 
 void sendSensorsdata(signed short int sensorData[9]){
@@ -297,11 +262,11 @@ void loop(){
       case 48:
         switch(buffer[1]){
           case 48: //acii 0
-            readRoomSensors(sensorData);//requests the remote sensor values
+            readRoomSensors(sensorData, PIRs);//requests the remote sensor values
             //and reads in the local sensors
             break;
           case 49: //acii 1
-            readTemp();            
+            //nothing         
             break;
           case 50: //acii 2
             accPeriod = 1;  //fast polling    
@@ -325,23 +290,25 @@ void loop(){
     }    
   }//if
 
-  bufferLen = 0;//empty the string*/
-/*  readPIR(); */
+  bufferLen = 0;//empty the string
 
 
+  //read local sensors
   if (lightCounter > 10) {
-/*    readLight(); */
+    readLight(sensorData);
     lightCounter = 0;
     }
-  if (accCounter > accPeriod) {
-    accCounter = 0;
-/*    acSen.readOut();*/
-    accCounter = 0;
-    }
-    
   lightCounter++;
-  accCounter++;
   
+//  if (accCounter > accPeriod) {
+//    acSen.readOut();
+//    accCounter = 0;
+//    }
+//  accCounter++;    
+
+  readLocalPIRs(PIRs); 
+  
+  //read remote sensors
   checkWirelessNodes(sensorData, PIRs);
   
   //check if sensordata is complete and if so send
@@ -354,9 +321,10 @@ void loop(){
   if (rdyToSend){
     sendSensorsdata(sensorData);
   }
-  //send PIR data (as it contains a record of if it is complete)
-//  Serial.print(PIRs[0], BIN);
+  //always send PIR data (as it contains a record of which part of it is complete)
+//  Serial.print(PIRs[0], BIN);//TODO disabled for debugging
 //  Serial.print(PIRs[1], BIN);
+  PIRs[1] = 0; //reset the "polled PIR's record"
   
   delay(resetSpeed);
 }

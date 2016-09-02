@@ -29,7 +29,8 @@ void TempHumid::skipCrcSHT(int _dataPin, int _clockPin)
   PORTA = PIN_TERM_DATA;
 }
 
-void TempHumid::waitForResultSHT(int _dataPin, void (*f1)(void), void (*f2)(void), void (*f3)(void))
+void TempHumid::waitForResultSHT(int _dataPin, f1_type f1, f2_type f2, f3_type f3, 
+                                 signed short int sensorData[9], byte PIRs[2])
 {
   unsigned int i;
   unsigned int a;
@@ -42,9 +43,9 @@ void TempHumid::waitForResultSHT(int _dataPin, void (*f1)(void), void (*f2)(void
     delay(10);
     //instead of using the above delay (and wasting cycles) we run readPir
     //and other functions
-    f1(); //readpir
-    f2(); //readlight    
-    //Possibility for an f3() here but it is currently not used
+    f1(PIRs);               //readLocalPIRs
+    f2(sensorData, PIRs);   //checkWirelessNodes    
+    f3(sensorData);         //readLight              
 
     ack = PINA;
     if ((ack & 0b0100) == 0){ //if xxxx xxxx AND 0000 0100 = 1 or if the 3e bit is set // FIXME: die 0b0100 heeft vast een betekenis -> dat kan in een constante! 
@@ -58,8 +59,7 @@ void TempHumid::waitForResultSHT(int _dataPin, void (*f1)(void), void (*f2)(void
 //  }
 }
 
-int TempHumid::getData16SHT(int _dataPin, int _clockPin)
-{
+int TempHumid::getData16SHT(int _dataPin, int _clockPin){
   int val;
 
   // Get the most significant bits
@@ -97,8 +97,7 @@ int TempHumid::getData16SHT(int _dataPin, int _clockPin)
   return val;
 }
 
-void TempHumid::sendCommandSHT(int _command, int _dataPin, int _clockPin)
-{
+void TempHumid::sendCommandSHT(int _command, int _dataPin, int _clockPin){
 /*  unsigned int ack;*/
 
   // Transmission Start
@@ -170,22 +169,24 @@ void TempHumid::sendCommandSHT(int _command, int _dataPin, int _clockPin)
 /*  }*/
 }
 
-float TempHumid::readTemperatureRaw(void (*f1)(void), void (*f2)(void), void (*f3)(void))
-{
+float TempHumid::readTemperatureRaw(f1_type f1, f2_type f2, f3_type f3, 
+                                    signed short int sensorData[9], byte PIRs[2])
+{ 
   int _val;
 
   // Command to send to the SHT1x to request Temperature
   int _gTempCmd  = 0b00000011;
 
   sendCommandSHT(_gTempCmd, _dataPin, _clockPin);
-  waitForResultSHT(_dataPin, f1, f2, f3);
+  waitForResultSHT(_dataPin, f1, f2, f3, sensorData, PIRs);
   _val = getData16SHT(_dataPin, _clockPin);
   skipCrcSHT(_dataPin, _clockPin);
 
   return (_val);
 }
 
-float TempHumid::readTemperatureC(void (*f1)(void), void (*f2)(void), void (*f3)(void))
+float TempHumid::readTemperatureC(f1_type f1, f2_type f2, f3_type f3,
+                                  signed short int sensorData[9], byte PIRs[2])
 {
   int _val;                // Raw value returned from sensor
   float _temperature;      // Temperature derived from raw value
@@ -195,7 +196,7 @@ float TempHumid::readTemperatureC(void (*f1)(void), void (*f2)(void), void (*f3)
   const float D2 =   0.01; // for 14 Bit DEGC
 
   // Fetch raw value
-  _val = readTemperatureRaw( f1, f2, f3);
+  _val = readTemperatureRaw( f1, f2, f3, sensorData, PIRs);
 
   // Convert raw value to degrees Celsius
   _temperature = (_val * D2) + D1;
@@ -203,7 +204,8 @@ float TempHumid::readTemperatureC(void (*f1)(void), void (*f2)(void), void (*f3)
   return (_temperature);
 }
 
-float TempHumid::readHumidity(float _temperature, void (*f1)(void), void (*f2)(void), void (*f3)(void))
+float TempHumid::readHumidity(float tempC, f1_type f1, f2_type f2, f3_type f3, 
+                              signed short int sensorData[9], byte PIRs[2])
 {
   int _val;                    // Raw humidity value returned from sensor
   double _linearHumidity;       // Humidity with linear correction applied
@@ -221,7 +223,7 @@ float TempHumid::readHumidity(float _temperature, void (*f1)(void), void (*f2)(v
 
   // Fetch the value from the sensor
   sendCommandSHT(_gHumidCmd, _dataPin, _clockPin);
-  waitForResultSHT(_dataPin, f1, f2, f3);
+  waitForResultSHT(_dataPin, f1, f2, f3, sensorData, PIRs);
   _val = getData16SHT(_dataPin, _clockPin);
   skipCrcSHT(_dataPin, _clockPin);
 
@@ -229,7 +231,7 @@ float TempHumid::readHumidity(float _temperature, void (*f1)(void), void (*f2)(v
   _linearHumidity = C1 + C2 * _val + C3 * _val * _val;
 
   // Correct humidity value for current temperature
-  _correctedHumidity = (_temperature - 25.0 ) * (T1 + T2 * _val) + _linearHumidity;
+  _correctedHumidity = (tempC - 25.0 ) * (T1 + T2 * _val) + _linearHumidity;
 
   return (_correctedHumidity);
 }
