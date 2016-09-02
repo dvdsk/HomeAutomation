@@ -6,6 +6,8 @@
 #include "humiditySensor.h"
 #include "accelerometer.h"
 
+//the "union" construct is useful, in which you can refer to the 
+//same memory space in two different ways
 typedef union
 {
   int number;
@@ -29,7 +31,7 @@ const uint8_t ADDRESSES[][4] = { "No1", "No2" }; // Radio pipe addresses 3 bytes
 // script setup parameters
 const int readSpeed = 1; //time between reading individual chars
 const int debugSpeed = 0; //time between reading and reply-ing used for debug
-const int resetSpeed = 2000; //time for the connection to reset
+const int resetSpeed = 0; //time for the connection to reset
 const int calibrationTime = 2000; //setup wait period
 
 const byte REQUESTCO2[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; 
@@ -40,8 +42,19 @@ int lightCounter = 0;
 int accCounter = 0;
 int accPeriod = 200;
 
-//For that, the "union" construct is useful, in which you can refer to the 
-//same memory space in two different ways
+byte PIRs[2]; //stores pir data, first byte stores if a sensor has detected 
+//a signal (1 = yes, 0 = no) second byte stores which sensors are included in
+//this readout, [bedEast, bedWest, bathroomWest, bathroomEast, door, krukje,
+//trashcan, ??] 
+
+const static signed short int sensorData_def[9] = {32767,32767,32767,32767,32767,32767,0,0,0};
+signed short int sensorData[9] = {32767,32767,32767,32767,32767,32767,0,0,0};
+//initialised as 32767 for every value stores: temp_bed, temp_bathroom, 
+//humidity_bed, humidity_bathroom, co2, light_bed, light_outside, light_door, 
+//light_kitchen, whenever data is send we reset to this value
+
+
+
 
 
 //runs constructor to make opjebt test of class tempHumid from humiditySensor.h
@@ -148,107 +161,87 @@ int readCO2(Stream& sensorSerial){
   return -1;
 }    
 
-int timeRunning(unsigned long t_start) {
-  //returns the time since starting a function with overflow protection 
-  //TODO can we do this more efficient?
-  const static unsigned long tmax = -1;
-  unsigned long t_now = millis();
-  unsigned long runTime;
-
-  if (t_start > t_now){
-    //overflow detected
-    runTime = tmax - t_start + t_now;
-  }
-  else{
-    runTime = t_now-t_start;
-  }
-  return runTime;
+void processRemoteTemp(signed short int sensorData[9], byte rcbuffer[5]){
+  //copy data from radio buffer back to integers and store it in the SensorsData
+  //array to be send later by sendSensorsdata if the array is complete
+  
+  INTUNION_t temp_c, humidity;
+  
+  memcpy(temp_c.bytes, rcbuffer, 2); 
+  memcpy(humidity.bytes, rcbuffer+2, 2); //copy from buffer[2] t/m buffer[3]
+            
+  sensorData[1] = temp_c.number;//set to the int representation of the 2 byte array
+  sensorData[3] = humidity.number;//TODO remove this (do this while rewriting for    
 }
 
-void remoteTemp(int &rtemp_c, int &rhumidity, void (*f1)(void), void (*f2)(void), void (*f3)(void)){
+void checkWirelessNodes(signed short int sensorData[9], byte PIRs[2]){
+  //ask wireless node(s) (currently 1 implemented) for a status update
+  //process status data
   
-  byte rcBuffer[5];
-  const char RQ_TEMP[1] = {'t'};
-  const char RQ_PIR[1]= {'p'};
-  INTUNION_t temp_c, humidity;
-  unsigned long t_start = millis();
-
-  int counter = 0;
-  
-  //request data and wait for reply 
-  radio.write(RQ_TEMP,1);
-
-  while (timeRunning(t_start) < 600){
-    delay(10); //works with delay(10)
-    f1(); //readpir 
-    f2(); //readlight   //TODO re-enable these  
-    //Possibility for an f3() here but it is currently not used
-    
-    if (radio.available()){
-      radio.read( &rcBuffer, 5 );
-      Serial.print(rcBuffer[0]);
-      if (rcBuffer[0] != 255){ //TODO rewrite voor 12 bit data structure
-          memcpy(temp_c.bytes, rcBuffer, 2); 
-          memcpy(humidity.bytes, rcBuffer+2, 2); //copy from buffer[2] t/m buffer[3]
-                    
-          rtemp_c = temp_c.number;//set to the int representation of the 2 byte array
-          rhumidity = humidity.number;//TODO remove this (do this while rewriting for
-          //Serial.write ipv Serial.print
-          
-          break;
-      }
-      else{//let analysis of this value be done on the arduino
-        Serial.print("rm");
-        Serial.print(buffer[0]);//TODO undo comment
-        radio.write(RQ_PIR, 1);
-        counter++;
-      }
+  byte rcbuffer[5];
+  static const byte rqUpdate[1] = {1};
+  radio.write(rqUpdate, 1 ); //write 1 to the currently opend writingPipe
+  if(radio.available() ){
+    radio.read( &rcbuffer, 5 );
+    //check if temperature data is present
+    if (rcbuffer[0] == 255){
+      PIRs[0] = PIRs[0] | rcbuffer[4]; //set bathroomsensor values to recieved data
+      PIRs[1] = PIRs[1] | 0b00110000;  //indicate bathroom sensors have been read
+    }
+    else{//temperature must be contained in the first 2 bytes
+      processRemoteTemp(sensorData, rcbuffer);
     }
   }
-  Serial.print("now running: ");
-  Serial.print(timeRunning(t_start));
-  Serial.print("\nnumber of mesurements done: ");
-  Serial.print(counter);
-  Serial.print("\n");
-}  
+}
 
-void readRoomSensors(){
-  // Read temperature, humidity and light sensors and return there values over
-  // serial
-  int ppmCO2;
+  
+void readRoomSensors(signed short int sensorData[9]){
+  //Read temperature, humidity, co2 and light sensors wired to this device and
+  //store the outcome to be reported over serial later by sendSensorsdata
   int light;
   
   float humidity;
-  int rHumidity;
   float temp_c;
-  int rTemp_c;
+
+  //request the values of the other sensors in the room  
+  static const byte rqTemp[1] = {'t'};
+  radio.write( rqTemp, 1 ); //write 1 to the currently opend writingPipes
   
+  //geather data from the local sensors
   Serial1.write(REQUESTCO2,9);// request the CO2 sensor to do a reading
-  temp_c = thSen.readTemperatureC(readPIR,readLight,readAcc);
+  temp_c = thSen.readTemperatureC(readPIR,readLight,readAcc);//TODO adapt for remote sensors
   humidity = thSen.readHumidity(temp_c, readPIR,readLight,readAcc);
   light = analogRead(light_signal); // read the input pin
-  ppmCO2 = readCO2(Serial1);// retrieve the reading from the CO2 sensor
   
-  //request remote sensor values
-  Serial.print("reading remote temperature\n");
-  remoteTemp(rTemp_c, rHumidity, readPIR,readLight,readAcc);
-    
-  //TODO rewrite for Serial.write()
-  Serial.print("rt");
-  Serial.print(rTemp_c);
-  Serial.print("rh");
-  Serial.print(rHumidity);
-  Serial.print("t");
-  Serial.print(temp_c);
-  Serial.print("h");
-  Serial.print(humidity);
-  Serial.print("l");  
-  Serial.print(light);
-  Serial.print("c");  
-  Serial.print(ppmCO2);
-  Serial.print("\n");
-  }
+  sensorData[0] = int(temp_c*100);
+  sensorData[2] = int(humidity*100);
+  
+  sensorData[4] = int(readCO2(Serial1) );
+  sensorData[5] = light;
+}
 
+void sendSensorsdata(signed short int sensorData[9]){
+  //used to send the data to the raspberry pi 
+  //when the sensorArray has been filled
+  
+  //TODO rewrite for serial.write()
+  Serial.print("rt");
+  Serial.print(sensorData[1]);
+  Serial.print("rh");
+  Serial.print(sensorData[3]);
+  Serial.print("t");
+  Serial.print(sensorData[0]);
+  Serial.print("h");
+  Serial.print(sensorData[2]);
+  Serial.print("l");  
+  Serial.print(sensorData[5]);
+  Serial.print("c");  
+  Serial.print(sensorData[4]);
+  Serial.print("\n");  
+
+  //reset sensorData to default values so we can easily check if it is complete
+  memcpy(sensorData, sensorData_def, sizeof(sensorData_def));
+}
 
 void setup()
 { 
@@ -271,40 +264,17 @@ void setup()
   radio.setRetries(0,15);                 // Smallest time between retries, max no. of retries
   radio.setPayloadSize(5);                // Here we are sending 1-byte payloads to test the call-response speed
   
-  radio.openWritingPipe(ADDRESSES[0]);  // Both radios on same pipes, but opposite addresses
-  radio.openReadingPipe(1,ADDRESSES[1]);// Open a reading pipe on address 0, pipe 1
+  radio.openWritingPipe(ADDRESSES[0]);    // Both radios on same pipes, but opposite addresses
+  radio.openReadingPipe(1,ADDRESSES[1]);  // Open a reading pipe on address 1, pipe 1
   radio.startListening();                 // Start listening
   radio.printDetails();                   // Dump the configuration of the rf unit for debugging
     
   //give the pir sensor some time to calibrate
   delay(calibrationTime);
   Serial.print("setup done, starting response loop\n");
+  radio.stopListening();  
 }
 
-byte counter2 = 'p';
-void debugWireless(){
-  radio.stopListening();                                  // First, stop listening so we can talk.
-      
-  printf("Now sending %d as payload. ",counter2); 
-  byte gotBytes[5]; 
-  unsigned long time = micros();                          // Take the time, and send it.  This will block until complete   
-                                                          //Called when STANDBY-I mode is engaged (User is finished sending)
-  if (!radio.write( &counter2, 1 )){
-    Serial.println(F("failed."));      
-  }else{
-    if(!radio.available()){ 
-      Serial.println(F("Blank Payload Received.")); 
-    }else{
-      while(radio.available() ){
-        unsigned long tim = micros();
-        radio.read( &gotBytes, 5 );
-        printf("Got response %d, round-trip delay: %lu microseconds\n\r",gotBytes[0],tim-time);
-        Serial.print(gotBytes[4]);
-        counter2++;
-      }
-    }
-  }
-}
 
 void loop(){
   // serial read section
@@ -327,7 +297,8 @@ void loop(){
       case 48:
         switch(buffer[1]){
           case 48: //acii 0
-            readRoomSensors();
+            readRoomSensors(sensorData);//requests the remote sensor values
+            //and reads in the local sensors
             break;
           case 49: //acii 1
             readTemp();            
@@ -371,6 +342,21 @@ void loop(){
   lightCounter++;
   accCounter++;
   
-  debugWireless();
+  checkWirelessNodes(sensorData, PIRs);
+  
+  //check if sensordata is complete and if so send
+  bool rdyToSend = true;
+  for (int i =0; i < sizeof(sensorData); i++){
+    if(sensorData[i] == 32767){ //check if default size
+      rdyToSend = false;
+    }
+  }
+  if (rdyToSend){
+    sendSensorsdata(sensorData);
+  }
+  //send PIR data (as it contains a record of if it is complete)
+//  Serial.print(PIRs[0], BIN);
+//  Serial.print(PIRs[1], BIN);
+  
   delay(resetSpeed);
 }
