@@ -40,9 +40,9 @@ void TempHumid::waitForResultSHT(int _dataPin, void (*f1)(byte), RF24& radio)
   
   pinMode(_dataPin, INPUT);
 
-  for(i= 0; i < 100; ++i)
-  {
-    delay(10);// FIXME
+  for(i= 0; i < 100; ++i) {
+    
+    delay(10);// FIXME works with delay(10)
     //instead of using the above delay (and wasting cycles) we run readPir
     //and other functions
     if (radio.available(&pipeNo)){

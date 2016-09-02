@@ -165,62 +165,51 @@ int timeRunning(unsigned long t_start) {
   return runTime;
 }
 
-void remoteTemp(float &rtemp_c, float &rhumidity, void (*f1)(void), void (*f2)(void), void (*f3)(void)){
+void remoteTemp(int &rtemp_c, int &rhumidity, void (*f1)(void), void (*f2)(void), void (*f3)(void)){
   
   byte rcBuffer[5];
   const char RQ_TEMP[1] = {'t'};
   const char RQ_PIR[1]= {'p'};
   INTUNION_t temp_c, humidity;
-  unsigned long t_start;
+  unsigned long t_start = millis();
 
+  int counter = 0;
   
   //request data and wait for reply 
   radio.write(RQ_TEMP,1);
-  t_start = millis();
-//    f1(); //readpir 
-//    f2(); //readlight   //TODO re-enable these  
-    //Possibility for an f3() here but it is currently not used
 
   while (timeRunning(t_start) < 600){
-    delay(50);
+    delay(10); //works with delay(10)
+    f1(); //readpir 
+    f2(); //readlight   //TODO re-enable these  
+    //Possibility for an f3() here but it is currently not used
+    
     if (radio.available()){
       radio.read( &rcBuffer, 5 );
       Serial.print(rcBuffer[0]);
       if (rcBuffer[0] != 255){ //TODO rewrite voor 12 bit data structure
           memcpy(temp_c.bytes, rcBuffer, 2); 
           memcpy(humidity.bytes, rcBuffer+2, 2); //copy from buffer[2] t/m buffer[3]
-          
-          Serial.print("rcBuffer: \n");
-          Serial.print(rcBuffer[0],HEX);
-          Serial.print(rcBuffer[1],HEX);
-          Serial.print("\n");
-          Serial.print(rcBuffer[2],HEX);
-          Serial.print(rcBuffer[3],HEX);
-          Serial.print("\n");
-          Serial.print(rcBuffer[4],HEX);
-          Serial.print("\ndone: \n");
-          
-          
-          Serial.print("recieved data:");
-          Serial.print("\n");
-          Serial.print(temp_c.number);
-          Serial.print("\n");
-          Serial.print(humidity.number);
-          Serial.print("\n");
-          
-          rtemp_c = float(temp_c.number)/100;//set to the int representation of the 2 byte array
-          rhumidity = float(humidity.number)/100;//TODO remove this (do this while rewriting for
+                    
+          rtemp_c = temp_c.number;//set to the int representation of the 2 byte array
+          rhumidity = humidity.number;//TODO remove this (do this while rewriting for
           //Serial.write ipv Serial.print
           
           break;
       }
       else{//let analysis of this value be done on the arduino
-  //        Serial.print("rm");
-  //        Serial.print(buffer[0]);//TODO undo comment
+        Serial.print("rm");
+        Serial.print(buffer[0]);//TODO undo comment
         radio.write(RQ_PIR, 1);
+        counter++;
       }
     }
   }
+  Serial.print("now running: ");
+  Serial.print(timeRunning(t_start));
+  Serial.print("\nnumber of mesurements done: ");
+  Serial.print(counter);
+  Serial.print("\n");
 }  
 
 void readRoomSensors(){
@@ -228,12 +217,15 @@ void readRoomSensors(){
   // serial
   int ppmCO2;
   int light;
-  float humidity, rHumidity;
-  float temp_c, rTemp_c;
+  
+  float humidity;
+  int rHumidity;
+  float temp_c;
+  int rTemp_c;
   
   Serial1.write(REQUESTCO2,9);// request the CO2 sensor to do a reading
-  temp_c = thSen.readTemperatureC(readPIR,readLight,readAcc );
-  humidity = thSen.readHumidity(temp_c, readPIR,readLight,readAcc );
+  temp_c = thSen.readTemperatureC(readPIR,readLight,readAcc);
+  humidity = thSen.readHumidity(temp_c, readPIR,readLight,readAcc);
   light = analogRead(light_signal); // read the input pin
   ppmCO2 = readCO2(Serial1);// retrieve the reading from the CO2 sensor
   
@@ -277,7 +269,7 @@ void setup()
   radio.setAutoAck(1);                    // Ensure autoACK is enabled
   radio.enableAckPayload();               // Allow optional ack payloads
   radio.setRetries(0,15);                 // Smallest time between retries, max no. of retries
-  radio.setPayloadSize(9);                // Here we are sending 1-byte payloads to test the call-response speed
+  radio.setPayloadSize(5);                // Here we are sending 1-byte payloads to test the call-response speed
   
   radio.openWritingPipe(ADDRESSES[0]);  // Both radios on same pipes, but opposite addresses
   radio.openReadingPipe(1,ADDRESSES[1]);// Open a reading pipe on address 0, pipe 1
@@ -307,7 +299,7 @@ void debugWireless(){
         unsigned long tim = micros();
         radio.read( &gotBytes, 5 );
         printf("Got response %d, round-trip delay: %lu microseconds\n\r",gotBytes[0],tim-time);
-        Serial.print(gotBytes[1]);
+        Serial.print(gotBytes[4]);
         counter2++;
       }
     }

@@ -59,86 +59,48 @@ void setup(){
   radio.setAutoAck(1);                    // Ensure autoACK is enabled
   radio.enableAckPayload();               // Allow optional ack payloads
   radio.setRetries(0,15);                 // Smallest time between retries, max no. of retries
-  radio.setPayloadSize(2);                // Here we are sending 1-byte payloads to test the call-response speed
+  radio.setPayloadSize(5);                // Here we are sending 1-byte payloads to test the call-response speed
   
   radio.openWritingPipe(ADDRESSES[1]);  // Both radios on same pipes, but opposite addresses
   radio.openReadingPipe(1,ADDRESSES[0]);// Open a reading pipe on address 0, pipe 1
   radio.startListening();                 // Start listening
+  readAndSendPIRs(1);
   radio.printDetails();                   // Dump the configuration of the rf unit for debugging
+
 }
+
+
 int counter = 1;  
 void loop(void){
   byte pipeNo, gotByte;                          // Declare variables for the pipe & byte received
   byte sendBuffer[5] = {255,0,0,0,0};
   static const byte sendBuffer_def[5] = {255,0,0,0,0};
   float temp_raw, humidity_raw;
-  INTUNION_t temp_c, humidity, temp2; 
+  INTUNION_t temp_c, humidity; 
 
   while (radio.available(&pipeNo)){              // Read all available payloads
-    unsigned long time = micros();
+
     radio.read( &gotByte, 1 );
-    radio.powerUp();//TODO does this fix radio going to low power mode?
-    Serial.print(counter);
-    Serial.print("\n");
-    counter++;
+    radio.powerUp();                             //TODO does this fix radio going to low power mode?
                                                  // Respond directly with an ack payload.
     if (gotByte == 't'){
-      Serial.print("got t");
       //reads temp and sends response while also checking the PIR
       //and sending its status along
       temp_raw = thSen.readTemperatureC(readAndSendPIRs, radio);
       humidity_raw = thSen.readHumidity(temp_raw, readAndSendPIRs, radio);
 
-      Serial.print("temp:");
-      Serial.print(temp_raw);
-      Serial.print("humidity:");
-      Serial.print(humidity_raw);
-      Serial.print("\n");
-
       temp_c.number = int(temp_raw*100);
       humidity.number = int(humidity_raw*100);
 
-      //TODO rebuild this for using 12 bit data structures (so we can fill 3 bytes instead of 4)
-      //see http://stackoverflow.com/questions/29529979/10-or-12-bit-field-data-type-in-c
-      
-      //copy the 4 bytes of each float into the sendbuffer
+      //copy the 2 bytes of each int into the sendbuffer
       memcpy(sendBuffer, temp_c.bytes, 2);
-      memcpy(sendBuffer+2, humidity.bytes, 2);//TODO dont empty this buffer ever, just keep the old values
-      
-      Serial.print("sendbuffer: \n");
-      Serial.print(sendBuffer[0]);
-      Serial.print("\n");
-//      Serial.print(sendBuffer[1],HEX);
-//      Serial.print("\n");
-//      Serial.print(sendBuffer[2],HEX);
-//      Serial.print("\n");
-//      Serial.print(sendBuffer[3],HEX);
-//      Serial.print("\n");
-//      Serial.print(sendBuffer[4],HEX);
-//      Serial.print("\ndone: \n");
+      memcpy(sendBuffer+2, humidity.bytes, 2);
       
       radio.writeAckPayload(pipeNo,sendBuffer, 5);
-      unsigned long tim = micros();
-      printf("Got response values in: %lu microseconds\n\r",tim-time);
       memcpy(sendBuffer, sendBuffer_def, sizeof(sendBuffer_def));//reset buffer for sending PIR data again
-    }
-    
+    }    
     else{    
-            
-//      Serial.print("sendbuffer: \n");
-//      Serial.print(sendBuffer[0],HEX);
-//      Serial.print("\n");
-//      Serial.print(sendBuffer[1],HEX);
-//      Serial.print("\n");
-//      Serial.print(sendBuffer[2],HEX);
-//      Serial.print("\n");
-//      Serial.print(sendBuffer[3],HEX);
-//      Serial.print("\n");
-//      Serial.print(sendBuffer[4],HEX);
-//      Serial.print("\ndone: \n");     
-      
-      radio.writeAckPayload(pipeNo,sendBuffer, 5);    
-      //readAndSendPIRs(pipeNo);      TODO temp disabled for debugging     
+      readAndSendPIRs(pipeNo); 
     }
  }
 
