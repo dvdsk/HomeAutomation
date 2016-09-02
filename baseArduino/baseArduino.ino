@@ -148,6 +148,22 @@ int readCO2(Stream& sensorSerial){
   return -1;
 }    
 
+int timeRunning(unsigned long t_start) {
+  //returns the time since starting a function with overflow protection 
+  //TODO can we do this more efficient?
+  const static unsigned long tmax = -1;
+  unsigned long t_now = millis();
+  unsigned long runTime;
+
+  if (t_start > t_now){
+    //overflow detected
+    runTime = tmax - t_start + t_now;
+  }
+  else{
+    runTime = t_now-t_start;
+  }
+  return runTime;
+}
 
 void remoteTemp(float &rtemp_c, float &rhumidity, void (*f1)(void), void (*f2)(void), void (*f3)(void)){
   
@@ -155,19 +171,19 @@ void remoteTemp(float &rtemp_c, float &rhumidity, void (*f1)(void), void (*f2)(v
   const char RQ_TEMP[1] = {'t'};
   const char RQ_PIR[1]= {'p'};
   INTUNION_t temp_c, humidity;
+  unsigned long t_start;
+
   
-  //request data and wait for reply
+  //request data and wait for reply 
   radio.write(RQ_TEMP,1);
-  for(int i= 0; i < 10; ++i) {
-    delay(1000);// FIXME
-    //instead of using the above delay (and wasting cycles) we run readPir
-    //and other functions
+  t_start = millis();
 //    f1(); //readpir 
 //    f2(); //readlight   //TODO re-enable these  
     //Possibility for an f3() here but it is currently not used
 
-//    Serial.print("checking radio");
-    if (radio.available()) {
+  while (timeRunning(t_start) < 600){
+    delay(50);
+    if (radio.available()){
       radio.read( &rcBuffer, 5 );
       Serial.print(rcBuffer[0]);
       if (rcBuffer[0] != 255){ //TODO rewrite voor 12 bit data structure
@@ -199,14 +215,13 @@ void remoteTemp(float &rtemp_c, float &rhumidity, void (*f1)(void), void (*f2)(v
           break;
       }
       else{//let analysis of this value be done on the arduino
-//        Serial.print("rm");
-//        Serial.print(buffer[0]);//TODO undo comment
+  //        Serial.print("rm");
+  //        Serial.print(buffer[0]);//TODO undo comment
         radio.write(RQ_PIR, 1);
       }
     }
   }
-}
-  
+}  
 
 void readRoomSensors(){
   // Read temperature, humidity and light sensors and return there values over

@@ -75,6 +75,7 @@ void loop(void){
   INTUNION_t temp_c, humidity, temp2; 
 
   while (radio.available(&pipeNo)){              // Read all available payloads
+    unsigned long time = micros();
     radio.read( &gotByte, 1 );
     radio.powerUp();//TODO does this fix radio going to low power mode?
     Serial.print(counter);
@@ -117,6 +118,8 @@ void loop(void){
 //      Serial.print("\ndone: \n");
       
       radio.writeAckPayload(pipeNo,sendBuffer, 5);
+      unsigned long tim = micros();
+      printf("Got response values in: %lu microseconds\n\r",tim-time);
       memcpy(sendBuffer, sendBuffer_def, sizeof(sendBuffer_def));//reset buffer for sending PIR data again
     }
     
