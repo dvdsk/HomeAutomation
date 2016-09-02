@@ -28,12 +28,12 @@ TempHumid thSen (term_dataPin, term_clockPin);
 
 
 int readPIRs(){
-  int pirValues = 0 ;
+  byte pirValues = 0 ;
   if ((PIND & pirA) != 0){ 
-    pirValues = pirValues | 1;//pir1 signal
+    pirValues = pirValues | 2;//pir1 signal
     }
   else if ((PIND & pirB) != 0){
-    pirValues = pirValues | 2;//pir2 signal
+    pirValues = pirValues | 3;//pir2 signal
     }
   return pirValues;
 }
@@ -103,5 +103,4 @@ void loop(void){
       readAndSendPIRs(pipeNo); 
     }
  }
-
 }
