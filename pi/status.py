@@ -94,7 +94,7 @@ def someScene(newRdy, prevDone, resourceLocks):
         if newRdy.wait(timeout=1): #if a new scene is waiting to start
             newRdy.clear()         #return
             prevDone.set()        
-    colorLoopScene()#default color loop shit    
+    colorLoopScene(newRdy, prevDone, resourceLocks)#default color loop shit    
        
             
 def evening(newRdy, prevDone, resourceLocks):
@@ -110,7 +110,7 @@ def evening(newRdy, prevDone, resourceLocks):
         newRdy.clear()           #return
         prevDone.set()
         return
-    colorLoopScene()#default color loop shit    
+    colorLoopScene(newRdy, prevDone, resourceLocks)#default color loop shit    
 
 def night(newRdy, prevDone, resourceLocks):
 #   loopy shit with instead of sleep: if event.wait(timeout=sleep):
@@ -124,7 +124,7 @@ def night(newRdy, prevDone, resourceLocks):
         newRdy.clear()           #return
         prevDone.set()
         return
-    colorLoopScene()#default color loop shit       
+    colorLoopScene(newRdy, prevDone, resourceLocks)#default color loop shit       
 
 def bedlight(newRdy, prevDone, resourceLocks):
 #   loopy shit with instead of sleep: if event.wait(timeout=sleep):
@@ -138,7 +138,7 @@ def bedlight(newRdy, prevDone, resourceLocks):
         newRdy.clear()           #return
         prevDone.set()
         return
-    colorLoopScene()#default color loop shit   
+    colorLoopScene(newRdy, prevDone, resourceLocks)#default color loop shit   
             
 def randoms(newRdy, prevDone, resourceLocks):
 #   loopy shit with instead of sleep: if event.wait(timeout=sleep):
@@ -181,7 +181,7 @@ def wakeup(newRdy, prevDone, resourceLocks):
         newRdy.clear()              #return, 120 minutes allowes for an 
         prevDone.set()              #maximum continues day light setting of
         return                      #2 hours before 6 O clock (current default)
-    colorLoopScene()#default color loop shit   
+    colorLoopScene(newRdy, prevDone, resourceLocks)#default color loop shit   
 
 
 
