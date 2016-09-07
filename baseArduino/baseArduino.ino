@@ -105,7 +105,7 @@ void readLight(signed short int sensorData[SENSORDATA_SIZE]){
   
   light.number = analogRead(light_signal);    // read the input pin
   sensorData[5] = light.number;
-  Serial.write(LIGHTSENS_bed);//TODO
+  Serial.write(LIGHTSENS_bed);
   Serial.write(light.bytes[0]);
   Serial.write(light.bytes[1]);
 }
@@ -340,8 +340,8 @@ void loop(){
   readLocalPIRs(PIRs); 
 
   //send PIR data reset updated pirs byte for new loop
-  Serial.write(PIRs[0]);
-  Serial.write(PIRs[1]);
+//  Serial.write(PIRs[0]);
+//  Serial.write(PIRs[1]);
   PIRs[1] = 0; //reset the "polled PIR's record"
   
   delay(resetSpeed);

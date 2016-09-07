@@ -47,6 +47,11 @@ void TempHumid::waitForResultSHT(int _dataPin, f1_type f1, f2_type f2, f3_type f
     f2(sensorData, PIRs);   //checkWirelessNodes    
     f3(sensorData);         //readLight              
 
+    //send PIR data
+    Serial.write(PIRs[0]);
+    Serial.write(PIRs[1]);
+    PIRs[1] = 0; //reset the "polled PIR's record"
+
     ack = PINA;
     if ((ack & 0b0100) == 0){ //if xxxx xxxx AND 0000 0100 = 1 or if the 3e bit is set // FIXME: die 0b0100 heeft vast een betekenis -> dat kan in een constante! 
       break;
