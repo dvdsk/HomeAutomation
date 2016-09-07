@@ -96,6 +96,8 @@ void loop(void){
       memcpy(sendBuffer, temp_c.bytes, 2);
       memcpy(sendBuffer+2, humidity.bytes, 2);
       
+      Serial.println(sendBuffer[0]);
+      
       radio.writeAckPayload(pipeNo,sendBuffer, 5);
       memcpy(sendBuffer, sendBuffer_def, sizeof(sendBuffer_def));//reset buffer for sending PIR data again
     }    

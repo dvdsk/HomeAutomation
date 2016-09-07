@@ -4,9 +4,73 @@ import serial #http://pythonhosted.org/pyserial/
 import time 
 import queue
 import threading
+import struct
 
 boudrate = 115200
 devicePort = '/dev/ttyUSB0'
+
+LIGHTSENS_bed = 25
+LIGHTSENS_window = 26
+LIGHTSENS_kitchen = 27
+LIGHTSENS_door = 28
+ROOMSENSORS = 101
+SETUP_done = 200
+
+def readBinary(extraSensorTask):
+    #read in analyse for short latency requests and ouput all data to buffer, 
+    #then after 10 seconds put the buffer into a Queue to be further processed
+
+    with serial.Serial(devicePort, boudrate, timeout = 10) as ser:
+        ser.flushInput()
+        #wait till setup is complete
+        while True:
+            header = ser.read(size=1)
+            header = int.from_bytes(header, byteorder='little')
+            if(header == SETUP_done):
+                print("got setup done header")
+                break
+        while True:                
+            header = ser.read(size=1)
+            header = int.from_bytes(header, byteorder='little')
+            print(header)
+            if header == LIGHTSENS_bed:
+                buffer_ = ser.read(size=2)
+                light = int.from_bytes(buffer_, byteorder='little') #unsigned short
+                print("light:",light)
+            elif header == ROOMSENSORS:            
+                buffer_ = ser.read(size=18)
+                print("buffer: ", buffer_)
+                temp_bed            = int.from_bytes(buffer_[0:2], byteorder='little')
+                temp_bathroom       = int.from_bytes(buffer_[2:4], byteorder='little')
+                humidity_bed        = int.from_bytes(buffer_[4:6], byteorder='little')
+                humidity_bathroom   = int.from_bytes(buffer_[6:8], byteorder='little')
+                co2                 = int.from_bytes(buffer_[8:10], byteorder='little')
+                light_bed           = int.from_bytes(buffer_[10:12], byteorder='little')
+                print("sensors:",temp_bed, temp_bathroom, humidity_bed,
+                      humidity_bathroom, co2, light_bed)
+ 
+            ser.read(size=1) 
+
+            if not extraSensorTask.empty():
+                request = extraSensorTask.get()
+                ser.write(request)           
+    return
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def init():
     pass
@@ -179,22 +243,20 @@ def queueput(extraSensorTask):
 #   this number can be 2 digets
     time.sleep(4)
     while True:
-        time.sleep(2)
+        time.sleep(5)
         extraSensorTask.put(b'00')
-#    time.sleep(4)
-#    extraSensorTask.put(b'00')
-#    time.sleep(4)
-#    extraSensorTask.put(b'01')
+        time.sleep(4)
+        extraSensorTask.put(b'00')
+        time.sleep(4)
+        extraSensorTask.put(b'01')
     return    
 
 #timeSHT(extraSensorTask)
 #timeACC(extraSensorTask)
 
-
-t = threading.Thread(target = read, 
+t = threading.Thread(target = readBinary, 
                      args   = (extraSensorTask,))
 t.start()
-extraSensorTask.put(b'02')
 queueput(extraSensorTask)
 
 

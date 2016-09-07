@@ -15,26 +15,40 @@ typedef union
 } INTUNION_t;
 
 // Specify data and clock connections
-const int term_dataPin = 24; //PB2
-const int term_clockPin = 22; //PB0
+static const int term_dataPin = 24; //PB2
+static const int term_clockPin = 22; //PB0
 
 // Specify signal connections
-const int pir_signal = 49;
-const int light_signal = 0; //anolog
+static const int pir_signal = 49;
+static const int light_signal = 0; //anolog
 
 // Radio connections
-const int CEPIN = 7;
-const int CSPIN = 9;
-const uint8_t ADDRESSES[][4] = { "No1", "No2" }; // Radio pipe addresses 3 bytes
+static const int CEPIN = 7;
+static const int CSPIN = 9;
+static const uint8_t ADDRESSES[][4] = { "No1", "No2" }; // Radio pipe addresses 3 bytes
 //is the absolute minimum
 
 // script setup parameters
-const int readSpeed = 1; //time between reading individual chars
-const int debugSpeed = 0; //time between reading and reply-ing used for debug
-const int resetSpeed = 0; //time for the connection to reset
-const int calibrationTime = 2000; //setup wait period
+static const int readSpeed = 1; //time between reading individual chars
+static const int debugSpeed = 0; //time between reading and reply-ing used for debug
+static const int resetSpeed = 1000; //time for the connection to reset
+static const int calibrationTime = 2000; //setup wait period
 
-const byte REQUESTCO2[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; 
+static const byte REQUESTCO2[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; 
+
+// headers for diffrent data
+// light sensors, 25 - 50 three bytes long including header
+// room sensors package, 101
+// pir packages are always 2 bytes long and never have a header
+
+static const unsigned char SETUP_done = 200; //light sensor under the bed
+
+static const unsigned char LIGHTSENS_bed = 25; //light sensor under the bed
+static const unsigned char LIGHTSENS_window = 26;
+static const unsigned char LIGHTSENS_kitchen = 27;
+static const unsigned char LIGHTSENS_door = 28;
+
+static const unsigned char ROOMSENSORS = 101; //light sensor under the bed
 
 int buffer[3];
 int bufferLen = 0;
@@ -47,8 +61,11 @@ byte PIRs[2]; //stores pir data, first byte stores if a sensor has detected
 //this readout, [bedSouth, bedNorth, bathroomWest, bathroomEast, door, krukje,
 //trashcan, ??] 
 
-const static signed short int sensorData_def[9] = {32767,32767,32767,32767,32767,32767,0,0,0};
-signed short int sensorData[9] = {32767,32767,32767,32767,32767,32767,0,0,0};
+
+
+static const signed short int SENSORDATA_SIZE = 9;
+static const signed short int sensorData_def[SENSORDATA_SIZE] = {32767,32767,32767,32767,32767,32767,0,0,0};
+signed short int sensorData[SENSORDATA_SIZE] = {32767,32767,32767,32767,32767,32767,0,0,0};
 //initialised as 32767 for every value stores: temp_bed, temp_bathroom, 
 //humidity_bed, humidity_bathroom, co2, light_bed, light_outside, light_door, 
 //light_kitchen, whenever data is send we reset to this value
@@ -78,18 +95,19 @@ void readLocalPIRs(byte PIRs[2]){
   }
 }
 
-void readLight(signed short int sensorData[9]){
-  //read light sensor (anolog) and return over serial, this happens many times
-  //a second
-  int light;
+void readLight(signed short int sensorData[SENSORDATA_SIZE]){
+  //read light sensor (anolog) and return over serial, this happens multiple times
+  //a second, convert the data to binairy and send using hte following format:
+  //[header for this light sensor (see the top of file)][lightLevel byte 1]
+  //[light level byte 2]
   
-  light = analogRead(light_signal);    // read the input pin
-  sensorData[5] = light;
+  INTUNION_t light;
   
-  //TODO rewrite for serial.write()
-  Serial.print("l");
-  Serial.print(light);
-  Serial.print("\n");
+  light.number = analogRead(light_signal);    // read the input pin
+  sensorData[5] = light.number;
+  Serial.write(LIGHTSENS_bed);//TODO
+  Serial.write(light.bytes[0]);
+  Serial.write(light.bytes[1]);
 }
 
 
@@ -123,7 +141,7 @@ int readCO2(Stream& sensorSerial){
   return -1;
 }    
 
-void processRemoteTemp(signed short int sensorData[9], byte rcbuffer[5]){
+void processRemoteTemp(signed short int sensorData[SENSORDATA_SIZE], byte rcbuffer[5]){
   //copy data from radio buffer back to integers and store it in the SensorsData
   //array to be send later by sendSensorsdata if the array is complete
   
@@ -136,7 +154,7 @@ void processRemoteTemp(signed short int sensorData[9], byte rcbuffer[5]){
   sensorData[3] = humidity.number;//TODO remove this (do this while rewriting for    
 }
 
-void checkWirelessNodes(signed short int sensorData[9], byte PIRs[2]){
+void checkWirelessNodes(signed short int sensorData[SENSORDATA_SIZE], byte PIRs[2]){
   //ask wireless node(s) (currently 1 implemented) for a status update
   //process status data
   
@@ -157,7 +175,7 @@ void checkWirelessNodes(signed short int sensorData[9], byte PIRs[2]){
 }
 
   
-void readRoomSensors(signed short int sensorData[9], byte PIRs[2]){
+void readRoomSensors(signed short int sensorData[SENSORDATA_SIZE], byte PIRs[2]){
   //Read temperature, humidity and co2 wired to this device and
   //store the outcome to be reported over serial later by sendSensorsdata
   //light data though remote is not polled as this is done on a frequent basis
@@ -185,27 +203,24 @@ void readRoomSensors(signed short int sensorData[9], byte PIRs[2]){
   sensorData[4] = int(readCO2(Serial1) );
 }
 
-void sendSensorsdata(signed short int sensorData[9]){
+void sendSensorsdata(signed short int sensorData[SENSORDATA_SIZE]){
   //used to send the data to the raspberry pi 
   //when the sensorArray has been filled
   
-  //TODO rewrite for serial.write()
-  Serial.print("rt");
-  Serial.print(sensorData[1]);
-  Serial.print("rh");
-  Serial.print(sensorData[3]);
-  Serial.print("t");
-  Serial.print(sensorData[0]);
-  Serial.print("h");
-  Serial.print(sensorData[2]);
-  Serial.print("l");  
-  Serial.print(sensorData[5]);
-  Serial.print("c");  
-  Serial.print(sensorData[4]);
-  Serial.print("\n");  
+  INTUNION_t toSend;
+  
+  //header that announces the data format
+  Serial.write(ROOMSENSORS);
+  for (unsigned int i = 0; i < SENSORDATA_SIZE; i++){
+  //send 16 bit integers over serial in binairy
+    toSend.number = sensorData[i];
+    Serial.write(toSend.bytes[0]);
+    Serial.write(toSend.bytes[1]);
+  }
+  
 
   //reset sensorData to default values so we can easily check if it is complete
-  memcpy(sensorData, sensorData_def, sizeof(sensorData_def));
+  memcpy(sensorData, sensorData_def, SENSORDATA_SIZE);
 }
 
 void setup()
@@ -220,7 +235,6 @@ void setup()
   acSen.setup();
  
   //initialise radio
-  Serial.print("setting up radio\n");
   radio.begin();
 
   radio.setAddressWidth(3);               //sets adress with to 3 bytes long
@@ -237,7 +251,9 @@ void setup()
   //give the pir sensor some time to calibrate
   delay(calibrationTime);
   Serial.print("setup done, starting response loop\n");
-  radio.stopListening();  
+  radio.stopListening();
+
+  Serial.write(SETUP_done);
 }
 
 
@@ -299,21 +315,20 @@ void loop(){
     lightCounter = 0;
     }
   lightCounter++;
-  
+
+//disabled till we can filter away the noise  
 //  if (accCounter > accPeriod) {
 //    acSen.readOut();
 //    accCounter = 0;
 //    }
 //  accCounter++;    
-
-  readLocalPIRs(PIRs); 
   
   //read remote sensors
   checkWirelessNodes(sensorData, PIRs);
   
   //check if sensordata is complete and if so send
   bool rdyToSend = true;
-  for (int i =0; i < sizeof(sensorData); i++){
+  for (unsigned int i =0; i < SENSORDATA_SIZE; i++){
     if(sensorData[i] == 32767){ //check if default size
       rdyToSend = false;
     }
@@ -321,9 +336,12 @@ void loop(){
   if (rdyToSend){
     sendSensorsdata(sensorData);
   }
-  //always send PIR data (as it contains a record of which part of it is complete)
-//  Serial.print(PIRs[0], BIN);//TODO disabled for debugging
-//  Serial.print(PIRs[1], BIN);
+
+  readLocalPIRs(PIRs); 
+
+  //send PIR data reset updated pirs byte for new loop
+  Serial.write(PIRs[0]);
+  Serial.write(PIRs[1]);
   PIRs[1] = 0; //reset the "polled PIR's record"
   
   delay(resetSpeed);
