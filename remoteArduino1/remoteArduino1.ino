@@ -61,6 +61,8 @@ void setup(){
   radio.setRetries(0,15);                 // Smallest time between retries, max no. of retries
   radio.setPayloadSize(5);                // Here we are sending 1-byte payloads to test the call-response speed
   
+  //radio.setDataRate(RF24_250KBPS);
+  
   radio.openWritingPipe(ADDRESSES[1]);  // Both radios on same pipes, but opposite addresses
   radio.openReadingPipe(1,ADDRESSES[0]);// Open a reading pipe on address 0, pipe 1
   radio.startListening();                 // Start listening
@@ -96,13 +98,19 @@ void loop(void){
       memcpy(sendBuffer, temp_c.bytes, 2);
       memcpy(sendBuffer+2, humidity.bytes, 2);
       
-      Serial.println(sendBuffer[0]);
-      
-      radio.writeAckPayload(pipeNo,sendBuffer, 5);
-      memcpy(sendBuffer, sendBuffer_def, sizeof(sendBuffer_def));//reset buffer for sending PIR data again
+      //add the latest PIR update
+      sendBuffer[4] = readPIRs();      
     }    
-    else{    
-      readAndSendPIRs(pipeNo); 
+    else if (gotByte == 'd'){//d indicates the source had not yet recieved the temperature
+      //send temperature records back together with new pir data with the next
+      //transmission
+      sendBuffer[4] = readPIRs();     
+    }    
+    else{
+      //reset temp part of buffer as it has been confirmed recieved    
+      memcpy(sendBuffer, sendBuffer_def, sizeof(sendBuffer_def));
+      sendBuffer[4] = readPIRs();
     }
+    radio.writeAckPayload(pipeNo,sendBuffer, 5);
  }
 }

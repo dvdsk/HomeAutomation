@@ -30,22 +30,20 @@ void TempHumid::skipCrcSHT(int _dataPin, int _clockPin)
 }
 
 void TempHumid::waitForResultSHT(int _dataPin, f1_type f1, f2_type f2, f3_type f3, 
-                                 signed short int sensorData[9], byte PIRs[2])
+                                 signed short int sensorData[9], byte PIRs[2], byte rqUpdate[1])
 {
-  unsigned int i;
-  unsigned int a;
   unsigned int ack;
 
   pinMode(_dataPin, INPUT);
 
-  for(i= 0; i < 100; ++i)
+  for(int i= 0; i < 1000; ++i)
   {
-    delay(10);
+//    delay(10);
     //instead of using the above delay (and wasting cycles) we run readPir
     //and other functions
-    f1(PIRs);               //readLocalPIRs
-    f2(sensorData, PIRs);   //checkWirelessNodes    
-    f3(sensorData);         //readLight              
+    f1(PIRs);                         //readLocalPIRs
+    f2(sensorData, PIRs, rqUpdate);   //checkWirelessNodes    
+    f3(sensorData);                   //readLight              
 
     //send PIR data
     Serial.write(PIRs[0]);
@@ -53,9 +51,7 @@ void TempHumid::waitForResultSHT(int _dataPin, f1_type f1, f2_type f2, f3_type f
     PIRs[1] = 0; //reset the "polled PIR's record"
 
     ack = PINA;
-    if ((ack & 0b0100) == 0){ //if xxxx xxxx AND 0000 0100 = 1 or if the 3e bit is set // FIXME: die 0b0100 heeft vast een betekenis -> dat kan in een constante! 
-      break;
-    }
+    if ((ack & PIN_TERM_DATA) == 0) break;
   }
 
 //  if (ack == HIGH) {
@@ -175,7 +171,7 @@ void TempHumid::sendCommandSHT(int _command, int _dataPin, int _clockPin){
 }
 
 float TempHumid::readTemperatureRaw(f1_type f1, f2_type f2, f3_type f3, 
-                                    signed short int sensorData[9], byte PIRs[2])
+                                    signed short int sensorData[9], byte PIRs[2], byte rqUpdate[1])
 { 
   int _val;
 
@@ -183,7 +179,7 @@ float TempHumid::readTemperatureRaw(f1_type f1, f2_type f2, f3_type f3,
   int _gTempCmd  = 0b00000011;
 
   sendCommandSHT(_gTempCmd, _dataPin, _clockPin);
-  waitForResultSHT(_dataPin, f1, f2, f3, sensorData, PIRs);
+  waitForResultSHT(_dataPin, f1, f2, f3, sensorData, PIRs, rqUpdate);
   _val = getData16SHT(_dataPin, _clockPin);
   skipCrcSHT(_dataPin, _clockPin);
 
@@ -191,7 +187,7 @@ float TempHumid::readTemperatureRaw(f1_type f1, f2_type f2, f3_type f3,
 }
 
 float TempHumid::readTemperatureC(f1_type f1, f2_type f2, f3_type f3,
-                                  signed short int sensorData[9], byte PIRs[2])
+                                  signed short int sensorData[9], byte PIRs[2], byte rqUpdate[1])
 {
   int _val;                // Raw value returned from sensor
   float _temperature;      // Temperature derived from raw value
@@ -201,7 +197,7 @@ float TempHumid::readTemperatureC(f1_type f1, f2_type f2, f3_type f3,
   const float D2 =   0.01; // for 14 Bit DEGC
 
   // Fetch raw value
-  _val = readTemperatureRaw( f1, f2, f3, sensorData, PIRs);
+  _val = readTemperatureRaw( f1, f2, f3, sensorData, PIRs, rqUpdate);
 
   // Convert raw value to degrees Celsius
   _temperature = (_val * D2) + D1;
@@ -210,7 +206,7 @@ float TempHumid::readTemperatureC(f1_type f1, f2_type f2, f3_type f3,
 }
 
 float TempHumid::readHumidity(float tempC, f1_type f1, f2_type f2, f3_type f3, 
-                              signed short int sensorData[9], byte PIRs[2])
+                              signed short int sensorData[9], byte PIRs[2], byte rqUpdate[1])
 {
   int _val;                    // Raw humidity value returned from sensor
   double _linearHumidity;       // Humidity with linear correction applied
@@ -228,7 +224,7 @@ float TempHumid::readHumidity(float tempC, f1_type f1, f2_type f2, f3_type f3,
 
   // Fetch the value from the sensor
   sendCommandSHT(_gHumidCmd, _dataPin, _clockPin);
-  waitForResultSHT(_dataPin, f1, f2, f3, sensorData, PIRs);
+  waitForResultSHT(_dataPin, f1, f2, f3, sensorData, PIRs, rqUpdate);
   _val = getData16SHT(_dataPin, _clockPin);
   skipCrcSHT(_dataPin, _clockPin);
 

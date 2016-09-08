@@ -5,7 +5,7 @@
 
 //type declaration for saving space and sanity in passing functions
 typedef void(*f1_type)(byte PIRs[2]);
-typedef void(*f2_type)(signed short int sensorData[9], byte PIRs[2]);
+typedef void(*f2_type)(signed short int sensorData[9], byte PIRs[2], byte rqUpdate[1]);
 typedef void(*f3_type)(signed short int sensorData[9]);
 
 class TempHumid
@@ -14,10 +14,10 @@ class TempHumid
     TempHumid(int dataPin, int clockPin);
     void readPIR();
     float readTemperatureC(f1_type f1, f2_type f2, f3_type f3,
-                           signed short int sensorData[9], byte PIRs[2]);
+                           signed short int sensorData[9], byte PIRs[2], byte rqUpdate[1]);
     
     float readHumidity(float tempC, f1_type f1, f2_type f2, f3_type f3, 
-                       signed short int sensorData[9], byte PIRs[2]);
+                       signed short int sensorData[9], byte PIRs[2], byte rqUpdate[1]);
   private:
     int _dataPin;
     int _clockPin;
@@ -26,10 +26,10 @@ class TempHumid
     void sendCommandSHT(int _command, int _dataPin, int _clockPin);  
     
     float readTemperatureRaw(f1_type f1, f2_type f2, f3_type f3, 
-                             signed short int sensorData[9], byte PIRs[2]);
+                             signed short int sensorData[9], byte PIRs[2], byte rqUpdate[1]);
                                  
     void waitForResultSHT(int _dataPin, f1_type f1, f2_type f2, f3_type f3, 
-                          signed short int sensorData[9], byte PIRs[2]);
+                          signed short int sensorData[9], byte PIRs[2], byte rqUpdate[1]);
 };
 
 const short PIN_TERM_DATA = 0b00000100;

@@ -237,14 +237,12 @@ def queueput(extraSensorTask):
 #   diget of number defines if we are requesting sensor data
 #   or controlling something (0 or 1), then a number for the sensor to request
 #   this number can be 2 digets
-    time.sleep(4)
     while True:
-        time.sleep(5)
         extraSensorTask.put(b'00')
         time.sleep(4)
         extraSensorTask.put(b'00')
         time.sleep(4)
-        extraSensorTask.put(b'01')
+        extraSensorTask.put(b'00')
     return    
 
 #timeSHT(extraSensorTask)

@@ -31,7 +31,7 @@ static const uint8_t ADDRESSES[][4] = { "No1", "No2" }; // Radio pipe addresses 
 // script setup parameters
 static const int readSpeed = 1; //time between reading individual chars
 static const int debugSpeed = 0; //time between reading and reply-ing used for debug
-static const int resetSpeed = 1000; //time for the connection to reset
+static const int resetSpeed = 0; //time for the connection to reset
 static const int calibrationTime = 2000; //setup wait period
 
 static const byte REQUESTCO2[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; 
@@ -52,6 +52,10 @@ static const unsigned char ROOMSENSORS = 101; //light sensor under the bed
 
 int buffer[3];
 int bufferLen = 0;
+
+byte rqUpdate[1] = {1};//non const as we change this to respect if we recieved
+//the temperature yet, when we have not yet recieved it it's 'd' otherise its 1
+
 int lightCounter = 0;
 int accCounter = 0;
 int accPeriod = 200;
@@ -154,28 +158,31 @@ void processRemoteTemp(signed short int sensorData[SENSORDATA_SIZE], byte rcbuff
   sensorData[3] = humidity.number;//TODO remove this (do this while rewriting for    
 }
 
-void checkWirelessNodes(signed short int sensorData[SENSORDATA_SIZE], byte PIRs[2]){
+void checkWirelessNodes(signed short int sensorData[SENSORDATA_SIZE], byte PIRs[2], byte rqUpdate[1]){
   //ask wireless node(s) (currently 1 implemented) for a status update
   //process status data
   
   byte rcbuffer[5];
-  static const byte rqUpdate[1] = {1};
   radio.write(rqUpdate, 1 ); //write 1 to the currently opend writingPipe
   if(radio.available() ){
-    radio.read( &rcbuffer, 5 );
-    //check if temperature data is present
-    if (rcbuffer[0] == 255){
-      PIRs[0] = PIRs[0] | rcbuffer[4]; //set bathroomsensor values to recieved data
-      PIRs[1] = PIRs[1] | 0b00110000;  //indicate bathroom sensors have been read
+    radio.read( &rcbuffer, 5 );//empty internal buffer from awk package
+    //check if temp data is present and we still have an outstanding request 
+    //for temp data.
+    if (rcbuffer[0] != 255 && rqUpdate[0] == 'd'){
+      rqUpdate[0] = 1;//do no longer request temp data and indicate we have no
+      //outstanding request
+      processRemoteTemp(sensorData, rcbuffer);   
     }
-    else{//temperature must be contained in the first 2 bytes
-      processRemoteTemp(sensorData, rcbuffer);
+    //package only contains PIR data 
+    else{
+      PIRs[0] = PIRs[0] | rcbuffer[4]; //set bathroomsensor values to recieved data
+      PIRs[1] = PIRs[1] | 0b00110000;  //indicate bathroom sensors have been read   
     }
   }
 }
 
   
-void readRoomSensors(signed short int sensorData[SENSORDATA_SIZE], byte PIRs[2]){
+void readRoomSensors(signed short int sensorData[SENSORDATA_SIZE], byte PIRs[2], byte rqUpdate[1]){
   //Read temperature, humidity and co2 wired to this device and
   //store the outcome to be reported over serial later by sendSensorsdata
   //light data though remote is not polled as this is done on a frequent basis
@@ -188,14 +195,16 @@ void readRoomSensors(signed short int sensorData[SENSORDATA_SIZE], byte PIRs[2])
 
   //request the values of the other sensors in the room  
   static const byte rqTemp[1] = {'t'};
-  radio.write( rqTemp, 1 ); //write 1 to the currently opend writingPipes
+  radio.write( rqTemp, 1 ); //write len 1 to the currently opend writingPipes
+  rqUpdate[0] = 'd';//indicates we still have an outstanding request for
+  //temperature
   
   //geather data from the local sensors
   Serial1.write(REQUESTCO2,9);// request the CO2 sensor to do a reading
   temp_c = thSen.readTemperatureC(readLocalPIRs,checkWirelessNodes,readLight,
-                                  sensorData, PIRs);
+                                  sensorData, PIRs, rqUpdate);
   humidity = thSen.readHumidity(temp_c, readLocalPIRs,checkWirelessNodes,
-                                readLight,sensorData, PIRs);
+                                readLight,sensorData, PIRs, rqUpdate);
   
   sensorData[0] = int(temp_c*100);
   sensorData[2] = int(humidity*100);
@@ -218,7 +227,6 @@ void sendSensorsdata(signed short int sensorData[SENSORDATA_SIZE]){
     Serial.write(toSend.bytes[1]);
   }
   
-
   //reset sensorData to default values so we can easily check if it is complete
   memcpy(sensorData, sensorData_def, SENSORDATA_SIZE);
 }
@@ -229,7 +237,6 @@ void setup()
   Serial1.begin(9600);  //Opens the second serial port with a baud of 9600 
                        //connect TX from MH Co2 sensor to TX1 on arduino etc
   printf_begin();
-  delay(2000);
  
   //initialising and calibrating accelerometer
   acSen.setup();
@@ -242,6 +249,8 @@ void setup()
   radio.enableAckPayload();               // Allow optional ack payloads
   radio.setRetries(0,15);                 // Smallest time between retries, max no. of retries
   radio.setPayloadSize(5);                // Here we are sending 1-byte payloads to test the call-response speed
+  
+  //radio.setDataRate(RF24_250KBPS);
   
   radio.openWritingPipe(ADDRESSES[0]);    // Both radios on same pipes, but opposite addresses
   radio.openReadingPipe(1,ADDRESSES[1]);  // Open a reading pipe on address 1, pipe 1
@@ -274,36 +283,26 @@ void loop(){
   }
 
   if (bufferLen >0) {
-    switch(buffer[0]) {
-      case 48:
-        switch(buffer[1]){
-          case 48: //acii 0
-            readRoomSensors(sensorData, PIRs);//requests the remote sensor values
-            //and reads in the local sensors
-            break;
-          case 49: //acii 1
-            //nothing         
-            break;
-          case 50: //acii 2
-            accPeriod = 1;  //fast polling    
-            break;
-          case 51: //acii 3
-            accPeriod = 200;  //slow polling             
-            break;
-          case 52: //acii 4               
-            break;
-          default:
-            Serial.print("error not a sensor\n");
-            break;
-        }//switch
+    switch(buffer[0]){
+      case 48: //acii 0
+        readRoomSensors(sensorData, PIRs, rqUpdate);//requests the remote sensor values
+        //and reads in the local sensors
         break;
-      case 49:
-        Serial.print("doing motor shit\n");   
-        break;   
+      case 49: //acii 1
+        //nothing         
+        break;
+      case 50: //acii 2
+        accPeriod = 1;  //fast polling    
+        break;
+      case 51: //acii 3
+        accPeriod = 200;  //slow polling             
+        break;
+      case 52: //acii 4               
+        break;
       default:
-        Serial.print("error not a sensor/motor command\n");
+        Serial.print("error not a sensor\n");
         break;
-    }    
+    }//switch
   }//if
 
   bufferLen = 0;//empty the string
@@ -324,7 +323,7 @@ void loop(){
 //  accCounter++;    
   
   //read remote sensors
-  checkWirelessNodes(sensorData, PIRs);
+  checkWirelessNodes(sensorData, PIRs, rqUpdate);
   
   //check if sensordata is complete and if so send
   bool rdyToSend = true;
@@ -340,8 +339,8 @@ void loop(){
   readLocalPIRs(PIRs); 
 
   //send PIR data reset updated pirs byte for new loop
-//  Serial.write(PIRs[0]);
-//  Serial.write(PIRs[1]);
+  Serial.write(PIRs[0]);
+  Serial.write(PIRs[1]);
   PIRs[1] = 0; //reset the "polled PIR's record"
   
   delay(resetSpeed);
