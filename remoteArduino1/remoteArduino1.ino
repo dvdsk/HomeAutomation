@@ -20,6 +20,9 @@ const short pirB = 0b00100000;
 //radio address
 const uint8_t ADDRESSES[][4] = { "No1", "No2" };
 
+//default package
+static const byte sendBuffer_def[5] = {255,0,0,0,0};
+
 RF24 radio(7,8); //Set up nRF24L01 radio on SPI bus plus pins 7 & 8 (cepin, cspin)
 TempHumid thSen (term_dataPin, term_clockPin);
                                                            // 
@@ -27,25 +30,18 @@ TempHumid thSen (term_dataPin, term_clockPin);
 
 
 
-int readPIRs(){
+void readPIRs(byte sendBuffer[5]){
   byte pirValues = 0 ;
   if ((PIND & pirA) != 0){ 
-    pirValues = pirValues | 2;//pir1 signal
+    pirValues = 0b00000100;//pir1 signal
     }
   else if ((PIND & pirB) != 0){
-    pirValues = pirValues | 3;//pir2 signal
+    pirValues = pirValues | 0b00001000;//pir2 signal
     }
-  return pirValues;
+  pirValues = sendBuffer[4];
 }
 
-void readAndSendPIRs(byte pipeNo){
-  //check the PIR sensors then ack with the value
-  byte sendBuffer[5] = {255,0,0,0,0};
-  
-  sendBuffer[4] = readPIRs();
-  radio.writeAckPayload(pipeNo, sendBuffer, 5);
-}
-  
+ 
 
 void setup(){
 
@@ -65,31 +61,39 @@ void setup(){
   
   radio.openWritingPipe(ADDRESSES[1]);  // Both radios on same pipes, but opposite addresses
   radio.openReadingPipe(1,ADDRESSES[0]);// Open a reading pipe on address 0, pipe 1
-  radio.startListening();                 // Start listening
-  readAndSendPIRs(1);
+  radio.startListening();                 // Start listening     
+
   radio.printDetails();                   // Dump the configuration of the rf unit for debugging
 
+  //prepare hardware awk buffer
+  byte sendBuffer[5] = {255,0,0,0,0};
+  radio.writeAckPayload(1,sendBuffer, 5);//pre load pir values into into pipe 1
 }
 
-
-int counter = 1;  
+byte last_gotByte;
+int counter = 0;  
 void loop(void){
   byte pipeNo, gotByte;                          // Declare variables for the pipe & byte received
   byte sendBuffer[5] = {255,0,0,0,0};
-  static const byte sendBuffer_def[5] = {255,0,0,0,0};
   float temp_raw, humidity_raw;
   INTUNION_t temp_c, humidity; 
 
-  while (radio.available(&pipeNo)){              // Read all available payloads
+  while (radio.available()){                   // Read all available payloads
 
     radio.read( &gotByte, 1 );
     radio.powerUp();                             //TODO does this fix radio going to low power mode?
                                                  // Respond directly with an ack payload.
+    if (last_gotByte != gotByte){
+      Serial.print("got: ");
+      Serial.println(gotByte);
+      last_gotByte = gotByte;
+    }
+    
     if (gotByte == 't'){
       //reads temp and sends response while also checking the PIR
       //and sending its status along
-      temp_raw = thSen.readTemperatureC(readAndSendPIRs, radio);
-      humidity_raw = thSen.readHumidity(temp_raw, readAndSendPIRs, radio);
+      temp_raw = thSen.readTemperatureC(readPIRs, sendBuffer, radio);
+      humidity_raw = thSen.readHumidity(temp_raw, readPIRs, sendBuffer, radio);
 
       temp_c.number = int(temp_raw*100);
       humidity.number = int(humidity_raw*100);
@@ -99,18 +103,24 @@ void loop(void){
       memcpy(sendBuffer+2, humidity.bytes, 2);
       
       //add the latest PIR update
-      sendBuffer[4] = readPIRs();      
+      readPIRs(sendBuffer);      
+      Serial.println("prepairing transmit");     
     }    
     else if (gotByte == 'd'){//d indicates the source had not yet recieved the temperature
       //send temperature records back together with new pir data with the next
       //transmission
-      sendBuffer[4] = readPIRs();     
+      readPIRs(sendBuffer);      
+      
+      counter++;
+      Serial.print("retransmit attempt: ");   
+      Serial.println(counter);   
     }    
     else{
+      counter = 0;
       //reset temp part of buffer as it has been confirmed recieved    
       memcpy(sendBuffer, sendBuffer_def, sizeof(sendBuffer_def));
-      sendBuffer[4] = readPIRs();
+      readPIRs(sendBuffer);      
     }
-    radio.writeAckPayload(pipeNo,sendBuffer, 5);
+    radio.writeAckPayload(1,sendBuffer, 5);
  }
 }

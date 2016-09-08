@@ -31,7 +31,7 @@ static const uint8_t ADDRESSES[][4] = { "No1", "No2" }; // Radio pipe addresses 
 // script setup parameters
 static const int readSpeed = 1; //time between reading individual chars
 static const int debugSpeed = 0; //time between reading and reply-ing used for debug
-static const int resetSpeed = 0; //time for the connection to reset
+static const int resetSpeed = 1000; //time for the connection to reset
 static const int calibrationTime = 2000; //setup wait period
 
 static const byte REQUESTCO2[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; 
@@ -109,9 +109,9 @@ void readLight(signed short int sensorData[SENSORDATA_SIZE]){
   
   light.number = analogRead(light_signal);    // read the input pin
   sensorData[5] = light.number;
-  Serial.write(LIGHTSENS_bed);
-  Serial.write(light.bytes[0]);
-  Serial.write(light.bytes[1]);
+//  Serial.write(LIGHTSENS_bed);//TODO
+//  Serial.write(light.bytes[0]);
+//  Serial.write(light.bytes[1]);
 }
 
 
@@ -201,6 +201,7 @@ void readRoomSensors(signed short int sensorData[SENSORDATA_SIZE], byte PIRs[2],
   
   //geather data from the local sensors
   Serial1.write(REQUESTCO2,9);// request the CO2 sensor to do a reading
+  delay(2000);//TODO REMOVE
   temp_c = thSen.readTemperatureC(readLocalPIRs,checkWirelessNodes,readLight,
                                   sensorData, PIRs, rqUpdate);
   humidity = thSen.readHumidity(temp_c, readLocalPIRs,checkWirelessNodes,
@@ -222,9 +223,9 @@ void sendSensorsdata(signed short int sensorData[SENSORDATA_SIZE]){
   Serial.write(ROOMSENSORS);
   for (unsigned int i = 0; i < SENSORDATA_SIZE; i++){
   //send 16 bit integers over serial in binairy
-    toSend.number = sensorData[i];
-    Serial.write(toSend.bytes[0]);
-    Serial.write(toSend.bytes[1]);
+    toSend.number = sensorData[i];    
+//    Serial.write(toSend.bytes[0]);//TODO
+//    Serial.write(toSend.bytes[1]);
   }
   
   //reset sensorData to default values so we can easily check if it is complete
@@ -327,11 +328,15 @@ void loop(){
   
   //check if sensordata is complete and if so send
   bool rdyToSend = true;
+  Serial.println("---------");
   for (unsigned int i =0; i < SENSORDATA_SIZE; i++){
+    Serial.println(sensorData[i]);
     if(sensorData[i] == 32767){ //check if default size
       rdyToSend = false;
     }
   }
+  Serial.println(rqUpdate[0]);
+  Serial.println("---------");
   if (rdyToSend){
     sendSensorsdata(sensorData);
   }
@@ -339,8 +344,8 @@ void loop(){
   readLocalPIRs(PIRs); 
 
   //send PIR data reset updated pirs byte for new loop
-  Serial.write(PIRs[0]);
-  Serial.write(PIRs[1]);
+//  Serial.write(PIRs[0]);//TODO
+//  Serial.write(PIRs[1]);
   PIRs[1] = 0; //reset the "polled PIR's record"
   
   delay(resetSpeed);

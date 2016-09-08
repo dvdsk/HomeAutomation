@@ -31,29 +31,32 @@ void TempHumid::skipCrcSHT(int _dataPin, int _clockPin)
 }
 
 
-void TempHumid::waitForResultSHT(int _dataPin, void (*f1)(byte), RF24& radio)
+void TempHumid::waitForResultSHT(int _dataPin, void (*f1)(byte sendBuffer[5]), byte sendBuffer[5], RF24& radio)
 {
-  unsigned int i;
-  unsigned int a;
+  static const byte sendBuffer_def[5] = {255,0,0,0,0};
+  
   unsigned int ack;
-  byte pipeNo, gotByte;
+  byte gotByte;
   
   pinMode(_dataPin, INPUT);
 
-  for(i= 0; i < 100; ++i) {
+  for(int i= 0; i < 100; ++i) {
     
     delay(10);// FIXME works with delay(10)
     //instead of using the above delay (and wasting cycles) we run readPir
     //and other functions
-    if (radio.available(&pipeNo)){
+    if (radio.available()){
       radio.read( &gotByte, 1 );
-      f1(pipeNo); //readpir and send to baseArduino
+      if (gotByte == '1'){
+        memcpy(sendBuffer, sendBuffer_def, sizeof(sendBuffer_def));
+      }
     }
 
+    f1(sendBuffer); //readpir and put values into sendbuffer
+    radio.writeAckPayload(1,sendBuffer, 5);
+
     ack = PIND;
-    if ((ack & 0b1000) == 0){ //if xxxx xxxx AND 0000 0100 = 1 or if the 3e bit is set // FIXME: die 0b0100 heeft vast een betekenis -> dat kan in een constante! 
-      break;
-    }
+    if ((ack & PIN_TERM_DATA) == 0) break;
   }
 
 //  if (ack == HIGH) {
@@ -177,7 +180,7 @@ void TempHumid::sendCommandSHT(int _command, int _dataPin, int _clockPin)
 }
 
 
-float TempHumid::readTemperatureRaw(void (*f1)(byte), RF24& radio)
+float TempHumid::readTemperatureRaw(void (*f1)(byte sendBuffer[5]), byte sendBuffer[5], RF24& radio)
 {
   int _val;
 
@@ -185,7 +188,7 @@ float TempHumid::readTemperatureRaw(void (*f1)(byte), RF24& radio)
   int _gTempCmd  = 0b00000011;
 
   sendCommandSHT(_gTempCmd, _dataPin, _clockPin);
-  waitForResultSHT(_dataPin, f1, radio);
+  waitForResultSHT(_dataPin, f1, sendBuffer, radio);
   _val = getData16SHT(_dataPin, _clockPin);
   skipCrcSHT(_dataPin, _clockPin);
 
@@ -193,7 +196,7 @@ float TempHumid::readTemperatureRaw(void (*f1)(byte), RF24& radio)
 }
 
 
-float TempHumid::readTemperatureC(void (*f1)(byte), RF24& radio)
+float TempHumid::readTemperatureC(void (*f1)(byte sendBuffer[5]), byte sendBuffer[5], RF24& radio)
 {
   int _val;                // Raw value returned from sensor
   float _temperature;      // Temperature derived from raw value
@@ -203,7 +206,7 @@ float TempHumid::readTemperatureC(void (*f1)(byte), RF24& radio)
   const float D2 =   0.01; // for 14 Bit DEGC
 
   // Fetch raw value
-  _val = readTemperatureRaw(f1, radio);
+  _val = readTemperatureRaw(f1, sendBuffer, radio);
 
   // Convert raw value to degrees Celsius
   _temperature = (_val * D2) + D1;
@@ -212,7 +215,7 @@ float TempHumid::readTemperatureC(void (*f1)(byte), RF24& radio)
 }
 
 
-float TempHumid::readHumidity(float _temperature, void (*f1)(byte), RF24& radio)
+float TempHumid::readHumidity(float _temperature, void (*f1)(byte sendBuffer[5]), byte sendBuffer[5], RF24& radio)
 {
   int _val;                    // Raw humidity value returned from sensor
   double _linearHumidity;       // Humidity with linear correction applied
@@ -230,7 +233,7 @@ float TempHumid::readHumidity(float _temperature, void (*f1)(byte), RF24& radio)
 
   // Fetch the value from the sensor
   sendCommandSHT(_gHumidCmd, _dataPin, _clockPin);
-  waitForResultSHT(_dataPin, f1, radio);
+  waitForResultSHT(_dataPin, f1, sendBuffer, radio);
   _val = getData16SHT(_dataPin, _clockPin);
   skipCrcSHT(_dataPin, _clockPin);
 
