@@ -22,6 +22,7 @@ const uint8_t ADDRESSES[][4] = { "No1", "No2" };
 
 //default package
 static const byte sendBuffer_def[5] = {255,0,0,0,0};
+byte sendBuffer[5] = {255,0,0,0,0};
 
 RF24 radio(7,8); //Set up nRF24L01 radio on SPI bus plus pins 7 & 8 (cepin, cspin)
 TempHumid thSen (term_dataPin, term_clockPin);
@@ -70,11 +71,8 @@ void setup(){
   radio.writeAckPayload(1,sendBuffer, 5);//pre load pir values into into pipe 1
 }
 
-byte last_gotByte;
-byte sendBuffer[5] = {255,0,0,0,0};
-int counter = 0;  
 void loop(void){
-  byte pipeNo, gotByte;                          // Declare variables for the pipe & byte received
+  byte gotByte;                          // Declare variables for the pipe & byte received
   float temp_raw, humidity_raw;
   INTUNION_t temp_c, humidity; 
 
@@ -83,11 +81,6 @@ void loop(void){
     radio.read( &gotByte, 1 );
     radio.powerUp();                             //TODO does this fix radio going to low power mode?
                                                  // Respond directly with an ack payload.
-    if (last_gotByte != gotByte){
-      Serial.print("got: ");
-      Serial.println(gotByte);
-      last_gotByte = gotByte;
-    }
     
     if (gotByte == 't'){
       //reads temp and sends response while also checking the PIR
@@ -104,22 +97,13 @@ void loop(void){
       
       //add the latest PIR update
       readPIRs(sendBuffer);      
-      Serial.print("prepairing transmit of buffer: ");
-      Serial.println(sendBuffer[0]);     
     }    
     else if (gotByte == 'd'){//d indicates the source had not yet recieved the temperature
       //send temperature records back together with new pir data with the next
       //transmission
       readPIRs(sendBuffer);      
-      
-      counter++;
-      Serial.print("retransmit attempt: ");   
-      Serial.print(counter);
-      Serial.print("\t\t send buffer: ");      
-      Serial.println(sendBuffer[0]);
     }    
     else{
-      counter = 0;
       //reset temp part of buffer as it has been confirmed recieved    
       memcpy(sendBuffer, sendBuffer_def, sizeof(sendBuffer_def));
       readPIRs(sendBuffer);      
