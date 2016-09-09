@@ -32,6 +32,9 @@ class TempHumid
                           signed short int sensorData[9], byte PIRs[2], byte rqUpdate[1]);
 };
 
+static const unsigned char PIRDATA2 = 202;//TODO might need removing when fast polling data
+//function is implemented
+
 const short PIN_TERM_DATA = 0b00000100;
 const short PIN_TERM_CLOCK = 0b00000001;
 const short PINS_OFF = 0b00000000;

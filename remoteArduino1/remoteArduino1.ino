@@ -26,8 +26,6 @@ byte sendBuffer[5] = {255,0,0,0,0};
 
 RF24 radio(7,8); //Set up nRF24L01 radio on SPI bus plus pins 7 & 8 (cepin, cspin)
 TempHumid thSen (term_dataPin, term_clockPin);
-                                                           // 
-
 
 
 
@@ -71,6 +69,7 @@ void setup(){
   radio.writeAckPayload(1,sendBuffer, 5);//pre load pir values into into pipe 1
 }
 
+long debugCounter = 0;
 void loop(void){
   byte gotByte;                          // Declare variables for the pipe & byte received
   float temp_raw, humidity_raw;
@@ -81,6 +80,9 @@ void loop(void){
     radio.read( &gotByte, 1 );
     radio.powerUp();                             //TODO does this fix radio going to low power mode?
                                                  // Respond directly with an ack payload.
+    debugCounter++;
+    Serial.print("handling request:");
+    Serial.println(debugCounter);
     
     if (gotByte == 't'){
       //reads temp and sends response while also checking the PIR
@@ -97,11 +99,15 @@ void loop(void){
       
       //add the latest PIR update
       readPIRs(sendBuffer);      
+
+/*      Serial.println("");*/
+/*      Serial.print("transmitting");*/
     }    
     else if (gotByte == 'd'){//d indicates the source had not yet recieved the temperature
       //send temperature records back together with new pir data with the next
       //transmission
-      readPIRs(sendBuffer);      
+      readPIRs(sendBuffer);
+/*      Serial.print("."); */
     }    
     else{
       //reset temp part of buffer as it has been confirmed recieved    

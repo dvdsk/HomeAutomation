@@ -40,12 +40,13 @@ void TempHumid::waitForResultSHT(int _dataPin, f1_type f1, f2_type f2, f3_type f
   {
     //delay(10);
     //instead of using the above delay (and wasting cycles) we run readPir
-    //and other functions
+    //and other functions    
     f1(PIRs);                         //readLocalPIRs
     f2(sensorData, PIRs, rqUpdate);   //checkWirelessNodes    
     f3(sensorData);                   //readLight              
     
     //send PIR data
+    Serial.write(PIRDATA2);
     Serial.write(PIRs[0]);//TODO function for this that sends the fast polling data
     Serial.write(PIRs[1]);
     PIRs[1] = 0; //reset the "polled PIR's record"

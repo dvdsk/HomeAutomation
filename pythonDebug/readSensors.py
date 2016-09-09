@@ -13,26 +13,36 @@ LIGHTSENS_bed = bytes([25])
 LIGHTSENS_window = bytes([26])
 LIGHTSENS_kitchen = bytes([27])
 LIGHTSENS_door = bytes([28])
-ROOMSENSORS = bytes([101])
+ROOMSENSORS = bytes([201])
 SETUP_done = bytes([200])
+PIRDATA = bytes([202])
 
 def readBinary(extraSensorTask):
-    #read in analyse for short latency requests and ouput all data to buffer, 
-    #then after 10 seconds put the buffer into a Queue to be further processed
 
-    with serial.Serial(devicePort, boudrate, timeout = 10) as ser:
+    def resetArduino(ser):    
+        ser.setDTR(False) # Drop DTR
+        time.sleep(0.022)    # Read somewhere that 22ms is what the UI does.
+        ser.setDTR(True)  # UP the DTR back
         ser.flushInput()
+        return
+    
+    now = int(time.time())
+    with serial.Serial(devicePort, boudrate, timeout = 10) as ser:
+        resetArduino(ser)
         #wait till setup is complete and the arduino sends the start signal
         while ser.read(size=1) != SETUP_done:
             pass
         while True:                
             header = ser.read(size=1)
 #            print(header)
-            if header == LIGHTSENS_bed:
-                buffer_ = ser.read(size=2)
-                light = int.from_bytes(buffer_, byteorder='little', signed=False) #unsigned short
-                print("light:",light)
-            elif header == ROOMSENSORS:            
+#            if header == LIGHTSENS_bed:
+#                buffer_ = ser.read(size=2)
+#                light = int.from_bytes(buffer_, byteorder='little', signed=False) #unsigned short
+##                if light>1024:
+##                  print("light:",light)
+            if header == ROOMSENSORS:            
+                prev = now
+                now = int(time.time())
                 buffer_ = ser.read(size=18)
                 temp_bed            = int.from_bytes(buffer_[0:2], byteorder='little')
                 temp_bathroom       = int.from_bytes(buffer_[2:4], byteorder='little')
@@ -41,10 +51,11 @@ def readBinary(extraSensorTask):
                 co2                 = int.from_bytes(buffer_[8:10], byteorder='little')
                 light_bed           = int.from_bytes(buffer_[10:12], byteorder='little')
                 print("sensors:",temp_bed, temp_bathroom, humidity_bed,
-                      humidity_bathroom, co2, light_bed)
+                      humidity_bathroom, co2, light_bed, "dtime:", now-prev)
  
-            #if there are no headers the message must be a PIR status update
-            processPIR([header,ser.read(size=1)])
+#            #if there are no headers the message must be a PIR status update
+#            elif header == PIRDATA:    
+#                processPIR(ser.read(size=2))
 
             if not extraSensorTask.empty():
                 request = extraSensorTask.get()
@@ -237,16 +248,12 @@ def queueput(extraSensorTask):
 #   diget of number defines if we are requesting sensor data
 #   or controlling something (0 or 1), then a number for the sensor to request
 #   this number can be 2 digets
+    time.sleep(5)
     while True:
-        extraSensorTask.put(b'00')
-        time.sleep(4)
-        extraSensorTask.put(b'00')
-        time.sleep(4)
-        extraSensorTask.put(b'00')
+        extraSensorTask.put(b'0')
+        time.sleep(5)
     return    
 
-#timeSHT(extraSensorTask)
-#timeACC(extraSensorTask)
 
 t = threading.Thread(target = readBinary, 
                      args   = (extraSensorTask,))

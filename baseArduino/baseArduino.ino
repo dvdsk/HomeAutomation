@@ -48,7 +48,8 @@ static const unsigned char LIGHTSENS_window = 26;
 static const unsigned char LIGHTSENS_kitchen = 27;
 static const unsigned char LIGHTSENS_door = 28;
 
-static const unsigned char ROOMSENSORS = 101; //light sensor under the bed
+static const unsigned char PIRDATA = 202;//
+static const unsigned char ROOMSENSORS = 201; //light sensor under the bed
 
 int buffer[3];
 int bufferLen = 0;
@@ -154,9 +155,6 @@ void processRemoteTemp(signed short int sensorData[SENSORDATA_SIZE], byte rcbuff
   memcpy(temp_c.bytes, rcbuffer, 2); 
   memcpy(humidity.bytes, rcbuffer+2, 2); //copy from buffer[2] t/m buffer[3]
   
-  //debug
-
-            
   sensorData[1] = temp_c.number;//set to the int representation of the 2 byte array
   sensorData[3] = humidity.number;//TODO remove this (do this while rewriting for    
 }
@@ -226,7 +224,6 @@ void sendSensorsdata(signed short int sensorData[SENSORDATA_SIZE]){
   Serial.write(ROOMSENSORS);
   for (unsigned int i = 0; i < SENSORDATA_SIZE; i++){
   //send 16 bit integers over serial in binairy
-  
     toSend.number = sensorData[i];    
     Serial.write(toSend.bytes[0]);
     Serial.write(toSend.bytes[1]);
@@ -305,7 +302,7 @@ void loop(){
       case 52: //acii 4               
         break;
       default:
-        Serial.print("error not a sensor\n");
+        //Serial.print("error not a sensor\n");//TODO replace with error code
         break;
     }//switch
   }//if
@@ -345,8 +342,9 @@ void loop(){
   readLocalPIRs(PIRs); 
 
   //send PIR data reset updated pirs byte for new loop
-//  Serial.write(PIRs[0]);//TODO
-//  Serial.write(PIRs[1]);
+  Serial.write(PIRDATA);
+  Serial.write(PIRs[0]);//TODO
+  Serial.write(PIRs[1]);
   PIRs[1] = 0; //reset the "polled PIR's record"
   
   delay(resetSpeed);
