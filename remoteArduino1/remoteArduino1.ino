@@ -71,10 +71,10 @@ void setup(){
 }
 
 byte last_gotByte;
+byte sendBuffer[5] = {255,0,0,0,0};
 int counter = 0;  
 void loop(void){
   byte pipeNo, gotByte;                          // Declare variables for the pipe & byte received
-  byte sendBuffer[5] = {255,0,0,0,0};
   float temp_raw, humidity_raw;
   INTUNION_t temp_c, humidity; 
 
@@ -104,7 +104,8 @@ void loop(void){
       
       //add the latest PIR update
       readPIRs(sendBuffer);      
-      Serial.println("prepairing transmit");     
+      Serial.print("prepairing transmit of buffer: ");
+      Serial.println(sendBuffer[0]);     
     }    
     else if (gotByte == 'd'){//d indicates the source had not yet recieved the temperature
       //send temperature records back together with new pir data with the next
@@ -113,7 +114,9 @@ void loop(void){
       
       counter++;
       Serial.print("retransmit attempt: ");   
-      Serial.println(counter);   
+      Serial.print(counter);
+      Serial.print("\t\t send buffer: ");      
+      Serial.println(sendBuffer[0]);
     }    
     else{
       counter = 0;

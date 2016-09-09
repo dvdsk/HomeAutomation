@@ -153,6 +153,9 @@ void processRemoteTemp(signed short int sensorData[SENSORDATA_SIZE], byte rcbuff
   
   memcpy(temp_c.bytes, rcbuffer, 2); 
   memcpy(humidity.bytes, rcbuffer+2, 2); //copy from buffer[2] t/m buffer[3]
+  
+  //debug
+
             
   sensorData[1] = temp_c.number;//set to the int representation of the 2 byte array
   sensorData[3] = humidity.number;//TODO remove this (do this while rewriting for    
@@ -164,11 +167,20 @@ void checkWirelessNodes(signed short int sensorData[SENSORDATA_SIZE], byte PIRs[
   
   byte rcbuffer[5];
   radio.write(rqUpdate, 1 ); //write 1 to the currently opend writingPipe
+  
+  Serial.print("rqUpdate[1]: ");
+  Serial.println(rqUpdate[0]);  
+  
   if(radio.available() ){
     radio.read( &rcbuffer, 5 );//empty internal buffer from awk package
+    
+    Serial.print("got buffer: ");
+    Serial.println(rcbuffer[0]);
+    
     //check if temp data is present and we still have an outstanding request 
     //for temp data.
     if (rcbuffer[0] != 255 && rqUpdate[0] == 'd'){
+      Serial.print("RESETTING rqUPDATE");
       rqUpdate[0] = 1;//do no longer request temp data and indicate we have no
       //outstanding request
       processRemoteTemp(sensorData, rcbuffer);   
@@ -196,7 +208,7 @@ void readRoomSensors(signed short int sensorData[SENSORDATA_SIZE], byte PIRs[2],
   //request the values of the other sensors in the room  
   static const byte rqTemp[1] = {'t'};
   radio.write( rqTemp, 1 ); //write len 1 to the currently opend writingPipes
-  rqUpdate[0] = 'd';//indicates we still have an outstanding request for
+  rqUpdate[0] = 'd';// = ascii 100 indicates we still have an outstanding request for
   //temperature
   
   //geather data from the local sensors
