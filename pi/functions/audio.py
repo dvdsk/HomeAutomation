@@ -170,7 +170,7 @@ def addFromPlayList(mpd, playlist, **kwargs):
 #   will fail if the current playlist contains duplicates
 
     numb        = kwargs.get('numb', None)
-    time        = kwargs.get('time', None)
+    time_       = kwargs.get('time', None)
     variance    = kwargs.get('time', 25)
     
     #print(numb)
@@ -182,10 +182,11 @@ def addFromPlayList(mpd, playlist, **kwargs):
         for qSong in mpd.playlistinfo():
             if pList[i]['file'] == qSong['file']:
                 del pList[i]
-                break #break saves time and prevents missing item  
-            elif int(pList[i]['time']) > int(time_ - variance):
-                del pList[i]
-                break              
+                break #break saves time and prevents missing item 
+            elif time_:#needed to allow not passing time
+                if int(pList[i]['time']) > int(time_ - variance):
+                    del pList[i]
+                    break              
 
     if numb:        
         #check if that list still has length
@@ -199,19 +200,19 @@ def addFromPlayList(mpd, playlist, **kwargs):
             else:
                 print('list is empty')
     
-    if time:        
+    if time_:        
         #time based
         #calculate max length of playlist to make sure an exit condition exists
         totalTime = 0
         for i in range(len(pList)):
             totalTime += int(pList[i]['time'])
-        if totalTime < time:
+        if totalTime < time_:
             print('totalTime: '+str(totalTime))
             print('not enough songs in playlist')
             return
         else:
             totalTime = 0
-            while totalTime < time:
+            while totalTime < time_:
                 toadd = random.randint(0, len(pList)-1)        
                 mpd.add(pList[toadd]['file'])
                 

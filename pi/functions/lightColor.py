@@ -95,14 +95,16 @@ def getColorTemp(time):
     def eveningCurve(x): 
     #   this returns smoothly connected color temps suitable for the evening
     #   values found using informaticavia values and https://mycurvefit.com/
-        y = -74005.37 + 2.846501*x - 0.00003635958*x**2 + 1.551974e-10*x**3
+        x = x/60 - 18*60 #convert x from sec to min then set the zero point at
+        # 6 O clock in the afternoon 
+        y = 215+400/240*x
         return y
 
     partOfDay = int(time) % (3600*24) #how far we are this day in seconds
     
     if partOfDay >= 6*3600 and partOfDay <= 18*3600:
         temperature = 215 #day value btw 6:00 uur sochtends en 18:00
-    elif partOfDay > 23*3600 or partOfDay < 6*3600:
+    elif partOfDay > 22*3600 or partOfDay < 6*3600:
         temperature = 500 #night value
     else:
         #for the evening take a slowely decreasing curve
@@ -132,7 +134,26 @@ def getColorTemp2(time):
         temperature = eveningCurve(partOfDay)
     return temperature
 
+def getColorTemp3(time):
+#   takes a unix timestamp then calculates the part of the day we are in and 
+#   applies that to a curve function that links it to the color temperature
 
+    def eveningCurve(x): 
+    #   this returns smoothly connected color temps suitable for the evening
+    #   values found using informaticavia values and https://mycurvefit.com/
+        y = -74005.37 + 2.846501*x - 0.00003635958*x**2 + 1.551974e-10*x**3
+        return y
+
+    partOfDay = int(time) % (3600*24) #how far we are this day in seconds
+    
+    if partOfDay >= 6*3600 and partOfDay <= 18*3600:
+        temperature = 215 #day value btw 6:00 uur sochtends en 18:00
+    elif partOfDay > 23*3600 or partOfDay < 6*3600:
+        temperature = 500 #night value
+    else:
+        #for the evening take a slowely decreasing curve
+        temperature = eveningCurve(partOfDay)
+    return temperature
 
 
 

@@ -34,12 +34,11 @@ def readBinary(extraSensorTask):
             pass
         while True:                
             header = ser.read(size=1)
-#            print(header)
-#            if header == LIGHTSENS_bed:
-#                buffer_ = ser.read(size=2)
-#                light = int.from_bytes(buffer_, byteorder='little', signed=False) #unsigned short
-##                if light>1024:
-##                  print("light:",light)
+            if header == LIGHTSENS_bed:
+                buffer_ = ser.read(size=2)
+                light = int.from_bytes(buffer_, byteorder='little', signed=False) #unsigned short
+#                if light>1024:
+#                  print("light:",light)
             if header == ROOMSENSORS:            
                 prev = now
                 now = int(time.time())

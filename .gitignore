@@ -47,6 +47,7 @@ Thumbs.db
 # Other files #
 #####################
 build-mega2560
+build-atmega328
 config.py
 sensorConfig.py
 *.hdf5

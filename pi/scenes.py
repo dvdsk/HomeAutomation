@@ -133,8 +133,8 @@ def wakeup():
     
     #color wakeup fade is done by the lightSceneQueue and lampmanager script
     #here we simply sleep while that fades in the lights
-    Time_ = int(0.8*(config.wakeupPeriod*600))
-    time.sleep(Time_)
+    waitFor = int(0.8*(config.wakeupPeriod*60))
+    time.sleep(waitFor)
     
     
     #check if weekday

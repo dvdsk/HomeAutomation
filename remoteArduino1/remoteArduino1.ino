@@ -18,7 +18,13 @@ const short pirA = 0b00010000;
 const short pirB = 0b00100000;
 
 //radio address
-const uint8_t ADDRESSES[][4] = { "No1", "No2" };
+static const uint8_t ADDRESSES[][4] = { "1No", "2No", "3No" }; // Radio pipe addresses 3 bytes
+
+//radio commands
+static const unsigned char NODE1_PIR = 1;
+static const unsigned char NODE1_TEMP = 't';
+static const unsigned char NODE1_TEMP_RESEND = 'd';
+
 
 //default package
 static const byte sendBuffer_def[5] = {255,0,0,0,0};
@@ -57,9 +63,11 @@ void setup(){
   radio.setPayloadSize(5);                // Here we are sending 1-byte payloads to test the call-response speed
   
   //radio.setDataRate(RF24_250KBPS);
+  radio.setChannel(108);// 2.508 Ghz - Above most Wifi Channels
   
-  radio.openWritingPipe(ADDRESSES[1]);  // Both radios on same pipes, but opposite addresses
-  radio.openReadingPipe(1,ADDRESSES[0]);// Open a reading pipe on address 0, pipe 1
+  //no writing pipe needed since the ack goes back to the same adress as we are
+  //reading on
+  radio.openReadingPipe(1,ADDRESSES[1]);  // Open a reading pipe on address 0, pipe 1
   radio.startListening();                 // Start listening     
 
   radio.printDetails();                   // Dump the configuration of the rf unit for debugging
@@ -80,11 +88,11 @@ void loop(void){
     radio.read( &gotByte, 1 );
     radio.powerUp();                             //TODO does this fix radio going to low power mode?
                                                  // Respond directly with an ack payload.
-    debugCounter++;
-    Serial.print("handling request:");
-    Serial.println(debugCounter);
+//    debugCounter++;//TODO something to check with long term measurments
+//    Serial.print("handling request:");
+//    Serial.println(debugCounter);
     
-    if (gotByte == 't'){
+    if (gotByte == NODE1_TEMP){
       //reads temp and sends response while also checking the PIR
       //and sending its status along
       temp_raw = thSen.readTemperatureC(readPIRs, sendBuffer, radio);
@@ -100,19 +108,19 @@ void loop(void){
       //add the latest PIR update
       readPIRs(sendBuffer);      
 
-/*      Serial.println("");*/
-/*      Serial.print("transmitting");*/
+      Serial.println("");
+      Serial.print("transmitting");
     }    
-    else if (gotByte == 'd'){//d indicates the source had not yet recieved the temperature
+    else if (gotByte == NODE1_TEMP_RESEND){
       //send temperature records back together with new pir data with the next
       //transmission
       readPIRs(sendBuffer);
-/*      Serial.print("."); */
+      Serial.print("."); 
     }    
-    else{
-      //reset temp part of buffer as it has been confirmed recieved    
+    else if (gotByte == NODE1_PIR){
+      //reset reset buffer send new pir data    
       memcpy(sendBuffer, sendBuffer_def, sizeof(sendBuffer_def));
-      readPIRs(sendBuffer);      
+      readPIRs(sendBuffer);
     }
     radio.writeAckPayload(1,sendBuffer, 5);
  }
