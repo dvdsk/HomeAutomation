@@ -50,6 +50,9 @@ def lampManager(lightSceneQueue, resourceLocks):
         t.start()
     return              
 
+
+###FUNCTIONS NEEDED FOR LAMPSMANGER #TODO move all these to 'lamps.py'
+
 def colorLoopScene(newRdy, prevDone, resourceLocks):
 #   changes colors following pres set colortones for diffrent times of day does
 #   not set the on or off switch of lamps this can still be manually overriden
