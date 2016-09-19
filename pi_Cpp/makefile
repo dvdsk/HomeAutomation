@@ -1,2 +1,2 @@
-all:
-	g++ -Wall main.cpp -lboost_system -lpthread -o pi_Cpp
+all: 
+	g++ -Wall Serial.cpp main.cpp -lboost_system -lboost_thread -lpthread -o pi_Cpp
