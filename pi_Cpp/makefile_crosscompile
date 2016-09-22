@@ -1,0 +1,2 @@
+all:
+	arm-linux-gnueabihf-g++ -Wall Serial.cpp main.cpp -lboost_system -lboost_thread -lpthread -o pi_Cpp -static
