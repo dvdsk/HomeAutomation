@@ -1,4 +1,5 @@
 all: 
+<<<<<<< HEAD
 	g++ -Wall Serial.cpp StoreData.cpp main.cpp -lboost_system -lboost_thread -lpthread -o pi_Cpp
 
 #CXX = g++
@@ -16,3 +17,4 @@ all:
 #	rm Boom.o main.o
 
 #http://www.gnu.org/software/make/manual/make.html#Introduction
+
