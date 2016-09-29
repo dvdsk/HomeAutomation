@@ -272,14 +272,14 @@ void sendSensorsdata(signed short int sensorData[SENSORDATA_SIZE]){
   INTUNION_t toSend;
   
   //header that announces the data format
-  //Serial.write(ROOMSENSORS);
-  Serial.println("");//FIXME
+  Serial.write(ROOMSENSORS);
+//  Serial.println("");//FIXME
   for (unsigned int i = 0; i < SENSORDATA_SIZE; i++){
   //send 16 bit integers over serial in binairy
-    Serial.println(sensorData[i]);//FIXME
+//    Serial.println(sensorData[i]);//FIXME
     toSend.number = sensorData[i];    
-    //Serial.write(toSend.bytes[0]);
-    //Serial.write(toSend.bytes[1]);
+    Serial.write(toSend.bytes[0]);
+    Serial.write(toSend.bytes[1]);
   }
   
   //reset sensorData to default values so we can easily check if it is complete
@@ -315,7 +315,7 @@ void setup()
   Serial.print("setup done, starting response loop\n");
   radio.stopListening();
 
-  //Serial.write(SETUP_done);
+  Serial.write(SETUP_done);
 }
 
 

@@ -1,20 +1,14 @@
 #include "Serial.h"
 
-Serial::Serial(const std::string& port, const unsigned int &baud_rate)
+Serial::Serial(const std::string& port, const unsigned int& baud_rate)
 : _io(), _serial(_io,port)
 {
+  std::cout << "Opening serial port : " << port << std::endl;
+  _serial.set_option(boost::asio::serial_port_base::baud_rate(baud_rate));
 
-    std::cout << "Opening serial port : " << port << std::endl;
-    _serial.set_option(boost::asio::serial_port_base::baud_rate(baud_rate));
-    /*
-     *Warning ! Arduino resets when its serial port is opened !
-     *That's why we must wait until arduino is operationnal again
-     *If you do not want to wait you can :
-     *Add a 10 µF capacitor between GROUND and RESET
-     *But if you want to program your arduino you will have to disconnect the capacitor
-    */
-    //Wait 5 seconds for the arduino to be ready :
-    boost::this_thread::sleep(boost::posix_time::seconds(5));
+  //wait till the arduino sends its done with initialising
+  while (readHeader() != SETUP_DONE){ ;}
+  std::cout << "Done initialising\n";
 }
 
 //Send message to Arduino
@@ -42,19 +36,17 @@ std::string Serial::readLine()
     return result;
 }
 
-/*Put your public methods to communicate with your Arduino here
- *Examples (using sketch_arduino.ino) :
- */
-std::string Serial::getHelloResponse()
+//Read from Arduino
+unsigned char Serial::readHeader()
 {
-    std::cout << "sending  \"hello\"" << std::endl;
-    writeString("hello\n");
-    return readLine();
+  unsigned char c;
+  boost::asio::read(_serial, boost::asio::buffer(&c,1));
+
+//  std::cout << c;
+  return c;
 }
 
-std::string Serial::switchLed()
+void Serial::readMessage(unsigned char message[])
 {
-    std::cout << "switching led" << std::endl;
-    writeString("switchled\n");
-    return readLine();
+  boost::asio::read(_serial, boost::asio::buffer(message, sizeof(message)));
 }

@@ -8,8 +8,8 @@ class Serial
 {
   public:
     Serial(const std::string& port, const unsigned int& baud_rate);
-    std::string getHelloResponse();
-    std::string switchLed();
+    unsigned char readHeader();
+    void readMessage(unsigned char message[]);
 
   private:
     void writeString(const std::string& s);
@@ -17,6 +17,8 @@ class Serial
 
     boost::asio::io_service _io;
     boost::asio::serial_port _serial;
+
+    const static unsigned char SETUP_DONE = 200;
 };
 
 #endif // SERIAL_H
