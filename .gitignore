@@ -55,4 +55,6 @@ sensorConfig.py
 *.json
 *.key
 *.pem
+*.swp
+*.swo
 __pycache__
