@@ -1,5 +1,4 @@
 all: 
-<<<<<<< HEAD
 	g++ -Wall Serial.cpp StoreData.cpp main.cpp -lboost_system -lboost_thread -lpthread -o pi_Cpp
 
 #CXX = g++
