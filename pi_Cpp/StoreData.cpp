@@ -1,5 +1,4 @@
 #include "StoreData.h"
-#include <chrono>
 
 StoreData::StoreData(){
 	
@@ -8,7 +7,9 @@ StoreData::StoreData(){
   pirDatFile = fopen("data/pirs.binDat", "a");
   
   prevPirData[1] = 0;//0 as in no pirs measured
-  lastPirBegin = std::chrono::high_resolution_clock::now();    
+  t_begin = GetMilliSec();
+  pirRecord[0] = 0;
+  pirRecord[1] = 0;
 }
 
 StoreData::~StoreData(){
@@ -33,21 +34,33 @@ void StoreData::pir_write(unsigned char data[2]){
 	std::cout << "wrote some shit \n";
 }
 
-void StoreData::pir_convertNotation(unsigned char& B[2]){
-  unsigned char B_ones, B_zeros;
-
-  B_ones  = B[0] & B[1]; //if one and noted as correct (one) store as one
-  B_zeros = (B[0] ^ B[1]) & B[1]; //if zero and noted as correct: if (zero and one) only if also one
-
-  B = F_ones | F_zeros; //back to old notation [one or zero][correct or not]  
+long long StoreData::GetMilliSec(){
+  struct timeval tp;
+  gettimeofday(&tp, NULL);
+  //get current timestamp in milliseconds
+  long long mslong = (long long) tp.tv_sec * 1000 + tp.tv_usec / 1000; 
+  return mslong;
 }
 
-void StoreData::pir_combine(unsigned char& B[2]){
-  unsigned char A_ones, A_zeros, B_ones, B_zeros;
-  unsigned char F_ones, F_zeros; //zeros is 1 if a zero was confirmed at that place
+void StoreData::pir_convertNotation(unsigned char B[2]){
+  unsigned char B_ones, B_zeros;
+
+  B_ones  =  B[0] & B[1]; //if one and noted as correct (one) store as one
+  B_zeros = (B[0] ^ B[1]) & B[1]; //if zero and noted as correct: if (zero and one) only if also one
+
+  B[0] = B_ones;
+  B[1] = B_zeros; //back to old notation [one or zero][correct or not]  
+}
+
+void StoreData::pir_combine(unsigned char B[2]){
+  short int A_ones, A_zeros, B_ones, B_zeros;
+  short int F_ones, F_zeros; //zeros is 1 if a zero was confirmed at that place
+
+  unsigned char prevPirData_new[2];  
   
-  //First convert to the new notation
-  pir_convertNotation(prevPirData);
+  //First previous runs data to new notation (kept in old for same check)
+  std::memcpy(prevPirData_new, prevPirData,2);
+  pir_convertNotation(prevPirData_new);
   
   A_ones  = prevPirData[0];
   A_zeros = prevPirData[1];
@@ -59,22 +72,23 @@ void StoreData::pir_combine(unsigned char& B[2]){
   F_zeros = (A_zeros & ~ B_ones) | B_zeros; //if was zero and not one now or if zero now = one
                                             //also one here as one indicates a correct zero in B_zeros
   
-  B = F_ones | F_zeros; //back to old notation [one or zero][correct or not]
+  B[0] = F_ones;
+  B[1] = F_zeros;
 }
 
 void StoreData::pir_binData(unsigned char data[2]){
-  std::chrono::time_point timepassed;
-  timepassed = chrono::high_resolution_clock::now() - lastPirBegin;
-  timepassed = std::chrono::duration_cast<std::chrono::microseconds>(timepassed).count()
+  long long timepassed;
+  timepassed = GetMilliSec() - t_begin;
+
   if (timepassed < PIR_DT){
     //add movement values to pir
-    pirRecord = pirRecord[0] | data[0]; 
-    pirRecord = pirRecord[0] | data[0];
+    pirRecord[0] = pirRecord[0] | data[0]; 
+    pirRecord[1] = pirRecord[1] | data[1];
   }
   else{
     //write values collected till now
     pir_write(pirRecord);  
-    std::chrono::time_point begin = std::chrono::high_resolution_clock::now();    
+    t_begin = GetMilliSec();
     
     //reset pir to new values
     pirRecord[0] = 0;
@@ -82,9 +96,9 @@ void StoreData::pir_binData(unsigned char data[2]){
   }
 }
 
-bool StoreData::pir_checkIfSame(unsigned char data[2]){
-  if ((data[0] == prevPirData[0]) & (data[1] = prevPirData[1])){ return true;}
-  else{return false;}
+bool StoreData::pir_isNotSame(unsigned char data[2]){
+  if ((data[0] == prevPirData[0]) & (data[1] == prevPirData[1])){ return false;}
+  else{return true;}
 }
 
 void StoreData::pir_process(unsigned char data[2]){
@@ -92,18 +106,18 @@ void StoreData::pir_process(unsigned char data[2]){
   unsigned char newCorrect;
   
 
-  if (!pir_checkIfSame(data)){
+  if (pir_isNotSame(data)){
       
-      combinedCorrect = prevPirData[1] & data[1]; 
-      newCorrect = data[1];
-      
-      pir_convertNotation(data);      
-      if (combinedCorrect > newCorrect){ //would comparing with prev data increase knowledge?
-        pir_combine(data); //combine data with newer data overriding older data
-      }
-      prevPirData = data;
-      pir_binData(data); //bin on time and write when neccesairy    
-    }
+    combinedCorrect = prevPirData[1] & data[1]; 
+    newCorrect = data[1];
+    std::memcpy(prevPirData, data, 2); //save before notation is changed
+
+    pir_convertNotation(data);      
+    if (combinedCorrect > newCorrect){ //would comparing with prev data increase knowledge?
+      pir_combine(data); //combine data with newer data overriding older data
+    }      
+    pir_binData(data); //bin on time and write when neccesairy    
   }
 }
+
 //

@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
   INTUNION_t temp_bed, temp_bathroom, humidity_bed, humidity_bathroom;
   INTUNION_t co2, light_outside, light_bed, light_door, light_kitchen;
   unsigned char pirData[2];
-  unsigned char fastData[10];
+  unsigned char fastData[2];//TODO change back to 10
   unsigned char slowData[10];      
   unsigned char toLog[18];   
 
@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
 
 
         arduino.readMessage(fastData);
-        std::cout << "got fast\n";
+        std::cout << "got: " << +fastData[0] << +fastData[1] << "\n";
         std::memcpy(pirData, fastData+0, 2);  //save PIR data
         
         std::memcpy(light_outside.bytes, fastData+2, 2);  
@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
         
         //TODO analyse the pir data and log 'recent' (order of seconds) changes
 
-        log.pir(pirData);
+        log.pir_process(pirData);
         break;        
       
       case POLLING_SLOW:
@@ -85,7 +85,7 @@ int main(int argc, char* argv[])
         std::memcpy(toLog, slowData, 10);
         std::memcpy(toLog+10, fastData+2, 8);          
         
-        log.sensor(toLog);
+        log.envirmental_write(toLog);
         
       default:
         std::cout << "error no code matched\n";     

@@ -3,8 +3,11 @@
 #include <iostream>
 #include <stdio.h>
 #include <signal.h>
+#include <cstring> //memcopy
 
-#include <sys/stat.h>
+#include <sys/stat.h> //mkdir
+#include <sys/time.h>
+
 
 class StoreData
 {
@@ -13,8 +16,7 @@ class StoreData
 	  ~StoreData();
 	  
     void envirmental_write(unsigned char data[18]);
-    void pir_write(unsigned char data[2]);
-
+    void pir_process(unsigned char data[2]);
     
 
     FILE* sensDatFile;
@@ -22,16 +24,21 @@ class StoreData
   private:
     unsigned char compressPir(unsigned char data);
     unsigned char prevPirData[2];    
-    std::chrono::time_point lastPirBegin;
-    int PIR_DT = 200; //number of milliseconds to bin the pir data to
+    unsigned char pirRecord[2];
+    
+    const int PIR_DT = 2000; //number of milliseconds to bin the pir data to
+    long long t_begin;
+    struct timeval tp;
 
-    void pir_process(unsigned char data[2]);
+    long long GetMilliSec();
+  
+    bool pir_isNotSame(unsigned char data[2]);
     
-    bool pir_checkIfSame(unsigned char data[2]);
-    
-    void pir_convertNotation(unsigned char& B[2]);
-    void pir_combine(unsigned char& B[2]);
+    void pir_convertNotation(unsigned char B[2]);
+    void pir_combine(unsigned char B[2]);
     void pir_binData(unsigned char data[2]);
+
+    void pir_write(unsigned char data[2]);  
 
 };
 
