@@ -4,7 +4,7 @@
 #include "Serial.h"
 #include "StoreData.h"
 #include <signal.h>
-
+#include <boost/exception/diagnostic_information.hpp> //for debugging
 
 
 const unsigned char POLLING_FAST = 200;   //PIR and light Level
@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
   unsigned char slowData[10];      
   unsigned char toLog[18];   
 
-  Serial arduino("/dev/ttyUSB1",115200);
+  Serial arduino("/dev/ttyUSB0",115200);
   StoreData log;
 
   file1 = log.sensDatFile;
@@ -52,12 +52,11 @@ int main(int argc, char* argv[])
     unsigned char x;
     x = arduino.readHeader();
     x = (int)x;
-//      std::cout << x << "\n"; 
     switch (x) {      
       case POLLING_FAST:
 
 
-        arduino.readMessage(fastData);
+        arduino.readMessage(fastData);//TODO 2 to 10
         std::cout << "got: " << +fastData[0] << +fastData[1] << "\n";
         std::memcpy(pirData, fastData+0, 2);  //save PIR data
         
@@ -66,8 +65,6 @@ int main(int argc, char* argv[])
         std::memcpy(light_door.bytes, fastData+6, 2);  
         std::memcpy(light_kitchen.bytes, fastData+8, 2);
         
-        //TODO analyse the pir data and log 'recent' (order of seconds) changes
-
         log.pir_process(pirData);
         break;        
       

@@ -25,13 +25,11 @@ void StoreData::envirmental_write(unsigned char data[18]){
 	
 	std::cout << "wrote some shit \n";
 }
-
-void StoreData::pir_write(unsigned char data[2]){
-  const static char DATASIZE = 2;
-  fwrite(data, DATASIZE, DATASIZE*sizeof(unsigned char), pirDatFile);
-	//TODO add time
 	
-	std::cout << "wrote some shit \n";
+long int StoreData::unix_timestamp() {
+  time_t t = std::time(0);
+  long int now = static_cast<long int> (t);
+  return now;
 }
 
 long long StoreData::GetMilliSec(){
@@ -41,6 +39,49 @@ long long StoreData::GetMilliSec(){
   long long mslong = (long long) tp.tv_sec * 1000 + tp.tv_usec / 1000; 
   return mslong;
 }
+
+
+void StoreData::pir_writeTimestamp(long int timestamp){
+
+  union {
+  long int      i;
+  unsigned char bytes[4];
+  } longInt_bytes;
+  
+  fwrite(longInt_bytes.bytes, 4, 4*sizeof(unsigned char), pirDatFile);
+}	
+	
+void StoreData::pir_write(unsigned char data[2]){	
+  long int timestamp;				
+  unsigned short partOfHalfDay;
+  unsigned char buffer[4];
+  
+  union {
+    int           i;
+    unsigned char bytes[2];
+  } int_bytes;
+  
+	timestamp = unix_timestamp();
+	partOfHalfDay = timestamp % HALFDAYSEC;	
+	
+	if(!TimeStampSet_first){
+	  pir_writeTimestamp(timestamp);
+	  TimeStampSet_first = true;
+	}
+	else if(!TimeStampSet_second & (partOfHalfDay > HALFDAYSEC/2)){
+	  pir_writeTimestamp(timestamp); 
+	  TimeStampSet_second = true;
+	}
+	
+	int_bytes.i = partOfHalfDay;
+	std::memcpy(buffer, int_bytes.bytes, 2);
+	std::memcpy(buffer, data, 2);	
+	fwrite(buffer, 4, 4*sizeof(unsigned char), pirDatFile);	
+	
+	TimeStampSet_first = false;
+	TimeStampSet_second = false;
+}
+
 
 void StoreData::pir_convertNotation(unsigned char B[2]){
   unsigned char B_ones, B_zeros;

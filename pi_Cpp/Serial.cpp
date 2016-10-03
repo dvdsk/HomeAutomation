@@ -1,8 +1,10 @@
 #include "Serial.h"
 
+
+
 Serial::Serial(const std::string& port, const unsigned int& baud_rate)
-: _io(), _serial(_io,port)
-{
+: _io(), _serial(_io,port){
+  
   std::cout << "Opening serial port : " << port << std::endl;
   _serial.set_option(boost::asio::serial_port_base::baud_rate(baud_rate));
 
@@ -11,20 +13,18 @@ Serial::Serial(const std::string& port, const unsigned int& baud_rate)
   std::cout << "Done initialising\n";
 }
 
+
 //Send message to Arduino
-void Serial::writeString(const std::string& s)
-{
+void Serial::writeString(const std::string& s) {
     boost::asio::write(_serial,boost::asio::buffer(s.c_str(),s.size()));
 }
 
 //Read from Arduino
-std::string Serial::readLine()
-{
+std::string Serial::readLine() {
 
     bool end = false;
     std::string result;
-    while (!end)
-    {
+    while (!end) {
         char c;
         boost::asio::read(_serial, boost::asio::buffer(&c,1));
         if(c == '\n')
@@ -37,8 +37,7 @@ std::string Serial::readLine()
 }
 
 //Read from Arduino
-unsigned char Serial::readHeader()
-{
+unsigned char Serial::readHeader() {
   unsigned char c;
   boost::asio::read(_serial, boost::asio::buffer(&c,1));
 
@@ -46,7 +45,7 @@ unsigned char Serial::readHeader()
   return c;
 }
 
-void Serial::readMessage(unsigned char message[])
-{
-  boost::asio::read(_serial, boost::asio::buffer(message, sizeof(message)));
+void Serial::readMessage(unsigned char message[]) {  
+  boost::asio::read(_serial, boost::asio::buffer(message, 2));
 }
+

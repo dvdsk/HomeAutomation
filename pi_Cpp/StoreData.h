@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <cstring> //memcopy
+#include <ctime> //time
 
 #include <sys/stat.h> //mkdir
 #include <sys/time.h>
@@ -26,11 +27,19 @@ class StoreData
     unsigned char prevPirData[2];    
     unsigned char pirRecord[2];
     
-    const int PIR_DT = 2000; //number of milliseconds to bin the pir data to
+    const int PIR_DT = 1000; //number of milliseconds to bin the pir data to
     long long t_begin;
     struct timeval tp;
 
+
+  
+    int prev_halfDay;
+    const int HALFDAYSEC = 86400;
+    bool TimeStampSet_first;
+    bool TimeStampSet_second;
+
     long long GetMilliSec();
+    long int unix_timestamp();  
   
     bool pir_isNotSame(unsigned char data[2]);
     
@@ -39,7 +48,7 @@ class StoreData
     void pir_binData(unsigned char data[2]);
 
     void pir_write(unsigned char data[2]);  
-
+    void pir_writeTimestamp(long int timestamp);
 };
 
 #endif // DATASTORE_H
