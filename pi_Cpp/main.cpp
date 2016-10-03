@@ -56,7 +56,7 @@ int main(int argc, char* argv[])
       case POLLING_FAST:
 
 
-        arduino.readMessage(fastData);//TODO 2 to 10
+        arduino.readMessage(fastData, 2);//TODO 2 to 10
         std::cout << "got: " << +fastData[0] << +fastData[1] << "\n";
         std::memcpy(pirData, fastData+0, 2);  //save PIR data
         
@@ -70,7 +70,7 @@ int main(int argc, char* argv[])
       
       case POLLING_SLOW:
         
-        arduino.readMessage(slowData);
+        arduino.readMessage(slowData, 10);
         std::cout << "got slow\n";          
         std::memcpy(temp_bed.bytes, slowData, 2);  
         std::memcpy(temp_bathroom.bytes, slowData+2, 2);  

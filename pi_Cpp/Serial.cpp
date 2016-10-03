@@ -45,7 +45,7 @@ unsigned char Serial::readHeader() {
   return c;
 }
 
-void Serial::readMessage(unsigned char message[]) {  
-  boost::asio::read(_serial, boost::asio::buffer(message, 2));
+void Serial::readMessage(unsigned char message[], unsigned char messageLen) {  
+  boost::asio::read(_serial, boost::asio::buffer(message, messageLen));
 }
 
