@@ -12,6 +12,7 @@ class Serial
     void readMessage(unsigned char message[], unsigned char messageLen);
 
   private:
+  
     void writeString(const std::string& s);
     std::string readLine();
 

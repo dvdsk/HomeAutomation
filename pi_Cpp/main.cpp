@@ -28,9 +28,10 @@ void interruptHandler(int s){
   exit(1); 
 }
 
+void checkSensorDataLoop(StoreData &log){
+  const unsigned char POLLING_FAST = 200;   //PIR and light Level
+  const unsigned char POLLING_SLOW = 202;   //Temperature, humidity and co2
 
-int main(int argc, char* argv[])
-{
   INTUNION_t temp_bed, temp_bathroom, humidity_bed, humidity_bathroom;
   INTUNION_t co2, light_outside, light_bed, light_door, light_kitchen;
   unsigned char pirData[2];
@@ -39,14 +40,6 @@ int main(int argc, char* argv[])
   unsigned char toLog[18];   
 
   Serial arduino("/dev/ttyUSB0",115200);
-  StoreData log;
-
-  file1 = log.sensDatFile;
-  file2 = log.pirDatFile;
-
-  signal(SIGINT, interruptHandler);
-
-  std::cout << "doing stuff";
 
   while (true){
     unsigned char x;
@@ -88,4 +81,22 @@ int main(int argc, char* argv[])
         std::cout << "error no code matched\n";     
     }
   }
+}
+
+void readPirDataFromFile(StoreData &log){
+
+  log.pir_readLine(3);
+}
+
+int main(int argc, char* argv[])
+{
+
+  StoreData log;
+
+  file1 = log.sensDatFile;
+  file2 = log.pirDatFile;
+
+  signal(SIGINT, interruptHandler);
+
+//  checkSensorDataLoop(log);
 }
