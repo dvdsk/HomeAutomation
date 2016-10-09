@@ -3,8 +3,9 @@
 StoreData::StoreData(){
 	
 	mkdir("data", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-  sensDatFile = fopen("data/enviremental.binDat", "a");
-  pirDatFile = fopen("data/pirs.binDat", "a");  
+	//open file in binairy mode with appending write operations
+  sensDatFile = fopen("data/enviremental.binDat", "a+b");
+  pirDatFile = fopen("data/pirs.binDat", "a+b");  
   
   prevPirData[1] = 0;//0 as in no pirs measured
   t_begin = GetMilliSec();
@@ -26,13 +27,10 @@ bool StoreData::pir_isTimeStampPackage(unsigned char susp_time[4],  unsigned cha
 
 void StoreData::pir_readLine(int lineNumber){
   unsigned char askedLine[4];
-  long unix_time;
+  uint32_t unix_time;
   unsigned char susp_time[4];
   unsigned char susp_data[4];
   int n = 0;
-
-  Int_bytes timaHigh;
-  Int_bytes timaLow;
 
   fseek(pirDatFile, 4*(lineNumber-n), SEEK_SET); 
   fread(askedLine, 1, 4, pirDatFile);
@@ -47,11 +45,13 @@ void StoreData::pir_readLine(int lineNumber){
     fseek(pirDatFile, 4*(lineNumber-n), SEEK_SET);    
     fread(susp_time, 1, 4, pirDatFile);   
   } while (!pir_isTimeStampPackage(susp_time, susp_data));
-  //conversion back to full unix time
-  std::memcpy(timaHigh.bytes, susp_time+0, 2);  
-  std::memcpy(timaLow.bytes, susp_time+2, 2);
   
-  unix_time = timaHigh.i*HALFDAYSEC + timaLow.i;
+  //conversion back to full unix time  
+  unix_time = (uint32_t)susp_time[3] << 24 | //shift high part 
+              (uint32_t)susp_time[2] << 16 | //
+              (uint32_t)susp_time[0] << 8  | //shift and add low part
+              (uint32_t)susp_time[1];
+  
   std::cout << unix_time << "\n";
 }
 
@@ -96,47 +96,40 @@ void StoreData::pir_writeTimestamp(long int timestamp){
 
   unsigned char towrite[4];
   
-  Int_bytes highTime;
-  Int_bytes lowTime;
-  
-  highTime.i = timestamp/HALFDAYSEC;
-  lowTime.i = timestamp % HALFDAYSEC;
- 
-  //store the high part of the timestamp in the first 4 bytes of the datablock
-  //then the low part in the last 4 bytes (datablock is 8 bytes in total)
-  std::memcpy(towrite, highTime.bytes, 2);
-  std::memcpy(towrite+2, lowTime.bytes, 2);  
+  //conversion to bytes
+  towrite[2] = timestamp & 0xff;         //store low part in last two bytes
+  towrite[3] = (timestamp >> 8) & 0xff;  
+  towrite[0] = (timestamp >> 16) & 0xff; //store high part in first 2 bytes
+  towrite[1] = (timestamp >> 24) & 0xff;  
   
   fwrite(towrite, 4, 4*sizeof(unsigned char), pirDatFile);
 }	
 	
 void StoreData::pir_write(unsigned char data[2]){	
   long int timestamp;				
-  unsigned short halfDay_part;
   unsigned char buffer[4];
   
-  Int_bytes I;
-  
-	timestamp = unix_timestamp();
-	halfDay_part = timestamp % HALFDAYSEC;	
+	timestamp = unix_timestamp();	
+  uint16_t timeLow = (uint16_t) (timestamp >> 16);// shifting right 16 times gives /2^16
 	
-	if(!TimeStampSet_first & (halfDay_part <= HALFDAYSEC)){
+	if(!TimeStampSet_first & (timeLow <= HALFDAYSEC)){
 	  //second condition is needed to get a timestamp after a restart
 	  pir_writeTimestamp(timestamp);
 	  TimeStampSet_first = true;
 	  TimeStampSet_second = false;
 	}
-	else if(!TimeStampSet_second & (halfDay_part > HALFDAYSEC)){
+	else if(!TimeStampSet_second & (timeLow > HALFDAYSEC)){
 	  pir_writeTimestamp(timestamp); 
 	  TimeStampSet_second = true;
 	  TimeStampSet_first = false;
 	}
-	
-	I.i = halfDay_part;
-	std::memcpy(buffer, I.bytes, 2);
-	std::memcpy(buffer, data, 2);	
+
+  //store timeLow in buffer
+  buffer[0] = timeLow & 0xff;
+  buffer[1]	= (timeLow >> 8) & 0xff;
+
+	std::memcpy(buffer+2, data, 2);	
 	fwrite(buffer, 4, 4*sizeof(unsigned char), pirDatFile);	
-	
 }
 
 

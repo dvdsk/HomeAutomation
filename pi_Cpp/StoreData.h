@@ -5,6 +5,8 @@
 #include <signal.h>
 #include <cstring> //memcopy
 #include <ctime> //time
+#include <climits> //int max etc
+#include <cstdint> //uint16_t
 
 #include <sys/stat.h> //mkdir
 #include <sys/time.h>
@@ -73,18 +75,12 @@ class StoreData
     int      i;
     unsigned char bytes[2];
     }; 
-
-    union Long_bytes {
-    long int      l;
-    unsigned char bytes[4];
-    }; 
   
     int prev_halfDay;    
 
-    const int HALFDAYSEC = 86400/2;
+    const int HALFDAYSEC = 43200;
     //this way the header is desernible from the time field, as never the
     //time field can go larger then HALFDAYSEC
-    const int TIMESTAMPHEADER = HALFDAYSEC+100;
     
     bool TimeStampSet_first;
     bool TimeStampSet_second;
