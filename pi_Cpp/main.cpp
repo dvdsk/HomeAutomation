@@ -84,8 +84,7 @@ void checkSensorDataLoop(StoreData &log){
 }
 
 void readPirDataFromFile(StoreData &log){
-
-  log.pir_readLine(1);
+	for( int i=0; i<5;i++){ log.pir_readLine(1);}
 }
 
 int main(int argc, char* argv[])
@@ -99,5 +98,5 @@ int main(int argc, char* argv[])
   signal(SIGINT, interruptHandler);
   
   readPirDataFromFile(log);
-//  checkSensorDataLoop(log);
+  checkSensorDataLoop(log);
 }

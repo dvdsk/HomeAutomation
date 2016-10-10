@@ -47,10 +47,16 @@ void StoreData::pir_readLine(int lineNumber){
   } while (!pir_isTimeStampPackage(susp_time, susp_data));
   
   //conversion back to full unix time  
-  unix_time = (uint32_t)susp_time[3] << 24 | //shift high part 
-              (uint32_t)susp_time[2] << 16 | //
-              (uint32_t)susp_time[0] << 8  | //shift and add low part
-              (uint32_t)susp_time[1];
+  unix_time = (uint32_t)susp_time[1] << 24 | //shift high part 
+              (uint32_t)susp_time[0] << 16 | //
+              (uint32_t)susp_time[3] << 8  | //shift and add low part
+              (uint32_t)susp_time[2];
+  
+  std::cout << "Reading timestamp: "
+		 			<< +susp_time[0] << " "
+					<< +susp_time[1] << " "
+			 		<< +susp_time[2] << " "
+			 		<< +susp_time[3] << "\n";
   
   std::cout << unix_time << "\n";
 }
@@ -103,6 +109,11 @@ void StoreData::pir_writeTimestamp(long int timestamp){
   towrite[1] = (timestamp >> 24) & 0xff;  
   
   fwrite(towrite, 4, 4*sizeof(unsigned char), pirDatFile);
+  std::cout << "writing TIMESTAMP PIR PACKAGE: "
+  		 			<< +towrite[0] << " "
+						<< +towrite[1] << " "
+				 		<< +towrite[2] << " "
+				 		<< +towrite[3] << "\n";
 }	
 	
 void StoreData::pir_write(unsigned char data[2]){	
@@ -130,6 +141,12 @@ void StoreData::pir_write(unsigned char data[2]){
 
 	std::memcpy(buffer+2, data, 2);	
 	fwrite(buffer, 4, 4*sizeof(unsigned char), pirDatFile);	
+  std::cout << "writing NORMAL PIR PACKAGE: "
+  		 			<< +buffer[0] << " "
+						<< +buffer[1] << " "
+				 		<< +buffer[2] << " "
+				 		<< +buffer[3] << "\n";
+
 }
 
 
