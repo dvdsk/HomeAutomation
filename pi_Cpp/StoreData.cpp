@@ -20,7 +20,24 @@ StoreData::~StoreData(){
   fclose(pirDatFile);
 }
 
-bool StoreData::pir_isTimeStampPackage(unsigned char susp_time[4],  unsigned char susp_data[4]){
+
+
+StoreData::write_pir(unsigned char data[4]){ }
+
+StoreData::write_atmospheric(unsigned char data[18]){ }
+
+StoreData::write_plants(unsigned char data[]){ }
+
+
+StoreData::read_pir(unsigned char& data[4]){ }
+
+StoreData::read_atmospheric(unsigned char& data[18]){ }
+
+StoreData::read_plants(unsigned char& data[]){ }
+
+////////////////////////////////////////////////FIXME beneath here
+
+bool PirData::isTimeStampPackage(unsigned char susp_time[4],  unsigned char susp_data[4]){
   if (susp_time[2] != susp_data[0]){
     if (susp_time[3] != susp_data[1]){ return true; }    
   }
@@ -53,7 +70,7 @@ void StoreData::pir_getBetweenTime(int T1, int T2){
 }
 */
 
-uint32_t StoreData::pir_getClosestTimeStamp(int lineNumber){
+uint32_t PirData::getClosestTimeStamp(int lineNumber){
   //takes a line number and finds the closest full timestamp before that line 
   //number returns that timestamp to the user
   
@@ -103,7 +120,7 @@ uint32_t StoreData::pir_getClosestTimeStamp(int lineNumber){
 
 
 
-void StoreData::envirmental_write(unsigned char data[18]){
+void PirData::envirmental_write(unsigned char data[18]){
   const static char DATASIZE = 18;
   fwrite(data, DATASIZE, DATASIZE*sizeof(unsigned char), sensDatFile);
 	//TODO add time
@@ -111,13 +128,13 @@ void StoreData::envirmental_write(unsigned char data[18]){
 	std::cout << "wrote some shit \n";
 }
 	
-long int StoreData::unix_timestamp() {
+long int PirData::unix_timestamp() {
   time_t t = std::time(0);
   long int now = static_cast<long int> (t);
   return now;
 }
 
-long long StoreData::GetMilliSec(){
+long long PirData::GetMilliSec(){
   struct timeval tp;
   gettimeofday(&tp, NULL);
   //get current timestamp in milliseconds
@@ -126,7 +143,7 @@ long long StoreData::GetMilliSec(){
 }
 
 
-void StoreData::pir_writeTimestamp(long int timestamp){
+void PirData::pir_writeTimestamp(long int timestamp){
 
   unsigned char towrite[4];
   
@@ -144,7 +161,7 @@ void StoreData::pir_writeTimestamp(long int timestamp){
 				 		<< +towrite[3] << "\n";
 }	
 	
-void StoreData::pir_write(unsigned char data[2]){	
+void PirData::write(unsigned char data[2]){	
   long int timestamp;				
   unsigned char buffer[4];
   
@@ -168,6 +185,8 @@ void StoreData::pir_write(unsigned char data[2]){
   buffer[1]	= (timeLow >> 8) & 0xff;
 
 	std::memcpy(buffer+2, data, 2);	
+	//TODO call write funct
+	
 	fwrite(buffer, 4, 4*sizeof(unsigned char), pirDatFile);	
   std::cout << "writing NORMAL PIR PACKAGE: "
   		 			<< +buffer[0] << " "
@@ -178,7 +197,7 @@ void StoreData::pir_write(unsigned char data[2]){
 }
 
 
-void StoreData::pir_convertNotation(unsigned char B[2]){
+void PirData::convertNotation(unsigned char B[2]){
   unsigned char B_ones, B_zeros;
 
   B_ones  =  B[0] & B[1]; //if one and noted as correct (one) store as one
@@ -188,7 +207,7 @@ void StoreData::pir_convertNotation(unsigned char B[2]){
   B[1] = B_zeros; //back to old notation [one or zero][correct or not]  
 }
 
-void StoreData::pir_combine(unsigned char B[2]){
+void PirData::combine(unsigned char B[2]){
   short int A_ones, A_zeros, B_ones, B_zeros;
   short int F_ones, F_zeros; //zeros is 1 if a zero was confirmed at that place
 
@@ -212,14 +231,14 @@ void StoreData::pir_combine(unsigned char B[2]){
   B[1] = F_zeros;
 }
 
-void StoreData::pir_binData(unsigned char data[2]){
+void PirData::binData(unsigned char data[2]){
   long long timepassed;
   timepassed = GetMilliSec() - t_begin;
 
   if (timepassed < PIR_DT){
     //add movement values to pir
-    pirRecord[0] = pirRecord[0] | data[0]; 
-    pirRecord[1] = pirRecord[1] | data[1];
+    Record[0] = Record[0] | data[0]; 
+    Record[1] = Record[1] | data[1];
   }
   else{
     //write values collected till now
@@ -227,17 +246,17 @@ void StoreData::pir_binData(unsigned char data[2]){
     t_begin = GetMilliSec();
     
     //reset pir to new values
-    pirRecord[0] = 0;
-    pirRecord[1] = 0;
+    Record[0] = 0;
+    Record[1] = 0;
   }
 }
 
-bool StoreData::pir_isNotSame(unsigned char data[2]){
-  if ((data[0] == prevPirData[0]) & (data[1] == prevPirData[1])){ return false;}
+bool PirData::isNotSame(unsigned char data[2]){
+  if ((data[0] == prevData[0]) & (data[1] == prevData[1])){ return false;}
   else{return true;}
 }
 
-void StoreData::pir_process(unsigned char data[2]){
+void PirData::process(unsigned char data[2]){
   unsigned char combinedCorrect;
   unsigned char newCorrect;
   

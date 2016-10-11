@@ -48,61 +48,64 @@ this is what would be read, so test
 
 */
 
+#define HALFDAYSEC = 43200; //numb of sec in half a day
+#define PIR_DT = 1000; //number of milliseconds to bin the pir data to
+#define KB = 1000
 
+//keeps track of data and cache
 class StoreData
 {
   public:
 	  StoreData();//
 	  ~StoreData();
 	  
-    void envirmental_write(unsigned char data[18]);
-    void pir_process(unsigned char data[2]);
-    
-    uint32_t pir_getClosestTimeStamp(int lineNumber);
+	  void write_pir(unsigned char data[4]);
+	  void write_atmospheric(unsigned char data[18]);
+	  void write_plants(unsigned char data[]);
+	  
+	  void read_pir(unsigned char& data[4]);
+	  void read_atmospheric(unsigned char& data[18]);
+	  void read_plants(unsigned char& data[]);
     
     FILE* sensDatFile;
     FILE* pirDatFile;
   private:
-    unsigned char compressPir(unsigned char data);
-    unsigned char prevPirData[2];    
-    unsigned char pirRecord[2];
-    
-    const int PIR_DT = 1000; //number of milliseconds to bin the pir data to
+    unsigned char cache_pir[4*KB];//caches data and keeps track of the data
+    unsigned char cache_atmospheric[18*KB];//caches data and keeps track of the data
+    unsigned char cache_plants[KB];//caches data and keeps track of the data
+};
+
+//processes the data and converts to the format for storing
+class PirData
+{
+  public:    
+    uint32_t getClosestTimeStamp(int lineNumber);
+    void process(unsigned char data[2]);
+
+  private:
+    unsigned char compress(unsigned char data);
+    unsigned char prevData[2];    
+    unsigned char Record[2];
+
     long long t_begin;
-    struct timeval tp;
 
-    union Int_bytes {
-    int      i;
-    unsigned char bytes[2];
-    }; 
-  
-    int prev_halfDay;    
-
-    //must be a multiple of 4, is in bytes
-    //const int CACHESIZE = 4000000; //4 MB
-
-    const int HALFDAYSEC = 43200;
-    //this way the header is desernible from the time field, as never the
-    //time field can go larger then HALFDAYSEC
-    
-    //unsigned char pir_cache[CACHESIZE];
-    
     bool TimeStampSet_first;
-    bool TimeStampSet_second;
+    bool TimeStampSet_second;    
 
     long long GetMilliSec();
+    struct timeval tp;//TODO cant this be in the function?
     long int unix_timestamp();  
-  
-    bool pir_isTimeStampPackage(unsigned char susp_time[4],  unsigned char susp_data[4]);
-  
-    bool pir_isNotSame(unsigned char data[2]);
-    
-    void pir_convertNotation(unsigned char B[2]);
-    void pir_combine(unsigned char B[2]);
-    void pir_binData(unsigned char data[2]);
 
-    void pir_write(unsigned char data[2]);  
-    void pir_writeTimestamp(long int timestamp);
-};
+    bool isTimeStampPackage(unsigned char susp_time[4],  unsigned char susp_data[4]);
+
+    bool isNotSame(unsigned char data[2]);
+
+    void convertNotation(unsigned char B[2]);
+    void combine(unsigned char B[2]);
+    void binData(unsigned char data[2]);
+
+    void write(unsigned char data[2]);  
+    void writeTimestamp(long int timestamp);        
+}
 
 #endif // DATASTORE_H
