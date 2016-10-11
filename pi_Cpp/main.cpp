@@ -84,7 +84,7 @@ void checkSensorDataLoop(StoreData &log){
 }
 
 void readPirDataFromFile(StoreData &log){
-	for( int i=0; i<5;i++){ log.pir_readLine(1);}
+	for( int i=0; i<5;i++){ log.pir_getClosestTimeStamp(1);}
 }
 
 int main(int argc, char* argv[])

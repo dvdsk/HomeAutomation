@@ -11,6 +11,8 @@ StoreData::StoreData(){
   t_begin = GetMilliSec();
   pirRecord[0] = 0;
   pirRecord[1] = 0;
+  
+  //TODO maybe load buffer from file?
 }
 
 StoreData::~StoreData(){
@@ -25,19 +27,44 @@ bool StoreData::pir_isTimeStampPackage(unsigned char susp_time[4],  unsigned cha
   return false;
 }
 
-void StoreData::pir_readLine(int lineNumber){
-  unsigned char askedLine[4];
+/*
+void StoreData::pir_getBetweenTime(int T1, int T2){
+
+  //TODO  implement software buffer for last N writes
+  //TODO  implement file read/write locks but first get things working
+  //TODO  in a single threaded way
+  
+  unsigned char[SOFT_BUFFERSIZE]
+  
+  //check if needed timestamp is in buffer
+  
+  
+  
+  int endOfFile = getEndOfFile();
+  
+  T_start = getClosestTimeStamp(1)
+  T_end = getClosestTimeStamp(endOfFile)
+
+  if (T_start < T1){
+    T1_rel = T1 - T_start
+    T_rel = T_end - T_start
+    T1_guess = 
+  
+}
+*/
+
+uint32_t StoreData::pir_getClosestTimeStamp(int lineNumber){
+  //takes a line number and finds the closest full timestamp before that line 
+  //number returns that timestamp to the user
+  
   uint32_t unix_time;
   unsigned char susp_time[4];
   unsigned char susp_data[4];
   int n = 0;
 
   fseek(pirDatFile, 4*(lineNumber-n), SEEK_SET); 
-  fread(askedLine, 1, 4, pirDatFile);
+  fread(susp_time, 1, 4, pirDatFile);
 
-  //TODO needs to check if first package is a time package
-
-  std::memcpy(susp_time, askedLine, 4);
   do {
     std::memcpy(susp_data, susp_time, 4);
     //read packages in front of sups_data, store in susp_time
@@ -59,6 +86,7 @@ void StoreData::pir_readLine(int lineNumber){
 			 		<< +susp_time[3] << "\n";
   
   std::cout << unix_time << "\n";
+  return unix_time;
 }
 
 

@@ -58,7 +58,7 @@ class StoreData
     void envirmental_write(unsigned char data[18]);
     void pir_process(unsigned char data[2]);
     
-    void pir_readLine(int lineNumber);
+    uint32_t pir_getClosestTimeStamp(int lineNumber);
     
     FILE* sensDatFile;
     FILE* pirDatFile;
@@ -78,9 +78,14 @@ class StoreData
   
     int prev_halfDay;    
 
+    //must be a multiple of 4, is in bytes
+    //const int CACHESIZE = 4000000; //4 MB
+
     const int HALFDAYSEC = 43200;
     //this way the header is desernible from the time field, as never the
     //time field can go larger then HALFDAYSEC
+    
+    //unsigned char pir_cache[CACHESIZE];
     
     bool TimeStampSet_first;
     bool TimeStampSet_second;
