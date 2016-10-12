@@ -28,7 +28,7 @@ void interruptHandler(int s){
   exit(1); 
 }
 
-void checkSensorDataLoop(StoreData &log){
+void checkSensorData(PirData &pirStorage){
   const unsigned char POLLING_FAST = 200;   //PIR and light Level
   const unsigned char POLLING_SLOW = 202;   //Temperature, humidity and co2
 
@@ -58,7 +58,7 @@ void checkSensorDataLoop(StoreData &log){
         std::memcpy(light_door.bytes, fastData+6, 2);  
         std::memcpy(light_kitchen.bytes, fastData+8, 2);
         
-        log.pir_process(pirData);
+        pirStorage.process(pirData);
         break;        
       
       case POLLING_SLOW:
@@ -75,29 +75,28 @@ void checkSensorDataLoop(StoreData &log){
         std::memcpy(toLog, slowData, 10);
         std::memcpy(toLog+10, fastData+2, 8);          
         
-        log.envirmental_write(toLog);
-        
       default:
         std::cout << "error no code matched\n";     
     }
   }
 }
 
-void readPirDataFromFile(StoreData &log){
-	for( int i=0; i<5;i++){ log.pir_getClosestTimeStamp(1);}
+void readPirDataFromFile(PirData &pirStorage){
+	for( int i=0; i<5;i++){ pirStorage.getClosestTimeStamp(1);}
 }
 
 int main(int argc, char* argv[])
 {
 
-  StoreData log;
+  StoreData dataStorage;
+  PirData pirStorage(dataStorage);
 
-  file1 = log.sensDatFile;
-  file2 = log.pirDatFile;
+  file1 = dataStorage.atmospherics_file;
+  file2 = dataStorage.pirs_file;
 
   signal(SIGINT, interruptHandler);
   
-  readPirDataFromFile(log);
-  checkSensorDataLoop(log);
+  readPirDataFromFile(pirStorage);
+  checkSensorData(pirStorage);
 
 }

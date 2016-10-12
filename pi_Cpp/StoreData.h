@@ -48,9 +48,9 @@ this is what would be read, so test
 
 */
 
-#define HALFDAYSEC = 43200; //numb of sec in half a day
-#define PIR_DT = 1000; //number of milliseconds to bin the pir data to
-#define KB = 1000
+#define HALFDAYSEC 43200 //numb of sec in half a day
+#define PIR_DT 1000 //number of milliseconds to bin the pir data to
+#define KB 1000 //TODO replace with const shit (snap const shit eerst)
 
 //keeps track of data and cache
 class StoreData
@@ -59,16 +59,19 @@ class StoreData
 	  StoreData();//
 	  ~StoreData();
 	  
+	  //appends one data line to the cache and writes to file
 	  void write_pir(unsigned char data[4]);
 	  void write_atmospheric(unsigned char data[18]);
 	  void write_plants(unsigned char data[]);
 	  
-	  void read_pir(unsigned char& data[4]);
-	  void read_atmospheric(unsigned char& data[18]);
-	  void read_plants(unsigned char& data[]);
+	  //reads one line from cache or if its not in there from the file
+	  //line is the line number of the file
+	  void read_pir(unsigned char data[4], int line);
+	  void read_atmospheric(unsigned char data[18], int line);
+	  void read_plants(unsigned char data[], int line);
     
-    FILE* sensDatFile;
-    FILE* pirDatFile;
+    FILE* atmospherics_file;
+    FILE* pirs_file;
   private:
     unsigned char cache_pir[4*KB];//caches data and keeps track of the data
     unsigned char cache_atmospheric[18*KB];//caches data and keeps track of the data
@@ -79,11 +82,15 @@ class StoreData
 class PirData
 {
   public:    
+    PirData(StoreData& dataStorage);
     uint32_t getClosestTimeStamp(int lineNumber);
     void process(unsigned char data[2]);
 
   private:
-    unsigned char compress(unsigned char data);
+    StoreData dataStorage;
+    
+    struct timeval tp;//TODO cant this be in the function?  
+
     unsigned char prevData[2];    
     unsigned char Record[2];
 
@@ -93,8 +100,10 @@ class PirData
     bool TimeStampSet_second;    
 
     long long GetMilliSec();
-    struct timeval tp;//TODO cant this be in the function?
+
     long int unix_timestamp();  
+
+    unsigned char compress(unsigned char data);
 
     bool isTimeStampPackage(unsigned char susp_time[4],  unsigned char susp_data[4]);
 
@@ -104,8 +113,8 @@ class PirData
     void combine(unsigned char B[2]);
     void binData(unsigned char data[2]);
 
-    void write(unsigned char data[2]);  
-    void writeTimestamp(long int timestamp);        
-}
+    void putData(unsigned char data[2]);  
+    void putTimestamp(long int timestamp);        
+};
 
 #endif // DATASTORE_H

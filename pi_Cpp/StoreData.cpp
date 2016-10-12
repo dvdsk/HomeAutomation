@@ -4,38 +4,44 @@ StoreData::StoreData(){
 	
 	mkdir("data", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 	//open file in binairy mode with appending write operations
-  sensDatFile = fopen("data/enviremental.binDat", "a+b");
-  pirDatFile = fopen("data/pirs.binDat", "a+b");  
-  
-  prevPirData[1] = 0;//0 as in no pirs measured
-  t_begin = GetMilliSec();
-  pirRecord[0] = 0;
-  pirRecord[1] = 0;
-  
+  atmospherics_file = fopen("data/atmospheric.binDat", "a+b");
+  pirs_file = fopen("data/pirs.binDat", "a+b");  
   //TODO maybe load buffer from file?
 }
 
 StoreData::~StoreData(){
-  fclose(sensDatFile);
-  fclose(pirDatFile);
+  fclose(atmospherics_file);
+  fclose(pirs_file);
 }
 
 
 
-StoreData::write_pir(unsigned char data[4]){ }
+void StoreData::write_pir(unsigned char data[4]){
+	fwrite(data, 4, 4*sizeof(unsigned char), pirs_file);	
+	}
 
-StoreData::write_atmospheric(unsigned char data[18]){ }
+void StoreData::write_atmospheric(unsigned char data[18]){ }
 
-StoreData::write_plants(unsigned char data[]){ }
+void StoreData::write_plants(unsigned char data[]){ }
 
 
-StoreData::read_pir(unsigned char& data[4]){ }
+void StoreData::read_pir(unsigned char data[4], int line){
+  fseek(pirs_file, 4*(line), SEEK_SET); 
+  fread(data, 1, 4, pirs_file);
+  }
 
-StoreData::read_atmospheric(unsigned char& data[18]){ }
+void StoreData::read_atmospheric(unsigned char data[18], int line){ }
 
-StoreData::read_plants(unsigned char& data[]){ }
+void StoreData::read_plants(unsigned char data[], int line){ }
 
 ////////////////////////////////////////////////FIXME beneath here
+
+PirData::PirData(StoreData& dataStorage){
+  prevData[1] = 0;//0 as in no pirs measured
+  t_begin = GetMilliSec();
+  Record[0] = 0;
+  Record[1] = 0;
+}
 
 bool PirData::isTimeStampPackage(unsigned char susp_time[4],  unsigned char susp_data[4]){
   if (susp_time[2] != susp_data[0]){
@@ -79,16 +85,13 @@ uint32_t PirData::getClosestTimeStamp(int lineNumber){
   unsigned char susp_data[4];
   int n = 0;
 
-  fseek(pirDatFile, 4*(lineNumber-n), SEEK_SET); 
-  fread(susp_time, 1, 4, pirDatFile);
-
+  dataStorage.read_pir(susp_time, lineNumber-n);
   do {
     std::memcpy(susp_data, susp_time, 4);
     //read packages in front of sups_data, store in susp_time
     n++;
-    fseek(pirDatFile, 4*(lineNumber-n), SEEK_SET);    
-    fread(susp_time, 1, 4, pirDatFile);   
-  } while (!pir_isTimeStampPackage(susp_time, susp_data));
+    dataStorage.read_pir(susp_time, lineNumber-n);
+  } while (!isTimeStampPackage(susp_time, susp_data));//TODO check double negative
   
   //conversion back to full unix time  
   unix_time = (uint32_t)susp_time[1] << 24 | //shift high part 
@@ -106,27 +109,6 @@ uint32_t PirData::getClosestTimeStamp(int lineNumber){
   return unix_time;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-void PirData::envirmental_write(unsigned char data[18]){
-  const static char DATASIZE = 18;
-  fwrite(data, DATASIZE, DATASIZE*sizeof(unsigned char), sensDatFile);
-	//TODO add time
-	
-	std::cout << "wrote some shit \n";
-}
 	
 long int PirData::unix_timestamp() {
   time_t t = std::time(0);
@@ -143,7 +125,7 @@ long long PirData::GetMilliSec(){
 }
 
 
-void PirData::pir_writeTimestamp(long int timestamp){
+void PirData::putTimestamp(long int timestamp){
 
   unsigned char towrite[4];
   
@@ -153,7 +135,7 @@ void PirData::pir_writeTimestamp(long int timestamp){
   towrite[0] = (timestamp >> 16) & 0xff; //store high part in first 2 bytes
   towrite[1] = (timestamp >> 24) & 0xff;  
   
-  fwrite(towrite, 4, 4*sizeof(unsigned char), pirDatFile);
+  dataStorage.write_pir(towrite);
   std::cout << "writing TIMESTAMP PIR PACKAGE: "
   		 			<< +towrite[0] << " "
 						<< +towrite[1] << " "
@@ -161,7 +143,7 @@ void PirData::pir_writeTimestamp(long int timestamp){
 				 		<< +towrite[3] << "\n";
 }	
 	
-void PirData::write(unsigned char data[2]){	
+void PirData::putData(unsigned char data[2]){	
   long int timestamp;				
   unsigned char buffer[4];
   
@@ -170,12 +152,12 @@ void PirData::write(unsigned char data[2]){
 	
 	if(!TimeStampSet_first & (timeLow <= HALFDAYSEC)){
 	  //second condition is needed to get a timestamp after a restart
-	  pir_writeTimestamp(timestamp);
+	  putTimestamp(timestamp);
 	  TimeStampSet_first = true;
 	  TimeStampSet_second = false;
 	}
 	else if(!TimeStampSet_second & (timeLow > HALFDAYSEC)){
-	  pir_writeTimestamp(timestamp); 
+	  putTimestamp(timestamp); 
 	  TimeStampSet_second = true;
 	  TimeStampSet_first = false;
 	}
@@ -187,7 +169,7 @@ void PirData::write(unsigned char data[2]){
 	std::memcpy(buffer+2, data, 2);	
 	//TODO call write funct
 	
-	fwrite(buffer, 4, 4*sizeof(unsigned char), pirDatFile);	
+	dataStorage.write_pir(buffer);
   std::cout << "writing NORMAL PIR PACKAGE: "
   		 			<< +buffer[0] << " "
 						<< +buffer[1] << " "
@@ -211,14 +193,14 @@ void PirData::combine(unsigned char B[2]){
   short int A_ones, A_zeros, B_ones, B_zeros;
   short int F_ones, F_zeros; //zeros is 1 if a zero was confirmed at that place
 
-  unsigned char prevPirData_new[2];  
+  unsigned char prevData_new[2];  
   
   //First previous runs data to new notation (kept in old for same check)
-  std::memcpy(prevPirData_new, prevPirData,2);
-  pir_convertNotation(prevPirData_new);
+  std::memcpy(prevData_new, prevData,2);
+  convertNotation(prevData_new);
   
-  A_ones  = prevPirData[0];
-  A_zeros = prevPirData[1];
+  A_ones  = prevData[0];
+  A_zeros = prevData[1];
 
   B_ones = B[0];
   B_zeros = B[1];
@@ -242,7 +224,7 @@ void PirData::binData(unsigned char data[2]){
   }
   else{
     //write values collected till now
-    pir_write(pirRecord);  
+    putData(Record);  
     t_begin = GetMilliSec();
     
     //reset pir to new values
@@ -261,17 +243,17 @@ void PirData::process(unsigned char data[2]){
   unsigned char newCorrect;
   
 
-  if (pir_isNotSame(data)){
+  if (isNotSame(data)){
       
-    combinedCorrect = prevPirData[1] & data[1]; 
+    combinedCorrect = prevData[1] & data[1]; 
     newCorrect = data[1];
-    std::memcpy(prevPirData, data, 2); //save before notation is changed
+    std::memcpy(prevData, data, 2); //save before notation is changed
 
-    pir_convertNotation(data);      
+    convertNotation(data);      
     if (combinedCorrect > newCorrect){ //would comparing with prev data increase knowledge?
-      pir_combine(data); //combine data with newer data overriding older data
+      combine(data); //combine data with newer data overriding older data
     }      
-    pir_binData(data); //bin on time and write when neccesairy    
+    binData(data); //bin on time and write when neccesairy    
   }
 }
 
