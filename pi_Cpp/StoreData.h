@@ -29,6 +29,7 @@ pir package that crosses a treshold for putting in the full time again
 recognised by 2 time lows after eachother
 
 
+TODO fix documentation from this point on
 => test if timestamp package:
 this is what would be read, so test 
   -----------------
@@ -104,11 +105,13 @@ class sensorData
 {
   public:
       sensorData(const int CACHESIZE, ){
-        unsigned char cache[CACHESIZE];         
+        unsigned char temp[CACHESIZE];  
+        cache = temp       
       }
       
       FILE* filePointer;  
-
+      unsigned char* cache
+      
       std::string FILEPATH = "data/pirs.binDat"         
       int oldestInBuffer //indicates oldest element in cache      
       uint32_t cache_firstTime;
