@@ -7,6 +7,7 @@
 #include <ctime> //time
 #include <climits> //int max etc
 #include <cstdint> //uint16_t
+#include <bitset>
 
 #include <sys/stat.h> //mkdir and filesize
 #include <sys/time.h>
@@ -52,6 +53,20 @@ this is what would be read, so test
 #define PIR_DT 1000 //number of milliseconds to bin the pir data to
 #define KB 1000 //TODO replace with const shit (snap const shit eerst)
 
+typedef std::bitset<32> package;
+
+namespace Package {
+    // Package::getTime(thePackage);
+    // Get the 16 high bits of the package as uint16_t
+    uint16_t getTime(package thePackage) {
+      return (uint16_t) (thePackage >> 16).to_ulong();
+    }
+    // Set the 16 high bits of the package
+    uint16_t setTime(uint16_t time, package thePackage) {
+      
+    }
+}
+
 //keeps track of data and cache
 class StoreData
 {
@@ -73,52 +88,33 @@ class StoreData
     FILE* pirs_file;    
     FILE* atmospherics_file;
     FILE* plants_file;
-  private:
-    const static int CACHESIZE_pir = 4000;
-    const static int CACHESIZE_atmospheric = 4000;    
-    const static int CACHESIZE_plants = 4000;    
-
-    const static std::string FILEPATH_pirs = "data/pirs.binDat"    
-    const static std::string FILEPATH_atmospheric = "data/atmospheric.binDat" 
-    const static std::string FILEPATH_plants = "data/plants.binDat"
-    
-    int oldest_pir; //indicates oldest element in cache
-    int oldest_atmospheric;
-    int oldest_plants;
-    
-    unsigned char cache_pir[CACHESIZE_pir];
-    unsigned char cache_atmospheric[CACHESIZE_atmospheric];
-    unsigned char cache_plants[CACHESIZE_plants];
-
-    uint32_t cache_firstTime_pir;
-    uint32_t cache_firstTime_atmospheric;
-    uint32_t cache_firstTime_plants;
+  private: 
 
     int loadbuffer(unsigned char cache[], FILE* fileToCache, int cacheSize, 
                    uint32_t& firstTime_inCache, unsigned char packageLenght, std::string filePath);
+    
     uint32_t TimeInFrontOfCache(FILE* fileToCache, int cacheSize, unsigned char packageLenght,
                    uint32_t firstTime_inCache);
+    
     bool notTimePackage(unsigned char susp_time[2],  unsigned char susp_data[2]);
 };
 
-class sensorData
+virtual class Data//do I want this to be passed to StoreData?
 {
   public:
-      sensorData(const int CACHESIZE, ){
-        unsigned char temp[CACHESIZE];  
-        cache = temp       
-      }
+      Data();
       
-      FILE* filePointer;  
-      unsigned char* cache
-      
-      std::string FILEPATH = "data/pirs.binDat"         
-      int oldestInBuffer //indicates oldest element in cache      
+      FILE* fileP; //pointer to file
+      unsigned char* cache;
+      std::string filePath;
+		int bufferSize;
+      int oldestInBuffer; //indicates oldest element in cache (=the next we will overwrite)   
       uint32_t cache_firstTime;
-}
+    
+};
 
 //processes the data and converts to the format for storing
-class PirData
+class PirData : public Data
 {
   public:    
     PirData(StoreData& dataStorage);

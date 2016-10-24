@@ -6,6 +6,8 @@
 #include <signal.h>
 #include <boost/exception/diagnostic_information.hpp> //for debugging
 
+const std::string PATHPIR = "pirs.binDat";
+const int CACHESIZE_pir = 4000;
 
 const unsigned char POLLING_FAST = 200;   //PIR and light Level
 const unsigned char POLLING_SLOW = 202;   //Temperature, humidity and co2

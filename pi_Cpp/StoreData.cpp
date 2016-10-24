@@ -4,8 +4,7 @@ StoreData::StoreData(){
 	
 	mkdir("data", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 	//open file in binairy mode with appending write operations
-  atmospherics_file = fopen(FILEPATH_pirs, "a+b");
-  pirs_file = fopen(FILEPATH_pirs, "a+b");  
+  pirs_file = fopen("pirs.binDat", "a+b");  
   //TODO maybe load buffer from file?
   
 
@@ -19,6 +18,7 @@ StoreData::StoreData(){
 
 //TODO find out about const correctness for the int cachesize (it is const)
 
+// Compares two 
 bool StoreData::notTimePackage(unsigned char susp_time[2],  unsigned char susp_data[2]){
   if (susp_time[0] == susp_data[0]){
     if (susp_time[1] == susp_data[1]){ return false; }    
@@ -135,7 +135,17 @@ void StoreData::read_plants(unsigned char data[], int line){ }
 
 ////////////////////////////////////////////////FIXME beneath here
 
+Data::Data() {
+//  Data(const int CACHESIZE, std::string FILEPATH){
+//    cache = new unsigned char[CACHESIZE];
+//    filePath = FILEPATH;
+//  };
+}
+
+
 PirData::PirData(StoreData& dataStorage){
+  bufferSize = 4; // Het aantal [JA, WAT EIGENLIJK] dat in het buffer past
+  cache = new unsigned char[32 * bufferSize];
   prevData[1] = 0;//0 as in no pirs measured
   t_begin = unix_timestamp();
   Record[0] = 0;
