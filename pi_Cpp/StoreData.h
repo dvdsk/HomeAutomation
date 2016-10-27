@@ -28,24 +28,34 @@ pir package that crosses a treshold for putting in the full time again
   - time low 16 bit | time high 16 bit -
   --------------------------------------
 recognised by 2 time lows after eachother
-
-
-TODO fix documentation from this point on
-=> test if timestamp package:
-this is what would be read, so test 
-  -----------------
-  - n | m | x | x - data block a
-  ----------------- 
-
-  -----------------
-  - c | d | a | b - data block b0
-  -----------------
-    0   1   2   3
-  -----------------
-  - a | b | x | x - data block b1
-  -----------------   
-
- a | b0 | b1 | c | d
+--------------------------------------------
+ 
+ 
+ 
+ ----HIGH LEVEL ACCESS (public) ----
+    | storeData: storing data with a new time,*             -universal/all data
+    | getting: data from specific time frames,              -universal/all data
+    | removing specific time frames                         -universal/all data
+ Locking mechanism to allow multi threaded/processed access (one lock per above action). implement write/read lock
+ multiple readers or one write simultainiously
+ 
+ *note: the full unix time is stored together with the raw data in a FIFO queue before the lock. The lock has a
+        zero timeout. Thus time data is always accurate even if readout on another thread takes multiples of seconds
+        //TODO is this needed? (might be, raspberry pi weak? implement last anyhow)
+ 
+ ----LOW LEVEL ACCESS (private?) ----
+ -Storing a new time:
+    | process: adjust formatting                                                  -data specific
+    | compress: check if it is really new data and needs to be saved              -data specific
+    | package: add all data together and add the timestamp part                   -data specific
+    the above are all data specific.the below are not.
+    | write: writes the package to both cache and file                            -universal/all data
+    
+  -getting data from specific time frames
+    | searchFT: searches for the location of the two full timestamps closest to the requested
+    |           unix times                                                        -universal/all data
+    | searchT:  searches onwards from the timestamps found in searchFT to find the lines of the exact times
+    |           returns these lines                                               -universal/all data
 
 */
 
@@ -74,13 +84,13 @@ class StoreData
 	  StoreData();//
 	  ~StoreData();
 	  
-	  //appends one data line to the cache and writes to file
+	  //appends one data line to the cache and file
 	  void write_pir(unsigned char data[4]);
 	  void write_atmospheric(unsigned char data[18]);
 	  void write_plants(unsigned char data[]);
 	  
 	  //reads one line from cache or if its not in there from the file
-	  //line is the line number of the file
+	  //line is the line number in the file this corrosponds to a diffrent offset for every 'type of data'
 	  void read_pir(unsigned char data[4], int line);
 	  void read_atmospheric(unsigned char data[18], int line);
 	  void read_plants(unsigned char data[], int line);
@@ -88,29 +98,33 @@ class StoreData
     FILE* pirs_file;    
     FILE* atmospherics_file;
     FILE* plants_file;
-  private: 
-
+  private: //make all these functions work for any type of package
+    //on startup load the cache from the data file
     int loadbuffer(unsigned char cache[], FILE* fileToCache, int cacheSize, 
                    uint32_t& firstTime_inCache, unsigned char packageLenght, std::string filePath);
     
+    //find the timestamp corrosponding with the oldest cache line (if that line is not a timestamp in itself)
+    //this is a level of pir data specific logic on top of the transparant cache
     uint32_t TimeInFrontOfCache(FILE* fileToCache, int cacheSize, unsigned char packageLenght,
                    uint32_t firstTime_inCache);
     
     bool notTimePackage(unsigned char susp_time[2],  unsigned char susp_data[2]);
 };
 
-virtual class Data//do I want this to be passed to StoreData?
+//keeps track of where data is located: file pointer, cacheSize, cache, filepath, oldest item and how old that item is
+class Data
 {
   public:
-      Data();
-      
-      FILE* fileP; //pointer to file
-      unsigned char* cache;
-      std::string filePath;
+    Data();
+    FILE* fileP; //pointer to file
+    unsigned char* cache;
+    std::string filePath;
 		int bufferSize;
-      int oldestInBuffer; //indicates oldest element in cache (=the next we will overwrite)   
-      uint32_t cache_firstTime;
-    
+    int oldestInBuffer; //indicates oldest element in cache (=the next we will overwrite)
+    uint32_t cache_firstTime;
+  protected:
+    int elementLength
+    FILE*
 };
 
 //processes the data and converts to the format for storing

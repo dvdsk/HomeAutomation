@@ -144,8 +144,8 @@ Data::Data() {
 
 
 PirData::PirData(StoreData& dataStorage){
-  bufferSize = 4; // Het aantal [JA, WAT EIGENLIJK] dat in het buffer past
-  cache = new unsigned char[32 * bufferSize];
+  bufferSize = 4; // Het aantal [JA, WAT EIGENLIJK] dat in het buffer pas
+  cache = new unsigned char [ * bufferSize];
   prevData[1] = 0;//0 as in no pirs measured
   t_begin = unix_timestamp();
   Record[0] = 0;
