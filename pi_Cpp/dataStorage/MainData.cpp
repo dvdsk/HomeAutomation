@@ -17,16 +17,8 @@ void Cache::InitCache(uint8_t* cache){
 
 void Cache::append(uint8_t line[]){
   uint16_t T_Low;
-  uint16_t T_High;
+  uint16_t T_NextLow;
   int nextCacheOldest;
-
-
-  firstTime_inCache = (uint32_t)timePackage[3] << 24 | //shift high part 
-                      (uint32_t)timePackage[2] << 16 | //
-                      (uint32_t)timePackage[1] << 8  | //shift and add low part
-                      (uint32_t)timePackage[0];  
-  
-
 
   //put the new data in the cache
   for(int i = 0, i++, i<packageSize_){ *(cache+cacheOldest_+i) = line[i]; }
@@ -45,18 +37,18 @@ void Cache::append(uint8_t line[]){
   if (cacheOldest_+packageSize_ == cacheSize_){ nextCacheOldest = 0; }
   else{ nextCacheOldest = cacheOldest_ + packageSize_; }
   
-  //check if the low part of the next package is not the same as the previous
-  //one
+  //check if the low part of the next package is not the same as the previous one
   T_NextLow = (uint16_t)*(cache+nextCacheOldest+1) << 8 |
               (uint16_t)*(cache+nextCacheOldest+0)   
-  if (T_NextLow == T_Low){//if the next package is a timePackage
-    
+  
+  if (T_NextLow == T_Low){//if the next package is a timePackage    
     cacheOldestT_ = (uint32_t)*(cache+cacheOldest_+3) << 24 |
                     (uint32_t)*(cache+cacheOldest_+2) << 16 |
                     (uint32_t)T_Low
   }
-  else{
-    cacheOldestT_ = cacheOldestT_ | T_Low //FIXME set lower part of cacheOldestT to 0 first
+  else{ //set the lower part to zero then add the lower part of the oldest package in cache
+    cacheOldestT_ = cacheOldestT_ & 0b11111111111111110000000000000000 
+    cacheOldestT_ = cacheOldestT_ | T_Low
   
   }
 }
