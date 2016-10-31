@@ -1,5 +1,5 @@
-#ifndef STOREDATA_H
-#define STOREDATA_H
+#ifndef PIRDATA_H
+#define PIRDATA_H
 #include <iostream>
 #include <stdio.h>
 #include <signal.h>
@@ -12,6 +12,7 @@
 #include <sys/stat.h> //mkdir and filesize
 #include <sys/time.h>
 
+#include "MainData.h"
 /*
 Pir saving format, normal packages with sometimes a timestamp package in front
 
@@ -61,88 +62,7 @@ recognised by 2 time lows after eachother
     |           returns these lines                                               -universal/all data
     | getData:  given a binairy number for the wanted columns, returns a pointer to an array where it stores 
     |           pointers to the arrays containing the requested data              -universal/all data
-                
-*/
-
-#define HALFDAYSEC 43200 //numb of sec in half a day
-#define PIR_DT 1000 //number of milliseconds to bin the pir data to
-#define KB 1000 //TODO replace with const shit (snap const shit eerst)
-
-
-class Cache
-//TODO implement this so its fully transparent. wrap fwrite and fread 
-{
-  public:
-    /*sets cache pointer to the already allocated space and sets the length 
-      of the cache, Sets oldest element and cacheOldestTimestamp_ to zero*/
-    Cache(uint8_t* cache, uint8_t packageSize, int cacheLen );
-    /*copies an array to the cache, while overwriting old data, checks if the 
-      overwritten data contained a full timestamp. If so updates the oldest
-      In cache. [During startup the cache is filled and oldest timestamp 
-      automatically set]*/
-    append(uint8_t line[]);
-    /*reads the package at a single line*/
-    read(uint8_t& line[], int lineNumber);
-    /*reads all the lines from start to start+length copies them to lines[]*/
-    readSeq(uint8_t& line[], int start, int length);
-    /*removes all lines between start and lengt, then updates the entire cache
-      filling it up again from file*/
-    remove(int lineNumber, int start, int length);
-
-    uint32_t cacheOldestTimestamp_; //unix time of the oldest package in cache
-    uint32_t lineOldest_;           //line number (in packages) of the oldest package in cache
-
-  private:
-    /*pointer to cache, in the contructor we set this to an array*/
-    uint8_t* cache_;
-    /*length of cache TODO set unit (in packages? uint8_t?)*/
-	  int cacheLen_;
-    /*indicates oldest (first added) element in the cache, we will override this
-      first TODO set unit (in packages? uint8_t?)*/
-    int cacheOldest_;
-    /*size of complete data packages*/
-    uint8_t packageSize
-}
-
-//keeps track of where data is located: file pointer, cacheSize, cache, 
-//filepath, and the oldest item in cache. During searches this is used to prevent
-//the search function from leaving the transparent cache while unnessesairy.
-class Data : public Cache
-{
-  public:
-    Data(std::string filePath, uint8_t* cache, uint8_t packageSize, int cacheLen) 
-    : Cache(cache, packageSize, cacheLen)
-    
-    /*gets the file pointer for setting shut down conditions*/
-    getFileP();
-    
-    /*writes a package to file transparently caching it*/
-    append(uint8_t line[]);
-    /*reads a single package at a given line*/
-    read(uint8_t& line[], int lineNumber);
-    /*reads all the lines including start to (excluding) start+length copies
-     them to the array lines[]*/
-    readSeq(uint8_t& line[], int start, int length);
-    /*removes all lines between start and lengt, then updates the entire cache
-      filling it up again from file*/
-    remove(int lineNumber, int start, int length);
-   
-    /*searches for the line where a timestamp is located. First asks the cache
-      if it contains the timestamp, depending on the awnser it starts searching
-      in the cache or the file. Optionally a minimum point for the search can
-      be given. [this is usefull for searching a second timestamp later timestamp]*/
-    int searchTstamp(uint32_t Tstamp, int startLine = 0);
-    
-  protected:
-    /*size of complete data packages*/
-    uint8_t packageSize
-    /*pointer to file, created in the constructor during opening or creation of
-      the datafile*/
-    FILE* fileP;
-    /*path to which the constructor points*/
-    std::string filePath;
-};
-
+*/           
 
 
 //data specific functions and variables, inherits AllData
@@ -152,7 +72,6 @@ class PirData : public Data
     PirData(std::string filePath, uint8_t* cache, uint8_t packageSize, int cacheLen)
     : Data(filePath, cache, packageSize, cacheLen);
     
-    uint32_t getClosestTimeStamp(int lineNumber);
     void process(uint8_t data[2]);
 
   private:
