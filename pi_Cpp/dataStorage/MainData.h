@@ -93,7 +93,8 @@ class Cache
     uint32_t lineOldest_;    //line number (in packages) of the oldest package in cache
 
   private:
-    /*pointer to cache, in the contructor we set this to an array*/
+    /*pointer to cache, in the contructor we set this to an array, the cache has
+      multiple items getting newer as you get higher in the array*/
     uint8_t* cache_;
     /*length of cache in bytes (in uint8_t)*/
 	  int cacheSize_;
@@ -110,28 +111,24 @@ class Cache
 class Data : public Cache
 {
   public:
-    Data(std::string filePath, uint8_t* cache, uint8_t packageSize, int cacheSize) 
+    Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheSize) 
     : Cache(cache, packageSize, cacheLen)
     
     /*gets the file pointer for setting shut down conditions*/
-    getFileP();
+    void getFileP();
     
     /*writes a package to file transparently caching it*/
-    append(uint8_t line[]);
+    void append(uint8_t line[]);
     /*reads a single package at a given line*/
-    read(uint8_t& line[], int lineNumber);
+    void read(uint8_t& line[], int lineNumber);
     /*reads all the lines including start to (excluding) start+length copies
       them to the array lines[]*/
-    readSeq(uint8_t& line[], int start, int length);
-    /*reads with a lower then full resolution, not binning data but ignoring
-      many data point*/
-    readSpaced(uint8_t& line[], int start, int length);
-
+    void readSeq(uint8_t& line[], int start, int length);
     /*removes all lines between start and lengt, by inserting null data or
       in the case of a single line to be removed an extra timestamp package. 
       Note in the file itself it is still clear that something has been removed
       this operation also does not save any space*/    
-    remove(int lineNumber, int start, int length);
+    void remove(int lineNumber, int start, int length);
    
     /*searches for the line where a timestamp is located. First asks the cache
       if it contains the timestamp, depending on the awnser it starts searching
@@ -146,7 +143,7 @@ class Data : public Cache
       the datafile*/
     FILE* fileP_;
     /*path to which the constructor points*/
-    std::string filePath_;
+    std::string fileName_;
 };
 
 

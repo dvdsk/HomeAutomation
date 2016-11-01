@@ -61,26 +61,63 @@ void Cache::remove(int lineNumber, int start, int length){//TODO}
 
 
 
-Data::Data(std::string filePath, uint8_t* cache, uint8_t packageSize, int cacheLen){
-  filePath_ = filePath;
+Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheSize){
+  struct stat filestatus;
+  int fileSize; //in bytes
+  int cacheFileMismatch
+  fileName_ = fileName;
   
 	//open a new file in binairy reading and appending mode. All writing operations
 	//are performed at the end of the file. Internal pointer can be moved anywhere
 	//for reading. Writing ops move it back to the end of the file  
 	mkdir("data", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-  fileP_ = fopen("pirs.binDat", "a+b"); 
+  fileP_ = fopen(fileName, "a+b"); 
   
   //copy the last data in the file to the cache. if there is space left in the
   //cache because the beginning of the file was reached it is filled with Null 
   //data (null timestamp)
   
+  stat(filePath, &filestatus);//sys call for file info
+  fileSize = filestatus.st_size;
+  
+  if (fileSize >= cacheSize){
+    //set the file pointer to cachesize from the end of the file then
+    //read from there to the end of the file into the cache
+    fseek(fileP_, -1*(cacheSize), SEEK_END); 
+    fread(cache, cacheSize, 1, fileP_);
+  }
+  else{
+    //set the file pointer to the beginning of the file then read in data till
+    //the end of file. Next fill everything with 0 data.
+    fseek(fileP_, 0, SEEK_SET); 
+    fread(cache, filesize, 1, fileP_);    
+    
+    if (cacheSize-fileSize = 1){
+    //if there is only one open space in the cache left the last element must be
+    //a full timestamp, insert it again. 
+      memcpy(cache+fileSize, cache+fileSize-packeSize, packeSize)    
+    }
+    else{
+    //we need to fill one or more spots, we do so by entering zero packages,
+    //these start with a full zero timestamp
+
+      cache+fileSize* = 0
+      cache+fileSize+1* = 0
+      cache+fileSize+2* = 0
+      cache+fileSize+3* = 0
+    }
+    for(int i = fileSize+packageSize; i<cacheSize; i += packageSize){
+      //set the timestamp part of the package to zero
+      cache+i* = 0
+      cache+i+1* = 0    
+    }
+  }
+  
+
+  //set the oldestTimestamp  
   //TODO
-  
-  //set the oldestTimestamp 
-  
-  //TODO
-  
-  //pass the array on to the cache base class
+
+  //pass the fully initialised cache on to the cache class
   Cache::InitCache(uint8_t* cache);
 }
 
