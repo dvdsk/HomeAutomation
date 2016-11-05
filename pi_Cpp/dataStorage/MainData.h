@@ -8,6 +8,7 @@
 #include <climits> //int max etc
 #include <cstdint> //uint16_t
 #include <bitset>
+#include <stdlib.h>     /* abs */
 
 #include <sys/stat.h> //mkdir and filesize
 #include <sys/time.h>
@@ -67,6 +68,7 @@ recognised by 2 time lows after eachother
 #define HALFDAYSEC 43200 //numb of sec in half a day
 #define PIR_DT 1000 //number of milliseconds to bin the pir data to
 #define KB 1000 //TODO replace with const shit (snap const shit eerst)
+const int MAXPACKAGESIZE = 50;
 
 
 class Cache
@@ -135,6 +137,11 @@ class Data : public Cache
       in the cache or the file. Optionally a minimum point for the search can
       be given. [this is usefull for searching a second timestamp later timestamp]*/
     int searchTstamp(uint32_t Tstamp, int startLine = 0);
+    
+    //helper functions
+    /*compares a pair of data packages and returns false if the first of them 
+      is a timepackage */
+    bool notTpackage(lineA, lineB, packageSize);
     
   protected:
     /*size of complete data packages*/

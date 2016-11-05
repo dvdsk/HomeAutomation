@@ -9,6 +9,9 @@ Cache::Cache(uint8_t* cache, uint8_t packageSize, int cacheSize ){
   //throw error if the cacheSize is not N*packageSize
   if (cacheSize % packageSize){ cerr << "ERROR: cache size must be an integer "
                                      << "times the packageSize \n"; }
+  if (packageSize > MAXPACKAGESIZE){ cerr << "ERROR: packageSize must be smaller
+                                          << " then: "<< MAXPACKAGESIZE <<"try"
+                                          << " increasing 'MAXPACKAGESIZE'\n"; }
 }
 
 void Cache::InitCache(uint8_t* cache){
@@ -64,7 +67,13 @@ void Cache::remove(int lineNumber, int start, int length){//TODO}
 Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheSize){
   struct stat filestatus;
   int fileSize; //in bytes
-  int cacheFileMismatch
+  int cacheFileMismatch;
+  int n;
+  
+  uint8_t lineB[MAXPACKAGESIZE];
+  uint8_t lineA[MAXPACKAGESIZE];
+  
+  /*set class variables*/
   fileName_ = fileName;
   
 	//open a new file in binairy reading and appending mode. All writing operations
@@ -85,66 +94,94 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
     //read from there to the end of the file into the cache
     fseek(fileP_, -1*(cacheSize), SEEK_END); 
     fread(cache, cacheSize, 1, fileP_);
+  
+    /*set the oldest timestamp in the cache*/
+    //look through the file for a timestamp package starting at -cachesize from
+    //the end
+
+    n = -1*(cacheSize)
+    fseek(fileP_, n, SEEK_END); 
+    fread(lineB, packageSize, 1, fileP_); 
+    n -= packageSize;
+     
+    fseek(fileP_, n, SEEK_END); 
+    fread(lineA, packageSize, 1, fileP_);   
+    n -= packageSize;
+    
+    while (notTpackage(lineA, lineB, packageSize)){    
+    
+      memcpy(lineB, lineA, packageSize);
+       
+      fseek(fileP_, n, SEEK_END); 
+      fread(lineA, packageSize, 1, fileP_);   
+      n -= packageSize;   
+    }
+    //save the timepackage
+    cacheOldestT_ = (uint32_t)*(lineA+3) << 24 |
+                    (uint32_t)*(lineA+2) << 16 |
+                    (uint32_t)*(lineA+1) << 8  |
+                    (uint32_t)*(lineA+0);
+    
   }
   else{
     //set the file pointer to the beginning of the file then read in data till
     //the end of file. Next fill everything with 0 data.
     fseek(fileP_, 0, SEEK_SET); 
-    fread(cache, filesize, 1, fileP_);    
+    fread(cache, filesize, 1, fileP_);//FIXME check 2e argument
     
+    /*fill the remainder of the cache*/    
     if (cacheSize-fileSize = 1){
     //if there is only one open space in the cache left the last element must be
     //a full timestamp, insert it again. 
-      memcpy(cache+fileSize, cache+fileSize-packeSize, packeSize)    
+      memcpy(cache+fileSize, cache+fileSize-packeSize, packeSize);  
     }
     else{
     //we need to fill one or more spots, we do so by entering zero packages,
     //these start with a full zero timestamp
 
-      cache+fileSize* = 0
-      cache+fileSize+1* = 0
-      cache+fileSize+2* = 0
-      cache+fileSize+3* = 0
+      cache+fileSize* = 0;    //cache is the memory adress where the cache is at
+      cache+fileSize+1* = 0;
+      cache+fileSize+2* = 0;
+      cache+fileSize+3* = 0;
     }
     for(int i = fileSize+packageSize; i<cacheSize; i += packageSize){
       //set the timestamp part of the package to zero
-      cache+i* = 0
-      cache+i+1* = 0    
+      cache+i* = 0;
+      cache+i+1* = 0;
     }
+    /*set the oldest timestamp in the cache*/
+    //as the complete file is in the cache and the file must start with a full
+    //timestamp we can just convert the first package to a timestamp
+    cacheOldestT_ = (uint32_t)*(cache+3) << 24 |
+                    (uint32_t)*(cache+2) << 16 |
+                    (uint32_t)*(cache+1) << 8  |
+                    (uint32_t)*(cache+0);
   }
-  
-
-  //set the oldestTimestamp  
-  //TODO
 
   //pass the fully initialised cache on to the cache class
   Cache::InitCache(uint8_t* cache);
 }
 
-
-
-
-
-
-
-StoreData::StoreData(){
-	
-	mkdir("data", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-	//open file in binairy mode with appending write operations
-  pirs_file = fopen("pirs.binDat", "a+b");  
-  //TODO maybe load buffer from file?
-  
-
-}
-
-
-// Compares two 
-bool StoreData::notTimePackage(unsigned char susp_time[2],  unsigned char susp_data[2]){
-  if (susp_time[0] == susp_data[0]){
-    if (susp_time[1] == susp_data[1]){ return false; }    
+bool Data::notTpackage(uint8_t lineA, uint8_t lineB, packageSize){
+  if (lineA[0] == lineB[0]){
+    if (lineA[1] == lineB[1]){ return false; }    
   }
   return true;
 }
+
+FILE* Data::getFileP(){
+  return fileP_;
+}
+
+
+
+
+
+
+
+
+///////////////////////////OLD WORK////////////////////////////////////////////
+
 
 uint32_t StoreData::TimeInFrontOfCache(FILE* fileToCache, int cacheSize, 
                                        unsigned char packageLenght,
