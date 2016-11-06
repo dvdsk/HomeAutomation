@@ -77,19 +77,19 @@ class Cache
     /*set paramaters for the cache and check if these are correct*/
     Cache(uint8_t packageSize, int cacheSize );
     /*point the cache_ pointer to the cache and update cacheOldestT*/
-    InitCache(uint8_t* cache);
+    void InitCache(uint8_t* cache);
     
     /*copies an array to the cache, while overwriting old data, checks if the 
       overwritten data contained a full timestamp. If so updates cacheOldestT_
       [During startup the cache is filled and oldest timestamp initially set]*/
-    append(uint8_t line[]);
+    void append(uint8_t line[]);
     /*reads the package at a single line*/
-    read(uint8_t& line[], int lineNumber);
+    void read(uint8_t line[], int lineNumber);
     /*reads all the lines from start to start+length copies them to lines[]*/
-    readSeq(uint8_t& line[], int start, int length);
+    void readSeq(uint8_t line[], int start, int length);
     /*removes all lines between start and lengt, then updates the entire cache
       filling it up again from file*/
-    remove(int lineNumber, int start, int length);
+    void remove(int lineNumber, int start, int length);
 
     uint32_t cacheOldestT_;  //unix time of the oldest package in cache
     uint32_t lineOldest_;    //line number (in packages) of the oldest package in cache
@@ -105,7 +105,7 @@ class Cache
     int cacheOldest_;
     /*size of complete data packages in bytes*/
     uint8_t packageSize_;
-}
+};
 
 //keeps track of where data is located: file pointer, cacheSize, cache, 
 //filepath, and the oldest item in cache. During searches this is used to prevent
@@ -113,19 +113,18 @@ class Cache
 class Data : public Cache
 {
   public:
-    Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheSize) 
-    : Cache(cache, packageSize, cacheLen)
+    Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheSize);
     
     /*gets the file pointer for setting shut down conditions*/
-    void getFileP();
+    FILE* getFileP();
     
     /*writes a package to file transparently caching it*/
-    void append(uint8_t line[]);
+    void append(uint8_t line[], uint32_t Tstamp);
     /*reads a single package at a given line*/
-    void read(uint8_t& line[], int lineNumber);
+    void read(uint8_t line[], int lineNumber);
     /*reads all the lines including start to (excluding) start+length copies
       them to the array lines[]*/
-    void readSeq(uint8_t& line[], int start, int length);
+    void readSeq(uint8_t line[], int start, int length);
     /*removes all lines between start and lengt, by inserting null data or
       in the case of a single line to be removed an extra timestamp package. 
       Note in the file itself it is still clear that something has been removed
@@ -141,9 +140,15 @@ class Data : public Cache
     //helper functions
     /*compares a pair of data packages and returns false if the first of them 
       is a timepackage */
-    bool notTpackage(lineA, lineB, packageSize);
+    bool notTSpackage(uint8_t lineA[], uint8_t lineB[]);
+    /*write a full timestamp package*/
+    void putFullTS(const uint32_t Tstamp);
     
   protected:
+    /*has the first timestamp been written*/
+    bool firstTs;
+    /*has the second timestamp been written*/
+    bool secondTs;    
     /*size of complete data packages*/
     uint8_t packageSize_;
     /*pointer to file, created in the constructor during opening or creation of

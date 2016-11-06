@@ -2,7 +2,8 @@
 #include <typeinfo>//FIXME for debugging only
 
 #include "Serial.h"
-#include "StoreData.h"
+#include "MainData.h"
+
 #include <signal.h>
 #include <boost/exception/diagnostic_information.hpp> //for debugging
 
@@ -11,9 +12,6 @@ const int CACHESIZE_pir = 4000;
 
 const unsigned char POLLING_FAST = 200;   //PIR and light Level
 const unsigned char POLLING_SLOW = 202;   //Temperature, humidity and co2
-
-FILE* file1; //needed as global for interrupt handling
-FILE* file2;
 
 typedef union
 {
@@ -60,7 +58,7 @@ void checkSensorData(PirData &pirStorage){
         std::memcpy(light_door.bytes, fastData+6, 2);  
         std::memcpy(light_kitchen.bytes, fastData+8, 2);
         
-        pirStorage.process(pirData);
+        //pirStorage.process(pirData);
         break;        
       
       case POLLING_SLOW:
@@ -83,22 +81,15 @@ void checkSensorData(PirData &pirStorage){
   }
 }
 
-void readPirDataFromFile(PirData &pirStorage){
-	for( int i=0; i<5;i++){ pirStorage.getClosestTimeStamp(1);}
-}
-
 int main(int argc, char* argv[])
 {
 
-  StoreData dataStorage;
-  PirData pirStorage(dataStorage);
+  //StoreData dataStorage;
+  //PirData pirStorage(dataStorage);
 
-  file1 = dataStorage.atmospherics_file;
-  file2 = dataStorage.pirs_file;
+  //file1 = dataStorage.atmospherics_file;
+  //file2 = dataStorage.pirs_file;
 
-  signal(SIGINT, interruptHandler);
-  
-  readPirDataFromFile(pirStorage);
-  checkSensorData(pirStorage);
+  //signal(SIGINT, interruptHandler);
 
 }
