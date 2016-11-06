@@ -1,49 +1,48 @@
-	
-void PirData::putData(unsigned char data[2]){	
-  long int timestamp;				
-  unsigned char buffer[4];
+
+PirData::PirData()
+: Data(filePath, cache, packageSize, cacheLen){
+
+}
+
+void PirData::process(uint8_t rawData[2], uint32_t Tstamp){
   
-	timestamp = unix_timestamp();	
-  uint16_t timeLow = (uint16_t) (timestamp >> 16);// shifting right 16 times gives /2^16
-	
-	if(!TimeStampSet_first & (timeLow <= HALFDAYSEC)){
-	  //second condition is needed to get a timestamp after a restart
-	  putTimestamp(timestamp);
-	  TimeStampSet_first = true;
-	  TimeStampSet_second = false;
-	}
-	else if(!TimeStampSet_second & (timeLow > HALFDAYSEC)){
-	  putTimestamp(timestamp); 
-	  TimeStampSet_second = true;
-	  TimeStampSet_first = false;
-	}
+  if (newData(rawData) ){
+    convertNotation(rawData);
 
-  //store timeLow in buffer
-  buffer[0] = timeLow & 0xff;
-  buffer[1]	= (timeLow >> 8) & 0xff;
-
-	std::memcpy(buffer+2, data, 2);	
-	//TODO call write funct
-	
-	dataStorage.write_pir(buffer);
-  std::cout << "writing NORMAL PIR PACKAGE: "
-  		 			<< +buffer[0] << " "
-						<< +buffer[1] << " "
-				 		<< +buffer[2] << " "
-				 		<< +buffer[3] << "\n";
+  }
 
 }
 
 
-void PirData::convertNotation(unsigned char B[2]){
-  unsigned char B_ones, B_zeros;
 
-  B_ones  =  B[0] & B[1]; //if one and noted as correct (one) store as one
-  B_zeros = (B[0] ^ B[1]) & B[1]; //if zero and noted as correct: if (zero and one) only if also one
-
-  B[0] = B_ones;
-  B[1] = B_zeros; //back to old notation [one or zero][correct or not]  
+bool PirData::newData(uint8_t raw[2]){
+  if ((raw[0] == prevRaw[0]) & (raw[1] == prevRaw[1])){ return false;}
+  else{
+    std::memcpy(prevData, data , 2);
+    return true;
+  }
 }
+
+void PirData::convertNotation(uint8_t rawData[2]){
+  uint8_t confirmed_one, confirmed_zero;
+
+  uint8_t oneOrZero = rawData[0];
+  uint8_t confirmed = rawData[1];
+
+  confirmed_one  = oneOrZero & confirmed; //if one and noted as correct (one) give one
+  confirmed_zero = (oneOrZero ^ confirmed) & confirmed;
+  
+  /*explanation of confirmed zero algoritme
+    we want only OnOff=F and confirmed=T to give T. the ^ (XOR) operator has 
+    the following possible outcomes:
+      OnOff:      F F T T
+      confirmed:  F T F T
+      outcome:    F T T F
+    XOR gives us half of what we want. To filter out the confirmed=F case we
+    do an AND operation. Now we have T where a zero is confirmed*/
+}
+
+////////////OLD///////////////
 
 void PirData::combine(unsigned char B[2]){
   short int A_ones, A_zeros, B_ones, B_zeros;
@@ -89,10 +88,7 @@ void PirData::binData(unsigned char data[2]){
   }
 }
 
-bool PirData::isNotSame(unsigned char data[2]){
-  if ((data[0] == prevData[0]) & (data[1] == prevData[1])){ return false;}
-  else{return true;}
-}
+
 
 void PirData::process(unsigned char data[2]){
   unsigned char combinedCorrect;

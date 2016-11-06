@@ -2,7 +2,7 @@
 #include <typeinfo>//FIXME for debugging only
 
 #include "Serial.h"
-#include "MainData.h"
+#include "dataStorage/MainData.h"
 
 #include <signal.h>
 #include <boost/exception/diagnostic_information.hpp> //for debugging
@@ -12,6 +12,11 @@ const int CACHESIZE_pir = 4000;
 
 const unsigned char POLLING_FAST = 200;   //PIR and light Level
 const unsigned char POLLING_SLOW = 202;   //Temperature, humidity and co2
+
+
+FILE* file1; //needed as global for interrupt handling
+FILE* file2;
+FILE* file3;
 
 typedef union
 {
@@ -24,11 +29,12 @@ void interruptHandler(int s){
 
   fflush(file1);
   fflush(file2);
+  fflush(file3);
   printf("Caught signal %d\n",s);
   exit(1); 
 }
 
-void checkSensorData(PirData &pirStorage){
+void checkSensorData(){
   const unsigned char POLLING_FAST = 200;   //PIR and light Level
   const unsigned char POLLING_SLOW = 202;   //Temperature, humidity and co2
 
@@ -83,13 +89,7 @@ void checkSensorData(PirData &pirStorage){
 
 int main(int argc, char* argv[])
 {
-
-  //StoreData dataStorage;
-  //PirData pirStorage(dataStorage);
-
-  //file1 = dataStorage.atmospherics_file;
-  //file2 = dataStorage.pirs_file;
-
+  checkSensorData();
   //signal(SIGINT, interruptHandler);
 
 }
