@@ -3,6 +3,7 @@
 
 #include "Serial.h"
 #include "dataStorage/MainData.h"
+#include "dataStorage/PirData.h"
 
 #include <signal.h>
 #include <boost/exception/diagnostic_information.hpp> //for debugging

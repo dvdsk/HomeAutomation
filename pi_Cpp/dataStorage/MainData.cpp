@@ -227,6 +227,8 @@ void Data::putFullTS(const uint32_t Tstamp){
   for (int i = 4; i<packageSize_; i++){
     towrite[i] = 0;
   }
+  Cache::append(towrite);
+  fwrite(towrite, 1, packageSize_, fileP_);
 }
 
 bool Data::notTSpackage(uint8_t lineA[], uint8_t lineB[]){

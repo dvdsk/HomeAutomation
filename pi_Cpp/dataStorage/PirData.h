@@ -25,10 +25,14 @@ class PirData : public Data
     void process(uint8_t rawData[2], uint32_t Tstamp);
 
   private:
-    confirmed_one;    //confirmed detection by sensor
-    confirmed_zero;   //confirmed no detection (sensor has been polled!)
+    uint8_t confirmed_ones;    //confirmed detection by sensor (one= true)
+    uint8_t confirmed_zeros;   //confirmed no detection (sensor has been polled!)
+
+    uint8_t toStore_ones;    //value from previous run
+    uint8_t toStore_zeros;   //value from previous run
     
     uint8_t prevRaw[2]; //keep the old data for testing if new data is diffrent
+    uint32_t prevTstamp; //remember the timestamp of the previous run
 
     /*is the raw data diffrent then the previous data*/
     bool newData(uint8_t rawData[2]);
@@ -37,14 +41,8 @@ class PirData : public Data
       sensor polled High, sensor polled but Low*/
     void convertNotation(uint8_t B[2]);
 
-    long int t_begin;
-    uint8_t Record[2];
-    uint8_t compress(uint8_t data);
-    
-
-    
-    void combine(uint8_t B[2]);
-    void binData(uint8_t data[2]);
+    /*bin data with old data*/
+    void binData();
    
 };
 
