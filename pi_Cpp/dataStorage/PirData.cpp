@@ -1,7 +1,7 @@
 #include "PirData.h"
 
 //FIXME
-PirData::PirData(std::string filePath, uint8_t* cache, uint8_t packageSize, int cacheLen)
+PirData::PirData(const std::string filePath, uint8_t* cache, const int cacheLen)
 : Data(filePath, cache, PACKAGESIZE, cacheLen){
 
   //init local variables
@@ -11,7 +11,7 @@ PirData::PirData(std::string filePath, uint8_t* cache, uint8_t packageSize, int 
   prevTstamp = 0;
 }
 
-void PirData::process(uint8_t rawData[2], uint32_t Tstamp){
+void PirData::process(const uint8_t rawData[2], const uint32_t Tstamp){
   uint8_t line[2];
   
   if (newData(rawData) ){
@@ -32,7 +32,7 @@ void PirData::process(uint8_t rawData[2], uint32_t Tstamp){
   }
 }
 
-bool PirData::newData(uint8_t raw[2]){
+bool PirData::newData(const uint8_t raw[2]){
   if ((raw[0] == prevRaw[0]) & (raw[1] == prevRaw[1])){ return false;}
   else{
     std::memcpy(prevRaw, raw , 2);
@@ -40,12 +40,12 @@ bool PirData::newData(uint8_t raw[2]){
   }
 }
 
-void PirData::convertNotation(uint8_t rawData[2]){
+void PirData::convertNotation(const uint8_t rawData[2]){
   uint8_t oneOrZero = rawData[0];
   uint8_t confirmed = rawData[1];
 
-  confirmed_ones  =  oneOrZero & confirmed; //if one and noted as correct (one) give one
-  confirmed_zeros = (oneOrZero ^ confirmed) & confirmed;
+  polled_ones  =  oneOrZero & confirmed; //if one and noted as correct (one) give one
+  polled_zeros = (oneOrZero ^ confirmed) & confirmed;
   
   /*explanation of confirmed zero algoritme
     we want only OnOff=F and confirmed=T to give T. the ^ (XOR) operator has 
@@ -60,10 +60,10 @@ void PirData::convertNotation(uint8_t rawData[2]){
 void PirData::binData(){
   //expand registered sensors with previously registerd 
   //remembering only 1 second of old data (is forced in process)
-  toStore_ones = toStore_ones | confirmed_ones;
+  toStore_ones = toStore_ones | polled_ones;
   //expand list of confirmed zeros however force that they do not contradict
   //by forcing a zero in ones_toStore (AND NOT : force zero)
-  toStore_zeros = (toStore_zeros | confirmed_zeros) & ~toStore_ones;
+  toStore_zeros = (toStore_zeros | polled_zeros) & ~toStore_ones;
 }
 
 

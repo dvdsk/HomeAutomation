@@ -1,7 +1,7 @@
 #include "MainData.h"
 
 
-Cache::Cache(uint8_t packageSize, int cacheSize ){
+Cache::Cache(const uint8_t packageSize, const int cacheSize ){
   packageSize_ = packageSize;
   cacheSize_ = cacheSize;
 
@@ -17,7 +17,7 @@ void Cache::InitCache(uint8_t* cache){
   cache_ = cache;
 }
 
-void Cache::append(uint8_t line[]){
+void Cache::append(const uint8_t line[]){
   uint16_t T_Low;
   uint16_t T_NextLow;
   int nextCacheOldest;
@@ -78,13 +78,13 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
   uint8_t lineA[MAXPACKAGESIZE];
   
   /*set class variables*/
-  fileName_ = fileName;
+  fileName_ = "data/"+fileName;
   
 	//open a new file in binairy reading and appending mode. All writing operations
 	//are performed at the end of the file. Internal pointer can be moved anywhere
 	//for reading. Writing ops move it back to the end of the file  
 	mkdir("data", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-  fileP_ = fopen(fileName.c_str(), "a+b"); 
+  fileP_ = fopen(fileName_.c_str(), "a+b"); 
   
   //copy the last data in the file to the cache. if there is space left in the
   //cache because the beginning of the file was reached it is filled with Null 

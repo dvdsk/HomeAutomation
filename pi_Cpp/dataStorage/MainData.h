@@ -1,17 +1,11 @@
 #ifndef MAINDATA_H
 #define MAINDATA_H
 #include <iostream>
-#include <stdio.h>
-#include <signal.h>
 #include <cstring> //memcopy
-#include <ctime> //time
 #include <climits> //int max etc
 #include <cstdint> //uint16_t
-#include <bitset>
 #include <stdlib.h>     /* abs */
-
 #include <sys/stat.h> //mkdir and filesize
-#include <sys/time.h>
 
 /*
 Pir saving format, normal packages with sometimes a timestamp package in front
@@ -65,24 +59,20 @@ recognised by 2 time lows after eachother
                 
 */
 
-#define HALFDAYSEC 43200 //numb of sec in half a day
-#define PIR_DT 1000 //number of milliseconds to bin the pir data to
-#define KB 1000 //TODO replace with const shit (snap const shit eerst)
 const int MAXPACKAGESIZE = 50;
-
 
 class Cache
 {
   public:
     /*set paramaters for the cache and check if these are correct*/
-    Cache(uint8_t packageSize, int cacheSize );
+    Cache(const uint8_t packageSize, const int cacheSize );
     /*point the cache_ pointer to the cache and update cacheOldestT*/
     void InitCache(uint8_t* cache);
     
     /*copies an array to the cache, while overwriting old data, checks if the 
       overwritten data contained a full timestamp. If so updates cacheOldestT_
       [During startup the cache is filled and oldest timestamp initially set]*/
-    void append(uint8_t line[]);
+    void append(const uint8_t line[]);
     /*reads the package at a single line*/
     void read(uint8_t line[], int lineNumber);
     /*reads all the lines from start to start+length copies them to lines[]*/

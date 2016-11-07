@@ -1,2 +1,2 @@
 all:
-	arm-linux-gnueabihf-g++ -std=c++11 -Wall Serial.cpp dataStorage/MainData.cpp main.cpp -lboost_system -lboost_thread -lpthread -o pi_Cpp -static
+	arm-linux-gnueabihf-g++ -std=c++11 -Wall Serial.cpp dataStorage/PirData.cpp dataStorage/MainData.cpp main.cpp -lboost_system -lboost_thread -lpthread -o pi_Cpp -static

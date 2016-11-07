@@ -11,9 +11,10 @@
 const std::string PATHPIR = "pirs.binDat";
 const int CACHESIZE_pir = 4000;
 
-const unsigned char POLLING_FAST = 200;   //PIR and light Level
-const unsigned char POLLING_SLOW = 202;   //Temperature, humidity and co2
-
+//cache for data
+uint8_t cache1[CACHESIZE_pir];
+//uint8_t cache2[CACHESIZE_pir];
+//uint8_t cache3[CACHESIZE_pir];
 
 FILE* file1; //needed as global for interrupt handling
 FILE* file2;
@@ -35,28 +36,39 @@ void interruptHandler(int s){
   exit(1); 
 }
 
+uint32_t unix_timestamp() {
+  time_t t = std::time(0);
+  uint32_t now = static_cast<uint32_t> (t);
+  return now;
+}
+
 void checkSensorData(){
+  
   const unsigned char POLLING_FAST = 200;   //PIR and light Level
   const unsigned char POLLING_SLOW = 202;   //Temperature, humidity and co2
-
+  
   INTUNION_t temp_bed, temp_bathroom, humidity_bed, humidity_bathroom;
   INTUNION_t co2, light_outside, light_bed, light_door, light_kitchen;
-  unsigned char pirData[2];
-  unsigned char fastData[2];//TODO change back to 10
-  unsigned char slowData[10];      
-  unsigned char toLog[18];   
+  
+  uint32_t Tstamp;
+  
+  uint8_t pirData[2];
+  uint8_t fastData[2];//TODO change back to 10
+  uint8_t slowData[10];      
+  uint8_t toLog[18];   
 
   Serial arduino("/dev/ttyUSB0",115200);
 
   while (true){
-    unsigned char x;
+    uint8_t x;
     x = arduino.readHeader();
     x = (int)x;
     switch (x) {      
       case POLLING_FAST:
 
-
         arduino.readMessage(fastData, 2);//TODO 2 to 10
+        Tstamp = unix_timestamp();
+        
         std::cout << "got: " << +fastData[0] << +fastData[1] << "\n";
         std::memcpy(pirData, fastData+0, 2);  //save PIR data
         
@@ -65,7 +77,7 @@ void checkSensorData(){
         std::memcpy(light_door.bytes, fastData+6, 2);  
         std::memcpy(light_kitchen.bytes, fastData+8, 2);
         
-        //pirStorage.process(pirData);
+        pirData.process(pirData, Tstamp);
         break;        
       
       case POLLING_SLOW:
@@ -90,7 +102,10 @@ void checkSensorData(){
 
 int main(int argc, char* argv[])
 {
+  PirData pirData("pirs.bdat", cache1, CACHESIZE_pir);
+  file1 = pirData.getFileP();
+  
+  signal(SIGINT, interruptHandler);  
+  std::cout << "doing stuff";
   checkSensorData();
-  //signal(SIGINT, interruptHandler);
-
 }
