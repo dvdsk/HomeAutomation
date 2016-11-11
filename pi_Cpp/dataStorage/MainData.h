@@ -4,9 +4,9 @@
 #include <cstring> //memcopy
 #include <climits> //int max etc
 #include <cstdint> //uint16_t
-#include <stdlib.h>     /* abs */
+#include <cstdlib>     /* abs */
 #include <sys/stat.h> //mkdir and filesize
-
+#include <ctime> //unix timestamp
 /*
 Pir saving format, normal packages with sometimes a timestamp package in front
 
@@ -134,11 +134,11 @@ class Data : public Cache
     /*write a full timestamp package*/
     void putFullTS(const uint32_t Tstamp);
     
-  protected:
-    /*has the first timestamp been written*/
-    bool firstTs;
-    /*has the second timestamp been written*/
-    bool secondTs;    
+  private:
+    /*keeps track if we have set the initial timestamp package*/
+    bool initTimeStampNotSet;
+    /*full unix time of previous package*/
+    uint32_t prevTstamp;
     /*size of complete data packages*/
     uint8_t packageSize_;
     /*pointer to file, created in the constructor during opening or creation of
@@ -146,6 +146,8 @@ class Data : public Cache
     FILE* fileP_;
     /*path to which the constructor points*/
     std::string fileName_;
+    /*return the unix time*/
+    uint32_t unix_timestamp();
 };
 
 

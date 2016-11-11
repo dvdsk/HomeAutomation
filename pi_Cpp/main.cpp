@@ -42,7 +42,7 @@ uint32_t unix_timestamp() {
   return now;
 }
 
-void checkSensorData(){
+void checkSensorData(PirData* pirData){
   
   const unsigned char POLLING_FAST = 200;   //PIR and light Level
   const unsigned char POLLING_SLOW = 202;   //Temperature, humidity and co2
@@ -52,13 +52,14 @@ void checkSensorData(){
   
   uint32_t Tstamp;
   
-  uint8_t pirData[2];
+  uint8_t pirDat[2];
   uint8_t fastData[2];//TODO change back to 10
   uint8_t slowData[10];      
   uint8_t toLog[18];   
-
+  
+  std::cout<<"poepje";
   Serial arduino("/dev/ttyUSB0",115200);
-
+  std::cout<<"geen poepje";
   while (true){
     uint8_t x;
     x = arduino.readHeader();
@@ -77,7 +78,7 @@ void checkSensorData(){
         std::memcpy(light_door.bytes, fastData+6, 2);  
         std::memcpy(light_kitchen.bytes, fastData+8, 2);
         
-        pirData.process(pirData, Tstamp);
+        pirData->process(pirDat, Tstamp);
         break;        
       
       case POLLING_SLOW:
@@ -107,5 +108,5 @@ int main(int argc, char* argv[])
   
   signal(SIGINT, interruptHandler);  
   std::cout << "doing stuff";
-  checkSensorData();
+  checkSensorData(&pirData);
 }

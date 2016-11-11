@@ -80,7 +80,7 @@ byte PIRs[2]; //stores pir data, first byte stores if a sensor has detected
 
 
 
-static const signed short int SENSORDATA_SIZE = 9;
+static const signed short int SENSORDATA_SIZE = 9;//TODO reduce to only temp,humid,light,(color?)
 static const signed short int sensorData_def[SENSORDATA_SIZE] = {32767,32767,32767,32767,32767,32767,0,0,0};
 signed short int sensorData[SENSORDATA_SIZE] = {32767,32767,32767,32767,32767,32767,0,0,0};
 //initialised as 32767 for every value stores: temp_bed, temp_bathroom, 

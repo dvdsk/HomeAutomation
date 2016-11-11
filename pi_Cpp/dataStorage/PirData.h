@@ -9,12 +9,11 @@
 /*
 pir (passive infrared receptor) data storage. Raw data is recieved from serial 
 and processed. During processing the format is changed from on/off (1/0), 
-sensor polled/not polled (1/0) => polled and one, polled and zero. Then data is
-then send of to another process for which monitors all incomming sensors for 
-immidiate action and binned on timestamp 'PIR_DT' then stored on file.
+sensor polled/not polled (1/0) => polled and one, polled and zero. The data to
+a moniroring process and binned (PIR_DT second bintime) then stored on file.
 */
 
-const int PIR_DT= 1;
+const int PIR_DT= 1; //time to bin data for
 const int PACKAGESIZE = 2+2; //timestamp + data
 
 //data specific functions and variables, inherits AllData

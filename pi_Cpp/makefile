@@ -1,5 +1,5 @@
 all: 
-	g++ -Wall -std=c++11 Serial.cpp dataStorage/PirData.cpp dataStorage/MainData.cpp main.cpp -lboost_system -lboost_thread -lpthread -o pi_Cpp
+	g++ -Wall -std=c++11 -g Serial.cpp dataStorage/PirData.cpp dataStorage/MainData.cpp main.cpp -lboost_system -lboost_thread -lpthread -o pi_Cpp
 
 #CXX = g++
 #CXXFLAGS=-g -Wall -pedantic

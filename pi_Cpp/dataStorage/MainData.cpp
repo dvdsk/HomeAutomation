@@ -161,7 +161,7 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
                     (uint32_t)*(cache+1) << 8  |
                     (uint32_t)*(cache+0);
   }
-
+  initTimeStampNotSet = false;
   //pass the fully initialised cache on to the cache class
   Cache::InitCache(cache);
 }
@@ -180,22 +180,19 @@ void Data::append(uint8_t line[], uint32_t Tstamp){
   
   timeLow = static_cast<uint16_t>(Tstamp);
 	
-	if(!firstTs && (timeLow < (2^8 -1)) ){
-	  putFullTS(Tstamp);    
-	  firstTs = true;
-	  secondTs = false;
-	}
-	else if(!secondTs && (timeLow > (2^8 -1))){
-	  putFullTS(Tstamp); 
-	  secondTs = true;
-	  firstTs = false;
+	if (initTimeStampNotSet){ 
+	  putFullTS(Tstamp);  
+	  initTimeStampNotSet=true;
+  }	
+	else if ((prevTstamp >> 16) != (Tstamp >> 16)) {
+	  putFullTS(Tstamp);  
   }
 
   //put the unix time in front of the package  
   memcpy(towrite+2 , line, packageSize_-2);
   towrite[0] = timeLow | 0b1111111100000000;
   towrite[1] = timeLow | 0b0000000011111111;
-
+  
   Cache::append(towrite);
   fwrite(towrite, 1, packageSize_, fileP_);
 }
@@ -215,6 +212,7 @@ int Data::searchTstamp(uint32_t Tstamp, int startLine){//TODO
 
 void Data::putFullTS(const uint32_t Tstamp){
   uint8_t towrite[MAXPACKAGESIZE];
+  prevTstamp = Tstamp;
   
   //copy the full timestamp to the start of the package
   uint8_t *p = (uint8_t*)&Tstamp;
@@ -236,4 +234,10 @@ bool Data::notTSpackage(uint8_t lineA[], uint8_t lineB[]){
     if (lineA[1] == lineB[1]){ return false; }    
   }
   return true;
+}
+
+uint32_t Data::unix_timestamp() {
+  time_t t = std::time(0);
+  uint32_t now = static_cast<uint32_t> (t);
+  return now;
 }

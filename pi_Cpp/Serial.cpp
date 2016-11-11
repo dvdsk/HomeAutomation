@@ -7,6 +7,7 @@ Serial::Serial(const std::string& port, const unsigned int& baud_rate)
   
   std::cout << "Opening serial port : " << port << std::endl;
   _serial.set_option(boost::asio::serial_port_base::baud_rate(baud_rate));
+  std::cout << "Na de eerste regel" << std::endl;
 
   //wait till the arduino sends its done with initialising
   while (readHeader() != SETUP_DONE){ ;}
@@ -41,7 +42,7 @@ unsigned char Serial::readHeader() {
   unsigned char c;
   boost::asio::read(_serial, boost::asio::buffer(&c,1));
 
-//  std::cout << c;
+  std::cout << c << +c;
   return c;
 }
 
