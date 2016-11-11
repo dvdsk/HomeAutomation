@@ -1,19 +1,17 @@
-all: 
-	g++ -Wall -std=c++11 -g Serial.cpp dataStorage/PirData.cpp dataStorage/MainData.cpp main.cpp -lboost_system -lboost_thread -lpthread -o pi_Cpp
+CXX = g++
+CXXFLAGS= -Wall -pedantic -std=c++14
 
-#CXX = g++
-#CXXFLAGS=-g -Wall -pedantic
+pi: main.o MainData.o PirData.o Serial.o 
+	$(CXX) $(CXXFLAGS) -o pi main.o MainData.o PirData.o Serial.o \
+	-lboost_system -lboost_thread -lpthread
 
-#pi_Cpp: main.o StoreData.o Serial.o
-#	$(CXX) $(CXXFLAGS) -o expressie StoreData.o Serial.o main.o #"-o expressie" needed
-#main.o: main.cpp
-#	$(CXX) $(CXXFLAGS) -c main.cpp
-#StoreData.o: StoreData.cpp
-#	$(CXX) $(CXXFLAGS) -c StoreData.cpp
-#Serial.o: Serial.cpp
-#	$(CXX) $(CXXFLAGS) -c Serial.cpp	
-#clean:
-#	rm Boom.o main.o
-
-#http://www.gnu.org/software/make/manual/make.html#Introduction
-
+main.o: main.cpp Serial.h dataStorage/MainData.h dataStorage/PirData.h
+	$(CXX) $(CXXFLAGS) -c main.cpp
+MainData.o: dataStorage/MainData.cpp dataStorage/MainData.h
+	$(CXX) $(CXXFLAGS) -c dataStorage/MainData.cpp
+PirData.o: dataStorage/PirData.cpp dataStorage/PirData.h dataStorage/MainData.h
+	$(CXX) $(CXXFLAGS) -c dataStorage/PirData.cpp
+Serial.o: Serial.cpp
+	$(CXX) $(CXXFLAGS) -c Serial.cpp	
+clean:
+	rm main.o MainData.o PirData.o Serial.o

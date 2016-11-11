@@ -4,6 +4,9 @@
 Cache::Cache(const uint8_t packageSize, const int cacheSize ){
   packageSize_ = packageSize;
   cacheSize_ = cacheSize;
+  //as the cache is always fully filled on startup (with dummy data at the begin
+  //if the file does not fill the complete cache set cacheOldest to 0
+  cacheOldest_ = 0;
 
   //throw error if the cacheSize is not N*packageSize
   if (cacheSize % packageSize){ std::cerr << "ERROR: cache size must be an "
@@ -22,26 +25,33 @@ void Cache::append(const uint8_t line[]){
   uint16_t T_NextLow;
   int nextCacheOldest;
 
+  std::cout<<"cache size: "<<cacheSize_<<" cache oldest: "<<cacheOldest_<<"\n";
+
   //put the new data in the cache
   for(int i = 0; i<packageSize_; i++){ *(cache_+cacheOldest_+i) = line[i]; }
-  
+
   //point cacheOldest to the package following the one we just wrote checking
   //for overflow
-  if (cacheOldest_ == cacheSize_ - packageSize_){ cacheOldest_ = 0; } 
+  if (cacheOldest_ == cacheSize_-1 - packageSize_){ cacheOldest_ = 0; } 
   else{ cacheOldest_ += packageSize_; }
-
-  
+ 
   //update the oldest time in cache   
   T_Low = (uint16_t)*(cache_+cacheOldest_+1) << 8 |
           (uint16_t)*(cache_+cacheOldest_+0);
+
+  std::cout << "nu hier1\n"; 
   
   //set the adress for the next cacheOldest 
-  if (cacheOldest_+packageSize_ == cacheSize_){ nextCacheOldest = 0; }
+  if (cacheOldest_+packageSize_ == cacheSize_-1){ nextCacheOldest = 0; }
   else{ nextCacheOldest = cacheOldest_ + packageSize_; }
+
+  std::cout << "nu hier2\n"; 
   
   //check if the low part of the next package is not the same as the previous one
   T_NextLow = (uint16_t)*(cache_+nextCacheOldest+1) << 8 |
               (uint16_t)*(cache_+nextCacheOldest+0);
+
+  std::cout << "nu hier3\n"; 
   
   if (T_NextLow == T_Low){//if the next package has the same time low part 
     //then this package is a time package and must be treated as such    
@@ -54,6 +64,7 @@ void Cache::append(const uint8_t line[]){
     cacheOldestT_ = cacheOldestT_ | T_Low;
   
   }
+  std::cout << "nu hier4\n"; 
 }
 
 void Cache::read(uint8_t line[], int lineNumber){//TODO
@@ -130,8 +141,8 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
   else{
     //set the file pointer to the beginning of the file then read in data till
     //the end of file. Next fill everything with 0 data.
-    fseek(fileP_, 0, SEEK_SET); 
-    fread(cache, fileSize, 1, fileP_);//FIXME check 2e argument
+    fseek(fileP_, 0, SEEK_SET);
+    fread(cache+(cacheSize-fileSize), fileSize, 1, fileP_);//FIXME check 2e argument
     
     /*fill the remainder of the cache*/    
     if (cacheSize-fileSize == 1){
@@ -171,6 +182,7 @@ FILE* Data::getFileP(){
 }
 
 void Data::append(uint8_t line[], uint32_t Tstamp){
+  std::cout << "enterd Data::append\n";
   uint8_t towrite[MAXPACKAGESIZE];
   uint16_t timeLow;
   
@@ -181,7 +193,7 @@ void Data::append(uint8_t line[], uint32_t Tstamp){
   timeLow = static_cast<uint16_t>(Tstamp);
 	
 	if (initTimeStampNotSet){ 
-	  putFullTS(Tstamp);  
+	  putFullTS(Tstamp);//writes it to file and cache too  
 	  initTimeStampNotSet=true;
   }	
 	else if ((prevTstamp >> 16) != (Tstamp >> 16)) {
@@ -193,8 +205,11 @@ void Data::append(uint8_t line[], uint32_t Tstamp){
   towrite[0] = timeLow | 0b1111111100000000;
   towrite[1] = timeLow | 0b0000000011111111;
   
-  Cache::append(towrite);
+  std::cout << "data hier1\n";
+  
+  Cache::append(towrite);//writes it to file and cache too  
   fwrite(towrite, 1, packageSize_, fileP_);
+  std::cout << "leaving Data::append\n";
 }
 
 void Data::read(uint8_t line[], int lineNumber){//TODO

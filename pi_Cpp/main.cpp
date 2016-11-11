@@ -1,5 +1,6 @@
 #include <iostream>
 #include <typeinfo>//FIXME for debugging only
+#include <ctime>
 
 #include "Serial.h"
 #include "dataStorage/MainData.h"
@@ -9,7 +10,7 @@
 #include <boost/exception/diagnostic_information.hpp> //for debugging
 
 const std::string PATHPIR = "pirs.binDat";
-const int CACHESIZE_pir = 4000;
+const int CACHESIZE_pir = 8;
 
 //cache for data
 uint8_t cache1[CACHESIZE_pir];
@@ -57,9 +58,7 @@ void checkSensorData(PirData* pirData){
   uint8_t slowData[10];      
   uint8_t toLog[18];   
   
-  std::cout<<"poepje";
   Serial arduino("/dev/ttyUSB0",115200);
-  std::cout<<"geen poepje";
   while (true){
     uint8_t x;
     x = arduino.readHeader();
@@ -70,7 +69,7 @@ void checkSensorData(PirData* pirData){
         arduino.readMessage(fastData, 2);//TODO 2 to 10
         Tstamp = unix_timestamp();
         
-        std::cout << "got: " << +fastData[0] << +fastData[1] << "\n";
+        std::cout << "got: " << +fastData[0]<<" " << +fastData[1] << "\n";
         std::memcpy(pirData, fastData+0, 2);  //save PIR data
         
         std::memcpy(light_outside.bytes, fastData+2, 2);  
@@ -96,17 +95,32 @@ void checkSensorData(PirData* pirData){
         std::memcpy(toLog+10, fastData+2, 8);          
         
       default:
-        std::cout << "error no code matched\n";     
+        std::cout << "error no code matched, header: " << +x <<"\n";     
     }
   }
 }
 
 int main(int argc, char* argv[])
 {
+  uint32_t Tstamp;
+  uint8_t pirDat[2];
   PirData pirData("pirs.bdat", cache1, CACHESIZE_pir);
-  file1 = pirData.getFileP();
+  //file1 = pirData.getFileP();
+  //TODO continue debugging from here
+  //signal(SIGINT, interruptHandler);  
+  //checkSensorData(&pirData);
+  Tstamp = unix_timestamp();
+  pirDat[0] = 0;
+  pirDat[1] = 1;  
+  pirData.process(pirDat, Tstamp);
+
+  pirDat[0] = 0;
+  pirDat[1] = 1;  
+  pirData.process(pirDat, Tstamp);  
   
-  signal(SIGINT, interruptHandler);  
-  std::cout << "doing stuff";
-  checkSensorData(&pirData);
+  nanosleep((const struct timespec[]){{2, 0}}, NULL);
+  
+  pirDat[0] = 4;
+  pirDat[1] = 5;  
+  pirData.process(pirDat, Tstamp); 
 }

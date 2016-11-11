@@ -12,6 +12,7 @@ PirData::PirData(const std::string filePath, uint8_t* cache, const int cacheLen)
 }
 
 void PirData::process(const uint8_t rawData[2], const uint32_t Tstamp){
+  std::cout << "in process\n";
   uint8_t line[2];
   
   if (newData(rawData) ){
@@ -30,6 +31,7 @@ void PirData::process(const uint8_t rawData[2], const uint32_t Tstamp){
       prevTstamp = Tstamp;
     }
   }
+  std::cout << "leaving process\n";
 }
 
 bool PirData::newData(const uint8_t raw[2]){
