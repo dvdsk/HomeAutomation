@@ -32,26 +32,20 @@ void Cache::append(const uint8_t line[]){
 
   //point cacheOldest to the package following the one we just wrote checking
   //for overflow
-  if (cacheOldest_ == cacheSize_-1 - packageSize_){ cacheOldest_ = 0; } 
+  if (cacheOldest_ == cacheSize_ - packageSize_){ cacheOldest_ = 0; } 
   else{ cacheOldest_ += packageSize_; }
  
   //update the oldest time in cache   
   T_Low = (uint16_t)*(cache_+cacheOldest_+1) << 8 |
           (uint16_t)*(cache_+cacheOldest_+0);
-
-  std::cout << "nu hier1\n"; 
   
   //set the adress for the next cacheOldest 
-  if (cacheOldest_+packageSize_ == cacheSize_-1){ nextCacheOldest = 0; }
+  if (cacheOldest_+packageSize_ == cacheSize_){ nextCacheOldest = 0; }
   else{ nextCacheOldest = cacheOldest_ + packageSize_; }
-
-  std::cout << "nu hier2\n"; 
   
   //check if the low part of the next package is not the same as the previous one
   T_NextLow = (uint16_t)*(cache_+nextCacheOldest+1) << 8 |
               (uint16_t)*(cache_+nextCacheOldest+0);
-
-  std::cout << "nu hier3\n"; 
   
   if (T_NextLow == T_Low){//if the next package has the same time low part 
     //then this package is a time package and must be treated as such    
@@ -64,7 +58,6 @@ void Cache::append(const uint8_t line[]){
     cacheOldestT_ = cacheOldestT_ | T_Low;
   
   }
-  std::cout << "nu hier4\n"; 
 }
 
 void Cache::read(uint8_t line[], int lineNumber){//TODO

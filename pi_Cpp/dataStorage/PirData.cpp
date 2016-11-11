@@ -16,11 +16,14 @@ void PirData::process(const uint8_t rawData[2], const uint32_t Tstamp){
   uint8_t line[2];
   
   if (newData(rawData) ){
+    std::cout<<"new data recieved\n";
     convertNotation(rawData);  
     //TODO send to responding function
 
     binData();
-    if (Tstamp-prevTstamp > PIR_DT){
+    std::cout<<"Tstamp/prevTstamp: "<<Tstamp<<"/"<<prevTstamp<<"\n";
+    if (Tstamp-prevTstamp >= PIR_DT){
+      std::cout<<"needToStoreData\n";
       line[0] = toStore_zeros;
       line[1] = toStore_ones;
       

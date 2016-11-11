@@ -100,27 +100,42 @@ void checkSensorData(PirData* pirData){
   }
 }
 
-int main(int argc, char* argv[])
-{
+void debug(PirData& pirData){
   uint32_t Tstamp;
   uint8_t pirDat[2];
-  PirData pirData("pirs.bdat", cache1, CACHESIZE_pir);
-  //file1 = pirData.getFileP();
-  //TODO continue debugging from here
-  //signal(SIGINT, interruptHandler);  
-  //checkSensorData(&pirData);
+
   Tstamp = unix_timestamp();
   pirDat[0] = 0;
   pirDat[1] = 1;  
   pirData.process(pirDat, Tstamp);
 
+  Tstamp = unix_timestamp();
   pirDat[0] = 0;
   pirDat[1] = 1;  
   pirData.process(pirDat, Tstamp);  
   
-  nanosleep((const struct timespec[]){{2, 0}}, NULL);
+  nanosleep((const struct timespec[]){{1, 0}}, NULL);
   
-  pirDat[0] = 4;
-  pirDat[1] = 5;  
+  Tstamp = unix_timestamp();
+  pirDat[0] = 1;
+  pirDat[1] = 1;  
   pirData.process(pirDat, Tstamp); 
+
+  nanosleep((const struct timespec[]){{1, 0}}, NULL);
+  
+  Tstamp = unix_timestamp();
+  pirDat[0] = 3;
+  pirDat[1] = 1;  
+  pirData.process(pirDat, Tstamp); 
+}
+
+int main(int argc, char* argv[])
+{
+  PirData pirData("pirs.bdat", cache1, CACHESIZE_pir);
+//  file1 = pirData.getFileP();
+//  TODO continue debugging from here
+//  signal(SIGINT, interruptHandler);  
+//  checkSensorData(&pirData);
+  debug(pirData);
+  
 }
