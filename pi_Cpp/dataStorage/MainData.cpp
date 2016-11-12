@@ -83,6 +83,7 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
   
   /*set class variables*/
   fileName_ = "data/"+fileName;
+  packageSize_ = packageSize;
   
 	//open a new file in binairy reading and appending mode. All writing operations
 	//are performed at the end of the file. Internal pointer can be moved anywhere
@@ -196,7 +197,7 @@ void Data::append(uint8_t line[], uint32_t Tstamp){
   }
 
   //put the unix time in front of the package  
-  memcpy(towrite+2 , line, packageSize_-2);
+  std::memcpy(towrite+2 , line, packageSize_-2);
   towrite[0] = timeLow | 0b1111111100000000;
   towrite[1] = timeLow | 0b0000000011111111;
   
