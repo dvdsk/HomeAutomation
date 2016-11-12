@@ -36,22 +36,22 @@ void Cache::append(const uint8_t line[]){
   else{ cacheOldest_ += packageSize_; }
  
   //update the oldest time in cache   
-  T_Low = (uint16_t)*(cache_+cacheOldest_+1) << 8 |
-          (uint16_t)*(cache_+cacheOldest_+0);
+  T_Low = (uint16_t) *(cache_+cacheOldest_+1) << 8 |
+          (uint16_t) *(cache_+cacheOldest_+0);
   
   //set the adress for the next cacheOldest 
   if (cacheOldest_+packageSize_ == cacheSize_){ nextCacheOldest = 0; }
   else{ nextCacheOldest = cacheOldest_ + packageSize_; }
   
   //check if the low part of the next package is not the same as the previous one
-  T_NextLow = (uint16_t)*(cache_+nextCacheOldest+1) << 8 |
-              (uint16_t)*(cache_+nextCacheOldest+0);
+  T_NextLow = (uint16_t) *(cache_+nextCacheOldest+1) << 8 |
+              (uint16_t) *(cache_+nextCacheOldest+0);
   
   if (T_NextLow == T_Low){//if the next package has the same time low part 
     //then this package is a time package and must be treated as such    
-    cacheOldestT_ = (uint32_t)*(cache_+cacheOldest_+3) << 24 |
-                    (uint32_t)*(cache_+cacheOldest_+2) << 16 |
-                    (uint32_t)T_Low;
+    cacheOldestT_ = (uint32_t) *(cache_+cacheOldest_+3) << 24 |
+                    (uint32_t) *(cache_+cacheOldest_+2) << 16 |
+                    (uint32_t) T_Low;
   }
   else{ //set the lower part to zero then add the lower part of the oldest package in cache
     cacheOldestT_ = cacheOldestT_ & 0b11111111111111110000000000000000;
@@ -89,6 +89,8 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
 	//for reading. Writing ops move it back to the end of the file  
 	mkdir("data", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
   fileP_ = fopen(fileName_.c_str(), "a+b"); 
+  
+  std::cout<<"fileP_: "<< +fileP_<<"\n";
   
   //copy the last data in the file to the cache. if there is space left in the
   //cache because the beginning of the file was reached it is filled with Null 
