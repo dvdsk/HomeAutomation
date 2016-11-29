@@ -135,8 +135,8 @@ int main(int argc, char* argv[])
   file1 = pirData.getFileP();
   
   signal(SIGINT, interruptHandler);  
-  //checkSensorData(&pirData);
-  debug(pirData);
+  checkSensorData(&pirData);
+  //debug(pirData);
 
 
   
