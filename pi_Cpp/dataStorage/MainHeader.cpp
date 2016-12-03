@@ -40,7 +40,7 @@ int main(){
   assert(mmappedData != MAP_FAILED);
  
   test = (int*)(mmappedData);
-  int tostore = 2;
+  int tostore = +"a";
   test[0] = tostore;
  
   //Write the mmapped data to stdout (= FD #1)
