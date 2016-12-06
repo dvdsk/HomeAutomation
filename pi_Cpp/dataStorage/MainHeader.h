@@ -19,13 +19,14 @@ public:
 
   int fd; //file discriptor 'points' to open file
 
-private:
   unsigned int pos;
   uint32_t* data;
   void* addr; //adress where the memory map is placed
-  size_t mapSize;
+  //size_t mapSize; FIXME OLD
+  int mapSize;
+  int test;
 
-  
+private:
   size_t getFilesize(const char* filename);
 
 };
