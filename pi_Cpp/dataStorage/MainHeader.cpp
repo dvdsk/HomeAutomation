@@ -78,7 +78,7 @@ MainHeader::MainHeader(std::string fileName){
   filePath = ("data/"+fileName).c_str();
 
   test = 22;  
-  int fd = open(filePath, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IXUSR);
+  fd = open(filePath, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IXUSR);
   
   assert(fd != -1);
   size_t filesize = getFilesize(filePath);
