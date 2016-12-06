@@ -15,7 +15,7 @@
 
 #include <assert.h>
 
-const unsigned int BUFFERSIZE = 16*2*sizeof(uint32_t); //allocate 16 lines of headers
+const unsigned int BUFFERSIZE = 4*2*sizeof(uint32_t); //allocate 16 lines of headers
 
 size_t MainHeader::getFilesize(const char* filename) {
     struct stat st;
@@ -33,20 +33,11 @@ size_t getFilesize(const char* filename) {
 int main(){
   MainHeader header("test.dat");
 
-  header.append(1481034435,0);
-  header.append(1481034435,0);
-  header.append(1481034435,0);
-  header.append(1481034435,0);
-
-//  header.append(0,0);
-//  header.append(0,0);
-//  header.append(0,0);
-//  header.append(0,0);
-
-  header.showData(0);
-  header.showData(10);
-
-  header.closeUp();
+  for(int i = 0; i<4000; i++){
+    header.append(1481034435+i,i);
+  }
+  std::cout<<"TESAT";
+  header.showData(1900);
   
   return 0;
 }
@@ -151,16 +142,25 @@ void MainHeader::closeUp(){
 
 
 void MainHeader::append(uint32_t Tstamp, uint32_t byteInDataFile){ 
+  int oldSize;
   
-  if (pos == mapSize-1){
-    std::cerr<<"expanding map";
+  if ((pos)*sizeof(uint32_t) >= mapSize){
+    std::cerr<<"expanding map\n";
     //extend the memory map
+    oldSize = mapSize;
     mapSize = mapSize+BUFFERSIZE;
-    addr = mremap(addr, pos, mapSize, MREMAP_MAYMOVE);
-  }
-  //std::cerr<<"PUTTING SHIT IN MAP";
+    addr = mremap(addr, oldSize, mapSize, MREMAP_MAYMOVE);
+    data = (uint32_t*)(addr);
+    
+    assert(addr != MAP_FAILED);
   
-  std::cout<<"pos: "<<pos<<"-"<<pos+1<<"\n";
+    //allocate space
+    int result = fallocate(fd, 0, 0, mapSize);
+    if (result == -1){std::cerr<<strerror(errno);}
+  }
+  
+  std::cerr<<"pos: "<<pos<<"-"<<pos+1<<"\t\t byte: "<<(pos+1)*4<<"\n";
+  std::cerr<<"mapSize: "<<mapSize<<"\n";
   data[pos+0] = Tstamp;
   data[pos+1] = byteInDataFile;
   
@@ -170,9 +170,11 @@ void MainHeader::append(uint32_t Tstamp, uint32_t byteInDataFile){
 }
 
 void MainHeader::showData(int atByte){  
-  
-  std::cout<<"Tstamp: "<<data[atByte+0]<<"\n";
-  std::cout<<"byteInDataFile: "<<data[atByte+1]<<"\n";
+  std::cout<<"hello";
+  for(int i =atByte; i<atByte+10; i+=2){
+    std::cout<<"Tstamp: "<<data[i+0]<<"\n";
+    std::cout<<"byteInDataFile: "<<data[i+1]<<"\n";
+  }
 }
 
 //void MainHeader::nearest2FullTS(uint32_t Tstamp, uint32_t FTSA, uint32_t FTSB){}
