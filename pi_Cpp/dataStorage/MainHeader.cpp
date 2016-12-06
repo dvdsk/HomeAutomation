@@ -23,28 +23,86 @@ size_t MainHeader::getFilesize(const char* filename) {
     return st.st_size;
 }
 
+size_t getFilesize(const char* filename) {
+    struct stat st;
+    stat(filename, &st);
+    return st.st_size;
+}
 
 
 int main(){
-  uint32_t Tstamp;
-  uint32_t byteInDataFile;
+  std::string fileName = "test.dat";
+  const char* filePath;
+  int mapSize;
+  int pos = 0;
+  void* addr;
+  uint32_t* data;
+  
+  mkdir("data", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+  filePath = ("data/"+fileName).c_str();
+  
+  int fd = open(filePath, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IXUSR);
+
+  assert(fd != -1);
+  size_t filesize = getFilesize(filePath);
+  std::cout<<"fileSize: "<<filesize<<"\n";
+  
+  mapSize = filesize+BUFFERSIZE;
+  pos = filesize;
+
+  //Make the file big enough (only allocated chrashes with new file)
+  lseek (fd, mapSize, SEEK_SET);
+  write (fd, "", 1);
+  
+  //allocate space
+  //int result = fallocate(fd, 0, 0, mapSize);
+  //if (result == -1){std::cerr<<strerror(errno);}
+  
+  
+  //Execute mmap
+  addr = mmap(NULL, mapSize, PROT_READ | PROT_WRITE, 
+                             MAP_SHARED | MAP_POPULATE, fd, 0);
+  assert(addr != MAP_FAILED);
  
-  MainHeader test("test.dat");
-  std::cerr<<"fd0: "<<test.fd<<"\n";  
+  data = (uint32_t*)(addr);
+ 
+  //Write the mmapped data to stdout (= FD #1)
+  write(1, addr, filesize);
+  std::cout<<"\n";   
 
-  test.append(12312,123214);
-  test.append(12312,123214);
-  test.append(12312,123214);
-  test.append(12312,123214);
-  test.append(12312,123214);
-  test.append(12312,123214);
-  test.append(12312,123214);
-  test.append(12312,123214);              
+  //int result = ftruncate(fd, pos);
+  //std::cerr<<"pos: "<<pos;
+  //if (result == -1){std::cerr<<strerror(errno);}
+  //std::cerr<<"BOOOB\n";
+  //std::cerr<<"fd: "<<fd<<"\n";
+  
+  data[pos+0] = 1;
+  data[pos+1] = 2;
+  data[pos+2] = 3;
+  data[pos+3] = 4;
+  data[pos+4] = 5;
+  data[pos+5] = 6;
+  pos = 6;
+  
+  //flush to file
+  int result = ftruncate(fd, pos*4);
+  std::cerr<<"pos: "<<pos<<"\n";
+  if (result == -1){std::cerr<<strerror(errno);}
 
-  test.read(1, Tstamp, byteInDataFile);
-  test.read(2, Tstamp, byteInDataFile);
-  test.read(3, Tstamp, byteInDataFile);
-  test.closeUp();
+  std::cerr<<"syncing\n";
+  result = msync(addr, mapSize, MS_SYNC); //asyncronus 
+  if (result == -1){std::cerr<<strerror(errno);}
+
+  //Cleanup
+  std::cerr<<"unmapping\n";
+  int rc = munmap(addr, mapSize);
+  assert(rc == 0);
+  std::cerr<<"fd_close: "<<fd<<"\n";
+
+  std::cerr<<"closing file\n";
+  result = close(fd);
+  if(result == -1){std::cerr<<strerror(errno);}
+
   return 0;
 }
 
@@ -84,11 +142,6 @@ MainHeader::MainHeader(std::string fileName){
   write(1, addr, filesize);
   std::cout<<"\n"; 
   
-  //int result = ftruncate(fd, pos);
-  //std::cerr<<"pos: "<<pos;
-  //if (result == -1){std::cerr<<strerror(errno);}
-  //std::cerr<<"BOOOB\n";
-  //std::cerr<<"fd: "<<fd<<"\n";
 }
 
 void MainHeader::closeUp(){
