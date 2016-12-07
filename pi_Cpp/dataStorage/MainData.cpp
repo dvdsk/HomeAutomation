@@ -129,9 +129,6 @@ void Data::append(uint8_t line[], uint32_t Tstamp){
   fwrite(towrite, 1, packageSize_, fileP_);
 }
 
-void Data::read(uint8_t line[], int lineNumber){//TODO
-  }
-
 void Data::readSeq(uint8_t line[], int start, int length){//TODO
   }
 
@@ -176,34 +173,38 @@ uint32_t Data::unix_timestamp() {
 
 //SEARCH FUNCT
 void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, int& loc1, int& loc2) {
-
-  //check if the wanted timestamp could be in the cache
-  if (Tstamp1 > Data::cacheOldestT_){
-    loc1 = findTimestamp_inCache(Tstamp1);
-  }
-  else{
-    loc1 = findTimestamp_inFile(Tstamp1);
-  }
-
-  if (Tstamp2 > Data::cacheOldestT_){
-    loc2 = findTimestamp_inCache(Tstamp2);
-  }
-  else{
-    loc2 = findTimestamp_inFile(Tstamp2);
-  }
-}
-
-int Data::findTimestamp_inFile(uint32_t Tstamp){
-  uint8_t block[MAXBLOCKSIZE];
-  uint16_t Tstamplow;
   int startSearch;
   int stopSearch;
-  int Idx;
 
   // check the full timestamp file to get the location of the full timestamp still smaller then
   // but closest toTstamp and the next full timestamp (that is too large thus). No need to catch the case
   // where the Full timestamp afther Tstamp does not exist as such a Tstamp would result into seaching in cache.
-  MainHeader::findFullTS(Tstamp, startSearch, stopSearch);
+  MainHeader::findFullTS(Tstamp1, startSearch, stopSearch);
+
+  //check if the wanted timestamp could be in the cache
+  if (Tstamp1 > Data::cacheOldestT_){
+    loc1 = findTimestamp_inCache(Tstamp1, startSearch, stopSearch);
+  }
+  else{
+    loc1 = findTimestamp_inFile(Tstamp1, startSearch, stopSearch);
+  }
+
+  MainHeader::findFullTS(Tstamp2, startSearch, stopSearch);
+
+  if (Tstamp2 > Data::cacheOldestT_){
+    loc2 = findTimestamp_inCache(Tstamp2, startSearch, stopSearch);
+  }
+  else{
+    loc2 = findTimestamp_inFile(Tstamp2, startSearch, stopSearch);
+  }
+}
+
+int Data::findTimestamp_inFile(uint32_t Tstamp, int startSearch, int stopSearch){
+  uint8_t block[MAXBLOCKSIZE];
+  uint16_t Tstamplow;
+  int Idx;
+
+
   Tstamplow = Tstamp & 0b00000000000000001111111111111111;
 
   // find maximum block size, either the max that fits N packages, or the space between stop and start
@@ -234,6 +235,18 @@ int Data::searchBlock(uint8_t block[], uint16_t Tstamplow, int blockSize) {
   return -1;
 }
 
-int Data::findTimestamp_inCache(uint32_t Tstamp){
-  return -1;
+int Data::findTimestamp_inCache(uint32_t Tstamp, int startSearch, int stopSearch){
+  int startInCache;
+  int stopInCache;
+  int fileSize;
+
+  //convert start and stop to cache
+  fseek (fileP_, 0, SEEK_END);
+  fileSize = ftell (fileP_);
+
+  //TODO SOMETHING WRONG HERE
+  startInCache = startSearch + Cache::cacheSize_ - fileSize;
+  stopInCache = stopSearch + Cache::cacheSize_ - fileSize;
+
+  return Cache::searchTimestamp(Tstamp, startInCache, stopInCache);
 }

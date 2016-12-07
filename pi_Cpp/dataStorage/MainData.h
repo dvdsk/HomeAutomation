@@ -28,8 +28,6 @@ public:
 
   /* writes a package to file transparently caching it*/
   void append(uint8_t line[], uint32_t Tstamp);
-  /* reads a single package at a given line*/
-  void read(uint8_t line[], int lineNumber);
   /* reads all the lines including start to (excluding) start+length copies
      them to the array lines[]*/
   void readSeq(uint8_t line[], int start, int length);
@@ -68,10 +66,10 @@ private:
   //SEARCH FUNCT
   /* search for the timestamp in the cache, this is done in a 'dumb' way due to caching in the processor.
    * we start at the beginning of the cache and iterate through it checking for the requested time*/
-  int findTimestamp_inCache(uint32_t Tstamp);
+  int findTimestamp_inCache(uint32_t Tstamp, int startSearch, int stopSearch);
   /* The header file is asked for the full timestamps surrounding Tstamp, we then load the data in between into
    * memory block for block and iterate through it searching for the requested time*/
-  int findTimestamp_inFile(uint32_t Tstamp);
+  int findTimestamp_inFile(uint32_t Tstamp, int startSearch, int stopSearch);
   /* search a block read into memory for the value closest to Tstamp*/
   int searchBlock(uint8_t block[], uint16_t T_lower, int blockSize);
 };

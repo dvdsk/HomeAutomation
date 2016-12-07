@@ -17,15 +17,14 @@ class Cache
     Cache(const uint8_t packageSize, const int cacheSize );
     /*point the cache_ pointer to the cache and update cacheOldestT*/
     void InitCache(uint8_t* cache);
-    
     /*copies an array to the cache, while overwriting old data, checks if the 
       overwritten data contained a full timestamp. If so updates cacheOldestT_
       [During startup the cache is filled and oldest timestamp initially set]*/
     void append(const uint8_t line[]);
-    /*reads the package at a single line*/
-    void read(uint8_t line[], int lineNumber);
     /*reads all the lines from start to start+length copies them to lines[]*/
     void readSeq(uint8_t line[], int start, int length);
+    /* search for a given timestamp in the cache return the cacheline*/
+    int searchTimestamp(uint32_t Tstamp, int start, int stop);
     /*removes all lines between start and lengt, then updates the entire cache
       filling it up again from file*/
     void remove(int lineNumber, int start, int length);
