@@ -8,22 +8,6 @@ size_t MainHeader::getFilesize(const char* filename) {
     return st.st_size;
 }
 
-
-
-int main(){
-  MainHeader header("test.dat");
-
-  for(int i = 0; i<30; i++){
-    header.append(1481034435+2*i,i);
-  }
-  header.showData(0,120);
-
-  int atByte = header.findFullTS(1481034435+15);
-  std::cout<<"found byte in dataFile: "<<atByte<<"\n";
-  
-  return 0;
-}
-
 int MainHeader::fileSize(int fd, const char* filePath){
   //read in the last buffer;
   uint32_t data[BUFFERSIZE/sizeof(uint32_t)];
@@ -117,6 +101,7 @@ void MainHeader::append(uint32_t Tstamp, uint32_t byteInDataFile){
   
 }
 
+#ifdef DEBUG
 void MainHeader::showData(int lineStart, int lineEnd){  
   std::cout<<"------------------------------\n";
   for(int i =lineStart*2; i<lineEnd*2; i+=2){
@@ -124,6 +109,7 @@ void MainHeader::showData(int lineStart, int lineEnd){
     std::cout<<"byteInDataFile: "<<data[i+1]<<"\n";
   }
 }
+#endif
 
 int MainHeader::findFullTS(uint32_t Tstamp) {
   int midIdx;
@@ -154,4 +140,18 @@ int MainHeader::findFullTS(uint32_t Tstamp) {
   return data[lowIdx+1];
 }
 
+////can be used for testing
+//int main(){
+//  MainHeader header("test.dat");
+
+//  for(int i = 0; i<30; i++){
+//    header.append(1481034435+2*i,i);
+//  }
+//  header.showData(0,120);
+
+//  int atByte = header.findFullTS(1481034435+15);
+//  std::cout<<"found byte in dataFile: "<<atByte<<"\n";
+//  
+//  return 0;
+//}
 

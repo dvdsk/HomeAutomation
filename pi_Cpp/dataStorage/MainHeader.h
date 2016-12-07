@@ -21,8 +21,6 @@
 #include <string.h> //for human readable error
 
 #include <fcntl.h> //fallocate
-#include <unistd.h> //ftruncate
-#include <sys/types.h> //ftruncate
 
 
 class MainHeader{
@@ -34,28 +32,34 @@ public:
   /* appends a timestamp and the number of bytes from the beginning of
    * the data file to the header file. If need be it will extend the mapping*/
   void append(uint32_t Tstamp, uint32_t byteNumber);
-  /* test function*/
+  
+  #ifdef DEBUG
+  /* test function that shows whats in the file from lineStart to lineEnd*/
   void showData(int lineStart, int lineEnd);  
+  #endif
   
   /* give the line in the data file where the closest but smaller or egual then
    * the given timestamp is. In bytes from the beginning of the file where the
    * full timestamp starts.*/
   int findFullTS(uint32_t Tstamp);
 
-  int fd; //file discriptor 'points' tou open file
+
   
 
 
 private:
-  unsigned int pos; //position in header file 'sizeof(uint32_t) bytes'
-  uint32_t* data;
+  unsigned int pos; //next free spot in memory map in units 'sizeof(uint32_t) bytes'
+  uint32_t* data; //adress used to place items into map
   void* addr; //adress where the memory map is placed
-  //size_t mapSize; FIXME OLD
-  size_t mapSize;
-
+  size_t mapSize; //size of the current memory mapping (used for data + allocated)
+  int fd; //file discriptor 'points' tou open file
+  
+  /* wrapper around stat to find the filesize in bytes*/
   size_t getFilesize(const char* filename);
   /* search for a Timestamp thats zero, from there on the file contains only
-   * unused pre allocated data from the previous run. Delete all unused data */
+   * unused pre allocated data from the previous run. return only up until this
+   * point. This is the abstract used filesize. In the contstructor this +  
+   * BUFFERSIZE is allocated for*/
   int fileSize(int fd, const char* filePath);
   
 };
