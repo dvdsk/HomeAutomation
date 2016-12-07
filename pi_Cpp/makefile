@@ -4,9 +4,9 @@ CXXFLAGS= -Wall -pedantic -std=c++14
 objects = main.o Cache.o MainData.o PirData.o Serial.o Search.o MainHeader.o
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
-all: regex
+all: pi
 debug: CXXFLAGS += -DDEBUG -g
-debug: regex
+debug: pi
 
 pi: $(objects)
 	$(CXX) $(CXXFLAGS) -o pi main.o Cache.o MainData.o PirData.o Serial.o \

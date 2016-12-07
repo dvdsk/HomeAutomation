@@ -2,57 +2,59 @@
 
 #include <iostream>
 
-int Search::searchTstamp(uint32_t Tstamp, int startLine){//TODO
-  struct stat filestatus;
-  int fileSize; 
-  uint32_t closest; //keep track of the closest timestamp found
-  int closestLine; //line of the closest timestamp 
-  int cacheStart; //point in file where the cache starts having a copy, (bytes)
+int Search::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2) {
+  uint32_t Tstamp;
 
-  std::cout<<Data::fileP_;   //FIXME ONLY HERE FOR TESTING
-
-  //if the wanted timestamp is not in the file
-  if (Tstamp < Data::cacheOldestT_){
-    //get file info
-    stat(fileName_.c_str(), &filestatus);//sys call for file info
-    fileSize = filestatus.st_size;
-    
-    //till here searching makes sense (as things can not be in the cache)
-    cacheStart = fileSize-Cache::cacheSize_
-    //TODO file flush
-    findTimestamp_inFile(0 , cacheStart, Tstamp)
+  Tstamp = Tstamp1;
+  //check if the wanted timestamp could be in the cache
+  if (Tstamp > Data::cacheOldestT_){
+    findTimestamp_inCache(Tstamp);
   }
   else{
-    findTimestamp_inCache
+    findTimestamp_inFile(Tstamp);
   }
   return closestLine;
 }
 
-int Search::findTimestamp_inFile(int startSearch, int StopSearch, uint32_t Tstamp){
-  uint8_t TSA[2];
-  uint8_t TSB[2];
-  uint8_t readBuf[MAXBLOCKSIZE];
-  int i = 0;
+int Search::findTimestamp_inFile(uint32_t Tstamp){
+  uint8_t block[MAXBLOCKSIZE];
+  int startSearch;
+  int stopSearch;
+  int Idx;
 
-  //check the full timestamp file to get the full timestamp shortest before Tstamp
+  // check the full timestamp file to get the location of the full timestamp still smaller then
+  // but closest toTstamp and the next full timestamp (that is too large thus). No need to catch the case
+  // where the Full timestamp afther Tstamp does not exist as such a Tstamp would result into seaching in cache.
+  startSearch = MainHeader::findFullTS(Tstamp, startSearch, stopSearch);
 
 
-  startSearch = startSearch+(startSearch-StopSearch)/2;
-
-  //find maximum suitable block size
+  // find maximum block size, either the max that fits N packages, or the space between stop and start
   int blockSize = std::min(MAXBLOCKSIZE-(MAXBLOCKSIZE%packageSize_), StopSearch-startSearch);
 
+  Idx = -1;
   fseek(fileP_, startSearch, SEEK_SET);
-  fread(readBuf, blockSize, 1, fileP_); //read everything into the buffer
-
-  //check through the block for a timestamp
   do {
-    TSA = readBuf+i;
-    TSB = TSA;
-    i+=packageSize_;
-  } while(notTSpackage(TSA, TSB) && i<blockSize);
-  
+    fread(block, blockSize, 1, fileP_); //read everything into the buffer
 
+    Idx = searchBlock(block, Tstamp, blockSize);
+    // check through the block for a timestamp
+  } while(Idx == -1);
+
+  if(Idx == -1){ return stopSearch; }
+  else{ return Idx+startSearch;}
+}
+
+int Search::searchBlock(uint8_t block[], uint16_t Tstamplow, int blockSize) {
+  uint16_t timelow;
+
+  for(int i = 0; i<blockSize; i+=packageSize_){
+    timelow = (uint16_t)*(block[i+1]) << 8  |
+              (uint16_t)*(block[i]);
+    if(timelow > Tstamplow){//then
+      return i-packageSize_;
+    }
+  }
+  return -1;
 }
 
 int Search::findTimestamp_inCache(uint32_t Tstamp){

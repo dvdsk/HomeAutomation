@@ -43,8 +43,8 @@ public:
 
   //helper functions
 
-  /*compares a pair of data packages and returns false if the first of them
-    is a time package */
+  /* compares a pair of data packages and returns false if the first of them
+   * is a time package */
   bool notTSpackage(uint8_t lineA[], uint8_t lineB[]);
   /* write a full timestamp package to the data file and write the high part of the timestamp
    * to the header file together with the corresponding line number*/

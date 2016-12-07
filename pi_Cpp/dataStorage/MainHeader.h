@@ -38,10 +38,10 @@ public:
   void showData(int lineStart, int lineEnd);  
   #endif
   
-  /* give the line in the data file where the closest but smaller or egual then
+  /* give the line in the data file where the closest but smaller or equal then
    * the given timestamp is. In bytes from the beginning of the file where the
-   * full timestamp starts.*/
-  int findFullTS(uint32_t Tstamp);
+   * full timestamp starts. Also give the one after that.*/
+  void findFullTS(uint32_t Tstamp, int& A, int& B);
 
 
   

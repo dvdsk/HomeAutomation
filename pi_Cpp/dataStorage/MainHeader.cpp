@@ -111,7 +111,7 @@ void MainHeader::showData(int lineStart, int lineEnd){
 }
 #endif
 
-int MainHeader::findFullTS(uint32_t Tstamp) {
+void MainHeader::findFullTS(uint32_t Tstamp, int& A, int& B) {
   int midIdx;
   uint32_t element;
   
@@ -125,33 +125,49 @@ int MainHeader::findFullTS(uint32_t Tstamp) {
     element = data[midIdx];
     db("midIdx, element: "<<midIdx<<" ,"<<element<<"\n");
     
-    if(data[lowIdx] == Tstamp){ return data[lowIdx+1];}
-    else if(element == Tstamp){ return data[midIdx+1];}
+    if(data[lowIdx] == Tstamp){ A = data[lowIdx+1]; B = data[lowIdx+3]; return;}
+    else if(element == Tstamp){ A = data[midIdx+1]; B = data[midIdx+3]; db("HERE4"); return;}
     
     else if(element > Tstamp){//als te hoog
-      if(highIdx == midIdx){ return data[lowIdx+1];}
+      if(highIdx == midIdx){//als we bijna klaar zijn
+        A = data[lowIdx+1];
+        B = data[highIdx+1];
+        db("HERE1");
+        return;
+      }
       highIdx = midIdx;//upper bound omlaag (naar huidig midde)
     }
     else{//we zitten te laag
-      if(lowIdx == midIdx){ return data[lowIdx+1];}//we kunnen niet lager
+      if(lowIdx == midIdx) {//we kunnen niet hoger
+        A = data[lowIdx+1];
+        B = -1;//there is no timestamp higher
+        db("HERE5");
+        return;}
       lowIdx = midIdx;//lower bound omhoog (naar huidig midde)
     }
   }
-  return data[lowIdx+1];
+  A = data[lowIdx+1];
+  B = data[lowIdx+3];
+  db("HERE3");
+  return;
 }
 
 ////can be used for testing
-//int main(){
-//  MainHeader header("test.dat");
+#ifdef TESTO //test object file defined
+int main(){
+  int A;
+  int B;
 
-//  for(int i = 0; i<30; i++){
-//    header.append(1481034435+2*i,i);
-//  }
-//  header.showData(0,120);
+  MainHeader header("test.dat");
 
-//  int atByte = header.findFullTS(1481034435+15);
-//  std::cout<<"found byte in dataFile: "<<atByte<<"\n";
-//  
-//  return 0;
-//}
+  for(int i = 0; i<30; i++){
+    header.append(1481034435+2*i,i);
+  }
+  header.showData(0,120);
 
+  header.findFullTS(1481034435+2*30, A, B);
+  std::cout<<"interval: "<<A<<", "<<B<<"\n";
+
+  return 0;
+}
+#endif
