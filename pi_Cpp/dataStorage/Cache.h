@@ -36,7 +36,7 @@ class Cache
     /*length of cache in bytes (in uint8_t)*/
 	  int cacheSize_;
 
-  private:
+  protected:
     /*pointer to cache, in the contructor we set this to an array, the cache has
       multiple items getting newer as you get higher in the array*/
     uint8_t* cache_;

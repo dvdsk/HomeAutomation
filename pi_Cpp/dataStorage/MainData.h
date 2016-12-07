@@ -10,7 +10,6 @@
 #include <ctime> //unix timestamp
 
 #include "MainHeader.h"
-#include "Search.h"
 #include "Cache.h"
 
 
@@ -21,7 +20,6 @@ const static int MAXBLOCKSIZE = 512;
 //the search function from leaving the transparent cache while unnecessary.
 class Data : public Cache, public MainHeader
 {
-friend class Search;
 public:
   Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheSize);
 
@@ -41,8 +39,13 @@ public:
      this operation also does not save any space*/
   void remove(int lineNumber, int start, int length);
 
-  //helper functions
+  /* searches for the line where a timestamp is located. First asks the cache
+   if it contains the timestamp, depending on the awnser it starts searching
+   in the cache or the file. Optionally a minimum point for the search can
+   be given. [this is useful for searching a second timestamp later timestamp]*/
+  int searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2);
 
+  //HELPER FUNCT
   /* compares a pair of data packages and returns false if the first of them
    * is a time package */
   bool notTSpackage(uint8_t lineA[], uint8_t lineB[]);
@@ -63,7 +66,16 @@ private:
   std::string fileName_;
   /*return the unix time*/
   uint32_t unix_timestamp();
-  /*TODO what should this do?*/
+
+  //SEARCH FUNCT
+  /* search for the timestamp in the cache, this is done in a 'dumb' way due to caching in the processor.
+   * we start at the beginning of the cache and iterate through it checking for the requested time*/
+  int findTimestamp_inCache(uint32_t Tstamp);
+  /* The header file is asked for the full timestamps surrounding Tstamp, we then load the data in between into
+   * memory block for block and iterate through it searching for the requested time*/
+  int findTimestamp_inFile(uint32_t Tstamp);
+  /* search a block read into memory for the value closest to Tstamp*/
+  int searchBlock(uint8_t block[], uint16_t T_lower, int blockSize);
 };
 
 
