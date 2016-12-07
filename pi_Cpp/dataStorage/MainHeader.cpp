@@ -33,11 +33,13 @@ size_t getFilesize(const char* filename) {
 int main(){
   MainHeader header("test.dat");
 
-  for(int i = 0; i<4000; i++){
-    header.append(1481034435+i,i);
+  for(int i = 0; i<30; i++){
+    header.append(1481034435+2*i,i);
   }
-  std::cout<<"TESAT";
-  header.showData(1900);
+  header.showData(0,30);
+
+  int atByte = header.findFullTS(1481034435+15);
+    std::cout<<"\nfound byte in dataFile: "<<atByte<<"\n";
   
   return 0;
 }
@@ -115,32 +117,6 @@ MainHeader::MainHeader(std::string fileName){
   data = (uint32_t*)(addr);
 }
 
-void MainHeader::closeUp(){
-//  int result;
-
-//  //flush to file
-//  result = ftruncate(fd, pos*sizeof(uint32_t));
-//  std::cerr<<"truncating file to length: "<<pos*sizeof(uint32_t)<<"\n";
-//  if (result == -1){std::cerr<<strerror(errno)<<"\n";}
-
-/* SEEMS OPTIONAL
-  //std::cerr<<"syncing\n";
-  result = msync(addr, mapSize, MS_SYNC); //asyncronus 
-  if (result == -1){std::cerr<<strerror(errno)<<"\n";}
-
-  //Cleanup
-  std::cerr<<"unmapping\n";
-  int rc = munmap(addr, mapSize);
-  assert(rc == 0);
-
-  std::cerr<<"closing file\n";
-  result = close(fd);
-  if(result == -1){std::cerr<<strerror(errno);}
-*/
-}
-
-
-
 void MainHeader::append(uint32_t Tstamp, uint32_t byteInDataFile){ 
   int oldSize;
   
@@ -169,15 +145,41 @@ void MainHeader::append(uint32_t Tstamp, uint32_t byteInDataFile){
   
 }
 
-void MainHeader::showData(int atByte){  
-  std::cout<<"hello";
-  for(int i =atByte; i<atByte+10; i+=2){
+void MainHeader::showData(int lineStart, int lineEnd){  
+  std::cout<<"------------------------------\n";
+  for(int i =lineStart*2; i<lineEnd*2; i+=2){
     std::cout<<"Tstamp: "<<data[i+0]<<"\n";
     std::cout<<"byteInDataFile: "<<data[i+1]<<"\n";
   }
 }
 
-//void MainHeader::nearest2FullTS(uint32_t Tstamp, uint32_t FTSA, uint32_t FTSB){}
-
+int MainHeader::findFullTS(uint32_t Tstamp) {
+  int midIdx;
+  uint32_t element;
+  
+  int highIdx = pos;
+  int lowIdx = 0;
+  
+  std::cout<<"trying to find timestamp: "<<Tstamp<<"\n";
+  
+  while(highIdx > lowIdx){
+    midIdx = (highIdx+lowIdx)/4 *2; //gives even number : timestamp
+    element = data[midIdx];
+    std::cout<<"midIdx, element: "<<midIdx<<" ,"<<element<<"\n";
+    
+    if(data[lowIdx] == Tstamp){ return data[lowIdx+1];}
+    else if(element == Tstamp){ return data[midIdx+1];}
+    
+    else if(element > Tstamp){//als te hoog
+      if(highIdx == midIdx){ return data[lowIdx+1];}
+      highIdx = midIdx;//upper bound omlaag (naar huidig midde)
+    }
+    else{//we zitten te laag
+      if(lowIdx == midIdx){ return data[lowIdx+1];}//we kunnen niet lager
+      lowIdx = midIdx;//lower bound omhoog (naar huidig midde)
+    }
+  }
+  return data[lowIdx+1];
+}
 
 
