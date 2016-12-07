@@ -33,8 +33,12 @@ int MainHeader::fileSize(int fd, const char* filePath){
       db("found data to be truncated\n");
       db("i: "<<i<<" filesize: "<<filesize<<" linesFound: "<<usefull/(2*sizeof(uint32_t))
                <<" buffersize: "<<BUFFERSIZE<<"\n");
-      
-      filesize = filesize-BUFFERSIZE+ usefull;
+
+      std::cout<<"found data to be truncated\n";
+      std::cout<<"i: "<<i<<" filesize: "<<filesize<<" linesFound: "<<usefull/(2*sizeof(uint32_t))
+              <<" buffersize: "<<BUFFERSIZE<<"\n";
+
+      filesize = filesize-BUFFERSIZE+usefull-1;
       break;
     }
   }
@@ -45,7 +49,8 @@ MainHeader::MainHeader(std::string fileName){
   const char* filePath;
   
   mkdir("data", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-  filePath = ("data/"+fileName).c_str();
+  fileName = ("data/"+fileName+".header");
+  filePath = fileName.c_str();
  
   fd = open(filePath, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IXUSR);
   
@@ -152,22 +157,28 @@ void MainHeader::findFullTS(uint32_t Tstamp, int& A, int& B) {
   return;
 }
 
-////can be used for testing
+uint32_t MainHeader::lastFullTS(){
+  if(pos < 2){ return 0;}
+  else{ return data[pos-2];}
+}
+
+//used for testing
 #ifdef TESTO //test object file defined
 int main(){
   int A;
   int B;
 
-  MainHeader header("test.dat");
+  MainHeader header("test");
 
-  for(int i = 0; i<30; i++){
+  for(int i = 0; i<200; i++){
     header.append(1481034435+2*i,i);
   }
-  header.showData(0,120);
+  header.showData(0,200);
 
-  header.findFullTS(1481034435+2*30, A, B);
-  std::cout<<"interval: "<<A<<", "<<B<<"\n";
+  //header.findFullTS(1481034435+2*30, A, B);
+  //std::cout<<"interval: "<<A<<", "<<B<<"\n";
 
+  std::cout<<header.lastFullTS()<<"\n";
   return 0;
 }
 #endif

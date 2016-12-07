@@ -126,12 +126,17 @@ void debug(PirData& pirData){
   Tstamp = unix_timestamp();
   pirDat[0] = 3;
   pirDat[1] = 1;  
-  pirData.process(pirDat, Tstamp); 
+  pirData.process(pirDat, Tstamp);
+
+  int loc1;
+  int loc2;
+  pirData.searchTstamps(1481133262-60, 1481133262, loc1, loc2);
+  std::cout<<"loc1: "<<loc1<<"\tloc2: "<<loc2<<"\n";
 }
 
 int main(int argc, char* argv[])
 {
-  PirData pirData("pirs.bdat", cache1, CACHESIZE_pir);
+  PirData pirData("pirs", cache1, CACHESIZE_pir);
   file1 = pirData.getFileP();
   
   signal(SIGINT, interruptHandler);  

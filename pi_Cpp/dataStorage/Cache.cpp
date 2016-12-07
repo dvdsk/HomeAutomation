@@ -25,7 +25,6 @@ void Cache::append(const uint8_t line[]){
   uint16_t T_NextLow;
   int nextCacheOldest;
 
-  std::cout<<"cache size: "<<cacheSize_<<" cache oldest: "<<cacheOldest_<<"\n";
 
   //put the new data in the cache
   for(int i = 0; i<packageSize_; i++){ *(cache_+cacheOldest_+i) = line[i]; }

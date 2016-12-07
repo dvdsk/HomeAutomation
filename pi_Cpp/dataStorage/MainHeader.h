@@ -42,6 +42,8 @@ public:
    * the given timestamp is. In bytes from the beginning of the file where the
    * full timestamp starts. Also give the one after that.*/
   void findFullTS(uint32_t Tstamp, int& A, int& B);
+  /* returns the time of the last set full timestamp*/
+  uint32_t lastFullTS();
 
 
   

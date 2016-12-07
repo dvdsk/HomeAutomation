@@ -43,7 +43,7 @@ public:
    if it contains the timestamp, depending on the awnser it starts searching
    in the cache or the file. Optionally a minimum point for the search can
    be given. [this is useful for searching a second timestamp later timestamp]*/
-  int searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2);
+  void searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, int& loc1, int& loc2);
 
   //HELPER FUNCT
   /* compares a pair of data packages and returns false if the first of them
@@ -54,10 +54,8 @@ public:
   void putFullTS(const uint32_t Tstamp); //TODO debug header
 
 private:
-  /*keeps track if we have set the initial timestamp package*/
-  bool initTimeStampNotSet;
   /*full unix time of previous package*/
-  uint32_t prevTstamp;
+  uint32_t prevFTstamp;
   /*size of complete data packages*/
   uint8_t packageSize_;
   /*pointer to data file, created in the constructor during opening or creation of the datafile*/

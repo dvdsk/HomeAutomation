@@ -12,16 +12,14 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
   uint8_t lineA[MAXPACKAGESIZE];
   
   /*set class variables*/
-  fileName_ = "data/"+fileName;
+  fileName_ = "data/"+fileName+".binDat";
   packageSize_ = packageSize;
   
 	//open a new file in binairy reading and appending mode. All writing operations
 	//are performed at the end of the file. Internal pointer can be moved anywhere
 	//for reading. Writing ops move it back to the end of the file  
 	mkdir("data", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-  fileP_ = fopen(fileName_.c_str(), "a+b"); 
-  
-  std::cout<<"fileP_: "<< +fileP_<<"\n";
+  fileP_ = fopen(fileName_.c_str(), "a+b");
   
   //copy the last data in the file to the cache. if there is space left in the
   //cache because the beginning of the file was reached it is filled with Null 
@@ -98,7 +96,7 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
                     (uint32_t)*(cache+1) << 8  |
                     (uint32_t)*(cache+0);
   }
-  initTimeStampNotSet = false;
+  prevFTstamp = MainHeader::lastFullTS();
   //pass the fully initialised cache on to the cache class
   Cache::InitCache(cache);
 }
@@ -108,34 +106,27 @@ FILE* Data::getFileP(){
 }
 
 void Data::append(uint8_t line[], uint32_t Tstamp){
-  std::cout << "enterd Data::append\n";
   uint8_t towrite[MAXPACKAGESIZE];
   uint16_t timeLow;
   
   //we need to put a full timestamp package in front of this package if
   //we have just started again, time < halfAday and we have not set the first
   //timestamp, or time > halfAday and we have not set the second timestamp.
-  
-  timeLow = static_cast<uint16_t>(Tstamp);
-	
-	if (initTimeStampNotSet){ 
-	  putFullTS(Tstamp);//writes it to file and cache too  
-	  initTimeStampNotSet=true;
-  }	
-	else if ((prevTstamp >> 16) != (Tstamp >> 16)) {
-	  putFullTS(Tstamp);  
+
+  std::cout<<"prevFTstamp: "<<prevFTstamp<<" Tstamp: "<<Tstamp<<"\n";
+	if (prevFTstamp >> 16 != Tstamp >> 16) {
+	  putFullTS(Tstamp);
   }
+
+  timeLow = static_cast<uint16_t>(Tstamp);
 
   //put the unix time in front of the package  
   std::memcpy(towrite+2 , line, packageSize_-2);
   towrite[0] = timeLow | 0b1111111100000000;
   towrite[1] = timeLow | 0b0000000011111111;
   
-  std::cout << "data hier1\n";
-  
   Cache::append(towrite);//writes it to file and cache too  
   fwrite(towrite, 1, packageSize_, fileP_);
-  std::cout << "leaving Data::append\n";
 }
 
 void Data::read(uint8_t line[], int lineNumber){//TODO
@@ -148,9 +139,10 @@ void Data::remove(int lineNumber, int start, int length){//TODO
   }
 
 void Data::putFullTS(const uint32_t Tstamp){
+  std::cout<<"putting full timestamp\n";
   uint8_t towrite[MAXPACKAGESIZE]; //towrite to data
   int currentByte;
-  prevTstamp = Tstamp;
+  prevFTstamp = Tstamp;
   
   //copy the full timestamp to the start of the package
   uint8_t *p = (uint8_t*)&Tstamp;
@@ -183,19 +175,22 @@ uint32_t Data::unix_timestamp() {
 }
 
 //SEARCH FUNCT
-int Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2) {
-  uint32_t Tstamp;
-  int closestLine;
+void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, int& loc1, int& loc2) {
 
-  Tstamp = Tstamp1;
   //check if the wanted timestamp could be in the cache
-  if (Tstamp > Data::cacheOldestT_){
-    closestLine = findTimestamp_inCache(Tstamp);
+  if (Tstamp1 > Data::cacheOldestT_){
+    loc1 = findTimestamp_inCache(Tstamp1);
   }
   else{
-    closestLine = findTimestamp_inFile(Tstamp);
+    loc1 = findTimestamp_inFile(Tstamp1);
   }
-  return closestLine;
+
+  if (Tstamp2 > Data::cacheOldestT_){
+    loc2 = findTimestamp_inCache(Tstamp2);
+  }
+  else{
+    loc2 = findTimestamp_inFile(Tstamp2);
+  }
 }
 
 int Data::findTimestamp_inFile(uint32_t Tstamp){
@@ -221,10 +216,9 @@ int Data::findTimestamp_inFile(uint32_t Tstamp){
 
     Idx = searchBlock(block, Tstamplow, blockSize);
     // check through the block for a timestamp
-  } while(Idx == -1);
+  } while(Idx == -1);//this could go on forever but luckily we made or file correctly... right??? right??!!
 
-  if(Idx == -1){ return stopSearch; }
-  else{ return Idx+startSearch;}
+  return Idx+startSearch;
 }
 
 int Data::searchBlock(uint8_t block[], uint16_t Tstamplow, int blockSize) {
