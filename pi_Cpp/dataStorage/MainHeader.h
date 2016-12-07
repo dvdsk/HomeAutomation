@@ -1,9 +1,29 @@
 #ifndef MAINHEADER_H
 #define MAINHEADER_H
 
+#ifdef DEBUG
+#define db(x) std::cerr << x;
+#else
+#define db(x)
+#endif
+
 #include <cstdint> //uint16_t
 #include <sys/stat.h> //mkdir and filesize
 #include <iostream> //std::string
+#include <sys/mman.h> //for mmap and mremap
+#include <sys/stat.h> //for filesize and open
+#include <fcntl.h> //open
+#include <cstdint> //uint16_t
+#include <sys/types.h> //lseek
+#include <unistd.h> //lseek
+
+#include <errno.h> //for human readable error
+#include <string.h> //for human readable error
+
+#include <fcntl.h> //fallocate
+#include <unistd.h> //ftruncate
+#include <sys/types.h> //ftruncate
+
 
 class MainHeader{
 public:
@@ -34,8 +54,9 @@ private:
   size_t mapSize;
 
   size_t getFilesize(const char* filename);
-  
-  void truncate(int fd, size_t& filesize);
+  /* search for a Timestamp thats zero, from there on the file contains only
+   * unused pre allocated data from the previous run. Delete all unused data */
+  int fileSize(int fd, const char* filePath);
   
 };
 
