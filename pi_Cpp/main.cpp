@@ -128,11 +128,11 @@ void debug(PirData& pirData){
   pirDat[1] = 1;  
   pirData.process(pirDat, Tstamp);
 
-/*  int loc1;
-  int loc2;
+  unsigned int loc1;
+  unsigned int loc2;
   pirData.searchTstamps(1481133262-60, 1481133262, loc1, loc2);
-  std::cout<<"loc1: "<<loc1<<"\tloc2: "<<loc2<<"\n";
-  */
+
+
 }
 
 int main(int argc, char* argv[])

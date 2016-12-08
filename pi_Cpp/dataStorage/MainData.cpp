@@ -6,10 +6,6 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
 {
   struct stat filestatus;
   int fileSize; //in bytes
-  int n;
-  
-  uint8_t lineB[MAXPACKAGESIZE];
-  uint8_t lineA[MAXPACKAGESIZE];
   
   /*set class variables*/
   fileName_ = "data/"+fileName+".binDat";
@@ -28,48 +24,11 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
   stat(fileName_.c_str(), &filestatus);//sys call for file info
   fileSize = filestatus.st_size;
 
-  std::cout<<"FILESIZE "<<fileSize<<"\n";
-
   if (fileSize >= cacheSize){
     //set the file pointer to cachesize from the end of the file then
     //read from there to the end of the file into the cache
     fseek(fileP_, -1*(cacheSize), SEEK_END); 
     fread(cache, cacheSize, 1, fileP_);
-  
-    /*set the oldest timestamp in the cache*/
-    //look through the file for a timestamp package starting at -cachesize from
-    //the end
-
-    n = -1*(cacheSize);
-    fseek(fileP_, n, SEEK_END); 
-    fread(lineB, packageSize, 1, fileP_); 
-    n -= packageSize;
-     
-    fseek(fileP_, n, SEEK_END); 
-    fread(lineA, packageSize, 1, fileP_);   
-    n -= packageSize;
-
-    while (notTSpackage(lineA, lineB)){    
-    
-      memcpy(lineB, lineA, packageSize);
-       
-      fseek(fileP_, n, SEEK_END); 
-      fread(lineA, packageSize, 1, fileP_);   
-      n -= packageSize;   
-    }
-
-    std::cout<<+lineA[0]<<"-";
-    std::cout<<+lineB[0]<<"-";
-    std::cout<<+lineA[1]<<"-";
-    std::cout<<+lineB[1]<<"-";
-
-    //save the timepackage
-    Cache::cacheOldestT_ = (uint32_t)*(lineA+3) << 24 |
-                           (uint32_t)*(lineA+2) << 16 |
-                           (uint32_t)*(lineA+1) << 8  |
-                           (uint32_t)*(lineA+0);
-    std::cout<<"found timepackage: "<<Cache::cacheOldestT_;
-    
   }
   else{
     //set the file pointer to the beginning of the file then read in data till
@@ -98,14 +57,6 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
       *(cache+i) = 0;
       *(cache+i+1) = 0;
     }
-    /*set the oldest timestamp in the cache*/
-    //as the complete file is in the cache and the file must start with a full
-    //timestamp we can just convert the first package to a timestamp
-    Cache::cacheOldestT_ = (uint32_t)*(cache+(cacheSize-fileSize)+3) << 24 |
-                           (uint32_t)*(cache+(cacheSize-fileSize)+2) << 16 |
-                           (uint32_t)*(cache+(cacheSize-fileSize)+1) << 8  |
-                           (uint32_t)*(cache+(cacheSize-fileSize)+0);
-    std::cout<<"FOUND timepackage: "<<Cache::cacheOldestT_<<"\n";
   }
   prevFTstamp = MainHeader::lastFullTS();
   //pass the fully initialised cache on to the cache class
@@ -183,19 +134,27 @@ uint32_t Data::unix_timestamp() {
 }
 
 //SEARCH FUNCT
-void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, int& loc1, int& loc2) {
-  int startSearch;
-  int stopSearch;
+void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1, unsigned int& loc2) {
+  unsigned int startSearch;
+  unsigned int stopSearch;
+  unsigned int firstInCachTime;
+  unsigned int fileSize;
 
   // check the full timestamp file to get the location of the full timestamp still smaller then
   // but closest toTstamp and the next full timestamp (that is too large thus). No need to catch the case
   // where the Full timestamp afther Tstamp does not exist as such a Tstamp would result into seaching in cache.
   MainHeader::findFullTS(Tstamp1, startSearch, stopSearch);
 
+  fseek (fileP_, 0, SEEK_END);
+  fileSize = ftell (fileP_);
+
+  firstInCachTime = MainHeader::fullTSJustBefore(fileSize - Cache::cacheSize_);
+  firstInCachTime = (firstInCachTime & 0b11111111111111110000000000000000) | Cache::getFirstLowTime();
+
   //check if the wanted timestamp could be in the cache
-  std::cout<<"Tstamp1: "<<Tstamp1<<" Data::cacheOldestT_: "<<Data::cacheOldestT_<<"\n";
-  if (Tstamp1 > Data::cacheOldestT_){
-    loc1 = findTimestamp_inCache(Tstamp1, startSearch, stopSearch);
+  std::cout<<"Tstamp1: "<<Tstamp1<<" Data::cacheOldestT_: "<<firstInCachTime<<"\n";
+  if (Tstamp1 > firstInCachTime){
+    loc1 = findTimestamp_inCache(Tstamp1, startSearch, stopSearch, fileSize);
   }
   else{
     loc1 = findTimestamp_inFile(Tstamp1, startSearch, stopSearch);
@@ -203,24 +162,24 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, int& loc1, int& loc
 
   MainHeader::findFullTS(Tstamp2, startSearch, stopSearch);
 
-  if (Tstamp2 > Data::cacheOldestT_){
-    loc2 = findTimestamp_inCache(Tstamp2, startSearch, stopSearch);
+  if (Tstamp2 > firstInCachTime){
+    loc2 = findTimestamp_inCache(Tstamp2, startSearch, stopSearch, fileSize);
   }
   else{
     loc2 = findTimestamp_inFile(Tstamp2, startSearch, stopSearch);
   }
+  std::cout<<"loc1: "<<loc1<<"\tloc2: "<<loc2<<"\n";
 }
 
-int Data::findTimestamp_inFile(uint32_t Tstamp, int startSearch, int stopSearch){
+int Data::findTimestamp_inFile(uint32_t Tstamp, unsigned int startSearch, unsigned int stopSearch){
   uint8_t block[MAXBLOCKSIZE];
   uint16_t Tstamplow;
   int Idx;
 
-
   Tstamplow = Tstamp & 0b00000000000000001111111111111111;
 
   // find maximum block size, either the max that fits N packages, or the space between stop and start
-  int blockSize = std::min(MAXBLOCKSIZE-(MAXBLOCKSIZE%packageSize_), stopSearch-startSearch);
+  unsigned int blockSize = std::min(MAXBLOCKSIZE-(MAXBLOCKSIZE%packageSize_), stopSearch-startSearch);
 
   Idx = -1;
   fseek(fileP_, startSearch, SEEK_SET);
@@ -229,15 +188,15 @@ int Data::findTimestamp_inFile(uint32_t Tstamp, int startSearch, int stopSearch)
 
     Idx = searchBlock(block, Tstamplow, blockSize);
     // check through the block for a timestamp
-  } while(Idx == -1);//this could go on forever but luckily we made or file correctly... right??? right??!!
+  } while(Idx == -1);//this could go on forever but luckily we made our file correctly... right??? right??!!
 
   return Idx+startSearch;
 }
 
-int Data::searchBlock(uint8_t block[], uint16_t Tstamplow, int blockSize) {
+int Data::searchBlock(uint8_t block[], uint16_t Tstamplow, unsigned int blockSize) {
   uint16_t timelow;
 
-  for(int i = 0; i<blockSize; i+=packageSize_){
+  for(unsigned int i = 0; i<blockSize; i+=packageSize_){
     timelow = (uint16_t)block[i+1] << 8  |
               (uint16_t)block[i];
     if(timelow > Tstamplow){//then
@@ -247,14 +206,9 @@ int Data::searchBlock(uint8_t block[], uint16_t Tstamplow, int blockSize) {
   return -1;
 }
 
-int Data::findTimestamp_inCache(uint32_t Tstamp, int startSearch, int stopSearch){
-  int startInCache;
-  int stopInCache;
-  int fileSize;
-
-  //convert start and stop to cache
-  fseek (fileP_, 0, SEEK_END);
-  fileSize = ftell (fileP_);
+int Data::findTimestamp_inCache(uint32_t Tstamp, unsigned int startSearch, unsigned int stopSearch, unsigned int fileSize){
+  unsigned int startInCache;
+  unsigned int stopInCache;
 
   //TODO SOMETHING WRONG HERE
   std::cout<<"startSearch: "<<startSearch<<" cacheSize: "<<Cache::cacheSize_<<"fileSize: "<<fileSize<<"\n";

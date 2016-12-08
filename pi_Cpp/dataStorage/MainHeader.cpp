@@ -112,7 +112,7 @@ void MainHeader::showData(int lineStart, int lineEnd){
 }
 #endif
 
-void MainHeader::findFullTS(uint32_t Tstamp, int& A, int& B) {
+void MainHeader::findFullTS(uint32_t Tstamp, unsigned int& A, unsigned int& B) {
   int midIdx;
   uint32_t element;
   
@@ -156,6 +156,17 @@ void MainHeader::findFullTS(uint32_t Tstamp, int& A, int& B) {
 uint32_t MainHeader::lastFullTS(){
   if(pos < 2){ return 0;}
   else{ return data[pos-2];}
+}
+
+uint32_t MainHeader::fullTSJustBefore(unsigned int byte){
+  int i = pos;
+  while(i >= 2){
+    i-=2;
+    if(data[i+1] <= byte){
+      return data[i]; //return timestamp
+    }
+  return -1;
+  }
 }
 
 //used for testing

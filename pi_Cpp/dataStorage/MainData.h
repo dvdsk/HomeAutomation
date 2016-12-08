@@ -13,7 +13,7 @@
 #include "Cache.h"
 
 
-const static int MAXBLOCKSIZE = 512;
+const static unsigned int MAXBLOCKSIZE = 512;
 
 //keeps track of where data is located: file pointer, cacheSize, cache, 
 //file path, and the oldest item in cache. During searches this is used to prevent
@@ -41,7 +41,7 @@ public:
    if it contains the timestamp, depending on the awnser it starts searching
    in the cache or the file. Optionally a minimum point for the search can
    be given. [this is useful for searching a second timestamp later timestamp]*/
-  void searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, int& loc1, int& loc2);
+  void searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1, unsigned int& loc2);
 
   //HELPER FUNCT
   /* compares a pair of data packages and returns false if the first of them
@@ -66,12 +66,12 @@ private:
   //SEARCH FUNCT
   /* search for the timestamp in the cache, this is done in a 'dumb' way due to caching in the processor.
    * we start at the beginning of the cache and iterate through it checking for the requested time*/
-  int findTimestamp_inCache(uint32_t Tstamp, int startSearch, int stopSearch);
+  int findTimestamp_inCache(uint32_t Tstamp, unsigned int startSearch, unsigned int stopSearch, unsigned int fileSize);
   /* The header file is asked for the full timestamps surrounding Tstamp, we then load the data in between into
    * memory block for block and iterate through it searching for the requested time*/
-  int findTimestamp_inFile(uint32_t Tstamp, int startSearch, int stopSearch);
+  int findTimestamp_inFile(uint32_t Tstamp, unsigned int startSearch, unsigned int stopSearch);
   /* search a block read into memory for the value closest to Tstamp*/
-  int searchBlock(uint8_t block[], uint16_t T_lower, int blockSize);
+  int searchBlock(uint8_t block[], uint16_t T_lower, unsigned int blockSize);
 };
 
 
