@@ -34,10 +34,6 @@ int MainHeader::fileSize(int fd, const char* filePath){
       db("i: "<<i<<" filesize: "<<filesize<<" linesFound: "<<usefull/(2*sizeof(uint32_t))
                <<" buffersize: "<<BUFFERSIZE<<"\n");
 
-      std::cout<<"found data to be truncated\n";
-      std::cout<<"i: "<<i<<" filesize: "<<filesize<<" linesFound: "<<usefull/(2*sizeof(uint32_t))
-              <<" buffersize: "<<BUFFERSIZE<<"\n";
-
       filesize = filesize-BUFFERSIZE+usefull-1;
       break;
     }

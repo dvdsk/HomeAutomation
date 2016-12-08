@@ -24,10 +24,12 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
   //copy the last data in the file to the cache. if there is space left in the
   //cache because the beginning of the file was reached it is filled with Null 
   //data (null timestamp)
-  
-  stat(fileName.c_str(), &filestatus);//sys call for file info
+
+  stat(fileName_.c_str(), &filestatus);//sys call for file info
   fileSize = filestatus.st_size;
-  
+
+  std::cout<<"FILESIZE "<<fileSize<<"\n";
+
   if (fileSize >= cacheSize){
     //set the file pointer to cachesize from the end of the file then
     //read from there to the end of the file into the cache
@@ -46,7 +48,7 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
     fseek(fileP_, n, SEEK_END); 
     fread(lineA, packageSize, 1, fileP_);   
     n -= packageSize;
-    
+
     while (notTSpackage(lineA, lineB)){    
     
       memcpy(lineB, lineA, packageSize);
@@ -55,11 +57,18 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
       fread(lineA, packageSize, 1, fileP_);   
       n -= packageSize;   
     }
+
+    std::cout<<+lineA[0]<<"-";
+    std::cout<<+lineB[0]<<"-";
+    std::cout<<+lineA[1]<<"-";
+    std::cout<<+lineB[1]<<"-";
+
     //save the timepackage
-    cacheOldestT_ = (uint32_t)*(lineA+3) << 24 |
-                    (uint32_t)*(lineA+2) << 16 |
-                    (uint32_t)*(lineA+1) << 8  |
-                    (uint32_t)*(lineA+0);
+    Cache::cacheOldestT_ = (uint32_t)*(lineA+3) << 24 |
+                           (uint32_t)*(lineA+2) << 16 |
+                           (uint32_t)*(lineA+1) << 8  |
+                           (uint32_t)*(lineA+0);
+    std::cout<<"found timepackage: "<<Cache::cacheOldestT_;
     
   }
   else{
@@ -70,6 +79,7 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
     
     /*fill the remainder of the cache*/    
     if (cacheSize-fileSize == 1){
+      //FIXME this wont work
     //if there is only one open space in the cache left the last element must be
     //a full timestamp, insert it again. 
       memcpy(cache+fileSize, cache+fileSize-packageSize_, packageSize_);  
@@ -91,10 +101,11 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
     /*set the oldest timestamp in the cache*/
     //as the complete file is in the cache and the file must start with a full
     //timestamp we can just convert the first package to a timestamp
-    cacheOldestT_ = (uint32_t)*(cache+3) << 24 |
-                    (uint32_t)*(cache+2) << 16 |
-                    (uint32_t)*(cache+1) << 8  |
-                    (uint32_t)*(cache+0);
+    Cache::cacheOldestT_ = (uint32_t)*(cache+(cacheSize-fileSize)+3) << 24 |
+                           (uint32_t)*(cache+(cacheSize-fileSize)+2) << 16 |
+                           (uint32_t)*(cache+(cacheSize-fileSize)+1) << 8  |
+                           (uint32_t)*(cache+(cacheSize-fileSize)+0);
+    std::cout<<"FOUND timepackage: "<<Cache::cacheOldestT_<<"\n";
   }
   prevFTstamp = MainHeader::lastFullTS();
   //pass the fully initialised cache on to the cache class
@@ -182,6 +193,7 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, int& loc1, int& loc
   MainHeader::findFullTS(Tstamp1, startSearch, stopSearch);
 
   //check if the wanted timestamp could be in the cache
+  std::cout<<"Tstamp1: "<<Tstamp1<<" Data::cacheOldestT_: "<<Data::cacheOldestT_<<"\n";
   if (Tstamp1 > Data::cacheOldestT_){
     loc1 = findTimestamp_inCache(Tstamp1, startSearch, stopSearch);
   }
@@ -245,6 +257,7 @@ int Data::findTimestamp_inCache(uint32_t Tstamp, int startSearch, int stopSearch
   fileSize = ftell (fileP_);
 
   //TODO SOMETHING WRONG HERE
+  std::cout<<"startSearch: "<<startSearch<<" cacheSize: "<<Cache::cacheSize_<<"fileSize: "<<fileSize<<"\n";
   startInCache = startSearch + Cache::cacheSize_ - fileSize;
   stopInCache = stopSearch + Cache::cacheSize_ - fileSize;
 
