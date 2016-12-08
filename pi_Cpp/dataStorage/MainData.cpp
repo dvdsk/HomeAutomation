@@ -91,7 +91,9 @@ void Data::append(uint8_t line[], uint32_t Tstamp){
   fwrite(towrite, 1, packageSize_, fileP_);
 }
 
-void Data::readSeq(uint8_t line[], int start, int length){//TODO
+void Data::readSeq(uint8_t line[], int start, int length){
+
+
   }
 
 void Data::remove(int lineNumber, int start, int length){//TODO
