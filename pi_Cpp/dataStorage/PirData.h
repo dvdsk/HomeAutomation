@@ -25,6 +25,14 @@ class PirData : public Data
       it off for reacting if something changed and store it in a file*/
     void process(const uint8_t rawData[2], const uint32_t Tstamp);
 
+    /* fetches the full data from MainData. Reduces it to 2 arrays of PLOTRESOLUTION in length
+     * Gives back the data in x and y arrays with that length. x (time axis) is cached */
+    void fetchPirData(int sensor, uint32_t startT, uint32_t stopT, uint32_t x[], in y[]){
+      //TODO will use sequential read to read in blocks, blocksize depending on data to reduce
+      //TODO and wanted resolution (PLOTRESOLUTION)
+
+    }
+
   private:
     uint8_t polled_ones;    //confirmed detection by sensor (one= true)
     uint8_t polled_zeros;   //confirmed no detection (sensor has been polled!)
