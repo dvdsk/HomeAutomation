@@ -5,6 +5,7 @@
 #include <cstdint> //uint16_t
 
 #include "MainData.h"
+#include "../graph/MainGraph.h"
 
 /*
 pir (passive infrared receptor) data storage. Raw data is recieved from serial 
@@ -27,11 +28,7 @@ class PirData : public Data
 
     /* fetches the full data from MainData. Reduces it to 2 arrays of PLOTRESOLUTION in length
      * Gives back the data in x and y arrays with that length. x (time axis) is cached */
-    void fetchPirData(int sensor, uint32_t startT, uint32_t stopT, uint32_t x[], in y[]){
-      //TODO will use sequential read to read in blocks, blocksize depending on data to reduce
-      //TODO and wanted resolution (PLOTRESOLUTION)
-
-    }
+    void fetchPirData(int sensor, uint32_t startT, uint32_t stopT, uint32_t x[PLOTRESOLUTION], in y[PLOTRESOLUTION]);
 
   private:
     uint8_t polled_ones;    //confirmed detection by sensor (one= true)

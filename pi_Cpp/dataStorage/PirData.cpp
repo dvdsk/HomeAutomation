@@ -1,6 +1,9 @@
 #include "PirData.h"
 
 //FIXME
+
+
+
 PirData::PirData(const std::string filePath, uint8_t* cache, const int cacheLen)
 : Data(filePath, cache, PACKAGESIZE, cacheLen){
 
@@ -30,6 +33,16 @@ void PirData::process(const uint8_t rawData[2], const uint32_t Tstamp){
       prevTstamp = Tstamp;
     }
   }
+}
+
+void fetchPirData(int sensor, uint32_t startT, uint32_t stopT, uint32_t x[], float y[]){
+
+
+
+  }
+
+
+
 }
 
 bool PirData::newData(const uint8_t raw[2]){

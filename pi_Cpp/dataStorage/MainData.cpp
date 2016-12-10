@@ -92,9 +92,34 @@ void Data::append(uint8_t line[], uint32_t Tstamp){
 }
 
 void Data::readSeq(uint8_t line[], int start, int length){
+}
 
 
+void Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[]) {
+  int elementIdx;
+
+  IdexesToSkip checkIdx(int startByte, int stopByte);
+  tomean = checkIdx.indexGroupSize;
+
+  uint32_t* x_small = new uint32_t[tomean];
+  float y_xmall = new float[tomean];
+
+  int stepSize = packageSize_ * checkIdx.indexGroupSize; //stepSize in bytes
+  for (int j = 0; j < Nblocks; j++) {
+    for (int i = startByte; i <= stopByte; i += stepSize) {
+      index = (i - startByte) / packageSize_;
+      for (int k = i; k < (tomean) * packageSize_; k += packageSize_) {
+        elementIdx = (i - startByte) / packageSize_;
+        if (checkIdx.useValue(elementIdx)) {
+          //TODO extract time
+          func();
+        }
+      }
+      y[index] = mean(x_small, tomean);
+      x[index] = mean(y_xmall, tomean);
+    }
   }
+}
 
 void Data::remove(int lineNumber, int start, int length){//TODO
   }
@@ -218,4 +243,44 @@ int Data::findTimestamp_inCache(uint32_t Tstamp, unsigned int startSearch, unsig
   stopInCache = stopSearch + Cache::cacheSize_ - fileSize;
 
   return Cache::searchTimestamp(Tstamp, startInCache, stopInCache);
+}
+
+class Data::IdexesToSkip {
+public:
+  IdexesToSkip(int startByte, int stopByte){//TODO implement ignoring extra datapoints
+    int numbOfValues = (stopByte-startByte)/packageSize_;
+    int numbUnusable = numbOfValues&MAXPLOTRESOLUTION;
+    indexGroupSize = numbOfValues/MAXPLOTRESOLUTION;
+    spacing = numbOfValues/numbUnusable;
+    counter = 0;
+  }
+  bool useValue(int i){
+    //calculate if element 'i' should be used or not
+    if(i == (int)(counter*spacing)){
+      counter++;
+      return false;
+    }
+    else{return true;}
+  }
+
+  int indexGroupSize;
+private:
+  float spacing;
+  float counter;
+};
+
+uint32_t Data::Mean(uint32_t* array, int len){
+  uint32_t Mean;
+  for(int i =0; i<len; i++){
+    Mean+=*(array+i);
+  }
+  Mean /= len;
+}
+
+float Data::Mean(float* array, int len){
+  uint32_t Mean;
+  for(int i =0; i<len; i++){
+    Mean+=*(array+i);
+  }
+  Mean /= len;
 }

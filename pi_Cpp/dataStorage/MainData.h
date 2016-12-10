@@ -11,7 +11,7 @@
 
 #include "MainHeader.h"
 #include "Cache.h"
-
+#include "../graph/MainGraph.h"
 
 const static unsigned int MAXBLOCKSIZE = 512;
 
@@ -31,6 +31,13 @@ public:
   /* reads all the lines including start to (excluding) start+length copies
      them to the array lines[]*/
   void readSeq(uint8_t line[], int start, int length);
+
+  /* takes a start and end time + an array to store the time in and one to store floats in
+   * goes through the data inbetween start and stop, extracts the time from the data and puts
+   * in the time array executes a given function on the data for every datapoint and puts that
+   * in the float array */
+  void fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[]);
+
   /* removes all lines between start and lengt, by inserting null data or
      in the case of a single line to be removed an extra timestamp package.
      Note in the file itself it is still clear that something has been removed
@@ -50,6 +57,10 @@ public:
   /* write a full timestamp package to the data file and write the high part of the timestamp
    * to the header file together with the corresponding line number*/
   void putFullTS(const uint32_t Tstamp); //TODO debug header
+
+  /* generate indexes we will not take into accout for reading*/
+  class IdexesToSkip;
+
 
 private:
   /*full unix time of previous package*/
