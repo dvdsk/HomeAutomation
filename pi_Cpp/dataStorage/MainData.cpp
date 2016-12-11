@@ -91,74 +91,103 @@ void Data::append(uint8_t line[], uint32_t Tstamp){
   fwrite(towrite, 1, packageSize_, fileP_);
 }
 
-void Data::readSeq(uint8_t line[], int start, int length){
-}
+void Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
+                     void (*func)(int orgIdx_B, int blockIdx_B, uint8_t[MAXBLOCKSIZE], int extraParams[4]),
+                     int extraParams[4]) {
 
+  int nBlocks;
+  int blockSize_B;
+  int blockSize_P;
+  int blockSize_bins;
 
-void Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[]) {
-  int elementIdx;
+  int rest_B;
+  int rest_P;
+  int rest_bin;
 
-  IdexesToSkip checkIdx(int startByte, int stopByte);
-  tomean = checkIdx.indexGroupSize;
+  int binSize_P;
+  int binSize_B;
 
-  uint32_t* x_small = new uint32_t[tomean];
-  float y_xmall = new float[tomean];
+  int orgIdx_B;
+  int blockIdx_B;
 
-  int stepSize = packageSize_ * checkIdx.indexGroupSize; //stepSize in bytes
-  for (int j = 0; j < Nblocks; j++) {
-    for (int i = startByte; i <= stopByte; i += stepSize) {
-      index = (i - startByte) / packageSize_;
-      for (int k = i; k < (tomean) * packageSize_; k += packageSize_) {
-        elementIdx = (i - startByte) / packageSize_;
-        if (checkIdx.useValue(elementIdx)) {
-          //TODO extract time
-          func();
+  uint8_t block[MAXBLOCKSIZE];
+
+  //find where to start and stop reading in the file
+  searchTstamps(startT, stopT, startByte, stopByte);
+
+  //configure iterator
+  iterator checkIdx(startByte, stopByte);
+  binSize_P = checkIdx.indexGroupSize; //number of packages in a bin
+  binSize_B = binSize_P * packageSize_; //number of bytes in a bin
+
+  //set subarrays for binning
+  uint32_t* x_bin = new uint32_t[tobin]; //used to store time values in when binning
+  float y_bin = new float[tobin]; //used to store the y value of whatever we want to know in
+
+  //set number of blocks, blocksize, and the rest bit's size
+  nBlocks = (stopByte - startByte)/MAXBLOCKSIZE; //calculate how many blocks we need
+
+  blockSize_B = MAXBLOCKSIZE - (MAXBLOCKSIZE%packageSize_); //determine blocksize in bytes
+  blockSize_P = blockSize_B/packageSize_; //set blocksize in packages
+  blockSize_bins = packagesInBlock/tobin; //set blocksize in bins
+
+  rest_B = (stopByte=startByte)%MAXBLOCKSIZE; //number of bytes that doesnt fit in the normal blocks
+  rest_P = rest_B/packageSize_; //in packages
+  rest_bin =rest_B/tobin; //tobin
+
+  //iterate over the blocks
+  for (int i = 0; i < nBlocks; i++) {
+    //read one block to memory
+    fseek(fileP_, startByte+i*blockSize_B, SEEK_SET);
+    fread(block, 1, blockSize_B, fileP_);
+
+    //iterate through the block in memory in bin groups
+    for (int j = 0; j < blockSize_bins; j++) {
+      binNumber = i*blockSize_bins +j;
+
+      //iterate through a group of values to bin
+      for (int k = 0; k < binSize; k ++) {
+        orgIdx_P = i*blockSize_P+ j*binSize_P;
+        if (checkIdx.useValue(orgPackageIdx)) {
+          orgIdx_B = orgIdx_P* packageSize_;
+          blockIdx_B = j*binSize_B+ k*packageSize_;
+
+          x_bin[k] = fullTS::getTime(orgIdx_B, blockIdx_B, block);
+          y_bin[k] = func(orgIdx_B, blockIdx_B, block, extraParams);
         }
       }
-      y[index] = mean(x_small, tomean);
-      x[index] = mean(y_xmall, tomean);
+      y[binNumber] = mean(x_bin, tobin);
+      x[binNumber] = mean(y_bin, tobin);
     }
   }
-}
+
+  //do the leftover values in a smaller block
+  fseek(fileP_, stopByte-rest_B, SEEK_SET);
+  fread(block, 1, rest_B, fileP_);
+
+  //iterate through the block in memory in bin groups
+  for (int j = 0; j < blockSize_bins; j++) {
+    binNumber = nBlocks*blockSize_bins +j;
+
+    //iterate through a group of values to bin
+    for (int k = 0; k < binSize; k ++) {
+      orgIdx_P = nBlocks*blockSize_P+ j*binSize_P;
+      if (checkIdx.useValue(orgPackageIdx)) {
+        orgIdx_B = orgIdx_P* packageSize_;
+        blockIdx_B = j*binSize_B+ k*packageSize_;
+
+        x_bin[k] = fullTS::getTime(orgIdx_B, blockIdx_B, block);
+        y_bin[k] = func(orgIdx_B, blockIdx_B, block, extraParams);
+      }
+    }
+    y[binNumber] = mean(x_bin, tobin);
+    x[binNumber] = mean(y_bin, tobin);
+  }
+
+}//done
 
 void Data::remove(int lineNumber, int start, int length){//TODO
   }
-
-void Data::putFullTS(const uint32_t Tstamp){
-  std::cout<<"putting full timestamp\n";
-  uint8_t towrite[MAXPACKAGESIZE]; //towrite to data
-  int currentByte;
-  prevFTstamp = Tstamp;
-  
-  //copy the full timestamp to the start of the package
-  uint8_t *p = (uint8_t*)&Tstamp;
-  towrite[0] = p[0];
-  towrite[1] = p[1];
-  towrite[2] = p[2];
-  towrite[3] = p[3];
-  
-  //fill up the rest of the package with zeros
-  for (int i = 4; i<packageSize_; i++){
-    towrite[i] = 0;
-  }
-  Cache::append(towrite);
-  fwrite(towrite, 1, packageSize_, fileP_);
-  currentByte = ftell(fileP_);
-  MainHeader::append(Tstamp, currentByte);
-}
-
-bool Data::notTSpackage(uint8_t lineA[], uint8_t lineB[]){
-  if (lineA[0] == lineB[0]){
-    if (lineA[1] == lineB[1]){ return false; }    
-  }
-  return true;
-}
-
-uint32_t Data::unix_timestamp() {
-  time_t t = std::time(0);
-  uint32_t now = static_cast<uint32_t> (t);
-  return now;
-}
 
 //SEARCH FUNCT
 void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1, unsigned int& loc2) {
@@ -245,11 +274,12 @@ int Data::findTimestamp_inCache(uint32_t Tstamp, unsigned int startSearch, unsig
   return Cache::searchTimestamp(Tstamp, startInCache, stopInCache);
 }
 
-class Data::IdexesToSkip {
+//DATAFETCH FUNCT
+class Data::iterator {
 public:
-  IdexesToSkip(int startByte, int stopByte){//TODO implement ignoring extra datapoints
+  iterator(int startByte, int stopByte){//TODO implement ignoring extra datapoints
     int numbOfValues = (stopByte-startByte)/packageSize_;
-    int numbUnusable = numbOfValues&MAXPLOTRESOLUTION;
+    int numbUnusable = numbOfValues%MAXPLOTRESOLUTION;
     indexGroupSize = numbOfValues/MAXPLOTRESOLUTION;
     spacing = numbOfValues/numbUnusable;
     counter = 0;
@@ -283,4 +313,43 @@ float Data::Mean(float* array, int len){
     Mean+=*(array+i);
   }
   Mean /= len;
+}
+
+
+
+//HELPER FUNCT
+void Data::putFullTS(const uint32_t Tstamp){
+  std::cout<<"putting full timestamp\n";
+  uint8_t towrite[MAXPACKAGESIZE]; //towrite to data
+  int currentByte;
+  prevFTstamp = Tstamp;
+
+  //copy the full timestamp to the start of the package
+  uint8_t *p = (uint8_t*)&Tstamp;
+  towrite[0] = p[0];
+  towrite[1] = p[1];
+  towrite[2] = p[2];
+  towrite[3] = p[3];
+
+  //fill up the rest of the package with zeros
+  for (int i = 4; i<packageSize_; i++){
+    towrite[i] = 0;
+  }
+  Cache::append(towrite);
+  fwrite(towrite, 1, packageSize_, fileP_);
+  currentByte = ftell(fileP_);
+  MainHeader::append(Tstamp, currentByte);
+}
+
+bool Data::notTSpackage(uint8_t lineA[], uint8_t lineB[]){
+  if (lineA[0] == lineB[0]){
+    if (lineA[1] == lineB[1]){ return false; }
+  }
+  return true;
+}
+
+uint32_t Data::unix_timestamp() {
+  time_t t = std::time(0);
+  uint32_t now = static_cast<uint32_t> (t);
+  return now;
 }

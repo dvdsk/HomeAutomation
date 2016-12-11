@@ -57,9 +57,8 @@ public:
   /* write a full timestamp package to the data file and write the high part of the timestamp
    * to the header file together with the corresponding line number*/
   void putFullTS(const uint32_t Tstamp); //TODO debug header
-
   /* generate indexes we will not take into accout for reading*/
-  class IdexesToSkip;
+  class iterator;
 
 
 private:
@@ -71,6 +70,8 @@ private:
   FILE* fileP_;
   /*path to which the constructor points*/
   std::string fileName_;
+
+  //GENERAL HELP FUNCT
   /*return the unix time*/
   uint32_t unix_timestamp();
 
@@ -83,6 +84,34 @@ private:
   int findTimestamp_inFile(uint32_t Tstamp, unsigned int startSearch, unsigned int stopSearch);
   /* search a block read into memory for the value closest to Tstamp*/
   int searchBlock(uint8_t block[], uint16_t T_lower, unsigned int blockSize);
+
+  //FETCHDATA FUNCT
+  /* takes a position in the original file, the corrosponding position in the current block of data
+   * and calculates the time. */
+  class fullTS{
+  public:
+    fullTS(int startByte){
+      timeHigh = MainHeader::fullTSJustBefore(startByte);
+      prevTimePart[0] = 0;
+      prevTimePart[1] = 0;
+    }
+    getTime(int orgIdx_B, int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+      uint32_t = fullTimeStamp;
+      if(prevTimePart[0] == block[blockIdx_B] && prevTimePart[1] == block[blockIdx_B+1]){
+        //calculate the full timestamp contained in prevTimePart
+        timeHigh = 0 | (uint32_t)prevTimePart[3] << 24 |
+                       (uint32_t)prevTimePart[2] << 16;
+      }
+      memcpy(prevTimePart, block+blockIdx_B, 4);//save the time part for comparing to the next block
+
+      timelow = (uint16_t)block[blockIdx_B+1] << 8  |
+                (uint16_t)block[blockIdx_B];
+      fullTimeStamp = timeHigh | timelow;
+    }
+  private:
+    uint8_t prevTimePart[4];
+    uint32_t timeHigh;
+  };
 };
 
 
