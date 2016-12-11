@@ -35,14 +35,17 @@ void PirData::process(const uint8_t rawData[2], const uint32_t Tstamp){
   }
 }
 
-void readPirPackage(int orgIdx_B, int blockIdx_B, uint_8 block[MAXBLOCKSIZE], extraParams[4]){
+/*given a block of binairy data containing pir packages, read data from
+  one of the packages at blockIdx from the start of the block*/
+float readSensorFromPackage(int orgIdx_B, int blockIdx_B, 
+                            uint8_t block[MAXBLOCKSIZE], int extraParams[4]){
   std::cout<<"YESH WE GOT INTO TEST";
 }
 
-void fetchPirData(int sensor, uint32_t startT, uint32_t stopT, uint32_t x[], float y[]){
+void PirData::fetchPirData(int sensor, uint32_t startT, uint32_t stopT, uint32_t x[], float y[]){
   int extraParams[4];//TODO we should encode pir scaling info in here too
-  int extraParams[0] = 4;
-  Data::fetchData(startT, stopT, x, y, readPirPackage, extraParams);
+  extraParams[0] = 4;
+  Data::fetchData(startT, stopT, x, y, readSensorFromPackage, extraParams);
 }
 
 bool PirData::newData(const uint8_t raw[2]){

@@ -36,7 +36,9 @@ public:
    * goes through the data inbetween start and stop, extracts the time from the data and puts
    * in the time array executes a given function on the data for every datapoint and puts that
    * in the float array */
-  void fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[]);
+  void fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
+                 float (*func)(int orgIdx_B, int blockIdx_B, uint8_t[MAXBLOCKSIZE],
+                 int extraParams[4]), int extraParams[4]);
 
   /* removes all lines between start and lengt, by inserting null data or
      in the case of a single line to be removed an extra timestamp package.
@@ -88,31 +90,34 @@ private:
   //FETCHDATA FUNCT
   /* takes a position in the original file, the corrosponding position in the current block of data
    * and calculates the time. */
-  class fullTS{
-  public:
-    fullTS(int startByte){
-      timeHigh = MainHeader::fullTSJustBefore(startByte);
-      prevTimePart[0] = 0;
-      prevTimePart[1] = 0;
-    }
-    getTime(int orgIdx_B, int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-      uint32_t = fullTimeStamp;
-      if(prevTimePart[0] == block[blockIdx_B] && prevTimePart[1] == block[blockIdx_B+1]){
-        //calculate the full timestamp contained in prevTimePart
-        timeHigh = 0 | (uint32_t)prevTimePart[3] << 24 |
-                       (uint32_t)prevTimePart[2] << 16;
-      }
-      memcpy(prevTimePart, block+blockIdx_B, 4);//save the time part for comparing to the next block
+  
+  /*possible full timestamp part of the previous package*/
+  uint8_t prevTimePart[4];
+  /*high High part of the last full timestamp*/
+  uint32_t timeHigh;
+  
+  /*initialise the time reconstruct aloritme*/
+  void initGetTime(int startByte);
+  /*get the full unix time from the last full timestamp high part en the low
+   *part of the current package.*/
+  uint32_t getTime(int orgIdx_B, int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
+  
+  /*calculate the mean of an array of uint32_t*/
+  uint32_t mean(uint32_t* array, int len);
+  /*calculate the mean of an array of floats*/
+  float mean(float* array, int len);
 
-      timelow = (uint16_t)block[blockIdx_B+1] << 8  |
-                (uint16_t)block[blockIdx_B];
-      fullTimeStamp = timeHigh | timelow;
-    }
-  private:
-    uint8_t prevTimePart[4];
-    uint32_t timeHigh;
-  };
 };
 
+class Data::iterator {
+public:
+  iterator(unsigned int startByte, unsigned int stopByte, unsigned int packageSize_);
+  bool useValue(unsigned int i);
+
+  int indexGroupSize;
+private:
+  float spacing;
+  float counter;
+};
 
 #endif // DATASTORE_H

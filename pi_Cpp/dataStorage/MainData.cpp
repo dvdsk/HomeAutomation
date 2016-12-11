@@ -92,72 +92,78 @@ void Data::append(uint8_t line[], uint32_t Tstamp){
 }
 
 void Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
-                     void (*func)(int orgIdx_B, int blockIdx_B, uint8_t[MAXBLOCKSIZE], int extraParams[4]),
-                     int extraParams[4]) {
+                     float (*func)(int orgIdx_B, int blockIdx_B, uint8_t[MAXBLOCKSIZE],
+                     int extraParams[4]), int extraParams[4]) {
 
-  int nBlocks;
-  int blockSize_B;
-  int blockSize_P;
-  int blockSize_bins;
+  unsigned int startByte; //start position in the file
+  unsigned int stopByte; //stop position in the file
+  
+  unsigned int nBlocks;
+  unsigned int blockSize_B;
+  unsigned int blockSize_P;
+  unsigned int blockSize_bins;
 
-  int rest_B;
-  int rest_P;
-  int rest_bin;
+  unsigned int rest_B;
+//  unsigned int rest_P;
+  unsigned int rest_bin;
 
-  int binSize_P;
-  int binSize_B;
+  unsigned int binSize_P;
+  unsigned int binSize_B;
 
-  int orgIdx_B;
-  int blockIdx_B;
+  unsigned int binNumber;
+  unsigned int orgIdx_P;
+  unsigned int orgIdx_B;
+  unsigned int blockIdx_B;
 
   uint8_t block[MAXBLOCKSIZE];
 
   //find where to start and stop reading in the file
   searchTstamps(startT, stopT, startByte, stopByte);
+  initGetTime(startByte);
 
   //configure iterator
-  iterator checkIdx(startByte, stopByte);
+  iterator checkIdx(startByte, stopByte, packageSize_);
   binSize_P = checkIdx.indexGroupSize; //number of packages in a bin
   binSize_B = binSize_P * packageSize_; //number of bytes in a bin
 
   //set subarrays for binning
-  uint32_t* x_bin = new uint32_t[tobin]; //used to store time values in when binning
-  float y_bin = new float[tobin]; //used to store the y value of whatever we want to know in
+  uint32_t* x_bin = new uint32_t[binSize_P]; //used to store time values in when binning
+  float* y_bin = new float[binSize_P]; //used to store the y value of whatever we want to know in
 
   //set number of blocks, blocksize, and the rest bit's size
   nBlocks = (stopByte - startByte)/MAXBLOCKSIZE; //calculate how many blocks we need
 
   blockSize_B = MAXBLOCKSIZE - (MAXBLOCKSIZE%packageSize_); //determine blocksize in bytes
   blockSize_P = blockSize_B/packageSize_; //set blocksize in packages
-  blockSize_bins = packagesInBlock/tobin; //set blocksize in bins
+  blockSize_bins = blockSize_B/binSize_B; //set blocksize in bins
 
   rest_B = (stopByte=startByte)%MAXBLOCKSIZE; //number of bytes that doesnt fit in the normal blocks
-  rest_P = rest_B/packageSize_; //in packages
-  rest_bin =rest_B/tobin; //tobin
+//  rest_P = rest_B/blockSize_P; //in packages
+  rest_bin =rest_B/binSize_B; //tobin
 
   //iterate over the blocks
-  for (int i = 0; i < nBlocks; i++) {
+  for (unsigned int i = 0; i < nBlocks; i++) {
     //read one block to memory
     fseek(fileP_, startByte+i*blockSize_B, SEEK_SET);
     fread(block, 1, blockSize_B, fileP_);
 
     //iterate through the block in memory in bin groups
-    for (int j = 0; j < blockSize_bins; j++) {
-      binNumber = i*blockSize_bins +j;
+    for (unsigned int j = 0; j < blockSize_bins; j++) {
+      binNumber = i*blockSize_bins +j; //keep track which bin we are calculating
 
       //iterate through a group of values to bin
-      for (int k = 0; k < binSize; k ++) {
+      for (unsigned int k = 0; k < binSize_P; k ++) {
         orgIdx_P = i*blockSize_P+ j*binSize_P;
-        if (checkIdx.useValue(orgPackageIdx)) {
+        if (checkIdx.useValue(orgIdx_P)) {
           orgIdx_B = orgIdx_P* packageSize_;
           blockIdx_B = j*binSize_B+ k*packageSize_;
 
-          x_bin[k] = fullTS::getTime(orgIdx_B, blockIdx_B, block);
+          x_bin[k] = getTime(orgIdx_B, blockIdx_B, block);
           y_bin[k] = func(orgIdx_B, blockIdx_B, block, extraParams);
         }
       }
-      y[binNumber] = mean(x_bin, tobin);
-      x[binNumber] = mean(y_bin, tobin);
+      y[binNumber] = mean(x_bin, binSize_B);
+      x[binNumber] = mean(y_bin, binSize_B);
     }
   }
 
@@ -166,22 +172,22 @@ void Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
   fread(block, 1, rest_B, fileP_);
 
   //iterate through the block in memory in bin groups
-  for (int j = 0; j < blockSize_bins; j++) {
+  for (unsigned int j = 0; j < rest_bin; j++) {
     binNumber = nBlocks*blockSize_bins +j;
 
     //iterate through a group of values to bin
-    for (int k = 0; k < binSize; k ++) {
+    for (unsigned int k = 0; k < binSize_P; k ++) {
       orgIdx_P = nBlocks*blockSize_P+ j*binSize_P;
-      if (checkIdx.useValue(orgPackageIdx)) {
+      if (checkIdx.useValue(orgIdx_P)) {
         orgIdx_B = orgIdx_P* packageSize_;
         blockIdx_B = j*binSize_B+ k*packageSize_;
 
-        x_bin[k] = fullTS::getTime(orgIdx_B, blockIdx_B, block);
+        x_bin[k] = getTime(orgIdx_B, blockIdx_B, block);
         y_bin[k] = func(orgIdx_B, blockIdx_B, block, extraParams);
       }
     }
-    y[binNumber] = mean(x_bin, tobin);
-    x[binNumber] = mean(y_bin, tobin);
+    y[binNumber] = mean(x_bin, binSize_B);
+    x[binNumber] = mean(y_bin, binSize_B);
   }
 
 }//done
@@ -275,44 +281,62 @@ int Data::findTimestamp_inCache(uint32_t Tstamp, unsigned int startSearch, unsig
 }
 
 //DATAFETCH FUNCT
-class Data::iterator {
-public:
-  iterator(int startByte, int stopByte){//TODO implement ignoring extra datapoints
-    int numbOfValues = (stopByte-startByte)/packageSize_;
-    int numbUnusable = numbOfValues%MAXPLOTRESOLUTION;
-    indexGroupSize = numbOfValues/MAXPLOTRESOLUTION;
-    spacing = numbOfValues/numbUnusable;
-    counter = 0;
-  }
-  bool useValue(int i){
-    //calculate if element 'i' should be used or not
-    if(i == (int)(counter*spacing)){
-      counter++;
-      return false;
-    }
-    else{return true;}
-  }
-
-  int indexGroupSize;
-private:
-  float spacing;
-  float counter;
-};
-
-uint32_t Data::Mean(uint32_t* array, int len){
-  uint32_t Mean;
-  for(int i =0; i<len; i++){
-    Mean+=*(array+i);
-  }
-  Mean /= len;
+Data::iterator::iterator(unsigned int startByte, unsigned int stopByte, unsigned int packageSize){//TODO implement ignoring extra datapoints
+  unsigned int numbOfValues = (stopByte-startByte)/packageSize;
+  unsigned int numbUnusable = numbOfValues%MAXPLOTRESOLUTION;
+  indexGroupSize = numbOfValues/MAXPLOTRESOLUTION;
+  spacing = numbOfValues/numbUnusable;
+  counter = 0;
 }
 
-float Data::Mean(float* array, int len){
+bool Data::iterator::useValue(unsigned int i){
+  //calculate if element 'i' should be used or not
+  if(i == (unsigned int)(counter*spacing)){
+    counter++;
+    return false;
+  }
+  else{return true;}
+}
+
+void Data::initGetTime(int startByte){
+  timeHigh = MainHeader::fullTSJustBefore(startByte);
+  prevTimePart[0] = 0;
+  prevTimePart[1] = 0;
+}
+ 
+uint32_t Data::getTime(int orgIdx_B, int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+  uint16_t timelow;
+  uint32_t fullTimeStamp;
+  if(prevTimePart[0] == block[blockIdx_B] && prevTimePart[1] == block[blockIdx_B+1]){
+    //calculate the full timestamp contained in prevTimePart
+    timeHigh = 0 | (uint32_t)prevTimePart[3] << 24 |
+                   (uint32_t)prevTimePart[2] << 16;
+  }
+  memcpy(prevTimePart, block+blockIdx_B, 4);//save the time part for comparing to the next block
+
+  timelow = (uint16_t)block[blockIdx_B+1] << 8  |
+            (uint16_t)block[blockIdx_B];
+  fullTimeStamp = timeHigh | timelow;
+  return fullTimeStamp;
+}
+
+uint32_t Data::mean(uint32_t* array, int len){
   uint32_t Mean;
   for(int i =0; i<len; i++){
     Mean+=*(array+i);
   }
   Mean /= len;
+  return Mean;
+}
+
+
+float Data::mean(float* array, int len){
+  uint32_t Mean;
+  for(int i =0; i<len; i++){
+    Mean+=*(array+i);
+  }
+  Mean /= len;
+  return Mean;
 }
 
 
