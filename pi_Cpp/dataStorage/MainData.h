@@ -11,7 +11,6 @@
 
 #include "MainHeader.h"
 #include "Cache.h"
-#include "../graph/MainGraph.h" //only needed for MAXPLOTRESOLUTION
 
 const static unsigned int MAXBLOCKSIZE = 512;
 
@@ -28,9 +27,11 @@ public:
 
   /* writes a package to file transparently caching it*/
   void append(uint8_t line[], uint32_t Tstamp);
-  /* reads all the lines including start to (excluding) start+length copies
-     them to the array lines[]*/
-  void readSeq(uint8_t line[], int start, int length);
+
+  #ifdef DEBUG
+  void showLines(int start_P, int end_P);
+  #endif
+
 
   /* takes a start and end time + an array to store the time in and one to store floats in
    * goes through the data inbetween start and stop, extracts the time from the data and puts
@@ -86,10 +87,6 @@ private:
   int findTimestamp_inFile(uint32_t Tstamp, unsigned int startSearch, unsigned int stopSearch);
   /* search a block read into memory for the value closest to Tstamp*/
   int searchBlock(uint8_t block[], uint16_t T_lower, unsigned int blockSize);
-
-  //FETCHDATA FUNCT
-  /* takes a position in the original file, the corrosponding position in the current block of data
-   * and calculates the time. */
   
   /*possible full timestamp part of the previous package*/
   uint8_t prevTimePart[4];

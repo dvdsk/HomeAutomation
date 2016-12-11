@@ -17,7 +17,7 @@
 const int MAXPLOTRESOLUTION = 1000; //for now 
 
 class PirData;
-//#include "../dataStorage/PirData.h"
+#include "../dataStorage/PirData.h"
 
 enum plotables{
   MOVEMENTSENSOR0,

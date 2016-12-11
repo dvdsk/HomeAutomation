@@ -130,8 +130,9 @@ void debug(PirData& pirData){
 
   unsigned int loc1;
   unsigned int loc2;
-  pirData.searchTstamps(1481133262-60, 1481133262, loc1, loc2);
-
+  pirData.searchTstamps(1481496152, 1481496199, loc1, loc2);
+  
+  pirData.showLines(0, 10);
 
 }
 

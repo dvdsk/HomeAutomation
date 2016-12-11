@@ -126,8 +126,8 @@ void MainHeader::findFullTS(uint32_t Tstamp, unsigned int& A, unsigned int& B) {
     element = data[midIdx];
     db("midIdx, element: "<<midIdx<<" ,"<<element<<"\n");
     
-    if(data[lowIdx] == Tstamp){ A = data[lowIdx+1]; B = data[lowIdx+3]; return;}
-    else if(element == Tstamp){ A = data[midIdx+1]; B = data[midIdx+3]; db("HERE4"); return;}
+    if(data[lowIdx] == Tstamp){ A = data[lowIdx+1]; B = data[lowIdx+1]; db("HERE6"); return;}
+    else if(element == Tstamp){ A = data[midIdx+1]; B = data[midIdx+1]; db("HERE4"); return;}
     
     else if(element > Tstamp){//als te hoog
       if(highIdx == midIdx){//als we bijna klaar zijn
@@ -141,7 +141,7 @@ void MainHeader::findFullTS(uint32_t Tstamp, unsigned int& A, unsigned int& B) {
     else{//we zitten te laag
       if(lowIdx == midIdx) {//we kunnen niet hoger
         A = data[lowIdx+1];
-        B = -1;//there is no timestamp higher
+        B = 0;//there is no timestamp higher
         db("HERE5");
         return;}
       lowIdx = midIdx;//lower bound omhoog (naar huidig midde)
@@ -165,8 +165,8 @@ uint32_t MainHeader::fullTSJustBefore(unsigned int byte){
     if(data[i+1] <= byte){
       return data[i]; //return timestamp
     }
-  return -1;
   }
+  return -1;
 }
 
 //used for testing
@@ -178,7 +178,7 @@ int main(){
   MainHeader header("test");
 
   for(int i = 0; i<200; i++){
-    header.append(1481034435+2*i,i);
+    //header.append(1481034435+2*i,i);
   }
   header.showData(0,200);
 

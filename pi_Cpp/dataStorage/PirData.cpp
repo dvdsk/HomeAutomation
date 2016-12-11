@@ -40,6 +40,7 @@ void PirData::process(const uint8_t rawData[2], const uint32_t Tstamp){
 float readSensorFromPackage(int orgIdx_B, int blockIdx_B, 
                             uint8_t block[MAXBLOCKSIZE], int extraParams[4]){
   std::cout<<"YESH WE GOT INTO TEST";
+  return 1;
 }
 
 void PirData::fetchPirData(int sensor, uint32_t startT, uint32_t stopT, uint32_t x[], float y[]){

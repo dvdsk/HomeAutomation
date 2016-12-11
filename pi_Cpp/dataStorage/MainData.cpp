@@ -1,5 +1,5 @@
 #include "MainData.h"
-
+#include "../graph/MainGraph.h" //only needed for MAXPLOTRESOLUTION
 
 Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheSize)
   : Cache(packageSize, cacheSize), MainHeader(fileName)
@@ -75,21 +75,53 @@ void Data::append(uint8_t line[], uint32_t Tstamp){
   //we have just started again, time < halfAday and we have not set the first
   //timestamp, or time > halfAday and we have not set the second timestamp.
 
-  std::cout<<"prevFTstamp: "<<prevFTstamp<<" Tstamp: "<<Tstamp<<"\n";
+  //std::cout<<"prevFTstamp: "<<prevFTstamp<<" Tstamp: "<<Tstamp<<"\n";
 	if (prevFTstamp >> 16 != Tstamp >> 16) {
 	  putFullTS(Tstamp);
   }
 
   timeLow = static_cast<uint16_t>(Tstamp);
+  std::cout<<"timeLow: "<<timeLow<<"\n";
 
   //put the unix time in front of the package  
   std::memcpy(towrite+2 , line, packageSize_-2);
-  towrite[0] = timeLow | 0b1111111100000000;
-  towrite[1] = timeLow | 0b0000000011111111;
+  uint8_t *p = (uint8_t*)&timeLow;
+  towrite[0] = p[0];
+  towrite[1] = p[1];
+  //towrite[1] = (uint8_t)timeLow | 0b1111111100000000;//old method
+  //towrite[0] = (uint8_t)timeLow | 0b0000000011111111;
+  std::cout<<"towrite[1]: "<<+towrite[1];
+  std::cout<<"towrite[0]: "<<+towrite[0]<<"\n";
   
   Cache::append(towrite);//writes it to file and cache too  
   fwrite(towrite, 1, packageSize_, fileP_);
 }
+
+#ifdef DEBUG
+void Data::showLines(int start_P, int end_P){
+  uint8_t packageBegin[4];
+  uint16_t timeLow;
+  uint32_t TimeBegin;
+  uint32_t FullTime;
+  TimeBegin = MainHeader::fullTSJustBefore(start_P*packageSize_);
+  std::cout<<"TimeBegin: "<<TimeBegin<<"\n";
+  
+  for( int i = start_P*packageSize_; i<end_P*packageSize_; i+=packageSize_){
+    fseek(fileP_, i, SEEK_SET);
+    fread(packageBegin, 1, packageSize_, fileP_);
+
+    std::cout<<"read towrite[1]: "<<+packageBegin[1];
+    std::cout<<"\tread towrite[0]: "<<+packageBegin[0];
+    
+    timeLow = packageBegin[1] << 8 |
+              packageBegin[0];
+    
+    FullTime = (TimeBegin & 0b11111111111111110000000000000000) | timeLow;
+    
+    std::cout << "\tFullTime: "<<FullTime<<"\n";
+  }
+}
+#endif
 
 void Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
                      float (*func)(int orgIdx_B, int blockIdx_B, uint8_t[MAXBLOCKSIZE],
@@ -202,19 +234,20 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
   unsigned int firstInCachTime;
   unsigned int fileSize;
 
+  fseek (fileP_, 0, SEEK_END);
+  fileSize = ftell (fileP_);
+
   // check the full timestamp file to get the location of the full timestamp still smaller then
   // but closest toTstamp and the next full timestamp (that is too large thus). No need to catch the case
   // where the Full timestamp afther Tstamp does not exist as such a Tstamp would result into seaching in cache.
   MainHeader::findFullTS(Tstamp1, startSearch, stopSearch);
-
-  fseek (fileP_, 0, SEEK_END);
-  fileSize = ftell (fileP_);
+  if(stopSearch == 0){stopSearch = fileSize;}
 
   firstInCachTime = MainHeader::fullTSJustBefore(fileSize - Cache::cacheSize_);
   firstInCachTime = (firstInCachTime & 0b11111111111111110000000000000000) | Cache::getFirstLowTime();
 
   //check if the wanted timestamp could be in the cache
-  std::cout<<"Tstamp1: "<<Tstamp1<<" Data::cacheOldestT_: "<<firstInCachTime<<"\n";
+  //std::cout<<"Tstamp1: "<<Tstamp1<<" Data::cacheOldestT_: "<<firstInCachTime<<"\n";
   if (Tstamp1 > firstInCachTime){
     loc1 = findTimestamp_inCache(Tstamp1, startSearch, stopSearch, fileSize);
   }
@@ -223,6 +256,7 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
   }
 
   MainHeader::findFullTS(Tstamp2, startSearch, stopSearch);
+  if(stopSearch == 0){stopSearch = fileSize;}
 
   if (Tstamp2 > firstInCachTime){
     loc2 = findTimestamp_inCache(Tstamp2, startSearch, stopSearch, fileSize);
@@ -236,31 +270,35 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
 int Data::findTimestamp_inFile(uint32_t Tstamp, unsigned int startSearch, unsigned int stopSearch){
   uint8_t block[MAXBLOCKSIZE];
   uint16_t Tstamplow;
+  int counter = -1;
   int Idx;
 
-  Tstamplow = Tstamp & 0b00000000000000001111111111111111;
+  Tstamplow = (uint16_t)Tstamp;
 
   // find maximum block size, either the max that fits N packages, or the space between stop and start
   unsigned int blockSize = std::min(MAXBLOCKSIZE-(MAXBLOCKSIZE%packageSize_), stopSearch-startSearch);
+  std::cout<<"s-s"<<(stopSearch-startSearch)<<"\n";
 
   Idx = -1;
   fseek(fileP_, startSearch, SEEK_SET);
   do {
     fread(block, blockSize, 1, fileP_); //read everything into the buffer
-
+    counter++;
     Idx = searchBlock(block, Tstamplow, blockSize);
     // check through the block for a timestamp
   } while(Idx == -1);//this could go on forever but luckily we made our file correctly... right??? right??!!
 
-  return Idx+startSearch;
+  return Idx+startSearch+counter*blockSize;
 }
 
 int Data::searchBlock(uint8_t block[], uint16_t Tstamplow, unsigned int blockSize) {
   uint16_t timelow;
-
+  //std::cout<<"want timelow: "<<Tstamplow<<"\n";
+  //std::cout<<"want blockSize: "<<blockSize<<"\n";
   for(unsigned int i = 0; i<blockSize; i+=packageSize_){
     timelow = (uint16_t)block[i+1] << 8  |
               (uint16_t)block[i];
+    //std::cout<<"found timelow: "<<timelow<<"\n";
     if(timelow > Tstamplow){//then
       return i-packageSize_;
     }
@@ -343,7 +381,7 @@ float Data::mean(float* array, int len){
 
 //HELPER FUNCT
 void Data::putFullTS(const uint32_t Tstamp){
-  std::cout<<"putting full timestamp\n";
+  //std::cout<<"putting full timestamp\n";
   uint8_t towrite[MAXPACKAGESIZE]; //towrite to data
   int currentByte;
   prevFTstamp = Tstamp;
@@ -354,6 +392,9 @@ void Data::putFullTS(const uint32_t Tstamp){
   towrite[1] = p[1];
   towrite[2] = p[2];
   towrite[3] = p[3];
+  
+  std::cout<<"fullTP :"<<+towrite[0]<<", "<<+towrite[1]<<"\n";
+  std::cout<<"fullTP :"<<+towrite[2]<<", "<<+towrite[3]<<"\n";
 
   //fill up the rest of the package with zeros
   for (int i = 4; i<packageSize_; i++){
@@ -361,7 +402,7 @@ void Data::putFullTS(const uint32_t Tstamp){
   }
   Cache::append(towrite);
   fwrite(towrite, 1, packageSize_, fileP_);
-  currentByte = ftell(fileP_);
+  currentByte = ftell(fileP_)-packageSize_;
   MainHeader::append(Tstamp, currentByte);
 }
 
