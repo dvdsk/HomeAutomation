@@ -11,7 +11,7 @@
 
 #include "MainHeader.h"
 #include "Cache.h"
-#include "../graph/MainGraph.h"
+#include "../graph/MainGraph.h" //only needed for MAXPLOTRESOLUTION
 
 const static unsigned int MAXBLOCKSIZE = 512;
 
