@@ -1,10 +1,7 @@
 #include "MainGraph.h"
 
-void Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
-           PirData& pirData){
-
-  float y_float[MAXPLOTRESOLUTION];
-  uint32_t x[MAXPLOTRESOLUTION];
+Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
+             PirData& pirData){
 
   int numbOfPlots=0;
 
@@ -64,7 +61,8 @@ void Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
   for( auto &i : toPlot) {
     switch (i) {
       case MOVEMENTSENSOR0:
-        pirData.fetchPirData(0, startT, stopT, x, y_float);
+        std::cout<<"MOVEMENTSENSOR0\n";
+        //pirData.fetchPirData(0, startT, stopT, x, y);
         //plotPirData("sensor0", x, y);//plot funct has its own pointer for each sensor
         break;
       case MOVEMENTSENSOR1:

@@ -5,6 +5,7 @@
 #include "Serial.h"
 #include "dataStorage/MainData.h"
 #include "dataStorage/PirData.h"
+#include "graph/MainGraph.h"
 
 #include <signal.h>
 #include <boost/exception/diagnostic_information.hpp> //for debugging
@@ -128,12 +129,19 @@ void debug(PirData& pirData){
   pirDat[1] = 1;  
   pirData.process(pirDat, Tstamp);
 
-  unsigned int loc1;
-  unsigned int loc2;
-  pirData.searchTstamps(1481496152, 1481496199, loc1, loc2);
+  //unsigned int loc1;
+  //unsigned int loc2;
+  //pirData.searchTstamps(1481496152, 1481496199, loc1, loc2);
   
-  pirData.showLines(0, 10);
-
+  //pirData.showLines(0, 10);
+  
+  uint32_t x[1000];
+  float y[1000];
+  pirData.fetchPirData(0, 1481496152, 1481496199, x, y);
+  std::cout<<"x: "<<+x[1]<<"\n";
+  
+  //std::vector<plotables> toPlot = {MOVEMENTSENSOR0, MOVEMENTSENSOR1};
+  //Graph graph(toPlot, 1481496152, 1481496199, pirData);
 }
 
 int main(int argc, char* argv[])

@@ -14,7 +14,7 @@ pi: $(objects)
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o pi $(objects) \
 	-lboost_system -lboost_thread -lpthread
 
-main.o: main.cpp Serial.h dataStorage/MainData.h dataStorage/PirData.h
+main.o: main.cpp Serial.h dataStorage/MainData.h dataStorage/PirData.h graph/MainGraph.h
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c main.cpp
 Cache.o: dataStorage/Cache.cpp dataStorage/Cache.h
 	$(CXX) $(CXXFLAGS) -c dataStorage/Cache.cpp

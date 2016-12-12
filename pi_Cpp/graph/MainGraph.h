@@ -48,16 +48,12 @@ enum plotables{
 class Graph
 {
 public:
-
   Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
         PirData& pirData);
-
 private:
   //local cache of time data
-  uint32_t pirTimeData[MAXPLOTRESOLUTION];
-  uint32_t gotSlowData[MAXPLOTRESOLUTION];
+  float y[MAXPLOTRESOLUTION];
+  uint32_t x[MAXPLOTRESOLUTION];
 };
-
-
 
 #endif // MAINGRAPH_H

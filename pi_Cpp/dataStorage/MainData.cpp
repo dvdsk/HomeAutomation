@@ -136,7 +136,6 @@ void Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
   unsigned int blockSize_bins;
 
   unsigned int rest_B;
-//  unsigned int rest_P;
   unsigned int rest_bin;
 
   unsigned int binSize_P;
@@ -155,22 +154,23 @@ void Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 
   //configure iterator
   iterator checkIdx(startByte, stopByte, packageSize_);
-  binSize_P = checkIdx.indexGroupSize; //number of packages in a bin
+  binSize_P = checkIdx.binSize_P; //number of packages in a bin
   binSize_B = binSize_P * packageSize_; //number of bytes in a bin
 
   //set subarrays for binning
   uint32_t* x_bin = new uint32_t[binSize_P]; //used to store time values in when binning
   float* y_bin = new float[binSize_P]; //used to store the y value of whatever we want to know in
 
-  //set number of blocks, blocksize, and the rest bit's size
-  nBlocks = (stopByte - startByte)/MAXBLOCKSIZE; //calculate how many blocks we need
-
-  blockSize_B = MAXBLOCKSIZE - (MAXBLOCKSIZE%packageSize_); //determine blocksize in bytes
+  //calculate how many blocks we need
+  if(startByte-stopByte>MAXBLOCKSIZE){nBlocks = (stopByte - startByte)/MAXBLOCKSIZE; } 
+  else{nBlocks = 1;}
+  
+  //determine blocksize in bytes
+  blockSize_B = std::min(MAXBLOCKSIZE - (MAXBLOCKSIZE%packageSize_), stopByte-startByte); 
   blockSize_P = blockSize_B/packageSize_; //set blocksize in packages
   blockSize_bins = blockSize_B/binSize_B; //set blocksize in bins
 
   rest_B = (stopByte=startByte)%MAXBLOCKSIZE; //number of bytes that doesnt fit in the normal blocks
-//  rest_P = rest_B/blockSize_P; //in packages
   rest_bin =rest_B/binSize_B; //tobin
 
   //iterate over the blocks
@@ -322,7 +322,8 @@ int Data::findTimestamp_inCache(uint32_t Tstamp, unsigned int startSearch, unsig
 Data::iterator::iterator(unsigned int startByte, unsigned int stopByte, unsigned int packageSize){//TODO implement ignoring extra datapoints
   unsigned int numbOfValues = (stopByte-startByte)/packageSize;
   unsigned int numbUnusable = numbOfValues%MAXPLOTRESOLUTION;
-  indexGroupSize = numbOfValues/MAXPLOTRESOLUTION;
+  if(numbOfValues > MAXPLOTRESOLUTION){binSize_P = numbOfValues/MAXPLOTRESOLUTION; }
+  else{binSize_P = 1;}
   spacing = numbOfValues/numbUnusable;
   counter = 0;
 }

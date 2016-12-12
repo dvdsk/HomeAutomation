@@ -111,7 +111,7 @@ public:
   iterator(unsigned int startByte, unsigned int stopByte, unsigned int packageSize_);
   bool useValue(unsigned int i);
 
-  int indexGroupSize;
+  int binSize_P;
 private:
   float spacing;
   float counter;
