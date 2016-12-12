@@ -1,6 +1,12 @@
 #ifndef MAINDATA_H
 #define MAINDATA_H
 
+#ifdef DEBUG
+#define db(x) std::cerr << x;
+#else
+#define db(x)
+#endif
+
 #include <iostream>
 #include <cstring> //memcopy
 #include <climits> //int max etc

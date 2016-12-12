@@ -162,7 +162,7 @@ void Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
   float* y_bin = new float[binSize_P]; //used to store the y value of whatever we want to know in
 
   //calculate how many blocks we need
-  if(startByte-stopByte>MAXBLOCKSIZE){nBlocks = (stopByte - startByte)/MAXBLOCKSIZE; } 
+  if(stopByte-startByte>MAXBLOCKSIZE){nBlocks = (stopByte - startByte)/MAXBLOCKSIZE; } 
   else{nBlocks = 1;}
   
   //determine blocksize in bytes
@@ -172,19 +172,21 @@ void Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 
   rest_B = (stopByte=startByte)%MAXBLOCKSIZE; //number of bytes that doesnt fit in the normal blocks
   rest_bin =rest_B/binSize_B; //tobin
-
   //iterate over the blocks
   for (unsigned int i = 0; i < nBlocks; i++) {
     //read one block to memory
+    db("first level of loop\n")
     fseek(fileP_, startByte+i*blockSize_B, SEEK_SET);
     fread(block, 1, blockSize_B, fileP_);
 
     //iterate through the block in memory in bin groups
     for (unsigned int j = 0; j < blockSize_bins; j++) {
+      db("\tsecond level of loop\n")
       binNumber = i*blockSize_bins +j; //keep track which bin we are calculating
 
       //iterate through a group of values to bin
       for (unsigned int k = 0; k < binSize_P; k ++) {
+        db("\t\tthird level of loop\n")
         orgIdx_P = i*blockSize_P+ j*binSize_P;
         if (checkIdx.useValue(orgIdx_P)) {
           orgIdx_B = orgIdx_P* packageSize_;
@@ -194,8 +196,8 @@ void Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
           y_bin[k] = func(orgIdx_B, blockIdx_B, block, extraParams);
         }
       }
-      y[binNumber] = mean(x_bin, binSize_B);
-      x[binNumber] = mean(y_bin, binSize_B);
+      x[binNumber] = mean(x_bin, binSize_P);
+      y[binNumber] = mean(y_bin, binSize_P);
     }
   }
 
@@ -218,8 +220,8 @@ void Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
         y_bin[k] = func(orgIdx_B, blockIdx_B, block, extraParams);
       }
     }
-    y[binNumber] = mean(x_bin, binSize_B);
-    x[binNumber] = mean(y_bin, binSize_B);
+    x[binNumber] = mean(x_bin, binSize_P);
+    y[binNumber] = mean(y_bin, binSize_P);
   }
 
 }//done
@@ -320,11 +322,17 @@ int Data::findTimestamp_inCache(uint32_t Tstamp, unsigned int startSearch, unsig
 
 //DATAFETCH FUNCT
 Data::iterator::iterator(unsigned int startByte, unsigned int stopByte, unsigned int packageSize){//TODO implement ignoring extra datapoints
+  unsigned int numbUnusable; //numb of values we can use for plotting without
+  //going over MAXPLOTRESOLUTION.
+  
   unsigned int numbOfValues = (stopByte-startByte)/packageSize;
-  unsigned int numbUnusable = numbOfValues%MAXPLOTRESOLUTION;
-  if(numbOfValues > MAXPLOTRESOLUTION){binSize_P = numbOfValues/MAXPLOTRESOLUTION; }
-  else{binSize_P = 1;}
-  spacing = numbOfValues/numbUnusable;
+  numbUnusable = numbOfValues%MAXPLOTRESOLUTION; 
+   
+  if(numbOfValues < MAXPLOTRESOLUTION){binSize_P = 1; }
+  else{binSize_P = numbOfValues/MAXPLOTRESOLUTION;}
+  
+  if(numbOfValues < MAXPLOTRESOLUTION){spacing = 0; }
+  else{spacing = numbOfValues/numbUnusable; }
   counter = 0;
 }
 
@@ -351,6 +359,16 @@ uint32_t Data::getTime(int orgIdx_B, int blockIdx_B, uint8_t block[MAXBLOCKSIZE]
     timeHigh = 0 | (uint32_t)prevTimePart[3] << 24 |
                    (uint32_t)prevTimePart[2] << 16;
   }
+  /* JUST A NOTE OF HOW WE WRITE AND READ FULL TIMESTAMPS
+  uint8_t *p = (uint8_t*)&Tstamp;
+  towrite[0] = p[0];
+  towrite[1] = p[1];
+  towrite[2] = p[2];
+  towrite[3] = p[3];
+  
+  timeLow = packageBegin[1] << 8 |
+            packageBegin[0];
+  */
   memcpy(prevTimePart, block+blockIdx_B, 4);//save the time part for comparing to the next block
 
   timelow = (uint16_t)block[blockIdx_B+1] << 8  |
