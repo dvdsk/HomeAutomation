@@ -135,14 +135,14 @@ void debug(PirData& pirData){
   
   //pirData.showLines(0, 10);
   
-  uint32_t x[1000];
-  x[1] = 5; //init one element to an unrealistic value for testing
-  float y[1000];
-  pirData.fetchPirData(0, 1481496152, 1481496199, x, y);
-  std::cout<<"x: "<<+x[1]<<"\n";
+  //uint32_t x[1000];
+  //x[1] = 5; //init one element to an unrealistic value for testing
+  //float y[1000];
+  //pirData.fetchPirData(0, 1481496152, 1481496199, x, y);
+  //std::cout<<"x: "<<+x[1]<<"\n";
   
-  //std::vector<plotables> toPlot = {MOVEMENTSENSOR0, MOVEMENTSENSOR1};
-  //Graph graph(toPlot, 1481496152, 1481496199, pirData);
+  std::vector<plotables> toPlot = {MOVEMENTSENSOR0, MOVEMENTSENSOR1};
+  Graph graph(toPlot, 1481496152, 1481496199, pirData);
 }
 
 int main(int argc, char* argv[])

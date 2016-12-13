@@ -33,7 +33,7 @@ void graph() {
   //   }
   const int y1[n] = {1,1,0,0,1};
   const int x1[n] = {1,2,2,4,5};
-  TGraph *gr = new TGraph(n,x1,y1);
+  //TGraph *gr = new TGraph(n,x1,y1);
   
   int y2[n] = {1,1,0,0,1};
   int x2[n] = {1,2,3,4,5};
@@ -43,19 +43,20 @@ void graph() {
   //gr->SetLineWidth(1);
   //gr->SetMarkerColor(4);
   //gr->SetMarkerStyle(2);
-  gr->SetTitle("Temperature");
-  gr->GetXaxis()->SetTitle("A Date?");
-  gr->GetYaxis()->SetTitle("Temp in C");
-  gr->Draw("ACP");
+  //gr->SetTitle("Temperature");
+  //gr->GetXaxis()->SetTitle("A Date?");
+  //gr->GetYaxis()->SetTitle("Temp in C");
+  //gr->Draw("ACP");
 
   x2[3] = 10;
 
-  TGraph *gr2 = new TGraph(n,x2,y2);
-  gr2->Draw("AL");
-  gr2->SetTitle("Temperature");
+  //TGraph *gr2 = new TGraph(n,x2,y2);
+  //gr2->Draw("AL");
+  //gr2->SetTitle("Temperature");
 
   x2[3] = 1;
-
+  
+  c1->Draw();
   c1->Update();
   c1->GetFrame()->SetBorderSize(12);
   c1->Modified();

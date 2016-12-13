@@ -54,6 +54,15 @@ private:
   //local cache of time data
   float y[MAXPLOTRESOLUTION];
   uint32_t x[MAXPLOTRESOLUTION];
+  TCanvas* c1;
+  
+  int nMPlotted; //number of already plotted movement sensors
+  float spacing;
+  
+  void plotPirData(std::string name, uint32_t x[MAXPLOTRESOLUTION], float y[MAXPLOTRESOLUTION]);
+  void drawLine(int start, int stop, float h);
+  void initPlot();
+  void finishPlot();
 };
 
 #endif // MAINGRAPH_H

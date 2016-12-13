@@ -3,34 +3,36 @@
 Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
              PirData& pirData){
 
-  int numbOfPlots=0;
+  int numbOfMovementPlots=0;
+  nMPlotted=0;
+  initPlot();
 
   //plot all the non movement data and count the number of movementsensors to plot
   for( auto &i : toPlot){
     switch(i){
       case MOVEMENTSENSOR0:
-        numbOfPlots++;
+        numbOfMovementPlots++;
         break;
       case MOVEMENTSENSOR1:
-        numbOfPlots++;
+        numbOfMovementPlots++;
         break;
       case MOVEMENTSENSOR2:
-        numbOfPlots++;
+        numbOfMovementPlots++;
         break;
       case MOVEMENTSENSOR3:
-        numbOfPlots++;
+        numbOfMovementPlots++;
         break;
       case MOVEMENTSENSOR4:
-        numbOfPlots++;
+        numbOfMovementPlots++;
         break;
       case MOVEMENTSENSOR5:
-        numbOfPlots++;
+        numbOfMovementPlots++;
         break;
       case MOVEMENTSENSOR6:
-        numbOfPlots++;
+        numbOfMovementPlots++;
         break;
       case MOVEMENTSENSOR7:
-        numbOfPlots++;
+        numbOfMovementPlots++;
         break;
 
       case TEMP_BED:
@@ -58,14 +60,18 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
 
   //TODO figure out dimensions of plot
   //Now knowing the dimensions of the plot and the number of pir sensors. Plot the movement data.
+  spacing = 0.2;
   for( auto &i : toPlot) {
     switch (i) {
       case MOVEMENTSENSOR0:
         std::cout<<"MOVEMENTSENSOR0\n";
-        //pirData.fetchPirData(0, startT, stopT, x, y);
-        //plotPirData("sensor0", x, y);//plot funct has its own pointer for each sensor
+        pirData.fetchPirData(0, startT, stopT, x, y);
+        plotPirData("sensor0", x, y);//plot funct has its own pointer for each sensor
         break;
       case MOVEMENTSENSOR1:
+        std::cout<<"MOVEMENTSENSOR1\n";
+        pirData.fetchPirData(1, startT, stopT, x, y);
+        plotPirData("sensor1", x, y);//plot funct has its own pointer for each sensor
         break;
       case MOVEMENTSENSOR2:
         break;
@@ -83,25 +89,64 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
         break;
     }
   }
+  finishPlot();
 }
+
+void Graph::plotPirData(std::string name, uint32_t x[MAXPLOTRESOLUTION], float y[MAXPLOTRESOLUTION]){
+  const static int CONFIRMED_ZERO = 1;
+  const static int CONFIRMED_ONE = 3;
+  
+  float h = nMPlotted*spacing+spacing;
+  bool hasRisen = false;
+  uint32_t timeOfRise;
+  //draw many lines etc
+  std::cout<<"drawing: "<<name<<"\n";
+  for(int i=0; i<MAXPLOTRESOLUTION; i++){
+    if(hasRisen){
+      if(y[i] == CONFIRMED_ZERO){
+        drawLine(timeOfRise, x[i], h);
+        hasRisen = false;
+      }
+    }
+    else if(y[i] == CONFIRMED_ONE){ 
+      timeOfRise = x[i];
+      hasRisen = true;
+    }
+  }
+}
+
+void Graph::drawLine(int start, int stop, float h) {
+  TLine *line = new TLine(start, h, stop, h);
+  line->SetLineWidth(2);
+  line->SetLineColor(4);
+  line->Draw();
+}
+
+void Graph::initPlot(){
+  c1 = new TCanvas("c1","A Simple Graph Example",200,10,700,500);
+  c1->SetGrid();
+}
+
+void Graph::finishPlot(){
+  c1->Update();
+  c1->GetFrame()->SetBorderSize(12);
+  c1->Modified();
+  c1->Print("test.pdf");
+}
+
+
+
+
 
 //void scalePirData(float y_float[MAXPLOTRESOLUTION]){
 //  //TODO
 //}
 
 
-//void plotPirData(std::string name, uint32_t x[], int y[]){
-//  //draw many lines etc
-
-//}
 
 
-//void drawLine(int start, int stop) {
-//  TLine *line = new TLine(start,0.5,stop,0.5);
-//  line->SetLineWidth(2);
-//  line->SetLineColor(4);
-//  line->Draw();
-//}
+
+
 
 //void graph() {
 //  TCanvas *c1 = new TCanvas("c1","A Simple Graph Example",200,10,700,500);

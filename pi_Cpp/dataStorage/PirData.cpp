@@ -39,8 +39,13 @@ void PirData::process(const uint8_t rawData[2], const uint32_t Tstamp){
   one of the packages at blockIdx from the start of the block*/
 float readSensorFromPackage(int orgIdx_B, int blockIdx_B, 
                             uint8_t block[MAXBLOCKSIZE], int extraParams[4]){
-  //std::cout<<"YESH WE GOT INTO TEST";
-  return 1;
+  uint8_t isZero;
+  uint8_t isOne;
+  //encode into 1 float 
+  isZero = block[blockIdx_B+2] & extraParams[0];
+  isOne = block[blockIdx_B+3] & extraParams[0];
+  
+  return isZero | (isOne + 2);
 }
 
 void PirData::fetchPirData(int sensor, uint32_t startT, uint32_t stopT, uint32_t x[], float y[]){
