@@ -23,39 +23,45 @@ void drawLine(int start, int stop) {
 
 void graph() {
   TCanvas *c1 = new TCanvas("c1","A Simple Graph Example",200,10,700,500);
+  //TPad *pad1 = new TPad("pad1","This is pad1",0.0,0.0,1.0,1.0);
+  //pad1->SetFillColor(0);
+  //pad1->Draw();
+  //pad1->cd();
+  
   c1->SetGrid();
-  const Int_t n = 5;
+  const Int_t n = 3;
   //   Double_t x[n], y[n];
   //   for (Int_t i=0;i<n;i++) {
   //     x[i] = i*0.1;
   //     y[i] = 10*sin(x[i]+0.2);
   //     printf(" i %i %f %f \n",i,x[i],y[i]);
   //   }
-  const int y1[n] = {1,1,0,0,1};
-  const int x1[n] = {1,2,2,4,5};
-  //TGraph *gr = new TGraph(n,x1,y1);
+  const int y1[n] = {0,0};
+  const int x1[n] = {0,10};
+  TGraph *gr = new TGraph(n,x1,y1);
   
-  int y2[n] = {1,1,0,0,1};
-  int x2[n] = {1,2,3,4,5};
+  //c1->SetCanvasSize(10,1); 
   
-  
-  //gr->SetLineColor(2);
-  //gr->SetLineWidth(1);
-  //gr->SetMarkerColor(4);
-  //gr->SetMarkerStyle(2);
-  //gr->SetTitle("Temperature");
-  //gr->GetXaxis()->SetTitle("A Date?");
-  //gr->GetYaxis()->SetTitle("Temp in C");
-  //gr->Draw("ACP");
+  gr->SetLineColor(2);
+  gr->SetLineWidth(1);
+  gr->SetMarkerColor(4);
+  gr->SetMarkerStyle(2);
+  gr->SetTitle("Temperature");
 
-  x2[3] = 10;
+
+  gr->GetXaxis()->SetTitle("A Date?");
+  gr->GetYaxis()->SetTitle("Temp in C");
+  gr->Draw("");
 
   //TGraph *gr2 = new TGraph(n,x2,y2);
   //gr2->Draw("AL");
   //gr2->SetTitle("Temperature");
 
-  x2[3] = 1;
   
+  drawLine(0, 2);
+  drawLine(3, 4);
+
+  c1->RedrawAxis();
   c1->Draw();
   c1->Update();
   c1->GetFrame()->SetBorderSize(12);

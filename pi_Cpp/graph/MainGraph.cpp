@@ -3,7 +3,7 @@
 Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
              PirData& pirData){
 
-  int numbOfMovementPlots=0;
+  bool onlyPir = true;
   nMPlotted=0;
   initPlot();
 
@@ -36,21 +36,27 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
         break;
 
       case TEMP_BED:
+        onlyPir = false;
         //fetchSlowData(0);//todo
         break;
       case TEMP_BATHROOM:
+        onlyPir = false;
         //fetchSlowData(0);
         break;
       case TEMP_DOORHIGH:
+        onlyPir = false;
         //fetchSlowData(0);
         break;
       case HUMIDITY_BED:
+        onlyPir = false;
         //fetchSlowData(1);
         break;
       case CO2PPM:
+        onlyPir = false;
         //TODO plot CO2
         break;
       case BRIGHTNESS_BED:
+        onlyPir = false;
         //TODO plot brightness
         break;    
       default:
@@ -65,12 +71,12 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
     switch (i) {
       case MOVEMENTSENSOR0:
         std::cout<<"MOVEMENTSENSOR0\n";
-        pirData.fetchPirData(0, startT, stopT, x, y);
+        len = pirData.fetchPirData(0, startT, stopT, x, y);
         plotPirData("sensor0", x, y);//plot funct has its own pointer for each sensor
         break;
       case MOVEMENTSENSOR1:
         std::cout<<"MOVEMENTSENSOR1\n";
-        pirData.fetchPirData(1, startT, stopT, x, y);
+        len = pirData.fetchPirData(1, startT, stopT, x, y);
         plotPirData("sensor1", x, y);//plot funct has its own pointer for each sensor
         break;
       case MOVEMENTSENSOR2:
@@ -89,6 +95,9 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
         break;
     }
   }
+  if(onlyPir){updateLength(startT, stopT); }
+  else {int x[2] = {0,0}; int y[2] = {0,0}; gr = new TGraph(2,x,y);}
+  //else line only here as we always need a gr
   finishPlot();
 }
 
@@ -101,7 +110,8 @@ void Graph::plotPirData(std::string name, uint32_t x[MAXPLOTRESOLUTION], float y
   uint32_t timeOfRise;
   //draw many lines etc
   std::cout<<"drawing: "<<name<<"\n";
-  for(int i=0; i<MAXPLOTRESOLUTION; i++){
+  for(int i=0; i<len; i++){
+    //std::cout<<y[i]<<"\n";
     if(hasRisen){
       if(y[i] == CONFIRMED_ZERO){
         drawLine(timeOfRise, x[i], h);
@@ -115,8 +125,9 @@ void Graph::plotPirData(std::string name, uint32_t x[MAXPLOTRESOLUTION], float y
   }
 }
 
-void Graph::drawLine(int start, int stop, float h) {
-  TLine *line = new TLine(start, h, stop, h);
+void Graph::drawLine(uint32_t start, uint32_t stop, float h) {
+  std::cout<<"drawing line\n";
+  TLine *line = new TLine((double)start, h, (double)stop, h);
   line->SetLineWidth(2);
   line->SetLineColor(4);
   line->Draw();
@@ -127,7 +138,24 @@ void Graph::initPlot(){
   c1->SetGrid();
 }
 
+void Graph::updateLength(uint32_t startT, uint32_t stopT){
+  //float yMax = numbOfMovementPlots*spacing+spacing;
+  const double x[2] = {(double)startT,(double)stopT};
+  const double y[2] = {0,0};
+  
+  gr = new TGraph(2,x,y);
+  gr->Draw();
+}
+
+void Graph::axisTimeFormatting(){
+  //gr->GetXaxis()->SetLabelSize(0.006);
+  gr->GetXaxis()->SetNdivisions(-503);
+  gr->GetXaxis()->SetTimeDisplay(1);
+  gr->GetXaxis()->SetTimeFormat("%Y %H:%M %F 1970-01-01 00:00:00");
+}
+
 void Graph::finishPlot(){
+  axisTimeFormatting();
   c1->Update();
   c1->GetFrame()->SetBorderSize(12);
   c1->Modified();

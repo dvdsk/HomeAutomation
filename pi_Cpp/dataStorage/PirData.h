@@ -28,8 +28,8 @@ class PirData : public Data
 
     /* fetches the full data from MainData. Reduces it to 2 arrays of PLOTRESOLUTION in length
      * Gives back the data in x and y arrays with that length. x (time axis) is cached */
-    void fetchPirData(int sensor, uint32_t startT, uint32_t stopT,
-                      uint32_t x[], float y[]);
+    uint16_t fetchPirData(int sensor, uint32_t startT, uint32_t stopT,
+                          uint32_t x[], float y[]);
 
   private:
     uint8_t polled_ones;    //confirmed detection by sensor (one= true)

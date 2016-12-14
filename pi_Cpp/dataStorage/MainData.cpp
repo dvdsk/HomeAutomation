@@ -123,10 +123,11 @@ void Data::showLines(int start_P, int end_P){
 }
 #endif
 
-void Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
-                     float (*func)(int orgIdx_B, int blockIdx_B, uint8_t[MAXBLOCKSIZE],
-                     int extraParams[4]), int extraParams[4]) {
+uint16_t Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
+                         float (*func)(int orgIdx_B, int blockIdx_B, uint8_t[MAXBLOCKSIZE],
+                         int extraParams[4]), int extraParams[4]) {
 
+  uint16_t len; //Length of y
   unsigned int startByte; //start position in the file
   unsigned int stopByte; //stop position in the file
   
@@ -194,10 +195,13 @@ void Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 
           x_bin[k] = getTime(orgIdx_B, blockIdx_B, block);
           y_bin[k] = func(orgIdx_B, blockIdx_B, block, extraParams);
+          //std::cout<<y_bin[k];
         }
       }
       x[binNumber] = mean(x_bin, binSize_P);
       y[binNumber] = mean(y_bin, binSize_P);
+      len++;
+      //std::cout<<"\t"<<y[binNumber]<<"\n";
     }
   }
 
@@ -222,8 +226,10 @@ void Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
     }
     x[binNumber] = mean(x_bin, binSize_P);
     y[binNumber] = mean(y_bin, binSize_P);
+    len++;
   }
 
+  return len;
 }//done
 
 void Data::remove(int lineNumber, int start, int length){//TODO
@@ -279,7 +285,7 @@ int Data::findTimestamp_inFile(uint32_t Tstamp, unsigned int startSearch, unsign
 
   // find maximum block size, either the max that fits N packages, or the space between stop and start
   unsigned int blockSize = std::min(MAXBLOCKSIZE-(MAXBLOCKSIZE%packageSize_), stopSearch-startSearch);
-  std::cout<<"s-s"<<(stopSearch-startSearch)<<"\n";
+  //std::cout<<"s-s"<<(stopSearch-startSearch)<<"\n";
 
   Idx = -1;
   fseek(fileP_, startSearch, SEEK_SET);
@@ -378,7 +384,7 @@ uint32_t Data::getTime(int orgIdx_B, int blockIdx_B, uint8_t block[MAXBLOCKSIZE]
 }
 
 uint32_t Data::mean(uint32_t* array, int len){
-  uint32_t Mean;
+  uint32_t Mean = 0;
   for(int i =0; i<len; i++){
     Mean+=*(array+i);
   }
@@ -388,7 +394,7 @@ uint32_t Data::mean(uint32_t* array, int len){
 
 
 float Data::mean(float* array, int len){
-  uint32_t Mean;
+  float Mean = 0;
   for(int i =0; i<len; i++){
     Mean+=*(array+i);
   }

@@ -42,10 +42,10 @@ public:
   /* takes a start and end time + an array to store the time in and one to store floats in
    * goes through the data inbetween start and stop, extracts the time from the data and puts
    * in the time array executes a given function on the data for every datapoint and puts that
-   * in the float array */
-  void fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
-                 float (*func)(int orgIdx_B, int blockIdx_B, uint8_t[MAXBLOCKSIZE],
-                 int extraParams[4]), int extraParams[4]);
+   * in the float array. Returns the length of the float array */
+  uint16_t fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
+                     float (*func)(int orgIdx_B, int blockIdx_B, uint8_t[MAXBLOCKSIZE],
+                     int extraParams[4]), int extraParams[4]);
 
   /* removes all lines between start and lengt, by inserting null data or
      in the case of a single line to be removed an extra timestamp package.
