@@ -14,6 +14,8 @@
 #include "TArrow.h"
 #include "TLatex.h"
 
+#include <bitset>
+
 const int MAXPLOTRESOLUTION = 1000; //for now 
 
 class PirData;
@@ -57,12 +59,11 @@ private:
   uint16_t len; //numb of datapoints to plot
   TCanvas* c1;
   TGraph* gr;
-
-  int numbOfMovementPlots;
-  int nMPlotted; //number of already plotted movement sensors
-  float spacing;
   
-  void plotPirData(std::string name, uint32_t x[MAXPLOTRESOLUTION], float y[MAXPLOTRESOLUTION]);
+  uint8_t mSensToPlot; //keep track of sensors to plot
+  
+  void plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION], 
+                   float y[MAXPLOTRESOLUTION], int len);
   void drawLine(uint32_t start, uint32_t stop, float h);
   void initPlot();
   void finishPlot();

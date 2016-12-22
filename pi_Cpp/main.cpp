@@ -106,34 +106,35 @@ void debug(PirData& pirData){
   uint8_t pirDat[2];
 
   Tstamp = unix_timestamp();
-  pirDat[0] = 0;
-  pirDat[1] = 1;  
+  pirDat[0] = 0b11111111;
+  pirDat[1] = 0b11111111;  
   pirData.process(pirDat, Tstamp);
 
   Tstamp = unix_timestamp();
-  pirDat[0] = 0;
-  pirDat[1] = 1;  
+  pirDat[0] = 0b11111111;
+  pirDat[1] = 0b11111111;  
   pirData.process(pirDat, Tstamp);  
   
   nanosleep((const struct timespec[]){{1, 0}}, NULL);
   
   Tstamp = unix_timestamp();
-  pirDat[0] = 1;
-  pirDat[1] = 1;  
+  pirDat[0] = 0b00000000;
+  pirDat[1] = 0b11111111;  
   pirData.process(pirDat, Tstamp); 
 
   nanosleep((const struct timespec[]){{1, 0}}, NULL);
   
   Tstamp = unix_timestamp();
-  pirDat[0] = 3;
-  pirDat[1] = 1;  
+  pirDat[0] = 0b00000000;
+  pirDat[1] = 0b11111111;  
   pirData.process(pirDat, Tstamp);
 
   //unsigned int loc1;
   //unsigned int loc2;
   //pirData.searchTstamps(1481496152, 1481496199, loc1, loc2);
-  
-  //pirData.showLines(0, 10);
+  #ifdef DEBUG
+  pirData.showLines(0, 100);
+  #endif
   
   //uint32_t x[1000];
   //x[1] = 5; //init one element to an unrealistic value for testing
@@ -142,7 +143,7 @@ void debug(PirData& pirData){
   //std::cout<<"x: "<<+x[1]<<"\n";
   
   std::vector<plotables> toPlot = {MOVEMENTSENSOR0, MOVEMENTSENSOR1};
-  Graph graph(toPlot, 1481496152, 1481496199, pirData);
+  Graph graph(toPlot, 1481496152, 1482368080, pirData);
 }
 
 int main(int argc, char* argv[])

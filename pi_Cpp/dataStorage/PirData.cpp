@@ -8,28 +8,32 @@ PirData::PirData(const std::string filePath, uint8_t* cache, const int cacheLen)
 : Data(filePath, cache, PACKAGESIZE, cacheLen){
 
   //init local variables
-  toStore_ones = 0;
-  toStore_zeros = 0;
+  toStore_value = 0;
+  toStore_readSensores = 0;
   prevRaw[0] = 0;
   prevTstamp = 0;
 }
 
+
 void PirData::process(const uint8_t rawData[2], const uint32_t Tstamp){
   uint8_t line[2];
   
+  std::cout<<"processing\n";
   if (newData(rawData) ){
-    convertNotation(rawData);  
-    //TODO send to responding function
+    //bin data
+    toStore_value = toStore_value | rawData[0];
+    toStore_readSensores = toStore_readSensores | rawData[1];
 
-    binData();
     if (Tstamp-prevTstamp >= PIR_DT){
-      line[0] = toStore_zeros;
-      line[1] = toStore_ones;
+      line[0] = toStore_value;
+      line[1] = toStore_readSensores;
+      
+      std::cout<<"storing: "<<+toStore_value<<", "<<+toStore_readSensores<<"\n";
       
       Data::append(line, Tstamp);
       
-      toStore_ones = 0;
-      toStore_zeros = 0;
+      toStore_value = 0;
+      toStore_readSensores = 0;
       prevTstamp = Tstamp;
     }
   }
@@ -39,25 +43,23 @@ void PirData::process(const uint8_t rawData[2], const uint32_t Tstamp){
   one of the packages at blockIdx from the start of the block*/
 float readSensorFromPackage(int orgIdx_B, int blockIdx_B, 
                             uint8_t block[MAXBLOCKSIZE], int extraParams[4]){
-  float returned;
-  uint8_t isZero;
-  uint8_t isOne;
-  std::cout<<"rawIsZero: "<<+block[blockIdx_B+2];
+  float f;
+  uint8_t values;
+  uint8_t readSensores;
   
   //encode into 1 float 
-  isZero = block[blockIdx_B+2] & extraParams[0];
-  isOne = block[blockIdx_B+3] & extraParams[0];
-  
-  returned = isZero | (isOne + 2);
-  std::cout<<"\tisZero: "<<+isZero<<"\tisOne: "<<+isOne<<"\treturned: "<<+returned<<"\n";
-  
-  return returned;
+  values = block[blockIdx_B+2];
+  readSensores = block[blockIdx_B+3];
+
+  uint32_t temp = 0;//TODO check if we can make this a uint16
+  temp = (((uint32_t)values << 8) | (uint32_t)readSensores);
+  f = *((float*)&temp);
+  return f;
 }
 
 uint16_t PirData::fetchPirData(int sensor, uint32_t startT, uint32_t stopT, 
                                uint32_t x[], float y[]){
-  int extraParams[4];//TODO we should encode pir scaling info in here too
-  extraParams[0] = 4;
+  int extraParams[4];
   return Data::fetchData(startT, stopT, x, y, readSensorFromPackage, extraParams);
 }
 
@@ -68,31 +70,4 @@ bool PirData::newData(const uint8_t raw[2]){
     return true;
   }
 }
-
-void PirData::convertNotation(const uint8_t rawData[2]){
-  uint8_t oneOrZero = rawData[0];
-  uint8_t confirmed = rawData[1];
-
-  polled_ones  =  oneOrZero & confirmed; //if one and noted as correct (one) give one
-  polled_zeros = (oneOrZero ^ confirmed) & confirmed;
-  
-  /*explanation of confirmed zero algoritme
-    we want only OnOff=F and confirmed=T to give T. the ^ (XOR) operator has 
-    the following possible outcomes:
-      OnOff:      F F T T
-      confirmed:  F T F T
-      outcome:    F T T F
-    XOR gives us half of what we want. To filter out the confirmed=F case we
-    do an AND operation. Now we have T where a zero is confirmed*/
-}
-
-void PirData::binData(){
-  //expand registered sensors with previously registerd 
-  //remembering only 1 second of old data (is forced in process)
-  toStore_ones = toStore_ones | polled_ones;
-  //expand list of confirmed zeros however force that they do not contradict
-  //by forcing a zero in ones_toStore (AND NOT : force zero)
-  toStore_zeros = (toStore_zeros | polled_zeros) & ~toStore_ones;
-}
-
 

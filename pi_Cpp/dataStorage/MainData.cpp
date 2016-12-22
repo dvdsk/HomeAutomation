@@ -99,7 +99,7 @@ void Data::append(uint8_t line[], uint32_t Tstamp){
 
 #ifdef DEBUG
 void Data::showLines(int start_P, int end_P){
-  uint8_t packageBegin[4];
+  uint8_t package[200];
   uint16_t timeLow;
   uint32_t TimeBegin;
   uint32_t FullTime;
@@ -108,26 +108,28 @@ void Data::showLines(int start_P, int end_P){
   
   for( int i = start_P*packageSize_; i<end_P*packageSize_; i+=packageSize_){
     fseek(fileP_, i, SEEK_SET);
-    fread(packageBegin, 1, packageSize_, fileP_);
+    fread(package, 1, packageSize_, fileP_);
 
-    std::cout<<"read towrite[1]: "<<+packageBegin[1];
-    std::cout<<"\tread towrite[0]: "<<+packageBegin[0];
+    std::cout<<"package: ";
+    for(int i = 0; i<packageSize_; i++){
+      std::cout<<+package[i]<<",\t";
+    }
     
-    timeLow = packageBegin[1] << 8 |
-              packageBegin[0];
+    timeLow = package[1] << 8 |
+              package[0];
     
     FullTime = (TimeBegin & 0b11111111111111110000000000000000) | timeLow;
     
-    std::cout << "\tFullTime: "<<FullTime<<"\n";
+    std::cout << ",\tFullTime: "<<FullTime<<"\n";
   }
 }
 #endif
 
-uint16_t Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
+int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
                          float (*func)(int orgIdx_B, int blockIdx_B, uint8_t[MAXBLOCKSIZE],
                          int extraParams[4]), int extraParams[4]) {
 
-  uint16_t len; //Length of y
+  int len = 0; //Length of y
   unsigned int startByte; //start position in the file
   unsigned int stopByte; //stop position in the file
   
@@ -150,7 +152,9 @@ uint16_t Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[
   uint8_t block[MAXBLOCKSIZE];
 
   //find where to start and stop reading in the file
+  std::cout<<"searching for ya timestamps\n";
   searchTstamps(startT, stopT, startByte, stopByte);
+  std::cout<<"well well found some: "<<startByte<<", "<<stopByte<<"\n";
   initGetTime(startByte);
 
   //configure iterator
@@ -163,20 +167,22 @@ uint16_t Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[
   float* y_bin = new float[binSize_P]; //used to store the y value of whatever we want to know in
 
   //calculate how many blocks we need
-  if(stopByte-startByte>MAXBLOCKSIZE){nBlocks = (stopByte - startByte)/MAXBLOCKSIZE; } 
-  else{nBlocks = 1;}
+  //if(stopByte-startByte>MAXBLOCKSIZE){nBlocks = (stopByte - startByte)/MAXBLOCKSIZE; } 
+  //else{nBlocks = 1;}
+  //FIXME TEMP REMOVED IF ELSE DONT SEE ITS USE
+  nBlocks = (stopByte - startByte)/MAXBLOCKSIZE;
   
   //determine blocksize in bytes
   blockSize_B = std::min(MAXBLOCKSIZE - (MAXBLOCKSIZE%packageSize_), stopByte-startByte); 
   blockSize_P = blockSize_B/packageSize_; //set blocksize in packages
   blockSize_bins = blockSize_B/binSize_B; //set blocksize in bins
 
-  rest_B = (stopByte=startByte)%MAXBLOCKSIZE; //number of bytes that doesnt fit in the normal blocks
+  rest_B = (stopByte-startByte)%MAXBLOCKSIZE; //number of bytes that doesnt fit in the normal blocks
   rest_bin =rest_B/binSize_B; //tobin
   //iterate over the blocks
   for (unsigned int i = 0; i < nBlocks; i++) {
     //read one block to memory
-    db("first level of loop\n")
+    //db("first level of loop\n")
     fseek(fileP_, startByte+i*blockSize_B, SEEK_SET);
     fread(block, 1, blockSize_B, fileP_);
 
@@ -228,7 +234,6 @@ uint16_t Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[
     y[binNumber] = mean(y_bin, binSize_P);
     len++;
   }
-
   return len;
 }//done
 
@@ -237,54 +242,90 @@ void Data::remove(int lineNumber, int start, int length){//TODO
 
 //SEARCH FUNCT
 void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1, unsigned int& loc2) {
-  unsigned int startSearch;
-  unsigned int stopSearch;
+  int startSearch;
+  int stopSearch;
   unsigned int firstInCachTime;
   unsigned int fileSize;
+  int locA;
+  int locB;
 
   fseek (fileP_, 0, SEEK_END);
   fileSize = ftell (fileP_);
 
-  // check the full timestamp file to get the location of the full timestamp still smaller then
-  // but closest toTstamp and the next full timestamp (that is too large thus). No need to catch the case
-  // where the Full timestamp afther Tstamp does not exist as such a Tstamp would result into seaching in cache.
+  // check the full timestamp file to get the location of the full timestamp 
+  // still smaller then but closest toTstamp and the next full timestamp (that is
+  // too large thus). No need to catch the case where the Full timestamp afther
+  // Tstamp does not exist as such a Tstamp would result into seaching in cache.
+  
   MainHeader::findFullTS(Tstamp1, startSearch, stopSearch);
-  if(stopSearch == 0){stopSearch = fileSize;}
-
-  firstInCachTime = MainHeader::fullTSJustBefore(fileSize - Cache::cacheSize_);
-  firstInCachTime = (firstInCachTime & 0b11111111111111110000000000000000) | Cache::getFirstLowTime();
-
-  //check if the wanted timestamp could be in the cache
-  //std::cout<<"Tstamp1: "<<Tstamp1<<" Data::cacheOldestT_: "<<firstInCachTime<<"\n";
-  if (Tstamp1 > firstInCachTime){
-    loc1 = findTimestamp_inCache(Tstamp1, startSearch, stopSearch, fileSize);
+  std::cout<<"startSearch: "<<startSearch<<" stopSearch: "<<stopSearch<<"\n";  
+  if(startSearch == -1){
+    //the searched timestamp is earier then the earliest we have in the file
+    locA = 0; 
   }
   else{
-    loc1 = findTimestamp_inFile(Tstamp1, startSearch, stopSearch);
+    //if(stopSearch == 0){stopSearch = fileSize;} //FIXME just trying stuff was uncommented
+    
+    firstInCachTime = MainHeader::fullTSJustBefore(fileSize - Cache::cacheSize_);
+    firstInCachTime = (firstInCachTime & 0b11111111111111110000000000000000) | Cache::getFirstLowTime();
+
+    //check if the wanted timestamp could be in the cache
+    //std::cout<<"Tstamp1: "<<Tstamp1<<" Data::cacheOldestT_: "<<firstInCachTime<<"\n";
+    //if (Tstamp1 > firstInCachTime){TODO implement
+    if (false){
+      locA = findTimestamp_inCache(Tstamp1, startSearch, stopSearch, fileSize);
+    }
+    else{
+      locA = findTimestamp_inFile(Tstamp1, startSearch, stopSearch);
+      if(locA == -1){locA = startSearch;}//could not find value greater then Tstamp
+      //thus all data till stopsearch must be valid.
+    }
   }
 
   MainHeader::findFullTS(Tstamp2, startSearch, stopSearch);
-  if(stopSearch == 0){stopSearch = fileSize;}
+  std::cout<<"startSearch: "<<startSearch<<" stopSearch: "<<stopSearch<<"\n";  
+  if(stopSearch == -1){
+    //the searched timestamp is later then the last we have in the file
+    locB = fileSize; 
+  }
+  else if(startSearch == -1){
+    //the searched timestamp is earlier then file start so we dont have any data
+    locB = 0;   
+  }
+  else{  
+    //if(stopSearch == 0){stopSearch = fileSize;} //FIXME just trying stuff this was uncommented
 
-  if (Tstamp2 > firstInCachTime){
-    loc2 = findTimestamp_inCache(Tstamp2, startSearch, stopSearch, fileSize);
+    //if (Tstamp2 > firstInCachTime){TODO implement
+    if (false){
+      locB = findTimestamp_inCache(Tstamp2, startSearch, stopSearch, fileSize);
+    }
+    else{
+      locB = findTimestamp_inFile(Tstamp2, startSearch, stopSearch);
+      if(locB == -1){locB = stopSearch;}//could not find value greater then stop
+      //timestamp thus all data till stopsearch is wanted.
+    }
   }
-  else{
-    loc2 = findTimestamp_inFile(Tstamp2, startSearch, stopSearch);
-  }
+  
+  loc1 = locA;
+  loc2 = locB;
   std::cout<<"loc1: "<<loc1<<"\tloc2: "<<loc2<<"\n";
 }
 
 int Data::findTimestamp_inFile(uint32_t Tstamp, unsigned int startSearch, unsigned int stopSearch){
   uint8_t block[MAXBLOCKSIZE];
   uint16_t Tstamplow;
+  unsigned int blockSize;
+  int maxBlocksToRead;
   int counter = -1;
   int Idx;
 
   Tstamplow = (uint16_t)Tstamp;
 
   // find maximum block size, either the max that fits N packages, or the space between stop and start
-  unsigned int blockSize = std::min(MAXBLOCKSIZE-(MAXBLOCKSIZE%packageSize_), stopSearch-startSearch);
+  blockSize = std::min(MAXBLOCKSIZE-(MAXBLOCKSIZE%packageSize_), stopSearch-startSearch);
+  if(blockSize == 0){blockSize = 1;}; //prevents dev by zero error
+  maxBlocksToRead = (stopSearch-startSearch)/blockSize -1;//-1 to compensate for counter starting at -1 instead of zero
+  std::cout<<"maxblockstoread: "<<maxBlocksToRead<<"\n";
   //std::cout<<"s-s"<<(stopSearch-startSearch)<<"\n";
 
   Idx = -1;
@@ -294,7 +335,8 @@ int Data::findTimestamp_inFile(uint32_t Tstamp, unsigned int startSearch, unsign
     counter++;
     Idx = searchBlock(block, Tstamplow, blockSize);
     // check through the block for a timestamp
-  } while(Idx == -1);//this could go on forever but luckily we made our file correctly... right??? right??!!
+    
+  } while(Idx == -1 && counter<maxBlocksToRead);
 
   return Idx+startSearch+counter*blockSize;
 }
@@ -303,6 +345,7 @@ int Data::searchBlock(uint8_t block[], uint16_t Tstamplow, unsigned int blockSiz
   uint16_t timelow;
   //std::cout<<"want timelow: "<<Tstamplow<<"\n";
   //std::cout<<"want blockSize: "<<blockSize<<"\n";
+  
   for(unsigned int i = 0; i<blockSize; i+=packageSize_){
     timelow = (uint16_t)block[i+1] << 8  |
               (uint16_t)block[i];

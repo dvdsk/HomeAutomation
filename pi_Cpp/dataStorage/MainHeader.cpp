@@ -112,7 +112,7 @@ void MainHeader::showData(int lineStart, int lineEnd){
 }
 #endif
 
-void MainHeader::findFullTS(uint32_t Tstamp, unsigned int& A, unsigned int& B) {
+void MainHeader::findFullTS(uint32_t Tstamp, int& A, int& B) {
   int midIdx;
   uint32_t element;
   
@@ -141,14 +141,14 @@ void MainHeader::findFullTS(uint32_t Tstamp, unsigned int& A, unsigned int& B) {
     else{//we zitten te laag
       if(lowIdx == midIdx) {//we kunnen niet hoger
         A = data[lowIdx+1];
-        B = 0;//there is no timestamp higher
+        B = -1;//there is no timestamp higher //NOTE changed from orgn.
         db("HERE5");
         return;}
       lowIdx = midIdx;//lower bound omhoog (naar huidig midde)
     }
   }
-  A = data[lowIdx+1];
-  B = data[lowIdx+3];
+  A = -1;
+  B = data[lowIdx+1]; //NOTE changed from orgn.
   db("HERE3");
   return;
 }

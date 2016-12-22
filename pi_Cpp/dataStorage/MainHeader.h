@@ -41,7 +41,7 @@ public:
   /* give the line in the data file where the closest but smaller or equal then
    * the given timestamp is. In bytes from the beginning of the file where the
    * full timestamp starts. Also give the one after that.*/
-  void findFullTS(uint32_t Tstamp, unsigned int& A, unsigned int& B);
+  void findFullTS(uint32_t Tstamp, int& A, int& B);
   /* returns the time of the last set full timestamp*/
   uint32_t lastFullTS();
   /* given a location in the data file return the corrosponding full timestamp */

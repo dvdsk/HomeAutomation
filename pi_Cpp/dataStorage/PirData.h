@@ -32,24 +32,14 @@ class PirData : public Data
                           uint32_t x[], float y[]);
 
   private:
-    uint8_t polled_ones;    //confirmed detection by sensor (one= true)
-    uint8_t polled_zeros;   //confirmed no detection (sensor has been polled!)
-
-    uint8_t toStore_ones;    //value from previous run
-    uint8_t toStore_zeros;   //value from previous run
+    uint8_t toStore_value;    //value gotten from sensors from previous runs
+    uint8_t toStore_readSensores;   //value sensor has been polled previous runs
     
     uint8_t prevRaw[2]; //keep the old data for testing if new data is diffrent
     uint32_t prevTstamp; //remember the timestamp of the previous run
 
     /*is the raw data diffrent then the previous data*/
     bool newData(const uint8_t rawData[2]);
-
-    /*go from the notation one/zero sensor polled/no polled to the notation
-      sensor polled High, sensor polled but Low*/
-    void convertNotation(const uint8_t B[2]);
-
-    /*bin data with old data*/
-    void binData();
 };
 
 #endif // DATASTORE_H

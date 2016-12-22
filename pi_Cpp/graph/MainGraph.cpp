@@ -4,35 +4,36 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
              PirData& pirData){
 
   bool onlyPir = true;
-  nMPlotted=0;
+  int len;
+  mSensToPlot=0;
   initPlot();
 
   //plot all the non movement data and count the number of movementsensors to plot
   for( auto &i : toPlot){
     switch(i){
       case MOVEMENTSENSOR0:
-        numbOfMovementPlots++;
+        mSensToPlot = mSensToPlot | 0b10000000;
         break;
       case MOVEMENTSENSOR1:
-        numbOfMovementPlots++;
+        mSensToPlot = mSensToPlot | 0b01000000;
         break;
       case MOVEMENTSENSOR2:
-        numbOfMovementPlots++;
+        mSensToPlot = mSensToPlot | 0b00100000;
         break;
       case MOVEMENTSENSOR3:
-        numbOfMovementPlots++;
+        mSensToPlot = mSensToPlot | 0b00010000;
         break;
       case MOVEMENTSENSOR4:
-        numbOfMovementPlots++;
+        mSensToPlot = mSensToPlot | 0b00001000;
         break;
       case MOVEMENTSENSOR5:
-        numbOfMovementPlots++;
+        mSensToPlot = mSensToPlot | 0b00000100;
         break;
       case MOVEMENTSENSOR6:
-        numbOfMovementPlots++;
+        mSensToPlot = mSensToPlot | 0b00000010;
         break;
       case MOVEMENTSENSOR7:
-        numbOfMovementPlots++;
+        mSensToPlot = mSensToPlot | 0b00000001;
         break;
 
       case TEMP_BED:
@@ -64,69 +65,65 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
     }
   }
 
-  //TODO figure out dimensions of plot
-  //Now knowing the dimensions of the plot and the number of pir sensors. Plot the movement data.
-  spacing = 0.2;
-  for( auto &i : toPlot) {
-    switch (i) {
-      case MOVEMENTSENSOR0:
-        std::cout<<"MOVEMENTSENSOR0\n";
-        len = pirData.fetchPirData(0, startT, stopT, x, y);
-        plotPirData("sensor0", x, y);//plot funct has its own pointer for each sensor
-        break;
-      case MOVEMENTSENSOR1:
-        std::cout<<"MOVEMENTSENSOR1\n";
-        len = pirData.fetchPirData(1, startT, stopT, x, y);
-        plotPirData("sensor1", x, y);//plot funct has its own pointer for each sensor
-        break;
-      case MOVEMENTSENSOR2:
-        break;
-      case MOVEMENTSENSOR3:
-        break;
-      case MOVEMENTSENSOR4:
-        break;
-      case MOVEMENTSENSOR5:
-        break;
-      case MOVEMENTSENSOR6:
-        break;
-      case MOVEMENTSENSOR7:
-        break;
-      default:
-        break;
-    }
-  }
   if(onlyPir){updateLength(startT, stopT); }
   else {int x[2] = {0,0}; int y[2] = {0,0}; gr = new TGraph(2,x,y);}
-  //else line only here as we always need a gr
+  //else line only here as we always need a gr while testing 
+
+  if(mSensToPlot > 0){ 
+    std::cerr<<"fetching some data\n";
+    len = pirData.fetchPirData(0, startT, stopT, x, y);
+    std::cerr<<"plotting some movement graphs for ya all\n";
+    plotPirData(mSensToPlot, x, y, len);
+  }
+
   finishPlot();
 }
 
-void Graph::plotPirData(std::string name, uint32_t x[MAXPLOTRESOLUTION], float y[MAXPLOTRESOLUTION]){
-  const static int CONFIRMED_ZERO = 1;
-  const static int CONFIRMED_ONE = 3;
+void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION], 
+                        float y[MAXPLOTRESOLUTION], int len){
+  std::cerr<<"we got len: "<<len<<"\n";
+  bool hasRisen[8];
+  uint32_t timeOfRise[8];
+  uint8_t* array;
   
-  float h = nMPlotted*spacing+spacing;
-  bool hasRisen = false;
-  uint32_t timeOfRise;
-  //draw many lines etc
-  std::cout<<"drawing: "<<name<<"\n";
+  int numbPlots = __builtin_popcount(mSensToPlot);
+  std::cout<<"numb of plots: "<<numbPlots<<"\n";
+  float height[8];
+  std::bitset<8> toPlot(mSensToPlot);
+
+  //setup height
+  int counter = 0;  
+  for(int i; i<8; i++){
+    float spacing = 1.0/numbPlots; //TODO change 1 to something sensible
+    if(toPlot.test(i)){counter++;}
+    height[i] = spacing*(counter); 
+  } 
+  
   for(int i=0; i<len; i++){
-    //std::cout<<y[i]<<"\n";
-    if(hasRisen){
-      if(y[i] == CONFIRMED_ZERO){
-        drawLine(timeOfRise, x[i], h);
-        hasRisen = false;
+    //decode values from float to bitset
+    array = (uint8_t*) &y[i];
+
+    std::bitset<8> movement(array[1]); //TODO from uint8_t to bool array
+    std::bitset<8> confirmed(array[0]);
+    
+    for(int j = 0; j<8; j++){
+      //std::cout<<y[i]<<"\n";
+      if(hasRisen[j]){
+        if(movement.test(j) && confirmed.test(j) && toPlot.test(j)){
+          drawLine(timeOfRise[j], x[i], height[j]);
+          hasRisen[j] = false;
+        }
       }
-    }
-    else if(y[i] == CONFIRMED_ONE){ 
-      timeOfRise = x[i];
-      hasRisen = true;
+      else if(!movement.test(j) || !confirmed.test(j)){ 
+        timeOfRise[j] = x[i];
+        hasRisen[j] = true;
+      }
     }
   }
 }
 
 void Graph::drawLine(uint32_t start, uint32_t stop, float h) {
-  std::cout<<"drawing line\n";
+  std::cout<<"drawing line between: "<<start<<"\tand: "<<stop<<"\t height: "<<h<<"\n";
   TLine *line = new TLine((double)start, h, (double)stop, h);
   line->SetLineWidth(2);
   line->SetLineColor(4);
@@ -156,13 +153,12 @@ void Graph::axisTimeFormatting(){
 
 void Graph::finishPlot(){
   axisTimeFormatting();
+  c1->RedrawAxis();
   c1->Update();
   c1->GetFrame()->SetBorderSize(12);
   c1->Modified();
   c1->Print("test.pdf");
 }
-
-
 
 
 
