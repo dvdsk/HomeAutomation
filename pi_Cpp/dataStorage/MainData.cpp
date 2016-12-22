@@ -149,6 +149,14 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
   unsigned int orgIdx_B;
   unsigned int blockIdx_B;
 
+  uint32_t oldX;
+  uint32_t correctedX;
+  
+  float oldY;
+  float correctedY;
+
+  bool normalPackage = true;
+
   uint8_t block[MAXBLOCKSIZE];
 
   //find where to start and stop reading in the file
@@ -179,6 +187,7 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 
   rest_B = (stopByte-startByte)%MAXBLOCKSIZE; //number of bytes that doesnt fit in the normal blocks
   rest_bin =rest_B/binSize_B; //tobin
+  
   //iterate over the blocks
   for (unsigned int i = 0; i < nBlocks; i++) {
     //read one block to memory
@@ -191,21 +200,38 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
       db("\tsecond level of loop\n")
       binNumber = i*blockSize_bins +j; //keep track which bin we are calculating
 
+      int SkipIdx;
       //iterate through a group of values to bin
-      for (unsigned int k = 0; k < binSize_P; k ++) {
+      for (unsigned int k = 0; k < binSize_P; k++) {
         db("\t\tthird level of loop\n")
         orgIdx_P = i*blockSize_P+ j*binSize_P;
         if (checkIdx.useValue(orgIdx_P)) {
           orgIdx_B = orgIdx_P* packageSize_;
           blockIdx_B = j*binSize_B+ k*packageSize_;
 
-          x_bin[k] = getTime(orgIdx_B, blockIdx_B, block);
+          x_bin[k] = getTime(orgIdx_B, blockIdx_B, block, lastWasTP);
           y_bin[k] = func(orgIdx_B, blockIdx_B, block, extraParams);
-          //std::cout<<y_bin[k];
+          if(lastWasTP){//if the beforelast package was a timestamp package
+            //do the nessesairy things to make sure it isnt taken into account
+            if(k == 0){
+              oldX = x[binNumber-1];
+              correctedX = (oldX*binSize_P - x_bin[k])/(binSize_P-1);
+              x[binNumber-1] = correctedX;
+              
+              oldY = y[binnumber-1];
+              correctedY = (oldY*binSize_P - timeHigh)/(binSize_P-1);
+              y[binNumber-1] = correctedY;
+            }
+            else{
+              
+            
+            
+            }
+          }
         }
       }
-      x[binNumber] = mean(x_bin, binSize_P);
-      y[binNumber] = mean(y_bin, binSize_P);
+      x[binNumber] = mean(x_bin, binSize_P, SkipIdx);
+      y[binNumber] = mean(y_bin, binSize_P, SkipIdx);
       len++;
       //std::cout<<"\t"<<y[binNumber]<<"\n";
     }
@@ -400,13 +426,15 @@ void Data::initGetTime(int startByte){
   prevTimePart[1] = 0;
 }
  
-uint32_t Data::getTime(int orgIdx_B, int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+uint32_t Data::getTime(int orgIdx_B, int blockIdx_B, 
+                        uint8_t block[MAXBLOCKSIZE], bool& lastWasTP){
   uint16_t timelow;
   uint32_t fullTimeStamp;
   if(prevTimePart[0] == block[blockIdx_B] && prevTimePart[1] == block[blockIdx_B+1]){
     //calculate the full timestamp contained in prevTimePart
     timeHigh = 0 | (uint32_t)prevTimePart[3] << 24 |
                    (uint32_t)prevTimePart[2] << 16;
+    normalPackage = false;
   }
   /* JUST A NOTE OF HOW WE WRITE AND READ FULL TIMESTAMPS
   uint8_t *p = (uint8_t*)&Tstamp;

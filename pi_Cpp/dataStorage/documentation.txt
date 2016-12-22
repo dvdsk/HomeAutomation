@@ -11,7 +11,7 @@ TIMESTAMP PACKAGE:
 total length 4 bytes, used to store the full unixtime just in front of a normal 
 pir package that crosses a treshold for putting in the full time again 
   --------------------------------------
-  - time low 16 bit | N - 16 zeros     -
+  - time low 16 bit | time high 16 bit -
   --------------------------------------
 recognised by 2 time lows after eachother
 --------------------------------------------
