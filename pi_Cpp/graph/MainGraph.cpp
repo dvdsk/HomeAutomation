@@ -82,7 +82,7 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
 void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION], 
                         float y[MAXPLOTRESOLUTION], int len){
   std::cerr<<"we got len: "<<len<<"\n";
-  bool hasRisen[8];
+  bool hasRisen[8] = {false};
   uint32_t timeOfRise[8];
   uint8_t* array;
   
@@ -109,13 +109,14 @@ void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION],
     for(int j = 0; j<8; j++){
       //std::cout<<y[i]<<"\n";
       if(hasRisen[j]){
-        if(movement.test(j) && confirmed.test(j) && toPlot.test(j)){
+        if(!movement.test(j) && confirmed.test(j) && toPlot.test(j)){
           drawLine(timeOfRise[j], x[i], height[j]);
           hasRisen[j] = false;
         }
       }
-      else if(!movement.test(j) || !confirmed.test(j)){ 
+      else if(movement.test(j) || confirmed.test(j)){ 
         timeOfRise[j] = x[i];
+        std::cout<<"time: "<<x[i]<<"\n";
         hasRisen[j] = true;
       }
     }
@@ -125,7 +126,7 @@ void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION],
 void Graph::drawLine(uint32_t start, uint32_t stop, float h) {
   std::cout<<"drawing line between: "<<start<<"\tand: "<<stop<<"\t height: "<<h<<"\n";
   TLine *line = new TLine((double)start, h, (double)stop, h);
-  line->SetLineWidth(2);
+  line->SetLineWidth(1);
   line->SetLineColor(4);
   line->Draw();
 }

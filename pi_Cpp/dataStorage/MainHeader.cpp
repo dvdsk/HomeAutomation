@@ -159,14 +159,25 @@ uint32_t MainHeader::lastFullTS(){
 }
 
 uint32_t MainHeader::fullTSJustBefore(unsigned int byte){
-  int i = pos;
-  while(i >= 2){
-    i-=2;
+  for(int i = pos-2; i >= 0; i-=2){
     if(data[i+1] <= byte){
       return data[i]; //return timestamp
     }
   }
   return -1;
+}
+
+void MainHeader::getNextFullTS(unsigned int byte, unsigned int& nextFullTSLoc, 
+                               uint32_t& nextFullTS){
+  for(int i = 0; i<= pos-2; i+=2){
+    if(data[i+1] >= byte){
+      nextFullTS = data[i]; //return timestamp
+      nextFullTSLoc = data[i+1];
+      return;
+    }
+  }
+  byte = 0;
+  return;
 }
 
 //used for testing

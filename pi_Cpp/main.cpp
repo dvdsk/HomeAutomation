@@ -105,36 +105,50 @@ void debug(PirData& pirData){
   uint32_t Tstamp;
   uint8_t pirDat[2];
 
-  Tstamp = unix_timestamp();
-  pirDat[0] = 0b11111111;
-  pirDat[1] = 0b11111111;  
-  pirData.process(pirDat, Tstamp);
+//  Tstamp = unix_timestamp();
+//  pirDat[0] = 0b11111111;
+//  pirDat[1] = 0b11111111;  
+//  pirData.process(pirDat, Tstamp);
 
-  Tstamp = unix_timestamp();
-  pirDat[0] = 0b11111111;
-  pirDat[1] = 0b11111111;  
-  pirData.process(pirDat, Tstamp);  
-  
-  nanosleep((const struct timespec[]){{1, 0}}, NULL);
-  
-  Tstamp = unix_timestamp();
-  pirDat[0] = 0b00000000;
-  pirDat[1] = 0b11111111;  
-  pirData.process(pirDat, Tstamp); 
+//  Tstamp = unix_timestamp();
+//  pirDat[0] = 0b11111111;
+//  pirDat[1] = 0b11111111;  
+//  pirData.process(pirDat, Tstamp);  
+//  
+//  nanosleep((const struct timespec[]){{1, 0}}, NULL);
+//  
+//  Tstamp = unix_timestamp();
+//  pirDat[0] = 0b00000000;
+//  pirDat[1] = 0b11111111;  
+//  pirData.process(pirDat, Tstamp); 
 
-  nanosleep((const struct timespec[]){{1, 0}}, NULL);
-  
-  Tstamp = unix_timestamp();
-  pirDat[0] = 0b00000000;
-  pirDat[1] = 0b11111111;  
-  pirData.process(pirDat, Tstamp);
+//  nanosleep((const struct timespec[]){{1, 0}}, NULL);
+//  
+//  Tstamp = unix_timestamp();
+//  pirDat[0] = 0b00000000;
+//  pirDat[1] = 0b11111111;  
+//  pirData.process(pirDat, Tstamp);
+
+//  //INPUT FAKE DATA:
+//  Tstamp = unix_timestamp();
+//  for(int i=Tstamp-100; i<Tstamp; i+=4){
+//    std::cout<<"STARTING TIMESTAMP: "<<Tstamp-100<<"\n";
+//    std::cout<<"ENDING TIMESTAMP: "<<Tstamp<<"\n";
+//    pirDat[0] = 0b00000000;
+//    pirDat[1] = 0b11111111;  
+//    pirData.process(pirDat, i);    
+//    
+//    pirDat[0] = 0b11111111;
+//    pirDat[1] = 0b11111111;  
+//    pirData.process(pirDat, i+2);  
+//  }
 
   //unsigned int loc1;
   //unsigned int loc2;
   //pirData.searchTstamps(1481496152, 1481496199, loc1, loc2);
-  #ifdef DEBUG
-  pirData.showLines(0, 100);
-  #endif
+//  #ifdef DEBUG
+//  pirData.showLines(0, 100);
+//  #endif
   
   //uint32_t x[1000];
   //x[1] = 5; //init one element to an unrealistic value for testing
@@ -142,8 +156,8 @@ void debug(PirData& pirData){
   //pirData.fetchPirData(0, 1481496152, 1481496199, x, y);
   //std::cout<<"x: "<<+x[1]<<"\n";
   
-  std::vector<plotables> toPlot = {MOVEMENTSENSOR0, MOVEMENTSENSOR1};
-  Graph graph(toPlot, 1481496152, 1482368080, pirData);
+  std::vector<plotables> toPlot = {MOVEMENTSENSOR0};
+  Graph graph(toPlot, 1482452944, 1482453044, pirData);
 }
 
 int main(int argc, char* argv[])

@@ -46,7 +46,9 @@ public:
   uint32_t lastFullTS();
   /* given a location in the data file return the corrosponding full timestamp */
   uint32_t fullTSJustBefore(unsigned int byte);
-
+  /* get the location and value of the next full timestamp */
+  void getNextFullTS(unsigned int byte, unsigned int& nextFullTSLoc, 
+                     uint32_t& nextFullTS);
   
 
 
