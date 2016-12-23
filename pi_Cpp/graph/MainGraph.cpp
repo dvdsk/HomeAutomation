@@ -70,9 +70,9 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
   //else line only here as we always need a gr while testing 
 
   if(mSensToPlot > 0){ 
-    std::cerr<<"fetching some data\n";
+    //std::cerr<<"fetching some data\n";
     len = pirData.fetchPirData(0, startT, stopT, x, y);
-    std::cerr<<"plotting some movement graphs for ya all\n";
+    //std::cerr<<"plotting some movement graphs for ya all\n";
     plotPirData(mSensToPlot, x, y, len);
   }
 
@@ -81,13 +81,13 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
 
 void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION], 
                         float y[MAXPLOTRESOLUTION], int len){
-  std::cerr<<"we got len: "<<len<<"\n";
+  //std::cerr<<"we got len: "<<len<<"\n";
   bool hasRisen[8] = {false};
   uint32_t timeOfRise[8];
   uint8_t* array;
   
   int numbPlots = __builtin_popcount(mSensToPlot);
-  std::cout<<"numb of plots: "<<numbPlots<<"\n";
+  //std::cout<<"numb of plots: "<<numbPlots<<"\n";
   float height[8];
   std::bitset<8> toPlot(mSensToPlot);
 
@@ -116,7 +116,7 @@ void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION],
       }
       else if(movement.test(j) || confirmed.test(j)){ 
         timeOfRise[j] = x[i];
-        std::cout<<"time: "<<x[i]<<"\n";
+        //std::cout<<"time: "<<x[i]<<"\n";
         hasRisen[j] = true;
       }
     }
@@ -125,7 +125,7 @@ void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION],
 
 void Graph::drawLine(uint32_t start, uint32_t stop, float h) {
   h= 0.5;
-  std::cout<<"drawing line between: "<<start<<"\tand: "<<stop<<"\t height: "<<h<<"\n";
+  //std::cout<<"drawing line between: "<<start<<"\tand: "<<stop<<"\t height: "<<h<<"\n";
   TLine *line = new TLine((double)start, h, (double)stop, h);
   line->SetLineWidth(1);
   line->SetLineColor(4);
@@ -141,7 +141,7 @@ void Graph::updateLength(uint32_t startT, uint32_t stopT){
   //float yMax = numbOfMovementPlots*spacing+spacing;
   const double x[2] = {(double)startT,(double)stopT};
   const double y[2] = {0,0};
-  
+
   gr = new TGraph(2,x,y);
   gr->Draw();
 }
@@ -155,6 +155,7 @@ void Graph::axisTimeFormatting(){
 
 void Graph::finishPlot(){
   //axisTimeFormatting();
+  gr->GetXaxis()->SetLabelSize(0.006);
   c1->RedrawAxis();
   c1->Update();
   c1->GetFrame()->SetBorderSize(12);

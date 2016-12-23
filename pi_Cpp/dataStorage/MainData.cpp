@@ -269,6 +269,7 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
     else{
       x[binNumber-binOffset] = mean(x_bin, binSize_P-skippedIndexes);
       y[binNumber-binOffset] = mean(y_bin, binSize_P-skippedIndexes);
+      std::cout<<"time: "<<x[binNumber-binOffset]<<"\n";
       len++;
     }
     skippedIndexes=0;
@@ -326,9 +327,10 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
   std::cout<<"startSearch: "<<startSearch<<" stopSearch: "<<stopSearch<<"\n";  
   if(stopSearch == -1){
     //the searched timestamp is later then the last we have in the file
-    locB = fileSize; 
+    
+    stopSearch = fileSize; 
   }
-  else if(startSearch == -1){
+  if(startSearch == -1){
     //the searched timestamp is earlier then file start so we dont have any data
     locB = 0;   
   }
@@ -341,6 +343,7 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
     }
     else{
       locB = findTimestamp_inFile(Tstamp2, startSearch, stopSearch);
+      std::cout<<"finding shizzle I hope\n";
       if(locB == -1){locB = stopSearch;}//could not find value greater then stop
       //timestamp thus all data till stopsearch is wanted.
     }
@@ -391,7 +394,7 @@ int Data::searchBlock(uint8_t block[], uint16_t Tstamplow, unsigned int blockSiz
   for(unsigned int i = 0; i<blockSize; i+=packageSize_){
     timelow = (uint16_t)block[i+1] << 8  |
               (uint16_t)block[i];
-    if(timelow > Tstamplow){//then
+    if(timelow >= Tstamplow){//then
       return i;
     }
   }
@@ -414,14 +417,15 @@ int Data::findTimestamp_inCache(uint32_t Tstamp, unsigned int startSearch, unsig
 Data::iterator::iterator(unsigned int startByte, unsigned int stopByte, unsigned int packageSize){//TODO implement ignoring extra datapoints
   unsigned int numbUnusable; //numb of values we can use for plotting without
   //going over MAXPLOTRESOLUTION.
+  unsigned int numbOfValues;
   
-  unsigned int numbOfValues = (stopByte-startByte)/packageSize;
+  numbOfValues = (stopByte-startByte)/packageSize;
   numbUnusable = numbOfValues%MAXPLOTRESOLUTION; 
    
   if(numbOfValues < MAXPLOTRESOLUTION){binSize_P = 1; }
   else{binSize_P = numbOfValues/MAXPLOTRESOLUTION;}
   
-  if(numbOfValues < MAXPLOTRESOLUTION){spacing = 0; }
+  if(numbOfValues < MAXPLOTRESOLUTION || numbUnusable == 0){spacing = 0; }
   else{spacing = numbOfValues/numbUnusable; }
   counter = 0;
 }
