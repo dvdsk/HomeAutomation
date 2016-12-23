@@ -146,9 +146,9 @@ void debug(PirData& pirData){
   //unsigned int loc1;
   //unsigned int loc2;
   //pirData.searchTstamps(1481496152, 1481496199, loc1, loc2);
-//  #ifdef DEBUG
-//  pirData.showLines(0, 100);
-//  #endif
+  #ifdef DEBUG
+  pirData.showLines(0, 100);
+  #endif
   
   //uint32_t x[1000];
   //x[1] = 5; //init one element to an unrealistic value for testing

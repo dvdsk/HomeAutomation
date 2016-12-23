@@ -149,6 +149,9 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
   unsigned int orgIdx_B;
   unsigned int blockIdx_B;
 
+  int binOffset =0;
+  unsigned int skippedIndexes=0;
+
   unsigned int nextFullTSLoc;
   uint32_t nextFullTS;
 
@@ -212,12 +215,21 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
           x_bin[k] = getTime(orgIdx_B, blockIdx_B, block);
           y_bin[k] = func(orgIdx_B, blockIdx_B, block, extraParams);
         }
+        else{
+          skippedIndexes++;
+        }
       }
-      x[binNumber] = mean(x_bin, binSize_P);
-      y[binNumber] = mean(y_bin, binSize_P);
-      len++;
-      //std::cout<<"\t"<<y[binNumber]<<"\n";
+      if(binSize_P-skippedIndexes == 0){
+        binOffset++; //counter and condition one down so we can
+      }
+      else{
+        x[binNumber-binOffset] = mean(x_bin, binSize_P-skippedIndexes);
+        y[binNumber-binOffset] = mean(y_bin, binSize_P-skippedIndexes);
+        len++;
+      }
+      skippedIndexes=0;
     }
+    binOffset = 0;
   }
 
   //do the leftover values in a smaller block
@@ -232,26 +244,34 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
     //iterate through a group of values to bin
     for (unsigned int k = 0; k < binSize_P; k ++) {
       orgIdx_P = nBlocks*blockSize_P+ j*binSize_P;
-      db("not using value")
-      if (checkIdx.useValue(orgIdx_P)) {//TODO this should arrange skipping of skiped lines
+      if (checkIdx.useValue(orgIdx_P)) {//TODO this should arrange skipping of skiped lines 
         orgIdx_B = orgIdx_P* packageSize_;
         blockIdx_B = j*binSize_B+ k*packageSize_;
 
         //check if fullTS needs updating and update if needed.
         if(orgIdx_B == nextFullTSLoc){
+          db("***updating time***")
           timeHigh = nextFullTS & 0b11111111111111110000000000000000;
           MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
         }
-
-        x_bin[k] = getTime(orgIdx_B, blockIdx_B, block);
         db("x_bin["<<+k<<"]: "<<x_bin[k]<<"\n")
+        x_bin[k] = getTime(orgIdx_B, blockIdx_B, block);
         y_bin[k] = func(orgIdx_B, blockIdx_B, block, extraParams);
       }
+      else{
+        skippedIndexes++;
+      }
     }
-    x[binNumber] = mean(x_bin, binSize_P);
     db("x["<<binNumber<<"]: "<<x[binNumber]<<"\n")
-    y[binNumber] = mean(y_bin, binSize_P);
-    len++;
+    if(binSize_P-skippedIndexes == 0){
+      binOffset++; //counter and condition one down so we can
+    }
+    else{
+      x[binNumber-binOffset] = mean(x_bin, binSize_P-skippedIndexes);
+      y[binNumber-binOffset] = mean(y_bin, binSize_P-skippedIndexes);
+      len++;
+    }
+    skippedIndexes=0;
   }
   return len;
 }//done
@@ -367,13 +387,10 @@ int Data::findTimestamp_inFile(uint32_t Tstamp, unsigned int startSearch, unsign
 
 int Data::searchBlock(uint8_t block[], uint16_t Tstamplow, unsigned int blockSize) {
   uint16_t timelow;
-  //std::cout<<"want timelow: "<<Tstamplow<<"\n";
-  //std::cout<<"want blockSize: "<<blockSize<<"\n";
   
   for(unsigned int i = 0; i<blockSize; i+=packageSize_){
     timelow = (uint16_t)block[i+1] << 8  |
               (uint16_t)block[i];
-    //std::cout<<"found timelow: "<<timelow<<"\n";
     if(timelow > Tstamplow){//then
       return i;
     }
@@ -419,7 +436,7 @@ bool Data::iterator::useValue(unsigned int i){
 }
 
 void Data::initGetTime(int startByte){
-  timeHigh = MainHeader::fullTSJustBefore(startByte);
+  timeHigh = MainHeader::fullTSJustBefore(startByte) & 0b11111111111111110000000000000000;
   prevTimePart[0] = 0;
   prevTimePart[1] = 0;
 }
@@ -431,6 +448,7 @@ uint32_t Data::getTime(int orgIdx_B, int blockIdx_B,
   
   timelow = (uint16_t)block[blockIdx_B+1] << 8  |
             (uint16_t)block[blockIdx_B];
+  db("timelow: "<<timelow<<"\ttimeHigh: "<<(timeHigh)<<"\n")
   fullTimeStamp = timeHigh | timelow;
   return fullTimeStamp;
 }

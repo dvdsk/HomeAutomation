@@ -124,6 +124,7 @@ void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION],
 }
 
 void Graph::drawLine(uint32_t start, uint32_t stop, float h) {
+  h= 0.5;
   std::cout<<"drawing line between: "<<start<<"\tand: "<<stop<<"\t height: "<<h<<"\n";
   TLine *line = new TLine((double)start, h, (double)stop, h);
   line->SetLineWidth(1);
@@ -153,7 +154,7 @@ void Graph::axisTimeFormatting(){
 }
 
 void Graph::finishPlot(){
-  axisTimeFormatting();
+  //axisTimeFormatting();
   c1->RedrawAxis();
   c1->Update();
   c1->GetFrame()->SetBorderSize(12);
