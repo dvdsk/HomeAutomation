@@ -44,7 +44,7 @@ public:
    * in the time array executes a given function on the data for every datapoint and puts that
    * in the float array. Returns the length of the float array */
   int fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
-                     float (*func)(int orgIdx_B, int blockIdx_B, uint8_t[MAXBLOCKSIZE],
+                     float (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE],
                      int extraParams[4]), int extraParams[4]);
 
   /* removes all lines between start and lengt, by inserting null data or
@@ -87,12 +87,15 @@ private:
   //SEARCH FUNCT
   /* search for the timestamp in the cache, this is done in a 'dumb' way due to caching in the processor.
    * we start at the beginning of the cache and iterate through it checking for the requested time*/
-  int findTimestamp_inCache(uint32_t Tstamp, unsigned int startSearch, unsigned int stopSearch, unsigned int fileSize);
-  /* The header file is asked for the full timestamps surrounding Tstamp, we then load the data in between into
-   * memory block for block and iterate through it searching for the requested time*/
-  int findTimestamp_inFile(uint32_t Tstamp, unsigned int startSearch, unsigned int stopSearch);
-  /* search a block read into memory for the value closest to Tstamp*/
-  int searchBlock(uint8_t block[], uint16_t T_lower, unsigned int blockSize);
+  int findTimestamp_inCache(uint32_t Tstamp, unsigned int startSearch, 
+                            unsigned int stopSearch, unsigned int fileSize);
+  /* given a start and stop searchpoint these functions will respectively search
+   * for a timestamp from the bottum up and top down. Reading in chunks to
+   * make the process more efficient. Returns the best value in the range*/
+  int findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSearch,
+                                      unsigned int stopSearch);
+  int findTimestamp_inFile_upperBound(uint16_t TS_low, unsigned int startSearch,
+                                      unsigned int stopSearch);
   
   /*possible full timestamp part of the previous package*/
   uint8_t prevTimePart[4];
@@ -103,7 +106,7 @@ private:
   void initGetTime(int startByte);
   /*get the full unix time from the last full timestamp high part en the low
    *part of the current package.*/
-  uint32_t getTime(int orgIdx_B, int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
+  uint32_t getTime(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
   
   /*calculate the mean of an array of uint32_t*/
   uint32_t mean(uint32_t* array, int len);

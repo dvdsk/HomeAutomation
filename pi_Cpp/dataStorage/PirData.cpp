@@ -41,7 +41,7 @@ void PirData::process(const uint8_t rawData[2], const uint32_t Tstamp){
 
 /*given a block of binairy data containing pir packages, read data from
   one of the packages at blockIdx from the start of the block*/
-float readSensorFromPackage(int orgIdx_B, int blockIdx_B, 
+float readSensorFromPackage(int blockIdx_B, 
                             uint8_t block[MAXBLOCKSIZE], int extraParams[4]){
   float f;
   uint8_t values;
