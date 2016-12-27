@@ -158,7 +158,7 @@ void debug(PirData& pirData){
   
   //datarange: 1482498945, 1482508945
   std::vector<plotables> toPlot = {MOVEMENTSENSOR0};
-  Graph graph(toPlot, 1482506945, 1482506955, pirData);
+  Graph graph(toPlot, 0, 1482506955, pirData);
 }
 
 int main(int argc, char* argv[])

@@ -39,10 +39,10 @@ public:
   #endif
 
 
-  /* takes a start and end time + an array to store the time in and one to store floats in
-   * goes through the data inbetween start and stop, extracts the time from the data and puts
-   * in the time array executes a given function on the data for every datapoint and puts that
-   * in the float array. Returns the length of the float array */
+  /* takes a start and end time + an array to store the time in and one to store
+   * floats in. Binning of data happens if there are 2* or more data points then
+   * the plotresolution. The data is plotted from the start time to and including
+   * the end time*/
   int fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
                      float (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE],
                      int extraParams[4]), int extraParams[4]);
@@ -85,12 +85,13 @@ private:
   uint32_t unix_timestamp();
 
   //SEARCH FUNCT
-  /* search for the timestamp in the cache, this is done in a 'dumb' way due to caching in the processor.
-   * we start at the beginning of the cache and iterate through it checking for the requested time*/
+  /* search for the timestamp in the cache, this is done in a 'dumb' way due to 
+   * caching in the processor  we start at the beginning of the cache and iterate
+   * through it checking for the requested time*/
   int findTimestamp_inCache(uint32_t Tstamp, unsigned int startSearch, 
                             unsigned int stopSearch, unsigned int fileSize);
-  /* given a start and stop searchpoint these functions will respectively search
-   * for a timestamp from the bottum up and top down. Reading in chunks to
+  /* given a start and stop searchpoint these functions will search for
+   * respectively a timestamp from the bottem up and top down. Reading in chunks to
    * make the process more efficient. Returns the best value in the range*/
   int findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSearch,
                                       unsigned int stopSearch);

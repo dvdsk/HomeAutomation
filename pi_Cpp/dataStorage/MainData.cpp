@@ -380,7 +380,7 @@ int Data::findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSea
       if(timelow >= TS_low){
         int orgIdx_B = startSearch+i*blockSize_B+ blockIdx_B;  
         std::cout<<"fulltime here is: "<< +((uint32_t) timelow | timeHigh) <<"\n";   
-        return orgIdx_B;
+        return orgIdx_B-packageSize_; //to force inclusion of first time
       }
     }
   }
@@ -395,7 +395,7 @@ int Data::findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSea
               (uint16_t)block[blockIdx_B];
     if(timelow >= TS_low){
       int orgIdx_B = startSearch+nBlocks*blockSize_B+ blockIdx_B;     
-      return orgIdx_B;
+      return orgIdx_B-packageSize_; //to force inclusion of first time
     }
   }
   //every value in the range is smaller then the wanted timestamp the end of the
@@ -450,7 +450,7 @@ int Data::findTimestamp_inFile_upperBound(uint16_t TS_low, unsigned int startSea
       int orgIdx_B = stopSearch-rest_B + blockIdx_B;
       std::cout<<"fulltime here is: "<< +((uint32_t) timelow | timeHigh) <<"\n";
       std::cout<<"HEREERO1\n";
-      return orgIdx_B;
+      return orgIdx_B+packageSize_; //to force to and including end
     }
   }
   std::cerr<<"next\n";
@@ -472,7 +472,7 @@ int Data::findTimestamp_inFile_upperBound(uint16_t TS_low, unsigned int startSea
         std::cout<<"fulltime here is: "<< +((uint32_t) timelow | timeHigh) <<"\n";
         std::cout<<"HEREERO2\n";
         std::cout<<i<<", "<<blockSize_B<<", "<<blockIdx_B<<"\n";
-        return orgIdx_B;
+        return orgIdx_B+packageSize_; //to force to and including end
       }
     }
   }
@@ -540,10 +540,12 @@ uint32_t Data::getTime(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
 
 uint32_t Data::mean(uint32_t* array, int len){
   uint32_t Mean = 0;
-  for(int i =0; i<len; i++){
-    Mean+=*(array+i);
+  uint32_t first = *(array+0);
+  for(int i = 1; i<len; i++){
+    Mean+=*(array+i)-first;
   }
-  Mean /= len;
+  Mean /= len-1;
+  Mean += first;
   return Mean;
 }
 
