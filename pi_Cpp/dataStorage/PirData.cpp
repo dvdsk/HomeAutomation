@@ -41,26 +41,18 @@ void PirData::process(const uint8_t rawData[2], const uint32_t Tstamp){
 
 /*given a block of binairy data containing pir packages, read data from
   one of the packages at blockIdx from the start of the block*/
-float readSensorFromPackage(int blockIdx_B, 
-                            uint8_t block[MAXBLOCKSIZE], int extraParams[4]){
-  float f;
-  uint8_t values;
-  uint8_t readSensores;
+uint16_t readSensorFromPackage(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+  uint16_t value;
   
-  //encode into 1 float 
-  values = block[blockIdx_B+2];
-  readSensores = block[blockIdx_B+3];
+  //copy values to memory
+  std::memcpy(&value, &block[blockIdx_B+2], 2);
 
-  uint32_t temp = 0;//TODO check if we can make this a uint16
-  temp = (((uint32_t)values << 8) | (uint32_t)readSensores);
-  f = *((float*)&temp);
-  return f;
+  return value;
 }
 
-uint16_t PirData::fetchPirData(int sensor, uint32_t startT, uint32_t stopT, 
-                               uint32_t x[], float y[]){
-  int extraParams[4];
-  return Data::fetchData(startT, stopT, x, y, readSensorFromPackage, extraParams);
+uint16_t PirData::fetchPirData(uint32_t startT, uint32_t stopT, 
+                               uint32_t x[], uint16_t y[]){
+  return Data::fetchBinData(startT, stopT, x, y, readSensorFromPackage);
 }
 
 bool PirData::newData(const uint8_t raw[2]){

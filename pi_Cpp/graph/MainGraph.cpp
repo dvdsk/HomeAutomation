@@ -4,6 +4,7 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
              PirData& pirData){
 
   bool onlyPir = true;
+  uint16_t y_bin[MAXPLOTRESOLUTION];
   int len;
   mSensToPlot=0;
   initPlot();
@@ -65,22 +66,23 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
     }
   }
 
-  if(onlyPir){updateLength(startT, stopT); }
+  //if(onlyPir){updateLength(startT, stopT); }
+  if(onlyPir){updateLength(1482498957, stopT); }
   else {int x[2] = {0,0}; int y[2] = {0,0}; gr = new TGraph(2,x,y);}
   //else line only here as we always need a gr while testing 
 
   if(mSensToPlot > 0){ 
     //std::cerr<<"fetching some data\n";
-    len = pirData.fetchPirData(0, startT, stopT, x, y);
+    len = pirData.fetchPirData(startT, stopT, x, y_bin);
     //std::cerr<<"plotting some movement graphs for ya all\n";
-    plotPirData(mSensToPlot, x, y, len);
+    plotPirData(mSensToPlot, x, y_bin, len);
   }
 
   finishPlot();
 }
 
 void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION], 
-                        float y[MAXPLOTRESOLUTION], int len){
+                        uint16_t y[MAXPLOTRESOLUTION], int len){
   //std::cerr<<"we got len: "<<len<<"\n";
   bool hasRisen[8] = {false};
   uint32_t timeOfRise[8];
@@ -107,7 +109,6 @@ void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION],
     std::bitset<8> confirmed(array[0]);
     
     for(int j = 0; j<8; j++){
-      //std::cout<<y[i]<<"\n";
       if(hasRisen[j]){
         if(!movement.test(j) && confirmed.test(j) && toPlot.test(j)){
           drawLine(timeOfRise[j], x[i], height[j]);
@@ -121,11 +122,17 @@ void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION],
       }
     }
   }
+  //draw the all lines that havent been 'grounded' yet.
+  for(int j = 0; j<8; j++){
+    if(hasRisen[j]){
+      drawLine(timeOfRise[j], x[len-1], height[j]);
+    }
+  }
 }
 
 void Graph::drawLine(uint32_t start, uint32_t stop, float h) {
   h= 0.5;
-  //std::cout<<"drawing line between: "<<start<<"\tand: "<<stop<<"\t height: "<<h<<"\n";
+  std::cout<<"drawing line between: "<<start<<"\tand: "<<stop<<"\t height: "<<h<<"\n";
   TLine *line = new TLine((double)start, h, (double)stop, h);
   line->SetLineWidth(1);
   line->SetLineColor(4);
@@ -154,8 +161,8 @@ void Graph::axisTimeFormatting(){
 }
 
 void Graph::finishPlot(){
-  //axisTimeFormatting();
-  gr->GetXaxis()->SetLabelSize(0.006);
+  axisTimeFormatting();
+  //gr->GetXaxis()->SetLabelSize(0.006);
   c1->RedrawAxis();
   c1->Update();
   c1->GetFrame()->SetBorderSize(12);

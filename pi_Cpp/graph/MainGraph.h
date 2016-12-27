@@ -63,7 +63,7 @@ private:
   uint8_t mSensToPlot; //keep track of sensors to plot
   
   void plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION], 
-                   float y[MAXPLOTRESOLUTION], int len);
+                   uint16_t y[MAXPLOTRESOLUTION], int len);
   void drawLine(uint32_t start, uint32_t stop, float h);
   void initPlot();
   void finishPlot();

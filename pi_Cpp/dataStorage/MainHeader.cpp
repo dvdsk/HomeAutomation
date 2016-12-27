@@ -164,6 +164,7 @@ uint32_t MainHeader::fullTSJustBefore(unsigned int byte){
       return data[i]; //return timestamp
     }
   }
+  std::cerr<<"WARNING COULD NOT FIND TS BEFORE GIVEN BYTE: "<<+byte<<"\n";
   return -1;
 }
 

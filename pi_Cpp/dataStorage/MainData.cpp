@@ -100,13 +100,13 @@ void Data::append(uint8_t line[], uint32_t Tstamp){
 #ifdef DEBUG
 void Data::showLines(int start_P, int end_P){
   uint8_t package[200];
-  uint16_t timeLow;
+  uint32_t timeLow;
   uint32_t TimeBegin;
   uint32_t FullTime;
-  TimeBegin = MainHeader::fullTSJustBefore(start_P*packageSize_);
+  TimeBegin = MainHeader::fullTSJustBefore(start_P);
   std::cout<<"TimeBegin: "<<TimeBegin<<"\n";
   
-  for( int i = start_P*packageSize_; i<end_P*packageSize_; i+=packageSize_){
+  for( int i = start_P; i<end_P; i+=packageSize_){
     fseek(fileP_, i, SEEK_SET);
     fread(package, 1, packageSize_, fileP_);
 
@@ -124,6 +124,159 @@ void Data::showLines(int start_P, int end_P){
   }
 }
 #endif
+
+int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y[],
+                       uint16_t (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE])) {
+
+  int len = 0; //Length of y
+  unsigned int startByte; //start position in the file
+  unsigned int stopByte; //stop position in the file
+  
+  unsigned int nBlocks;
+  unsigned int blockSize_B;
+  unsigned int blockSize_P;
+  unsigned int blockSize_bins;
+
+  unsigned int rest_B;
+  unsigned int rest_bin;
+
+  unsigned int binSize_P;
+  unsigned int binSize_B;
+
+  unsigned int binNumber;
+  unsigned int orgIdx_P;
+  unsigned int orgIdx_B;
+  unsigned int blockIdx_B;
+
+  int binOffset =0;
+  unsigned int skippedIndexes=0;
+
+  unsigned int nextFullTSLoc;
+  uint32_t nextFullTS;
+
+  uint8_t block[MAXBLOCKSIZE];
+
+  //find where to start and stop reading in the file
+  std::cout<<"searching for ya timestamps\n";
+  searchTstamps(startT, stopT, startByte, stopByte);
+  MainHeader::getNextFullTS(startByte, nextFullTSLoc, nextFullTS);
+  std::cout<<"well well found some: "<<startByte<<", "<<stopByte<<"\n";
+  initGetTime(startByte);
+
+  //configure iterator
+  iterator checkIdx(startByte, stopByte, packageSize_);
+  binSize_P = checkIdx.binSize_P; //number of packages in a bin
+  binSize_B = binSize_P * packageSize_; //number of bytes in a bin
+
+  //set subarrays for binning
+  uint32_t* x_bin = new uint32_t[binSize_P]; //used to store time values in when binning
+  float* y_bin = new float[binSize_P]; //used to store the y value of whatever we want to know in
+
+  //calculate how many blocks we need
+  //if(stopByte-startByte>MAXBLOCKSIZE){nBlocks = (stopByte - startByte)/MAXBLOCKSIZE; } 
+  //else{nBlocks = 1;}
+  //FIXME TEMP REMOVED IF ELSE DONT SEE ITS USE
+  nBlocks = (stopByte - startByte)/MAXBLOCKSIZE;
+  
+  //determine blocksize in bytes
+  blockSize_B = std::min(MAXBLOCKSIZE - (MAXBLOCKSIZE%packageSize_), stopByte-startByte); 
+  blockSize_P = blockSize_B/packageSize_; //set blocksize in packages
+  blockSize_bins = blockSize_B/binSize_B; //set blocksize in bins
+
+  rest_B = (stopByte-startByte)%MAXBLOCKSIZE; //number of bytes that doesnt fit in the normal blocks
+  rest_bin =rest_B/binSize_B; //tobin
+  
+  //iterate over the blocks
+  for (unsigned int i = 0; i < nBlocks; i++) {
+    //read one block to memory
+    //db("first level of loop\n")
+    fseek(fileP_, startByte+i*blockSize_B, SEEK_SET);
+    fread(block, 1, blockSize_B, fileP_);
+
+    //iterate through the block in memory in bin groups
+    for (unsigned int j = 0; j < blockSize_bins; j++) {
+      //db("\tsecond level of loop\n")
+      binNumber = i*blockSize_bins +j; //keep track which bin we are calculating
+
+      //iterate through a group of values to bin
+      for (unsigned int k = 0; k < binSize_P; k++) {
+        //db("\t\tthird level of loop\n")
+        orgIdx_P = i*blockSize_P+ j*binSize_P;
+        if (checkIdx.useValue(orgIdx_P)) {
+          orgIdx_B = startByte+orgIdx_P* packageSize_;
+          blockIdx_B = j*binSize_B+ k*packageSize_;
+
+          //check if fullTS needs updating and update if needed.
+          if(orgIdx_B == nextFullTSLoc){
+            timeHigh = nextFullTS & 0b11111111111111110000000000000000;
+            MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
+          }
+          x_bin[k] = getTime(blockIdx_B, block);
+          y_bin[k] = func(blockIdx_B, block);
+        }
+        else{
+          skippedIndexes++;
+        }
+      }
+      if(binSize_P-skippedIndexes == 0){
+        binOffset++; //counter and condition one down so we can
+      }
+      else{
+        x[binNumber-binOffset] = mean(x_bin, binSize_P-skippedIndexes);
+        y[binNumber-binOffset] = mean(y_bin, binSize_P-skippedIndexes);
+        len++;
+      }
+      skippedIndexes=0;
+    }
+    binOffset = 0;
+  }
+
+  //db("starting in file at: "<<(startByte+nBlocks*blockSize_B)<<"\n")
+  //do the leftover values in a smaller block
+  fseek(fileP_, startByte+nBlocks*blockSize_B, SEEK_SET);
+  fread(block, 1, rest_B, fileP_);
+
+  //iterate through the block in memory in bin groups
+  for (unsigned int j = 0; j < rest_bin; j++) {
+    binNumber = nBlocks*blockSize_bins +j;
+    //db("binNumber: "<<binNumber<<"\n");
+    
+    //iterate through a group of values to bin
+    for (unsigned int k = 0; k < binSize_P; k ++) {
+      orgIdx_P = nBlocks*blockSize_P+ j*binSize_P;
+      if (checkIdx.useValue(orgIdx_P)) {//TODO this should arrange skipping of skiped lines 
+        orgIdx_B = startByte+orgIdx_P* packageSize_;
+        blockIdx_B = j*binSize_B+ k*packageSize_;
+
+        //db("orgIdx_B: "<<orgIdx_B<<", blockIdx_B: "<<blockIdx_B<<"\n")
+        //check if fullTS needs updating and update if needed.
+        if(orgIdx_B == nextFullTSLoc){
+          //db("***updating timee***")
+          timeHigh = nextFullTS & 0b11111111111111110000000000000000;
+          MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
+        }
+        x_bin[k] = getTime(blockIdx_B, block);
+        //db("x_bin["<<+k<<"]: "<<x_bin[k]<<"\n")
+        y_bin[k] = func(blockIdx_B, block);
+      }
+      else{
+        skippedIndexes++;
+      }
+    }
+    //db("x["<<binNumber<<"]: "<<x[binNumber]<<"\n")
+    if(binSize_P-skippedIndexes == 0){
+      binOffset++; //counter and condition one down so we can
+    }
+    else{
+      x[binNumber-binOffset] = mean(x_bin, binSize_P-skippedIndexes);
+      y[binNumber-binOffset] = mean(y_bin, binSize_P-skippedIndexes);
+      std::cout<<"time: "<<x[binNumber-binOffset]<<"\n";
+      len++;
+    }
+    skippedIndexes=0;
+  }
+  return len;
+}//done
 
 int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
                          float (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE],
@@ -232,7 +385,7 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
     binOffset = 0;
   }
 
-  db("starting in file at: "<<(startByte+nBlocks*blockSize_B)<<"\n")
+  //db("starting in file at: "<<(startByte+nBlocks*blockSize_B)<<"\n")
   //do the leftover values in a smaller block
   fseek(fileP_, startByte+nBlocks*blockSize_B, SEEK_SET);
   fread(block, 1, rest_B, fileP_);
@@ -240,7 +393,7 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
   //iterate through the block in memory in bin groups
   for (unsigned int j = 0; j < rest_bin; j++) {
     binNumber = nBlocks*blockSize_bins +j;
-    db("binNumber: "<<binNumber<<"\n");
+    //db("binNumber: "<<binNumber<<"\n");
     
     //iterate through a group of values to bin
     for (unsigned int k = 0; k < binSize_P; k ++) {
@@ -249,22 +402,22 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
         orgIdx_B = startByte+orgIdx_P* packageSize_;
         blockIdx_B = j*binSize_B+ k*packageSize_;
 
-        db("orgIdx_B: "<<orgIdx_B<<", blockIdx_B: "<<blockIdx_B<<"\n")
+        //db("orgIdx_B: "<<orgIdx_B<<", blockIdx_B: "<<blockIdx_B<<"\n")
         //check if fullTS needs updating and update if needed.
         if(orgIdx_B == nextFullTSLoc){
-          db("***updating timee***")
+          //db("***updating timee***")
           timeHigh = nextFullTS & 0b11111111111111110000000000000000;
           MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
         }
         x_bin[k] = getTime(blockIdx_B, block);
-        db("x_bin["<<+k<<"]: "<<x_bin[k]<<"\n")
+        //db("x_bin["<<+k<<"]: "<<x_bin[k]<<"\n")
         y_bin[k] = func(blockIdx_B, block, extraParams);
       }
       else{
         skippedIndexes++;
       }
     }
-    db("x["<<binNumber<<"]: "<<x[binNumber]<<"\n")
+    //db("x["<<binNumber<<"]: "<<x[binNumber]<<"\n")
     if(binSize_P-skippedIndexes == 0){
       binOffset++; //counter and condition one down so we can
     }
@@ -429,6 +582,7 @@ int Data::findTimestamp_inFile_upperBound(uint16_t TS_low, unsigned int startSea
   //FIXME DEBUG
   timeHigh = MainHeader::fullTSJustBefore(4) & 0b11111111111111110000000000000000;
   std::cout<<"timestamp we want: "<< ((uint32_t)TS_low | timeHigh)<<"\n";
+  std::cout<<"timeHigh used: "<< +timeHigh<<"\n";
   //FIXME DEBUG
   
   std::cout<<"HEREERO\n";

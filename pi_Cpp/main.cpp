@@ -131,8 +131,8 @@ void debug(PirData& pirData){
 
 //  //INPUT FAKE DATA:
 //  Tstamp = unix_timestamp();
-//  for(int i=Tstamp-10000; i<Tstamp; i+=4){
-//    std::cout<<"STARTING TIMESTAMP: "<<Tstamp-10000<<"\n";
+//  for(int i=Tstamp-800000; i<Tstamp; i+=4){
+//    std::cout<<"STARTING TIMESTAMP: "<<Tstamp-800000<<"\n";
 //    std::cout<<"ENDING TIMESTAMP: "<<Tstamp<<"\n";
 //    pirDat[0] = 0b00000000;
 //    pirDat[1] = 0b11111111;  
@@ -146,10 +146,10 @@ void debug(PirData& pirData){
   //unsigned int loc1;
   //unsigned int loc2;
   //pirData.searchTstamps(1481496152, 1481496199, loc1, loc2);
-//  #ifdef DEBUG
-//  pirData.showLines(16384/32, 16464/32+10);
-//  #endif
-//  
+  #ifdef DEBUG
+  pirData.showLines(1541408/4-36, 1541408/4);
+  #endif
+  //  
   //uint32_t x[1000];
   //x[1] = 5; //init one element to an unrealistic value for testing
   //float y[1000];

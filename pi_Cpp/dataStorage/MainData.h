@@ -47,6 +47,11 @@ public:
                      float (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE],
                      int extraParams[4]), int extraParams[4]);
 
+  /* variand of fetchData that does not return floats but uses uint16 type and
+   * performs bitwise or operations instead of meaning */
+  int fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y[],
+                   uint16_t (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE]));
+
   /* removes all lines between start and lengt, by inserting null data or
      in the case of a single line to be removed an extra timestamp package.
      Note in the file itself it is still clear that something has been removed
