@@ -129,11 +129,10 @@ void debug(PirData& pirData){
 //  pirDat[1] = 0b11111111;  
 //  pirData.process(pirDat, Tstamp);
 
-//  //INPUT FAKE DATA:
+  //INPUT FAKE DATA:
 //  Tstamp = unix_timestamp();
-//  for(int i=Tstamp-800000; i<Tstamp; i+=4){
-//    std::cout<<"STARTING TIMESTAMP: "<<Tstamp-800000<<"\n";
-//    std::cout<<"ENDING TIMESTAMP: "<<Tstamp<<"\n";
+//  for(int i=Tstamp-1000; i<Tstamp; i+=4){
+
 //    pirDat[0] = 0b00000000;
 //    pirDat[1] = 0b11111111;  
 //    pirData.process(pirDat, i);    
@@ -142,23 +141,28 @@ void debug(PirData& pirData){
 //    pirDat[1] = 0b11111111;  
 //    pirData.process(pirDat, i+2);  
 //  }
+//  std::cout<<"STARTING TIMESTAMP: "<<Tstamp-1000<<"\n";
+//  std::cout<<"ENDING TIMESTAMP: "<<Tstamp<<"\n";
 
   //unsigned int loc1;
   //unsigned int loc2;
   //pirData.searchTstamps(1481496152, 1481496199, loc1, loc2);
-  #ifdef DEBUG
-  pirData.showLines(1541408/4-36, 1541408/4);
-  #endif
-  //  
+  
+  //#ifdef DEBUG
+  //pirData.showLines(1541408/4-36, 1541408/4);
+  //#endif
+    
   //uint32_t x[1000];
   //x[1] = 5; //init one element to an unrealistic value for testing
   //float y[1000];
   //pirData.fetchPirData(0, 1481496152, 1481496199, x, y);
   //std::cout<<"x: "<<+x[1]<<"\n";
   
-  //datarange: 1482498945, 1482508945
+//  uint32_t endTime = unix_timestamp();
+//  std::cout<<"searching between 0 and "<<endTime<<"\n";
+//  //datarange: 1482498945, 1482508945
   std::vector<plotables> toPlot = {MOVEMENTSENSOR0};
-  Graph graph(toPlot, 0, 1482506955, pirData);
+  Graph graph(toPlot, 1482938143, 1482939143, pirData);
 }
 
 int main(int argc, char* argv[])

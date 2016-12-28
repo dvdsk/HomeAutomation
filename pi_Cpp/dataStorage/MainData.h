@@ -18,7 +18,7 @@
 #include "MainHeader.h"
 #include "Cache.h"
 
-const static unsigned int MAXBLOCKSIZE = 512;
+const static unsigned int MAXBLOCKSIZE = 512000; //512kb
 
 //keeps track of where data is located: file pointer, cacheSize, cache, 
 //file path, and the oldest item in cache. During searches this is used to prevent
@@ -115,10 +115,11 @@ private:
   uint32_t getTime(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
   
   /*calculate the mean of an array of uint32_t*/
-  uint32_t mean(uint32_t* array, int len);
+  uint32_t meanT(uint32_t* array, int len);
   /*calculate the mean of an array of floats*/
-  float mean(float* array, int len);
-
+  float meanF(float* array, int len);
+  /*calculate the mean, (in this case the bitwise or product)*/
+  uint16_t meanB(uint16_t* array, int len);
 };
 
 class Data::iterator {

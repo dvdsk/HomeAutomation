@@ -18,7 +18,7 @@ PirData::PirData(const std::string filePath, uint8_t* cache, const int cacheLen)
 void PirData::process(const uint8_t rawData[2], const uint32_t Tstamp){
   uint8_t line[2];
   
-  std::cout<<"processing\n";
+  //std::cout<<"processing\n";
   if (newData(rawData) ){
     //bin data
     toStore_value = toStore_value | rawData[0];
@@ -28,7 +28,7 @@ void PirData::process(const uint8_t rawData[2], const uint32_t Tstamp){
       line[0] = toStore_value;
       line[1] = toStore_readSensores;
       
-      std::cout<<"storing: "<<+toStore_value<<", "<<+toStore_readSensores<<"\n";
+      //std::cout<<"storing: "<<+toStore_value<<", "<<+toStore_readSensores<<"\n";
       
       Data::append(line, Tstamp);
       

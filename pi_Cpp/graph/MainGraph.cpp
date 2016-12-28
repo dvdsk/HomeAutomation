@@ -65,17 +65,19 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
         break;
     }
   }
-
-  //if(onlyPir){updateLength(startT, stopT); }
-  if(onlyPir){updateLength(1482498957, stopT); }
-  else {int x[2] = {0,0}; int y[2] = {0,0}; gr = new TGraph(2,x,y);}
-  //else line only here as we always need a gr while testing 
+  //else {int x[2] = {0,0}; int y[2] = {0,0}; gr = new TGraph(2,x,y);}
+  ////else line only here as we always need a gr while testing 
 
   if(mSensToPlot > 0){ 
     //std::cerr<<"fetching some data\n";
     len = pirData.fetchPirData(startT, stopT, x, y_bin);
     //std::cerr<<"plotting some movement graphs for ya all\n";
     plotPirData(mSensToPlot, x, y_bin, len);
+  
+    std::cout<<"times: "<<x[0]<<", "<<x[len-1]<<"\n";
+    if(onlyPir){
+      updateLength(x[0], x[len-1]); 
+    }
   }
 
   finishPlot();
@@ -146,6 +148,7 @@ void Graph::initPlot(){
 
 void Graph::updateLength(uint32_t startT, uint32_t stopT){
   //float yMax = numbOfMovementPlots*spacing+spacing;
+  
   const double x[2] = {(double)startT,(double)stopT};
   const double y[2] = {0,0};
 
@@ -157,7 +160,10 @@ void Graph::axisTimeFormatting(){
   //gr->GetXaxis()->SetLabelSize(0.006);
   gr->GetXaxis()->SetNdivisions(-503);
   gr->GetXaxis()->SetTimeDisplay(1);
-  gr->GetXaxis()->SetTimeFormat("%Y %H:%M %F 1970-01-01 00:00:00");
+  //gr->GetXaxis()->SetTimeFormat("%Y %H:%M %F 1970-01-01 00:00:00");
+  gr->GetXaxis()->SetLabelOffset(0.02);
+  gr->GetXaxis()->SetTimeFormat("#splitline{%H\:%M}{%d\/%m\/%y} %F 1970-01-01 00:00:00");          
+  //%F timeoffset (which data is time 0)
 }
 
 void Graph::finishPlot(){

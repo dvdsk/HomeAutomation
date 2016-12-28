@@ -81,7 +81,7 @@ void Data::append(uint8_t line[], uint32_t Tstamp){
   }
 
   timeLow = static_cast<uint16_t>(Tstamp);
-  std::cout<<"timeLow: "<<timeLow<<"\n";
+  //std::cout<<"timeLow: "<<timeLow<<"\n";
 
   //put the unix time in front of the package  
   std::memcpy(towrite+2 , line, packageSize_-2);
@@ -90,8 +90,8 @@ void Data::append(uint8_t line[], uint32_t Tstamp){
   towrite[1] = p[1];
   //towrite[1] = (uint8_t)timeLow | 0b1111111100000000;//old method
   //towrite[0] = (uint8_t)timeLow | 0b0000000011111111;
-  std::cout<<"towrite[1]: "<<+towrite[1];
-  std::cout<<"towrite[0]: "<<+towrite[0]<<"\n";
+  //std::cout<<"towrite[1]: "<<+towrite[1];
+  //std::cout<<"towrite[0]: "<<+towrite[0]<<"\n";
   
   Cache::append(towrite);//writes it to file and cache too  
   fwrite(towrite, 1, packageSize_, fileP_);
@@ -148,7 +148,7 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y
   unsigned int orgIdx_B;
   unsigned int blockIdx_B;
 
-  int binOffset =0;
+  unsigned int binOffset = 0;
   unsigned int skippedIndexes=0;
 
   unsigned int nextFullTSLoc;
@@ -170,12 +170,9 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y
 
   //set subarrays for binning
   uint32_t* x_bin = new uint32_t[binSize_P]; //used to store time values in when binning
-  float* y_bin = new float[binSize_P]; //used to store the y value of whatever we want to know in
+  uint16_t* y_bin = new uint16_t[binSize_P]; //used to store the y value of whatever we want to know
 
   //calculate how many blocks we need
-  //if(stopByte-startByte>MAXBLOCKSIZE){nBlocks = (stopByte - startByte)/MAXBLOCKSIZE; } 
-  //else{nBlocks = 1;}
-  //FIXME TEMP REMOVED IF ELSE DONT SEE ITS USE
   nBlocks = (stopByte - startByte)/MAXBLOCKSIZE;
   
   //determine blocksize in bytes
@@ -186,10 +183,11 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y
   rest_B = (stopByte-startByte)%MAXBLOCKSIZE; //number of bytes that doesnt fit in the normal blocks
   rest_bin =rest_B/binSize_B; //tobin
   
+  std::cout<<"loopinfo: "<<nBlocks<<", "<<blockSize_B<<", "<<binSize_B<<"\n";
+  std::cout<<"timeHigh used: "<< +timeHigh<<"\n";
   //iterate over the blocks
   for (unsigned int i = 0; i < nBlocks; i++) {
     //read one block to memory
-    //db("first level of loop\n")
     fseek(fileP_, startByte+i*blockSize_B, SEEK_SET);
     fread(block, 1, blockSize_B, fileP_);
 
@@ -197,22 +195,20 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y
     for (unsigned int j = 0; j < blockSize_bins; j++) {
       //db("\tsecond level of loop\n")
       binNumber = i*blockSize_bins +j; //keep track which bin we are calculating
-
       //iterate through a group of values to bin
       for (unsigned int k = 0; k < binSize_P; k++) {
-        //db("\t\tthird level of loop\n")
         orgIdx_P = i*blockSize_P+ j*binSize_P;
         if (checkIdx.useValue(orgIdx_P)) {
           orgIdx_B = startByte+orgIdx_P* packageSize_;
           blockIdx_B = j*binSize_B+ k*packageSize_;
-
           //check if fullTS needs updating and update if needed.
           if(orgIdx_B == nextFullTSLoc){
+            std::cout<<"setting new timeHigh value \n";
             timeHigh = nextFullTS & 0b11111111111111110000000000000000;
             MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
           }
-          x_bin[k] = getTime(blockIdx_B, block);
-          y_bin[k] = func(blockIdx_B, block);
+          x_bin[k-skippedIndexes] = getTime(blockIdx_B, block);
+          y_bin[k-skippedIndexes] = func(blockIdx_B, block);
         }
         else{
           skippedIndexes++;
@@ -222,8 +218,8 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y
         binOffset++; //counter and condition one down so we can
       }
       else{
-        x[binNumber-binOffset] = mean(x_bin, binSize_P-skippedIndexes);
-        y[binNumber-binOffset] = mean(y_bin, binSize_P-skippedIndexes);
+        x[binNumber-binOffset] = meanT(x_bin, binSize_P-skippedIndexes);
+        y[binNumber-binOffset] = meanB(y_bin, binSize_P-skippedIndexes);  
         len++;
       }
       skippedIndexes=0;
@@ -231,15 +227,12 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y
     binOffset = 0;
   }
 
-  //db("starting in file at: "<<(startByte+nBlocks*blockSize_B)<<"\n")
-  //do the leftover values in a smaller block
   fseek(fileP_, startByte+nBlocks*blockSize_B, SEEK_SET);
   fread(block, 1, rest_B, fileP_);
 
   //iterate through the block in memory in bin groups
   for (unsigned int j = 0; j < rest_bin; j++) {
     binNumber = nBlocks*blockSize_bins +j;
-    //db("binNumber: "<<binNumber<<"\n");
     
     //iterate through a group of values to bin
     for (unsigned int k = 0; k < binSize_P; k ++) {
@@ -248,29 +241,25 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y
         orgIdx_B = startByte+orgIdx_P* packageSize_;
         blockIdx_B = j*binSize_B+ k*packageSize_;
 
-        //db("orgIdx_B: "<<orgIdx_B<<", blockIdx_B: "<<blockIdx_B<<"\n")
         //check if fullTS needs updating and update if needed.
         if(orgIdx_B == nextFullTSLoc){
-          //db("***updating timee***")
+          std::cout<<"setting new timeHigh value \n";
           timeHigh = nextFullTS & 0b11111111111111110000000000000000;
           MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
         }
-        x_bin[k] = getTime(blockIdx_B, block);
-        //db("x_bin["<<+k<<"]: "<<x_bin[k]<<"\n")
-        y_bin[k] = func(blockIdx_B, block);
+        x_bin[k-skippedIndexes] = getTime(blockIdx_B, block);
+        y_bin[k-skippedIndexes] = func(blockIdx_B, block);
       }
       else{
-        skippedIndexes++;
+        skippedIndexes++;  
       }
     }
-    //db("x["<<binNumber<<"]: "<<x[binNumber]<<"\n")
     if(binSize_P-skippedIndexes == 0){
       binOffset++; //counter and condition one down so we can
     }
     else{
-      x[binNumber-binOffset] = mean(x_bin, binSize_P-skippedIndexes);
-      y[binNumber-binOffset] = mean(y_bin, binSize_P-skippedIndexes);
-      std::cout<<"time: "<<x[binNumber-binOffset]<<"\n";
+      x[binNumber-binOffset] = meanT(x_bin, binSize_P-skippedIndexes);
+      y[binNumber-binOffset] = meanB(y_bin, binSize_P-skippedIndexes);
       len++;
     }
     skippedIndexes=0;
@@ -376,8 +365,8 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
         binOffset++; //counter and condition one down so we can
       }
       else{
-        x[binNumber-binOffset] = mean(x_bin, binSize_P-skippedIndexes);
-        y[binNumber-binOffset] = mean(y_bin, binSize_P-skippedIndexes);
+        x[binNumber-binOffset] = meanT(x_bin, binSize_P-skippedIndexes);
+        y[binNumber-binOffset] = meanF(y_bin, binSize_P-skippedIndexes);
         len++;
       }
       skippedIndexes=0;
@@ -422,8 +411,8 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
       binOffset++; //counter and condition one down so we can
     }
     else{
-      x[binNumber-binOffset] = mean(x_bin, binSize_P-skippedIndexes);
-      y[binNumber-binOffset] = mean(y_bin, binSize_P-skippedIndexes);
+      x[binNumber-binOffset] = meanT(x_bin, binSize_P-skippedIndexes);
+      y[binNumber-binOffset] = meanF(y_bin, binSize_P-skippedIndexes);
       std::cout<<"time: "<<x[binNumber-binOffset]<<"\n";
       len++;
     }
@@ -451,7 +440,7 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
   // Tstamp does not exist as such a Tstamp would result into seaching in cache.
   
   MainHeader::findFullTS(Tstamp1, startSearch, stopSearch);
-  std::cout<<"startSearch: "<<startSearch<<" stopSearch: "<<stopSearch<<"\n";  
+  std::cout<<"TS 1 startSearch: "<<startSearch<<" stopSearch: "<<stopSearch<<"\n";  
   if(startSearch == -1){
     //the searched timestamp is earier then the earliest we have in the file
     loc1 = 0; 
@@ -475,7 +464,7 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
   }
 
   MainHeader::findFullTS(Tstamp2, startSearch, stopSearch);
-  std::cout<<"startSearch: "<<startSearch<<" stopSearch: "<<stopSearch<<"\n";  
+  std::cout<<"TS 2 startSearch: "<<startSearch<<" stopSearch: "<<stopSearch<<"\n";  
   //the searched timestamp is later then the last we have in the file
   if(stopSearch == -1){stopSearch = fileSize; }   
     //the searched timestamp is earlier then file start so we dont have any data
@@ -675,9 +664,10 @@ bool Data::iterator::useValue(unsigned int i){
 }
 
 void Data::initGetTime(int startByte){
-  timeHigh = MainHeader::fullTSJustBefore(startByte) & 0b11111111111111110000000000000000;
+  timeHigh = MainHeader::fullTSJustBefore(startByte);// & 0b11111111111111110000000000000000;
   prevTimePart[0] = 0;
   prevTimePart[1] = 0;
+  std::cerr<<"timeHigh :"<<timeHigh<<"startByte: "<<startByte<<"\n";
 }
  
 uint32_t Data::getTime(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
@@ -688,32 +678,31 @@ uint32_t Data::getTime(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
             (uint16_t)block[blockIdx_B];
   db("timelow: "<<timelow<<"\ttimeHigh: "<<(timeHigh)<<"\n")
   fullTimeStamp = timeHigh | (uint32_t)timelow;
-  db("fullTimeStamp: "<<fullTimeStamp<<"\n")
+  db("fullTimeStamp: "<<fullTimeStamp<<" \n")
   return fullTimeStamp;
 }
 
-uint32_t Data::mean(uint32_t* array, int len){
+uint32_t Data::meanT(uint32_t* array, int len){
   uint32_t Mean = 0;
   uint32_t first = *(array+0);
-  for(int i = 1; i<len; i++){
-    Mean+=*(array+i)-first;
-  }
-  Mean /= len-1;
+  for(int i = 1; i<len; i++){ Mean = Mean+*(array+i)-first;}
+  Mean /= len;
   Mean += first;
   return Mean;
 }
 
-
-float Data::mean(float* array, int len){
+float Data::meanF(float* array, int len){
   float Mean = 0;
-  for(int i =0; i<len; i++){
-    Mean+=*(array+i);
-  }
+  for(int i =0; i<len; i++){ Mean+=*(array+i); }
   Mean /= len;
   return Mean;
 }
 
-
+uint16_t Data::meanB(uint16_t* array, int len){
+  uint16_t Mean = 0;
+  for(int i =0; i<len; i++){ Mean = Mean | *(array+i);}
+  return Mean;
+}
 
 //HELPER FUNCT
 void Data::putFullTS(const uint32_t Tstamp){
