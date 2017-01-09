@@ -15,7 +15,7 @@ int MainHeader::fileSize(int fd, const char* filePath){
   int usefull;
   int result; 
   
-  size_t filesize = getFilesize(filePath);
+  int filesize = getFilesize(filePath);
   db("filesize: "<<filesize<<"\n");
   if(filesize < BUFFERSIZE){ return filesize;}
   filesize = filesize/2 *2; //make filesize even
@@ -26,20 +26,23 @@ int MainHeader::fileSize(int fd, const char* filePath){
   db("read: "<<res<<" bytes\n");
   
   //find out there the file needs to be truncated
-  int elementsToCheck = res/sizeof(uint32_t)+2;
-  for(unsigned int i=0; i<elementsToCheck; i+=2) {
+  int startCheck = std::max(filesize-(int)BUFFERSIZE,0)/sizeof(uint32_t);
+  int stopCheck = (startCheck+BUFFERSIZE)/sizeof(uint32_t);
+  for(unsigned int i=startCheck; i<stopCheck; i+=2) {
     if(data[i] == 0) {
-      good_lines = (i)/2;
+      good_lines = i/2;
       usefull = good_lines *2*sizeof(uint32_t);
       
       db("found data to be truncated\n");
       db("i: "<<i<<" filesize: "<<filesize<<" usefull: "<<usefull
-              <<" res: "<<res
+              <<" good_lines: "<<good_lines<<" res: "<<res
+              <<" startCheck: "<<startCheck
+              <<" stopCheck: "<<stopCheck
               <<" buffersize: "<<BUFFERSIZE<<"\n");
 
-      filesize = filesize-elementsToCheck*4+usefull; //FIXME TEMP REMOVED -1
+      filesize = startCheck+usefull;
       db("final file size: "<<filesize<<"\n")
-      break;
+      return filesize;
     }
   }
   return filesize;  
