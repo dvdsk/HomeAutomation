@@ -34,10 +34,7 @@ public:
   /* writes a package to file transparently caching it*/
   void append(uint8_t line[], uint32_t Tstamp);
 
-  #ifdef DEBUG
   void showLines(int start_P, int end_P);
-  #endif
-
 
   /* takes a start and end time + an array to store the time in and one to store
    * floats in. Binning of data happens if there are 2* or more data points then

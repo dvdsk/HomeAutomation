@@ -85,6 +85,12 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
 
 void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION], 
                         uint16_t y[MAXPLOTRESOLUTION], int len){
+  
+  //debug by showing the raw data fetched
+  for(int i =0; i<len; i++){
+	std::cout<<"x["<<i<<"]: "<<x[i]<<" y["<<i<<"]: "<<y[i]<<"\n";
+  }
+  
   //std::cerr<<"we got len: "<<len<<"\n";
   bool hasRisen[8] = {false};
   uint32_t timeOfRise[8];
@@ -175,56 +181,3 @@ void Graph::finishPlot(){
   c1->Modified();
   c1->Print("test.pdf");
 }
-
-
-
-//void scalePirData(float y_float[MAXPLOTRESOLUTION]){
-//  //TODO
-//}
-
-
-
-
-
-
-
-//void graph() {
-//  TCanvas *c1 = new TCanvas("c1","A Simple Graph Example",200,10,700,500);
-//  c1->SetGrid();
-//  const Int_t n = 5;
-//  //   Double_t x[n], y[n];
-//  //   for (Int_t i=0;i<n;i++) {
-//  //     x[i] = i*0.1;
-//  //     y[i] = 10*sin(x[i]+0.2);
-//  //     printf(" i %i %f %f \n",i,x[i],y[i]);
-//  //   }
-//  int y1[n] = {1,1,0,0,1};
-//  int x1[n] = {1,2,2,4,5};
-//  TGraph *gr = new TGraph(n,x1,y1);
-//  
-//  int y2[n] = {1,1,0,0,1};
-//  int x2[n] = {1,2,3,4,5};
-//  
-//  
-//  //gr->SetLineColor(2);
-//  //gr->SetLineWidth(1);
-//  //gr->SetMarkerColor(4);
-//  //gr->SetMarkerStyle(2);
-//  gr->SetTitle("Temperature");
-//  gr->GetXaxis()->SetTitle("A Date?");
-//  gr->GetYaxis()->SetTitle("Temp in C");
-//  //gr->Draw("ACP");
-//  gr->Draw("AL");//this determins interpolation etc smoothness etc
-//  // TCanvas::Update() draws the frame, after which one can change it
-//  
-//  drawLine(1,2);
-//  drawLine(3,4);
-
-//  c1->Update();
-//  c1->GetFrame()->SetBorderSize(12);
-//  c1->Modified();
-
-
-
-//  c1->Print("test.pdf");
-//}
