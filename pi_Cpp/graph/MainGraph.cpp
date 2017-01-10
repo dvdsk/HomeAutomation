@@ -72,12 +72,12 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
     //std::cerr<<"fetching some data\n";
     len = pirData.fetchPirData(startT, stopT, x, y_bin);
     //std::cerr<<"plotting some movement graphs for ya all\n";
-    plotPirData(mSensToPlot, x, y_bin, len);
-  
-    std::cout<<"times: "<<x[0]<<", "<<x[len-1]<<"\n";
+	std::cout<<"times: "<<x[0]<<", "<<x[len-1]<<"\n";
+    
     if(onlyPir){
       updateLength(x[0], x[len-1]); 
-    }
+    }    
+    plotPirData(mSensToPlot, x, y_bin, len);  
   }
 
   finishPlot();
@@ -103,8 +103,8 @@ void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION],
 
   //setup height
   int counter = 0;  
-  for(int i; i<8; i++){
-    float spacing = 1.0/numbPlots; //TODO change 1 to something sensible
+  for(int i=0; i<8; i++){
+    float spacing = 1.0/(numbPlots+1); //TODO change 1 to something sensible
     if(toPlot.test(i)){counter++;}
     height[i] = spacing*(counter); 
   } 
@@ -112,7 +112,6 @@ void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION],
   for(int i=0; i<len; i++){
     //decode values from float to bitset
     array = (uint8_t*) &y[i];
-
     std::bitset<8> movement(array[1]); //TODO from uint8_t to bool array
     std::bitset<8> confirmed(array[0]);
     
@@ -132,24 +131,29 @@ void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION],
   }
   //draw the all lines that havent been 'grounded' yet.
   for(int j = 0; j<8; j++){
-    if(hasRisen[j]){
+    if(hasRisen[j] && toPlot.test(j)){
       drawLine(timeOfRise[j], x[len-1], height[j]);
     }
   }
 }
 
 void Graph::drawLine(uint32_t start, uint32_t stop, float h) {
-  h= 0.5;
   std::cout<<"drawing line between: "<<start<<"\tand: "<<stop<<"\t height: "<<h<<"\n";
   TLine *line = new TLine((double)start, h, (double)stop, h);
-  line->SetLineWidth(1);
+  line->SetLineWidth(2);
   line->SetLineColor(4);
   line->Draw();
 }
 
 void Graph::initPlot(){
-  c1 = new TCanvas("c1","A Simple Graph Example",200,10,700,500);
+  //c1 = new TCanvas("c1","A Simple Graph Example",200,10,700,500);
+  c1 = new TCanvas();
   c1->SetGrid();
+  
+	//c1->SetRightMargin(0.); TODO tweak value for optimal usage of space
+	//c1->SetLeftMargin(0.);
+	//c1->SetTopMargin(0.);
+	//c1->SetBottomMargin(0.); 
 }
 
 void Graph::updateLength(uint32_t startT, uint32_t stopT){
@@ -157,27 +161,24 @@ void Graph::updateLength(uint32_t startT, uint32_t stopT){
   
   const double x[2] = {(double)startT,(double)stopT};
   const double y[2] = {0,0};
-
   gr = new TGraph(2,x,y);
   gr->Draw();
+  gr->GetXaxis()->SetLimits((double)startT, (double)stopT);
 }
 
 void Graph::axisTimeFormatting(){
   //gr->GetXaxis()->SetLabelSize(0.006);
   gr->GetXaxis()->SetNdivisions(-503);
   gr->GetXaxis()->SetTimeDisplay(1);
-  //gr->GetXaxis()->SetTimeFormat("%Y %H:%M %F 1970-01-01 00:00:00");
   gr->GetXaxis()->SetLabelOffset(0.02);
-  gr->GetXaxis()->SetTimeFormat("#splitline{%H\:%M}{%d\/%m\/%y} %F 1970-01-01 00:00:00");          
-  //%F timeoffset (which data is time 0)
+  gr->GetXaxis()->SetTimeFormat("#splitline{%H\:%M}{%d\/%m\/%y} %F 1970-01-01 00:00:00");       
 }
 
 void Graph::finishPlot(){
   axisTimeFormatting();
-  //gr->GetXaxis()->SetLabelSize(0.006);
-  c1->RedrawAxis();
-  c1->Update();
-  c1->GetFrame()->SetBorderSize(12);
-  c1->Modified();
+  //c1->RedrawAxis();
+  //c1->Update();
+  //c1->GetFrame()->SetBorderSize(12);
+  //c1->Modified();
   c1->Print("test.pdf");
 }
