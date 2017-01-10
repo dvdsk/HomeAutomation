@@ -72,6 +72,11 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
     //std::cerr<<"fetching some data\n";
     len = pirData.fetchPirData(startT, stopT, x, y_bin);
     //std::cerr<<"plotting some movement graphs for ya all\n";
+	if(len == 0){
+	  std::cerr<<"NO DATAPOINTS WHERE PASSED TO THE GRAPH FUNCTION I AM"
+	           <<" GOING TO JUST RETURN IT NOW!!\n";
+	  return;
+	}
 	std::cout<<"times: "<<x[0]<<", "<<x[len-1]<<"\n";
     
     if(onlyPir){
@@ -112,17 +117,18 @@ void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION],
   for(int i=0; i<len; i++){
     //decode values from float to bitset
     array = (uint8_t*) &y[i];
-    std::bitset<8> movement(array[1]); //TODO from uint8_t to bool array
-    std::bitset<8> confirmed(array[0]);
+    std::bitset<8> movement(array[0]); //TODO from uint8_t to bool array
+    std::bitset<8> checked(array[1]);
     
     for(int j = 0; j<8; j++){
       if(hasRisen[j]){
-        if(!movement.test(j) && confirmed.test(j) && toPlot.test(j)){
+		if(toPlot.test(j)){std::cout<<"checked: "<<checked.test(j)<<"\n";}
+        if(!movement.test(j) && checked.test(j) && toPlot.test(j)){
           drawLine(timeOfRise[j], x[i], height[j]);
           hasRisen[j] = false;
         }
       }
-      else if(movement.test(j) || confirmed.test(j)){ 
+      else if(movement.test(j) && checked.test(j)){ 
         timeOfRise[j] = x[i];
         //std::cout<<"time: "<<x[i]<<"\n";
         hasRisen[j] = true;
