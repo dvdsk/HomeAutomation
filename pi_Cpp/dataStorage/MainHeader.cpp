@@ -16,29 +16,29 @@ int MainHeader::fileSize(int fd, const char* filePath){
   int result; 
   
   int filesize = getFilesize(filePath);
-  db("filesize: "<<filesize<<"\n");
+  std::cout<<"filesize: "<<filesize<<"\n";
   if(filesize < BUFFERSIZE){ return filesize;}
   filesize = filesize/2 *2; //make filesize even
-  result = lseek(fd, filesize-(1*(int)BUFFERSIZE+8), SEEK_SET);
-  if (result == -1){std::cerr<<strerror(errno)<<"\n";}    
   
-  int res = read(fd, &data, BUFFERSIZE);
-  db("read: "<<res<<" bytes\n");
+  int startCheck = filesize-(1*(int)BUFFERSIZE);
+  int stopCheck = filesize;
   
-  //find out there the file needs to be truncated
-  int startCheck = std::max(filesize-(int)BUFFERSIZE,0)/sizeof(uint32_t);
-  int stopCheck = (startCheck+BUFFERSIZE)/sizeof(uint32_t);
-  for(unsigned int i=startCheck; i<stopCheck; i+=2) {
+  result = lseek(fd, startCheck, SEEK_SET);
+  int res = read(fd, &data, stopCheck-startCheck);
+  std::cout<<"res: "<<res<<"\n";
+  std::cout<<"start/stopcheck: "<<startCheck<<"/"<<stopCheck<<"\n";
+  for(unsigned int i=0; i<(startCheck-stopCheck)/sizeof(uint32_t); i+=2) {
+    std::cout<<"data["<<i<<"], byte: "<<i*4<<" = "<<data[i]<<"\n";
     if(data[i] == 0) {
       good_lines = i/2;
       usefull = good_lines *2*sizeof(uint32_t);
       
-      db("found data to be truncated\n");
-      db("i: "<<i<<" filesize: "<<filesize<<" usefull: "<<usefull
+      std::cout<<"found data to be truncated\n";
+      std::cout<<"i: "<<i<<" filesize: "<<filesize<<" usefull: "<<usefull
               <<" good_lines: "<<good_lines<<" res: "<<res
               <<" startCheck: "<<startCheck
               <<" stopCheck: "<<stopCheck
-              <<" buffersize: "<<BUFFERSIZE<<"\n");
+              <<" buffersize: "<<BUFFERSIZE<<"\n";
 
       filesize = startCheck+usefull;
       db("final file size: "<<filesize<<"\n")
@@ -110,16 +110,16 @@ void MainHeader::append(uint32_t Tstamp, uint32_t byteInDataFile){
   
 }
 
-#ifdef DEBUG
+//#ifdef DEBUG
 void MainHeader::showData(int lineStart, int lineEnd){  
   std::cout<<"------------------------------\n";
   for(int i =lineStart*2; i<lineEnd*2; i+=2){
-    std::cout<<"byte: "<<i*4<<"\t";
+    std::cout<<"byte:  "<<i*4<<"\t";
     std::cout<<"Tstamp: "<<data[i+0]<<"\t";
     std::cout<<"byteInDataFile: "<<data[i+1]<<"\n";
   }
 }
-#endif
+//#endif
 
 void MainHeader::findFullTS(uint32_t Tstamp, int& A, int& B) {
   int midIdx;
@@ -168,12 +168,14 @@ uint32_t MainHeader::lastFullTS(){
 }
 
 uint32_t MainHeader::fullTSJustBefore(unsigned int byte){
-  std::cerr<<"pos: "<<pos<<"\n";
+  //std::cerr<<"headerData: \n";
+  //showData(0,pos);
+  //std::cerr<<"pos: "<<pos<<"\n";
   for(int i = pos-2; i >= 0; i-=2){
-    std::cerr<<"i: "<<i<<"\n";
-    std::cerr<<"data[i+1]: "<<data[i+1]<<"\n";
+    //std::cerr<<"i: "<<i<<"\n";
+    //std::cerr<<"data[i+1]: "<<data[i+1]<<"\n";
     if(data[i+1] <= byte){
-      std::cerr<<i<<"\n";
+      //std::cerr<<i<<"\n";
       return data[i]; //return timestamp
     }
   }
@@ -202,10 +204,10 @@ int main(){
 
   MainHeader header("test");
 
-  for(int i = 0; i<10; i++){
-    header.append(1481034435+2*i,i);
+  for(int i = 0; i<1; i++){
+    header.append(1481034435+20+1*i,i);
   }
-  header.showData(0,60);
+  header.showData(0,15);
 
   //header.findFullTS(1481034435+2*30, A, B);
   //std::cout<<"interval: "<<A<<", "<<B<<"\n";

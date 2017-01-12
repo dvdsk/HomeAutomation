@@ -33,10 +33,10 @@ public:
    * the data file to the header file. If need be it will extend the mapping*/
   void append(uint32_t Tstamp, uint32_t byteNumber);
   
-  #ifdef DEBUG
+  //#ifdef DEBUG
   /* test function that shows whats in the file from lineStart to lineEnd*/
   void showData(int lineStart, int lineEnd);  
-  #endif
+  //#endif
   
   /* give the line in the data file where the closest but smaller or equal then
    * the given timestamp is. In bytes from the beginning of the file where the

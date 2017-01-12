@@ -550,7 +550,7 @@ int Data::findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSea
 int Data::findTimestamp_inFile_upperBound(uint16_t TS_low, unsigned int startSearch, unsigned int stopSearch){
 
   std::cout<<"enterd upperbound\n";
-  //std::cout<<"startSearch: "<<startSearch<<", stopSearch: "<<stopSearch<<"\n";
+  std::cout<<"startSearch: "<<startSearch<<", stopSearch: "<<stopSearch<<"\n";
 
   uint16_t timelow;
 
