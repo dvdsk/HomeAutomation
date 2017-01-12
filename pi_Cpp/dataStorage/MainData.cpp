@@ -467,7 +467,7 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
   }
 
   MainHeader::findFullTS(Tstamp2, startSearch, stopSearch);
-  //std::cout<<"TS 2 startSearch: "<<startSearch<<" stopSearch: "<<stopSearch<<"\n";  
+  std::cout<<"TS 2 startSearch: "<<startSearch<<" stopSearch: "<<stopSearch<<"\n";  
   //the searched timestamp is later then the last we have in the file
   if(stopSearch == -1){stopSearch = fileSize; }   
     //the searched timestamp is earlier then file start so we dont have any data

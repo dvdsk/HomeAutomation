@@ -121,6 +121,8 @@ void MainHeader::showData(int lineStart, int lineEnd){
 }
 //#endif
 
+//old binairy search (findFullTS)
+/*
 void MainHeader::findFullTS(uint32_t Tstamp, int& A, int& B) {
   int midIdx;
   uint32_t element;
@@ -128,12 +130,13 @@ void MainHeader::findFullTS(uint32_t Tstamp, int& A, int& B) {
   int highIdx = pos;
   int lowIdx = 0;
   
-  db("trying to find timestamp: "<<Tstamp<<"\n");
+  db("trying to find timestamp: "<<Tstamp<<" \n");
   
   while(highIdx > lowIdx){
     midIdx = (highIdx+lowIdx)/4 *2; //gives even number : timestamp
     element = data[midIdx];
-    db("midIdx, element: "<<midIdx<<" ,"<<element<<"\n");
+    db("lowIdx, midIdx, highIdx, element, : "<<lowIdx<<"\t"
+		<<midIdx<<"\t"<<highIdx<<"\t"<<element<<"\n");
     
     if(data[lowIdx] == Tstamp){ A = data[lowIdx+1]; B = data[lowIdx+1]; db("HERE6"); return;}
     else if(element == Tstamp){ A = data[midIdx+1]; B = data[midIdx+1]; db("HERE4"); return;}
@@ -147,8 +150,8 @@ void MainHeader::findFullTS(uint32_t Tstamp, int& A, int& B) {
       }
       highIdx = midIdx;//upper bound omlaag (naar huidig midde)
     }
-    else{//we zitten te laag
-      if(lowIdx == midIdx) {//we kunnen niet hoger
+    else{//
+      if(lowIdx == midIdx) {//we kunnen niet lager
         A = data[lowIdx+1];
         B = -1;//there is no timestamp higher //NOTE changed from orgn.
         db("HERE5");
@@ -160,6 +163,25 @@ void MainHeader::findFullTS(uint32_t Tstamp, int& A, int& B) {
   B = data[lowIdx+1]; //NOTE changed from orgn.
   db("HERE3");
   return;
+}
+*/
+
+void MainHeader::findFullTS(uint32_t Tstamp, int& A, int& B) {
+  int low = 0;
+  int high = pos-2; //as 'pos' points to free space
+  int mid;
+  
+  while(low<=high){
+    mid = low + ((high-low)/2)
+    if(data[mid] == Tstamp){
+	  return mid;
+    }
+    else if(data[mid] > Tstamp){
+	  high = mid-1;
+	}
+	else if(data[mid] < Tstamp){
+	  low = mid+1;	
+	}
 }
 
 uint32_t MainHeader::lastFullTS(){
