@@ -93,7 +93,7 @@ void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION],
   
   //debug by showing the raw data fetched
   for(int i =0; i<len; i++){
-	std::cout<<"x["<<i<<"]: "<<x[i]<<" y["<<i<<"]: "<<y[i]<<"\n";
+	//std::cout<<"x["<<i<<"]: "<<x[i]<<" y["<<i<<"]: "<<y[i]<<"\n";
   }
   
   //std::cerr<<"we got len: "<<len<<"\n";
@@ -122,7 +122,7 @@ void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION],
     
     for(int j = 0; j<8; j++){
       if(hasRisen[j]){
-		if(toPlot.test(j)){std::cout<<"checked: "<<checked.test(j)<<"\n";}
+		//if(toPlot.test(j)){std::cout<<"checked: "<<checked.test(j)<<"\n";}
         if(!movement.test(j) && checked.test(j) && toPlot.test(j)){
           drawLine(timeOfRise[j], x[i], height[j]);
           hasRisen[j] = false;

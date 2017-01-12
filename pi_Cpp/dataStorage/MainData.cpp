@@ -238,13 +238,13 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y
     //iterate through a group of values to bin
     for (unsigned int k = 0; k < binSize_P; k ++) {
       orgIdx_P = nBlocks*blockSize_P+ j*binSize_P;
-      std::cout<<"binSize_P: "<<binSize_P<<"\n";
+      //std::cout<<"binSize_P: "<<binSize_P<<"\n";
       if (checkIdx.useValue(orgIdx_P)) {//TODO this should arrange skipping of skiped lines 
         orgIdx_B = startByte+orgIdx_P* packageSize_;
         blockIdx_B = j*binSize_B+ k*packageSize_;
 
         //check if fullTS needs updating and update if needed.
-        std::cout<<"orgIdx_B"<<orgIdx_B<<"\n";
+        //std::cout<<"orgIdx_B"<<orgIdx_B<<"\n";
         if(orgIdx_B == nextFullTSLoc){
           //std::cout<<"setting new timeHigh value \n";
           timeHigh = nextFullTS & 0b11111111111111110000000000000000;
@@ -625,9 +625,9 @@ int Data::findTimestamp_inFile_upperBound(uint16_t TS_low, unsigned int startSea
     }
   }
 
-  std::cout<<"Returning startSearch: "<<startSearch<<"\n";
+  std::cout<<"Returning stopSearch: "<<stopSearch<<"\n";
   //every value in the range is larger then the wanted timestamp the start of the
-  return startSearch; //range is thus the best approximation.
+  return stopSearch; //range is thus the best approximation.
 }//done
 
 
