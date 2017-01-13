@@ -32,7 +32,7 @@ public:
   FILE* getFileP();
 
   /* writes a package to file transparently caching it*/
-  void append(uint8_t line[], uint32_t Tstamp);
+  void append(const uint8_t line[], const uint32_t Tstamp);
 
   void showLines(int start_P, int end_P);
 
@@ -41,8 +41,7 @@ public:
    * the plotresolution. The data is plotted from the start time to and including
    * the end time*/
   int fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
-                     float (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE],
-                     int extraParams[4]), int extraParams[4]);
+                     float (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE]));
 
   /* variand of fetchData that does not return floats but uses uint16 type and
    * performs bitwise or operations instead of meaning */

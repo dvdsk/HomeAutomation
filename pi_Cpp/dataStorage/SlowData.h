@@ -31,24 +31,26 @@ We save in the same format as the bitstream
 
 */
 
-const int PACKAGESIZE = 9+2; //timestamp + data
+const int SLOWDATA_PACKAGESIZE = 9+2; //timestamp + data
 
 //data specific functions and variables, inherits AllData
 class SlowData : public Data
 {
   public:    
-    TempData(const std::string filePath, uint8_t* cache, const int cacheLen);
+    SlowData(const std::string filePath, uint8_t* cache, const int cacheLen);
     /*take the raw data from serial with the timestamp, rewrite it, send 
       it off for reacting if something changed and store it in a file*/
     void process(const uint8_t raw[9], const uint32_t Tstamp);
 
+    int fetchSlowData(uint32_t startT, uint32_t stopT, 
+                      uint32_t x[], float y[], int sensor);
+
   private:
+    bool newData(const uint8_t raw[9]);
+
     /*checks if data is diffrent the previous data*/
-    uint8_t newData(std::bitset<70> rawData);
-    
-    std::bitset<70> rawData;
-    std::bitset<70> prevRawData;
-   
+    uint8_t prevRaw[9];
+
 };
 
 #endif // DATASTORE_H

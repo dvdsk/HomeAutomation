@@ -128,11 +128,13 @@ void MainHeader::findFullTS(uint32_t Tstamp, int& A, int& B) {
   int mid;
   int prevMid;
   std::cout<<"searching for Tstamp: "<<Tstamp<<"\n";
+  std::cout<<"data[pos-2]: "<<data[pos-2]<<"\n";
   
   //check and handle edge case TS > last in data
   if(data[pos-2] < Tstamp){
     A = data[pos-2+1];
     B = -1; //signals calling function that value is out of range
+    std::cout<<"wanted Tstamp larger then last full timestamp\n";
     return;
   }
   

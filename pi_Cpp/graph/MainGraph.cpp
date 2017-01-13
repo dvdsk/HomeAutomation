@@ -1,10 +1,13 @@
 #include "MainGraph.h"
 
 Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
-             PirData& pirData){
+             PirData& pirData, SlowData& slowData){
 
   bool onlyPir = true;
+  //bool slowData_gotTimeAxis; IMPLEMENT THIS FUNCTIONALITY TO SAVE TIME
+  //DECODING THE TIME
   uint16_t y_bin[MAXPLOTRESOLUTION];
+  float y[MAXPLOTRESOLUTION];
   int len;
   mSensToPlot=0;
   initPlot();
@@ -39,34 +42,43 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
 
       case TEMP_BED:
         onlyPir = false;
-        //fetchSlowData(0);//todo
+        len = slowData.fetchSlowData(startT, stopT, x, y, 1);//todo
+        //for(int i = 0; i<len; i++){std::cout<<"temp_data: "<<y[i]<<"\n";}
+        TGraph *gr = new TGraph(len,x,y);
+        gr->Draw("c");
         break;
       case TEMP_BATHROOM:
         onlyPir = false;
-        //fetchSlowData(0);
+        slowData.fetchSlowData(startT, stopT, x, y, 2);
         break;
       case TEMP_DOORHIGH:
         onlyPir = false;
-        //fetchSlowData(0);
+        slowData.fetchSlowData(startT, stopT, x, y, 3);
         break;
       case HUMIDITY_BED:
         onlyPir = false;
-        //fetchSlowData(1);
+        slowData.fetchSlowData(startT, stopT, x, y, 4);
+        break;
+      case HUMIDITY_BATHROOM:
+        onlyPir = false;
+        slowData.fetchSlowData(startT, stopT, x, y, 5);
+        break;
+      case HUMIDITY_DOORHIGH:
+        onlyPir = false;
+        slowData.fetchSlowData(startT, stopT, x, y, 6);
         break;
       case CO2PPM:
         onlyPir = false;
-        //TODO plot CO2
+        slowData.fetchSlowData(startT, stopT, x, y, 7);
         break;
       case BRIGHTNESS_BED:
         onlyPir = false;
-        //TODO plot brightness
+        //nonPirFastData;
         break;    
       default:
         break;
     }
   }
-  //else {int x[2] = {0,0}; int y[2] = {0,0}; gr = new TGraph(2,x,y);}
-  ////else line only here as we always need a gr while testing 
 
   if(mSensToPlot > 0){ 
     //std::cerr<<"fetching some data\n";
@@ -86,7 +98,7 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
     plotPirData(mSensToPlot, x, y_bin, len);  
   }
 
-  finishPlot();
+  finishPlot(); //COMMENT OUT WHEN NOT PLOTTING
 }
 
 void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION], 

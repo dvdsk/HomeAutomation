@@ -3,7 +3,7 @@ CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 ROOTFLAGS = `root-config --cflags --glibs`
 
 
-objects = main.o Cache.o MainData.o PirData.o Serial.o MainHeader.o MainGraph.o
+objects = main.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o MainGraph.o
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
 all: pi
@@ -14,7 +14,8 @@ pi: $(objects)
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o pi $(objects) \
 	-lboost_system -lboost_thread -lpthread
 
-main.o: main.cpp Serial.h dataStorage/MainData.h dataStorage/PirData.h graph/MainGraph.h
+main.o: main.cpp Serial.h dataStorage/MainData.h dataStorage/PirData.h \
+        dataStorage/SlowData.h graph/MainGraph.h
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c main.cpp
 Cache.o: dataStorage/Cache.cpp dataStorage/Cache.h
 	$(CXX) $(CXXFLAGS) -c dataStorage/Cache.cpp
@@ -25,6 +26,8 @@ MainData.o: dataStorage/MainData.cpp dataStorage/MainData.h dataStorage/Cache.h 
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c dataStorage/MainData.cpp
 PirData.o: dataStorage/PirData.cpp dataStorage/PirData.h dataStorage/MainData.h
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c dataStorage/PirData.cpp
+SlowData.o: dataStorage/SlowData.cpp dataStorage/SlowData.h dataStorage/MainData.h
+	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c dataStorage/SlowData.cpp
 Serial.o: Serial.cpp
 	$(CXX) $(CXXFLAGS) -c Serial.cpp	
 MainGraph.o: graph/MainGraph.cpp graph/MainGraph.h

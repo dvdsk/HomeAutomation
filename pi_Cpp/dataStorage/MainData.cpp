@@ -67,7 +67,7 @@ FILE* Data::getFileP(){
   return fileP_;
 }
 
-void Data::append(uint8_t line[], uint32_t Tstamp){
+void Data::append(const uint8_t line[], const uint32_t Tstamp){
   uint8_t towrite[MAXPACKAGESIZE];
   uint16_t timeLow;
   
@@ -269,8 +269,7 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y
 }//done
 
 int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
-                         float (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE],
-                         int extraParams[4]), int extraParams[4]) {
+                    float (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE])) {
 
   int len = 0; //Length of y
   unsigned int startByte; //start position in the file
@@ -292,7 +291,7 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
   unsigned int orgIdx_B;
   unsigned int blockIdx_B;
 
-  int binOffset =0;
+  unsigned int binOffset = 0;
   unsigned int skippedIndexes=0;
 
   unsigned int nextFullTSLoc;
@@ -351,12 +350,12 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
           blockIdx_B = j*binSize_B+ k*packageSize_;
 
           //check if fullTS needs updating and update if needed.
-          if(orgIdx_B == nextFullTSLoc){
+          if(orgIdx_B > nextFullTSLoc){
             timeHigh = nextFullTS & 0b11111111111111110000000000000000;
             MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
           }
-          x_bin[k] = getTime(blockIdx_B, block);
-          y_bin[k] = func(blockIdx_B, block, extraParams);
+          x_bin[k-skippedIndexes] = getTime(blockIdx_B, block);
+          y_bin[k-skippedIndexes] = func(blockIdx_B, block);
         }
         else{
           skippedIndexes++;
@@ -394,14 +393,13 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 
         //db("orgIdx_B: "<<orgIdx_B<<", blockIdx_B: "<<blockIdx_B<<"\n")
         //check if fullTS needs updating and update if needed.
-        if(orgIdx_B == nextFullTSLoc){
+        if(orgIdx_B > nextFullTSLoc){
           //db("***updating timee***")
           timeHigh = nextFullTS & 0b11111111111111110000000000000000;
           MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
         }
-        x_bin[k] = getTime(blockIdx_B, block);
-        //db("x_bin["<<+k<<"]: "<<x_bin[k]<<"\n")
-        y_bin[k] = func(blockIdx_B, block, extraParams);
+        x_bin[k-skippedIndexes] = getTime(blockIdx_B, block);
+        y_bin[k-skippedIndexes] = func(blockIdx_B, block);
       }
       else{
         skippedIndexes++;
@@ -476,7 +474,7 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
       loc2 = findTimestamp_inFile_upperBound(time2Low, startSearch, stopSearch);
     }
   //}
-  //std::cout<<"loc1: "<<loc1<<"\tloc2: "<<loc2<<"\n";
+  std::cout<<"loc1: "<<loc1<<"\tloc2: "<<loc2<<"\n";
 }
 
 int Data::findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSearch, unsigned int stopSearch){
@@ -551,8 +549,8 @@ int Data::findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSea
 
 int Data::findTimestamp_inFile_upperBound(uint16_t TS_low, unsigned int startSearch, unsigned int stopSearch){
 
-  //std::cout<<"enterd upperbound\n";
-  //std::cout<<"startSearch: "<<startSearch<<", stopSearch: "<<stopSearch<<"\n";
+  std::cout<<"enterd upperbound\n";
+  std::cout<<"startSearch: "<<startSearch<<", stopSearch: "<<stopSearch<<"\n";
 
   uint16_t timelow;
 

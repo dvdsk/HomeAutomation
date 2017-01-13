@@ -19,7 +19,9 @@
 const int MAXPLOTRESOLUTION = 1000; //for now 
 
 class PirData;
+class SlowData;//FIXME is this needed?
 #include "../dataStorage/PirData.h"
+#include "../dataStorage/SlowData.h"
 
 enum plotables{
   MOVEMENTSENSOR0,
@@ -51,7 +53,7 @@ class Graph
 {
 public:
   Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
-        PirData& pirData);
+        PirData& pirData, SlowData& slowData);
 private:
   //local cache of time data
   float y[MAXPLOTRESOLUTION];

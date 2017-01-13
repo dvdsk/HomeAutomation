@@ -2,6 +2,8 @@
 #include <typeinfo>//FIXME for debugging only
 #include <ctime>
 
+#include <math.h>       /* sin */ //FIXME for debugging only
+
 #include "Serial.h"
 #include "dataStorage/MainData.h"
 #include "dataStorage/PirData.h"
@@ -12,10 +14,11 @@
 
 const std::string PATHPIR = "pirs.binDat";
 const int CACHESIZE_pir = 8;
+const int CACHESIZE_slowData = 22;
 
 //cache for data
 uint8_t cache1[CACHESIZE_pir];
-//uint8_t cache2[CACHESIZE_pir];
+uint8_t cache2[CACHESIZE_slowData];
 //uint8_t cache3[CACHESIZE_pir];
 
 FILE* file1; //needed as global for interrupt handling
@@ -101,76 +104,48 @@ void checkSensorData(PirData* pirData){
   }
 }
 
-void debug(PirData& pirData){
+void debug(PirData& pirData, SlowData& slowData){
   uint32_t Tstamp;
   uint8_t pirDat[2];
+  uint8_t slowDat[9];
+  uint16_t temp;
 
-//  Tstamp = unix_timestamp();
-//  pirDat[0] = 0b11111111;
-//  pirDat[1] = 0b11111111;  
-//  pirData.process(pirDat, Tstamp);
-
-//  Tstamp = unix_timestamp();
-//  pirDat[0] = 0b11111111;
-//  pirDat[1] = 0b11111111;  
-//  pirData.process(pirDat, Tstamp);  
-//  
-//  nanosleep((const struct timespec[]){{1, 0}}, NULL);
-//  
-//  Tstamp = unix_timestamp();
-//  pirDat[0] = 0b00000000;
-//  pirDat[1] = 0b11111111;  
-//  pirData.process(pirDat, Tstamp); 
-
-//  nanosleep((const struct timespec[]){{1, 0}}, NULL);
-//  
-//  Tstamp = unix_timestamp();
-//  pirDat[0] = 0b00000000;
-//  pirDat[1] = 0b11111111;  
-//  pirData.process(pirDat, Tstamp);
-
-  //INPUT FAKE DATA:
+  ////INPUT FAKE PIR DATA:
   //Tstamp = 1481496152;
-  //for(uint32_t i=Tstamp; i<Tstamp+1000000000; i+=10){
+  //for(uint32_t i=Tstamp; i<Tstamp+100000; i+=10){
 
     //pirDat[0] = 0b00000000;
     //pirDat[1] = 0b11111111;  
-    //pirData.process(pirDat, i);    
+    //pirData.process(pirDat, i);
     
     //pirDat[0] = 0b11111111;
     //pirDat[1] = 0b11111111;  
     //pirData.process(pirDat, i+5);  
   //}
-  //std::cout<<"STARTING TIMESTAMP: "<<Tstamp+100<<"\n";
-  //std::cout<<"ENDING TIMESTAMP: "<<Tstamp<<"\n";
 
-  //unsigned int loc1;
-  //unsigned int loc2;
-  //pirData.searchTstamps(1481496152, 1481496199, loc1, loc2);
+  ////INPUT FAKE TEMP DATA:
+  //Tstamp = 1481496152;
+  //for(uint32_t i=Tstamp; i<Tstamp+100000; i+=10){
+    //temp = (uint16_t)(sin(i/40.0)*100+100);
+    //slowDat[0] = (uint8_t)temp;
+    //slowDat[1] = (uint8_t)(temp >> 8);
+    //slowData.process(slowDat, i);
+  //}
   
-  //pirData.showLines(40004, 40008);
-    
-  //uint32_t x[1000];
-  //x[1] = 5; //init one element to an unrealistic value for testing
-  //float y[1000];
-  //pirData.fetchPirData(0, 1481496152, 1481496199, x, y);
-  //std::cout<<"x: "<<+x[1]<<"\n";
-  
-//  uint32_t endTime = unix_timestamp();
-//  std::cout<<"searching between 0 and "<<endTime<<"\n";
-//  //datarange: 1482498945, 1482508945
-  std::vector<plotables> toPlot = {MOVEMENTSENSOR0};
-  Graph graph(toPlot, 1481496152, 1481496152+1000000100, pirData);
+  std::vector<plotables> toPlot = {TEMP_BED};
+  Graph graph(toPlot, 1481496152, 1481496152+1000, pirData, slowData);
 }
 
 int main(int argc, char* argv[])
 {
   PirData pirData("pirs", cache1, CACHESIZE_pir);
+  SlowData slowData("slowData", cache2, CACHESIZE_slowData);
   file1 = pirData.getFileP();
+  file2 = slowData.getFileP();
   
   signal(SIGINT, interruptHandler);  
   //checkSensorData(&pirData);
-  debug(pirData);
+  debug(pirData, slowData);
 
 
   
