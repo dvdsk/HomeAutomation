@@ -121,67 +121,36 @@ void MainHeader::showData(int lineStart, int lineEnd){
 }
 //#endif
 
-//old binairy search (findFullTS)
-/*
-void MainHeader::findFullTS(uint32_t Tstamp, int& A, int& B) {
-  int midIdx;
-  uint32_t element;
-  
-  int highIdx = pos;
-  int lowIdx = 0;
-  
-  db("trying to find timestamp: "<<Tstamp<<" \n");
-  
-  while(highIdx > lowIdx){
-    midIdx = (highIdx+lowIdx)/4 *2; //gives even number : timestamp
-    element = data[midIdx];
-    db("lowIdx, midIdx, highIdx, element, : "<<lowIdx<<"\t"
-		<<midIdx<<"\t"<<highIdx<<"\t"<<element<<"\n");
-    
-    if(data[lowIdx] == Tstamp){ A = data[lowIdx+1]; B = data[lowIdx+1]; db("HERE6"); return;}
-    else if(element == Tstamp){ A = data[midIdx+1]; B = data[midIdx+1]; db("HERE4"); return;}
-    
-    else if(element > Tstamp){//als te hoog
-      if(highIdx == midIdx){//als we bijna klaar zijn
-        A = data[lowIdx+1];
-        B = data[highIdx+1];
-        db("HERE1");
-        return;
-      }
-      highIdx = midIdx;//upper bound omlaag (naar huidig midde)
-    }
-    else{//
-      if(lowIdx == midIdx) {//we kunnen niet lager
-        A = data[lowIdx+1];
-        B = -1;//there is no timestamp higher //NOTE changed from orgn.
-        db("HERE5");
-        return;}
-      lowIdx = midIdx;//lower bound omhoog (naar huidig midde)
-    }
-  }
-  A = -1;
-  B = data[lowIdx+1]; //NOTE changed from orgn.
-  db("HERE3");
-  return;
-}
-*/
-
 void MainHeader::findFullTS(uint32_t Tstamp, int& A, int& B) {
   int low = 0;
   int high = pos-2; //as 'pos' points to free space
+  uint32_t midData;
   int mid;
+  int prevMid;
   
   while(low<=high){
-    mid = low + ((high-low)/2)
-    if(data[mid] == Tstamp){
-	  return mid;
+    mid = low + ((high-low)/2);
+    midData = data[mid*2];
+    
+    if(mid == prevMid){
+      A = data[low*2+1];
+      B = data[high*2+1];
+      return;
     }
-    else if(data[mid] > Tstamp){
-	  high = mid-1;
-	}
-	else if(data[mid] < Tstamp){
-	  low = mid+1;	
-	}
+    else if(midData == Tstamp){
+      A = data[mid*2+1];
+      B = data[high*2+1];
+      return;
+    }
+    else if(midData > Tstamp){
+      prevMid = mid;	
+      high = mid;
+    }
+    else if(midData < Tstamp){
+      prevMid = mid;	
+      low = mid;
+    }
+  }
 }
 
 uint32_t MainHeader::lastFullTS(){

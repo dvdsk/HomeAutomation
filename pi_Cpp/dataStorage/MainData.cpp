@@ -443,12 +443,12 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
   // Tstamp does not exist as such a Tstamp would result into seaching in cache.
   
   MainHeader::findFullTS(Tstamp1, startSearch, stopSearch);
-  //std::cout<<"TS 1 startSearch: "<<startSearch<<" stopSearch: "<<stopSearch<<"\n";  
-  if(startSearch == -1){
-    //the searched timestamp is earier then the earliest we have in the file
-    loc1 = 0; 
-  }
-  else{    
+  std::cout<<"TS 1 startSearch: "<<startSearch<<" stopSearch: "<<stopSearch<<"\n";  
+  //if(startSearch == -1){
+    ////the searched timestamp is earier then the earliest we have in the file
+    //loc1 = 0; 
+  //}
+  //else{    
     firstInCachTime = MainHeader::fullTSJustBefore(fileSize - Cache::cacheSize_);
     firstInCachTime = (firstInCachTime & 0b11111111111111110000000000000000) 
                       | Cache::getFirstLowTime();
@@ -464,15 +464,15 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
       loc1 = findTimestamp_inFile_lowerBound(time1Low, startSearch, stopSearch);
       db("loc1: "<<loc1<<"\n")
     }
-  }
+  //}
 
   MainHeader::findFullTS(Tstamp2, startSearch, stopSearch);
   std::cout<<"TS 2 startSearch: "<<startSearch<<" stopSearch: "<<stopSearch<<"\n";  
   //the searched timestamp is later then the last we have in the file
-  if(stopSearch == -1){stopSearch = fileSize; }   
+  //if(stopSearch == -1){stopSearch = fileSize; }   
     //the searched timestamp is earlier then file start so we dont have any data
-  if(startSearch == -1){loc2 = 0; }
-  else{  
+  //if(startSearch == -1){loc2 = 0; }
+  //else{  
     if (false){
       loc2 = findTimestamp_inCache(Tstamp2, startSearch, stopSearch, fileSize);
     }
@@ -480,12 +480,13 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
       uint16_t time2Low = (uint16_t)(Tstamp2 & 0b00000000000000001111111111111111);
       loc2 = findTimestamp_inFile_upperBound(time2Low, startSearch, stopSearch);
     }
-  }
+  //}
   std::cout<<"loc1: "<<loc1<<"\tloc2: "<<loc2<<"\n";
 }
 
 int Data::findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSearch, unsigned int stopSearch){
-
+  
+  std::cout<<"enterd lowerbound\n";
   uint16_t timelow;
 
   unsigned int nBlocks;
@@ -525,7 +526,9 @@ int Data::findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSea
       if(timelow >= TS_low){
         int orgIdx_B = startSearch+i*blockSize_B+ blockIdx_B;  
         //std::cout<<"fulltime here is: "<< +((uint32_t) timelow | timeHigh) <<"\n";   
-        return orgIdx_B-packageSize_; //to force inclusion of first time
+        std::cout<<"HERE1";
+        if(timelow == TS_low){return orgIdx_B;}
+        else{return orgIdx_B-packageSize_;} //to force inclusion of first time
       }
     }
   }
@@ -540,10 +543,14 @@ int Data::findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSea
               (uint16_t)block[blockIdx_B];
     if(timelow >= TS_low){
       int orgIdx_B = startSearch+nBlocks*blockSize_B+ blockIdx_B;     
-      return orgIdx_B-packageSize_; //to force inclusion of first time
+      std::cout<<"HERE2\n";
+      std::cout<<startSearch<<"\n"<<nBlocks<<"\n"<<blockSize_B<<"\n"<<blockIdx_B<<"\n";
+      if(timelow == TS_low){return orgIdx_B;}
+      else{return orgIdx_B-packageSize_;} //to force inclusion of first time
     }
   }
   //every value in the range is smaller then the wanted timestamp the end of the
+  std::cout<<"HERE3";
   return stopSearch; //range is thus the best approximation.
 }
 
