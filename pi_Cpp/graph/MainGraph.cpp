@@ -77,6 +77,7 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
 	           <<" GOING TO JUST RETURN IT NOW!!\n";
 	  return;
 	}
+  std::cout<<"len: "<<len<<"\n";
 	std::cout<<"times: "<<x[0]<<", "<<x[len-1]<<"\n";
     
     if(onlyPir){
@@ -93,7 +94,7 @@ void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION],
   
   //debug by showing the raw data fetched
   for(int i =0; i<len; i++){
-	//std::cout<<"x["<<i<<"]: "<<x[i]<<" y["<<i<<"]: "<<y[i]<<"\n";
+    std::cout<<"x["<<i<<"]: "<<x[i]<<" y["<<i<<"]: "<<y[i]<<"\n";
   }
   
   //std::cerr<<"we got len: "<<len<<"\n";
