@@ -299,8 +299,6 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
   unsigned int nextFullTSLoc;
   uint32_t nextFullTS;
 
-  uint32_t prevx=0;//DEBUG
-
   uint8_t block[MAXBLOCKSIZE];
 
   //find where to start and stop reading in the file
@@ -361,16 +359,6 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
           }
           x_bin[k-skippedIndexes] = getTime(blockIdx_B, block);
           y_bin[k-skippedIndexes] = func(blockIdx_B, block);
-          //START DEBUG
-          uint32_t prevx;
-          if (x_bin[k-skippedIndexes] < prevx){
-            //for( int i; i<binSize_P; i++){ 
-              //std::cout<<x_bin[i]<<"\n";
-            //} 
-            std::cout<<"bin:"<<x_bin[k-skippedIndexes]<<"\n";
-          }
-          prevx = x_bin[k-skippedIndexes];
-          //END DEBUG
         }
         else{
           skippedIndexes++;
@@ -418,21 +406,6 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
         }
         x_bin[k-skippedIndexes] = getTime(blockIdx_B, block);
         y_bin[k-skippedIndexes] = func(blockIdx_B, block);
-        //START DEBUG
-        if (x_bin[k-skippedIndexes] < prevx){
-          //for( int i; i<binSize_P; i++){ 
-            //std::cout<<x_bin[i]<<"\n";
-          //}
-          std::cout<<"current orgIdx_B: "<<orgIdx_B<<" needed for new Thigh: "
-                   <<nextFullTSLoc<<"\n";
-          std::cout<<"bin:"<<x_bin[k-skippedIndexes]<<"\n";
-          uint16_t timelow = (uint16_t)block[blockIdx_B+1] << 8  |
-                             (uint16_t)block[blockIdx_B];
-          std::cout<<"timelow: "<<timelow<<"\ttimeHigh: "<<(timeHigh)<<"\n\n";
-        
-        }
-        else{ prevx = x_bin[k-skippedIndexes];}        
-        //END DEBUG
       }
       else{
         skippedIndexes++;
@@ -727,10 +700,6 @@ double Data::meanT(uint32_t* array, int len){
   for(int i = 1; i<len; i++){ Mean = Mean+*(array+i)-first;}
   Mean /= len;
   Mean += first;
-  if(Mean > 1481496152+100000){
-    std::cout<<"Mean: "<<Mean<<"\n";
-    for(int i = 1; i<len; i++){ std::cout<<uint16_t(*(array+i))<<"\n";}
-  }
   return (double)Mean;
 }
 

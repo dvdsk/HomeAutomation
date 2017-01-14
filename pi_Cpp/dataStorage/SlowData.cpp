@@ -26,7 +26,6 @@ bool SlowData::newData(const uint8_t raw[9]){
 
 void SlowData::process(const uint8_t raw[9], const uint32_t Tstamp){  
   if(newData(raw)){
-    std::cout<<"storing temp data\n";
     Data::append(raw, Tstamp); 
   }
 }

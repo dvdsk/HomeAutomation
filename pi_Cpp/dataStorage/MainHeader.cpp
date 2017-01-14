@@ -196,7 +196,8 @@ void MainHeader::getNextFullTS(unsigned int byte, unsigned int& nextFullTSLoc,
       return;
     }
   }
-  byte = 0;
+  std::cout<<"setting to minus 1\n";
+  nextFullTSLoc = -1;
   return;
 }
 
