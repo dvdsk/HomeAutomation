@@ -99,7 +99,7 @@ float decodeCO2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
 
 
 int SlowData::fetchSlowData(uint32_t startT, uint32_t stopT, 
-                            uint32_t x[], float y[], int sensor){
+                            double x[], double y[], int sensor){
   int len;
   switch(sensor){
     case 1:

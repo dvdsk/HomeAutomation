@@ -126,7 +126,7 @@ void Data::showLines(int start_P, int end_P){
 }
 
 
-int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y[],
+int Data::fetchBinData(uint32_t startT, uint32_t stopT, double x[], uint16_t y[],
                        uint16_t (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE])) {
 
   int len = 0; //Length of y
@@ -268,7 +268,7 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y
   return len;
 }//done
 
-int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
+int Data::fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
                     float (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE])) {
 
   int len = 0; //Length of y
@@ -688,17 +688,17 @@ uint32_t Data::getTime(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
   return fullTimeStamp;
 }
 
-uint32_t Data::meanT(uint32_t* array, int len){
+double Data::meanT(uint32_t* array, int len){
   uint32_t Mean = 0;
   uint32_t first = *(array+0);
   for(int i = 1; i<len; i++){ Mean = Mean+*(array+i)-first;}
   Mean /= len;
   Mean += first;
-  return Mean;
+  return (double)Mean;
 }
 
-float Data::meanF(float* array, int len){
-  float Mean = 0;
+double Data::meanF(float* array, int len){
+  double Mean = 0;
   for(int i =0; i<len; i++){ Mean+=*(array+i); }
   Mean /= len;
   return Mean;

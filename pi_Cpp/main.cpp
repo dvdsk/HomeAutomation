@@ -112,7 +112,7 @@ void debug(PirData& pirData, SlowData& slowData){
 
   ////INPUT FAKE PIR DATA:
   //Tstamp = 1481496152;
-  //for(uint32_t i=Tstamp; i<Tstamp+100000; i+=10){
+  //for(uint32_t i=Tstamp; i<Tstamp+1000000; i+=10){
 
     //pirDat[0] = 0b00000000;
     //pirDat[1] = 0b11111111;  
@@ -125,7 +125,7 @@ void debug(PirData& pirData, SlowData& slowData){
 
   ////INPUT FAKE TEMP DATA:
   //Tstamp = 1481496152;
-  //for(uint32_t i=Tstamp; i<Tstamp+100000; i+=10){
+  //for(uint32_t i=Tstamp; i<Tstamp+1000000; i+=10){
     //temp = (uint16_t)(sin(i/40.0)*100+100);
     //slowDat[0] = (uint8_t)temp;
     //slowDat[1] = (uint8_t)(temp >> 8);
@@ -133,7 +133,7 @@ void debug(PirData& pirData, SlowData& slowData){
   //}
   
   std::vector<plotables> toPlot = {TEMP_BED};
-  Graph graph(toPlot, 1481496152, 1481496152+1000, pirData, slowData);
+  Graph graph(toPlot, 1481496152, 1481496152+100000, pirData, slowData);
 }
 
 int main(int argc, char* argv[])

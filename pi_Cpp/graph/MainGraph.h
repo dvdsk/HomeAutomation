@@ -57,16 +57,16 @@ public:
 private:
   //local cache of time data
   float y[MAXPLOTRESOLUTION];
-  uint32_t x[MAXPLOTRESOLUTION];
+  double x[MAXPLOTRESOLUTION];
   uint16_t len; //numb of datapoints to plot
   TCanvas* c1;
   TGraph* gr;
   
   uint8_t mSensToPlot; //keep track of sensors to plot
   
-  void plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION], 
+  void plotPirData(uint8_t mSensToPlot, double x[MAXPLOTRESOLUTION], 
                    uint16_t y[MAXPLOTRESOLUTION], int len);
-  void drawLine(uint32_t start, uint32_t stop, float h);
+  void drawLine(double start, double stop, float h);
   void initPlot();
   void finishPlot();
   void updateLength(uint32_t start_T, uint32_t stop_T);

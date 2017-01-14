@@ -43,7 +43,7 @@ class SlowData : public Data
     void process(const uint8_t raw[9], const uint32_t Tstamp);
 
     int fetchSlowData(uint32_t startT, uint32_t stopT, 
-                      uint32_t x[], float y[], int sensor);
+                      double x[], double y[], int sensor);
 
   private:
     bool newData(const uint8_t raw[9]);

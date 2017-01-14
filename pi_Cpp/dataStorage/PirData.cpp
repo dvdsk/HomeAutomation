@@ -51,7 +51,7 @@ uint16_t readSensorFromPackage(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
 }
 
 uint16_t PirData::fetchPirData(uint32_t startT, uint32_t stopT, 
-                               uint32_t x[], uint16_t y[]){
+                               double x[], uint16_t y[]){
   return Data::fetchBinData(startT, stopT, x, y, readSensorFromPackage);
 }
 

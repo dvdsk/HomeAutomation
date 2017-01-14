@@ -7,7 +7,7 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
   //bool slowData_gotTimeAxis; IMPLEMENT THIS FUNCTIONALITY TO SAVE TIME
   //DECODING THE TIME
   uint16_t y_bin[MAXPLOTRESOLUTION];
-  float y[MAXPLOTRESOLUTION];
+  double y[MAXPLOTRESOLUTION];
   int len;
   mSensToPlot=0;
   initPlot();
@@ -40,12 +40,16 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
         mSensToPlot = mSensToPlot | 0b00000001;
         break;
 
-      case TEMP_BED:
+      case TEMP_BED: {
         onlyPir = false;
         len = slowData.fetchSlowData(startT, stopT, x, y, 1);//todo
-        //for(int i = 0; i<len; i++){std::cout<<"temp_data: "<<y[i]<<"\n";}
-        TGraph *gr = new TGraph(len,x,y);
-        gr->Draw("c");
+        std::cout<<"plotting shizzle\n";
+        for(int i = 0; i<len; i++){
+          std::cout<<"time: "<<x[i]<<"\t temp_data: "<<y[i]<<"\n";
+        }
+        gr = new TGraph(len,x,y);
+        gr->Draw();
+        }
         break;
       case TEMP_BATHROOM:
         onlyPir = false;
@@ -98,20 +102,22 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
     plotPirData(mSensToPlot, x, y_bin, len);  
   }
 
+  updateLength(x[0], x[len-1]); 
   finishPlot(); //COMMENT OUT WHEN NOT PLOTTING
+  //c1->Print("test.pdf");
 }
 
-void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION], 
+void Graph::plotPirData(uint8_t mSensToPlot, double x[MAXPLOTRESOLUTION], 
                         uint16_t y[MAXPLOTRESOLUTION], int len){
   
   //debug by showing the raw data fetched
   for(int i =0; i<len; i++){
-    std::cout<<"x["<<i<<"]: "<<x[i]<<" y["<<i<<"]: "<<y[i]<<"\n";
+    std::cout<<"x["<<i<<"]: "<<(uint32_t)x[i]<<" y["<<i<<"]: "<<y[i]<<"\n";
   }
   
   //std::cerr<<"we got len: "<<len<<"\n";
   bool hasRisen[8] = {false};
-  uint32_t timeOfRise[8];
+  double timeOfRise[8];
   uint8_t* array;
   
   int numbPlots = __builtin_popcount(mSensToPlot);
@@ -156,9 +162,9 @@ void Graph::plotPirData(uint8_t mSensToPlot, uint32_t x[MAXPLOTRESOLUTION],
   }
 }
 
-void Graph::drawLine(uint32_t start, uint32_t stop, float h) {
-  std::cout<<"drawing line between: "<<start<<"\tand: "<<stop<<"\t height: "<<h<<"\n";
-  TLine *line = new TLine((double)start, h, (double)stop, h);
+void Graph::drawLine(double start, double stop, float h) {
+  std::cout<<"drawing line between: "<<(uint32_t)start<<"\tand: "<<(uint32_t)stop<<"\t height: "<<h<<"\n";
+  TLine *line = new TLine(start, h, stop, h);
   line->SetLineWidth(2);
   line->SetLineColor(4);
   line->Draw();
@@ -176,7 +182,7 @@ void Graph::initPlot(){
 }
 
 void Graph::updateLength(uint32_t startT, uint32_t stopT){
-  //float yMax = numbOfMovementPlots*spacing+spacing;
+  std::cout<<"limiting axis range to: "<<startT<<" to "<<stopT<<"\n";
   
   const double x[2] = {(double)startT,(double)stopT};
   const double y[2] = {0,0};
@@ -194,7 +200,7 @@ void Graph::axisTimeFormatting(){
 }
 
 void Graph::finishPlot(){
-  axisTimeFormatting();
+  //axisTimeFormatting();
   //c1->RedrawAxis();
   //c1->Update();
   //c1->GetFrame()->SetBorderSize(12);
