@@ -198,12 +198,13 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, double x[], uint16_t y[]
       binNumber = i*blockSize_bins +j; //keep track which bin we are calculating
       //iterate through a group of values to bin
       for (unsigned int k = 0; k < binSize_P; k++) {
-        orgIdx_P = i*blockSize_P+ j*binSize_P;
+        orgIdx_P = i*blockSize_P+ j*binSize_P+k;
         if (checkIdx.useValue(orgIdx_P)) {
           orgIdx_B = startByte+orgIdx_P* packageSize_;
           blockIdx_B = j*binSize_B+ k*packageSize_;
           //check if fullTS needs updating and update if needed.
-          if(orgIdx_B > nextFullTSLoc){
+          if(orgIdx_B >= nextFullTSLoc){
+            std::cout<<"updating timeHigh\n";
             timeHigh = nextFullTS & 0b11111111111111110000000000000000;
             MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
           }
@@ -236,7 +237,7 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, double x[], uint16_t y[]
     
     //iterate through a group of values to bin
     for (unsigned int k = 0; k < binSize_P; k ++) {
-      orgIdx_P = nBlocks*blockSize_P+ j*binSize_P;
+      orgIdx_P = nBlocks*blockSize_P+ j*binSize_P+k;
       //std::cout<<"binSize_P: "<<binSize_P<<"\n";
       if (checkIdx.useValue(orgIdx_P)) {//TODO this should arrange skipping of skiped lines 
         orgIdx_B = startByte+orgIdx_P* packageSize_;
@@ -244,7 +245,8 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, double x[], uint16_t y[]
 
         //check if fullTS needs updating and update if needed.
         //std::cout<<"orgIdx_B"<<orgIdx_B<<"\n";
-        if(orgIdx_B > nextFullTSLoc){
+        if(orgIdx_B >= nextFullTSLoc){
+          std::cout<<"updating timeHigh HERE\n";
           timeHigh = nextFullTS & 0b11111111111111110000000000000000;
           MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
         }
@@ -297,12 +299,15 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
   unsigned int nextFullTSLoc;
   uint32_t nextFullTS;
 
+  uint32_t prevx=0;//DEBUG
+
   uint8_t block[MAXBLOCKSIZE];
 
   //find where to start and stop reading in the file
   //std::cout<<"searching for ya timestamps\n";
   searchTstamps(startT, stopT, startByte, stopByte);
   MainHeader::getNextFullTS(startByte, nextFullTSLoc, nextFullTS);
+  nextFullTSLoc= nextFullTSLoc-0*packageSize_;//FIXME EXPERIMENTAL
   //std::cout<<"well well found some: "<<startByte<<", "<<stopByte<<"\n";
   initGetTime(startByte);
 
@@ -344,18 +349,28 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
       //iterate through a group of values to bin
       for (unsigned int k = 0; k < binSize_P; k++) {
         db("\t\tthird level of loop\n")
-        orgIdx_P = i*blockSize_P+ j*binSize_P;
+        orgIdx_P = i*blockSize_P+ j*binSize_P+k;
         if (checkIdx.useValue(orgIdx_P)) {
           orgIdx_B = startByte+orgIdx_P* packageSize_;
           blockIdx_B = j*binSize_B+ k*packageSize_;
 
           //check if fullTS needs updating and update if needed.
-          if(orgIdx_B > nextFullTSLoc){
+          if(orgIdx_B >= nextFullTSLoc){
             timeHigh = nextFullTS & 0b11111111111111110000000000000000;
             MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
           }
           x_bin[k-skippedIndexes] = getTime(blockIdx_B, block);
           y_bin[k-skippedIndexes] = func(blockIdx_B, block);
+          //START DEBUG
+          uint32_t prevx;
+          if (x_bin[k-skippedIndexes] < prevx){
+            //for( int i; i<binSize_P; i++){ 
+              //std::cout<<x_bin[i]<<"\n";
+            //} 
+            std::cout<<"bin:"<<x_bin[k-skippedIndexes]<<"\n";
+          }
+          prevx = x_bin[k-skippedIndexes];
+          //END DEBUG
         }
         else{
           skippedIndexes++;
@@ -386,20 +401,38 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
     
     //iterate through a group of values to bin
     for (unsigned int k = 0; k < binSize_P; k ++) {
-      orgIdx_P = nBlocks*blockSize_P+ j*binSize_P;
+      orgIdx_P = nBlocks*blockSize_P+ j*binSize_P+k;
       if (checkIdx.useValue(orgIdx_P)) {//TODO this should arrange skipping of skiped lines 
         orgIdx_B = startByte+orgIdx_P* packageSize_;
         blockIdx_B = j*binSize_B+ k*packageSize_;
 
         //db("orgIdx_B: "<<orgIdx_B<<", blockIdx_B: "<<blockIdx_B<<"\n")
         //check if fullTS needs updating and update if needed.
-        if(orgIdx_B > nextFullTSLoc){
+        if(orgIdx_B >= nextFullTSLoc){
           //db("***updating timee***")
           timeHigh = nextFullTS & 0b11111111111111110000000000000000;
-          MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
+          MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS); 
+          //the new timehigh value has to go in effect one package
+          //earlier which is at:
+          //nextFullTSLoc = nextFullTSLoc-2*packageSize_;           //FIXME EXPERIMENTAL
         }
         x_bin[k-skippedIndexes] = getTime(blockIdx_B, block);
         y_bin[k-skippedIndexes] = func(blockIdx_B, block);
+        //START DEBUG
+        if (x_bin[k-skippedIndexes] < prevx){
+          //for( int i; i<binSize_P; i++){ 
+            //std::cout<<x_bin[i]<<"\n";
+          //}
+          std::cout<<"current orgIdx_B: "<<orgIdx_B<<" needed for new Thigh: "
+                   <<nextFullTSLoc<<"\n";
+          std::cout<<"bin:"<<x_bin[k-skippedIndexes]<<"\n";
+          uint16_t timelow = (uint16_t)block[blockIdx_B+1] << 8  |
+                             (uint16_t)block[blockIdx_B];
+          std::cout<<"timelow: "<<timelow<<"\ttimeHigh: "<<(timeHigh)<<"\n\n";
+        
+        }
+        else{ prevx = x_bin[k-skippedIndexes];}        
+        //END DEBUG
       }
       else{
         skippedIndexes++;
@@ -682,7 +715,7 @@ uint32_t Data::getTime(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
   
   timelow = (uint16_t)block[blockIdx_B+1] << 8  |
             (uint16_t)block[blockIdx_B];
-  db("timelow: "<<timelow<<"\ttimeHigh: "<<(timeHigh)<<"\n")
+  //std::cout<<"timelow: "<<timelow<<"\ttimeHigh: "<<(timeHigh)<<"\n";
   fullTimeStamp = timeHigh | (uint32_t)timelow;
   db("fullTimeStamp: "<<fullTimeStamp<<" \n")
   return fullTimeStamp;
@@ -694,6 +727,10 @@ double Data::meanT(uint32_t* array, int len){
   for(int i = 1; i<len; i++){ Mean = Mean+*(array+i)-first;}
   Mean /= len;
   Mean += first;
+  if(Mean > 1481496152+100000){
+    std::cout<<"Mean: "<<Mean<<"\n";
+    for(int i = 1; i<len; i++){ std::cout<<uint16_t(*(array+i))<<"\n";}
+  }
   return (double)Mean;
 }
 

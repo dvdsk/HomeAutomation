@@ -45,7 +45,7 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
         len = slowData.fetchSlowData(startT, stopT, x, y, 1);//todo
         std::cout<<"plotting shizzle\n";
         for(int i = 0; i<len; i++){
-          std::cout<<"time: "<<x[i]<<"\t temp_data: "<<y[i]<<"\n";
+          //std::cout<<"time: "<<x[i]<<"\t temp_data: "<<y[i]<<"\n";
         }
         gr = new TGraph(len,x,y);
         gr->Draw();
@@ -102,7 +102,7 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
     plotPirData(mSensToPlot, x, y_bin, len);  
   }
 
-  updateLength(x[0], x[len-1]); 
+  //updateLength(x[0], x[len-1]); 
   finishPlot(); //COMMENT OUT WHEN NOT PLOTTING
   //c1->Print("test.pdf");
 }
@@ -112,7 +112,7 @@ void Graph::plotPirData(uint8_t mSensToPlot, double x[MAXPLOTRESOLUTION],
   
   //debug by showing the raw data fetched
   for(int i =0; i<len; i++){
-    std::cout<<"x["<<i<<"]: "<<(uint32_t)x[i]<<" y["<<i<<"]: "<<y[i]<<"\n";
+    //std::cout<<"x["<<i<<"]: "<<(uint32_t)x[i]<<" y["<<i<<"]: "<<y[i]<<"\n";
   }
   
   //std::cerr<<"we got len: "<<len<<"\n";
@@ -200,7 +200,7 @@ void Graph::axisTimeFormatting(){
 }
 
 void Graph::finishPlot(){
-  //axisTimeFormatting();
+  axisTimeFormatting();
   //c1->RedrawAxis();
   //c1->Update();
   //c1->GetFrame()->SetBorderSize(12);

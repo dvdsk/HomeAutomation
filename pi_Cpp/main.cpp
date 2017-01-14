@@ -132,7 +132,7 @@ void debug(PirData& pirData, SlowData& slowData){
     //slowData.process(slowDat, i);
   //}
   
-  std::vector<plotables> toPlot = {TEMP_BED};
+  std::vector<plotables> toPlot = {TEMP_BED, MOVEMENTSENSOR0};
   Graph graph(toPlot, 1481496152, 1481496152+100000, pirData, slowData);
 }
 
