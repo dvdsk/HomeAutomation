@@ -204,7 +204,7 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, double x[], uint16_t y[]
           blockIdx_B = j*binSize_B+ k*packageSize_;
           //check if fullTS needs updating and update if needed.
           if(orgIdx_B >= nextFullTSLoc){
-            std::cout<<"updating timeHigh\n";
+            //std::cout<<"updating timeHigh\n";
             timeHigh = nextFullTS & 0b11111111111111110000000000000000;
             MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
           }
@@ -246,7 +246,7 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, double x[], uint16_t y[]
         //check if fullTS needs updating and update if needed.
         //std::cout<<"orgIdx_B"<<orgIdx_B<<"\n";
         if(orgIdx_B >= nextFullTSLoc){
-          std::cout<<"updating timeHigh HERE\n";
+          //std::cout<<"updating timeHigh HERE\n";
           timeHigh = nextFullTS & 0b11111111111111110000000000000000;
           MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
         }

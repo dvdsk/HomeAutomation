@@ -40,20 +40,21 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
         mSensToPlot = mSensToPlot | 0b00000001;
         break;
 
-      case TEMP_BED: {
-        onlyPir = false;
-        len = slowData.fetchSlowData(startT, stopT, x, y, 1);//todo
-        std::cout<<"plotting shizzle\n";
-        for(int i = 0; i<len; i++){
-          //std::cout<<"time: "<<x[i]<<"\t temp_data: "<<y[i]<<"\n";
-        }
-        gr = new TGraph(len,x,y);
-        gr->Draw();
+      case TEMP_BED:
+        {
+          onlyPir = false;
+          len = slowData.fetchSlowData(startT, stopT, x, y, 1);//todo
+          TGraph* gr1 = new TGraph(len,x,y);
+          gr1->Draw("AP");
         }
         break;
       case TEMP_BATHROOM:
-        onlyPir = false;
-        slowData.fetchSlowData(startT, stopT, x, y, 2);
+        {
+          onlyPir = false;
+          len = slowData.fetchSlowData(startT, stopT, x, y, 2);//todo
+          TGraph* gr2 = new TGraph(len,x,y);
+          gr2->Draw("AP");
+        }
         break;
       case TEMP_DOORHIGH:
         onlyPir = false;
@@ -97,12 +98,12 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
 	std::cout<<"times: "<<x[0]<<", "<<x[len-1]<<"\n";
     
     if(onlyPir){
-      updateLength(x[0], x[len-1]); 
+      //updateLength(x[0], x[len-1]); 
     }    
     plotPirData(mSensToPlot, x, y_bin, len);  
   }
 
-  //updateLength(x[0], x[len-1]); 
+  updateLength(x[0], x[len-1]); 
   finishPlot(); //COMMENT OUT WHEN NOT PLOTTING
   //c1->Print("test.pdf");
 }
@@ -187,7 +188,7 @@ void Graph::updateLength(uint32_t startT, uint32_t stopT){
   const double x[2] = {(double)startT,(double)stopT};
   const double y[2] = {0,0};
   gr = new TGraph(2,x,y);
-  gr->Draw();
+  gr->Draw("AP");
   gr->GetXaxis()->SetLimits((double)startT, (double)stopT);
 }
 

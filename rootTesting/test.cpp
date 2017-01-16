@@ -12,6 +12,7 @@
 #include "TLegend.h"
 #include "TArrow.h"
 #include "TLatex.h"
+#include "TMultiGraph.h"
 
 void drawLine(int start, int stop) {
   TLine *line = new TLine(start,0.5,stop,0.5);
@@ -21,54 +22,65 @@ void drawLine(int start, int stop) {
 }
 
 
+
+
 void graph() {
-  TCanvas *c1 = new TCanvas("c1","A Simple Graph Example",200,10,700,500);
-  //TPad *pad1 = new TPad("pad1","This is pad1",0.0,0.0,1.0,1.0);
-  //pad1->SetFillColor(0);
-  //pad1->Draw();
-  //pad1->cd();
+
+  double x1[4] = {0,1,2,3};
+  double x2[4] = {0,1,2,3};
+
+  double y1[4] = {1,2,1,2};
+  double y2[4] = {1,2,3,4};
+
+//setup pads and canvasses
+  TCanvas* c1 = new TCanvas();
+  TPad *pad1 = new TPad("pad1","",0,0,1,1);
+  TPad *pad2 = new TPad("pad2","",0,0,1,1);
+
+  // Makes pad2 transparant
+  pad2->SetFillStyle(4000);
+  pad2->SetFrameFillStyle(0);
+
+//config all the graphs
+  TGraph* gr1 = new TGraph(4,x1,y1);
+  gr1->SetMarkerColor(4);
+  gr1->SetMarkerStyle(21);
+
+  TGraph* gr2 = new TGraph(4,x2,y2);
+  gr2->SetMarkerColor(4);
+  gr2->SetMarkerStyle(21);
+
+  TMultiGraph *mg1  = new TMultiGraph();
+  TMultiGraph *mg2 = new TMultiGraph();
   
-  c1->SetGrid();
-  const Int_t n = 3;
-  //   Double_t x[n], y[n];
-  //   for (Int_t i=0;i<n;i++) {
-  //     x[i] = i*0.1;
-  //     y[i] = 10*sin(x[i]+0.2);
-  //     printf(" i %i %f %f \n",i,x[i],y[i]);
-  //   }
-  const int y1[n] = {0,0};
-  const int x1[n] = {0,10};
-  TGraph *gr = new TGraph(n,x1,y1);
+//add individual graphs to theire respective multigraph group
+  mg1->Add(gr1);
+  mg2->Add(gr2);
+
+//link (draw) everything up correctly
   
-  //c1->SetCanvasSize(10,1); 
+  pad1->cd();  
+  mg1->Draw("AL");
+
+  pad2->cd();
+  mg2->Draw("AL");
+  pad1->Update();
   
-  gr->SetLineColor(2);
-  gr->SetLineWidth(1);
-  gr->SetMarkerColor(4);
-  gr->SetMarkerStyle(2);
-  gr->SetTitle("Temperature");
+  c1->cd();
+  pad1->Draw();
+  pad2->Draw();
 
+//remove the axis
+  mg2->GetYaxis()->SetTickLength(0);
+  mg2->GetYaxis()->SetLabelOffset(999);
+  mg2->GetYaxis()->SetNdivisions(1);
 
-  gr->GetXaxis()->SetTitle("A Date?");
-  gr->GetYaxis()->SetTitle("Temp in C");
-  gr->Draw("");
+  //create a new axis on the other side for pad 2
+  TGaxis* axis2 = new TGaxis(pad2->GetUxmin(), pad2->GetUymin(), 
+                             pad2->GetUxmax(), pad2->GetUymax(),
+                         
 
-  //TGraph *gr2 = new TGraph(n,x2,y2);
-  //gr2->Draw("AL");
-  //gr2->SetTitle("Temperature");
-
-  
-  drawLine(0, 2);
-  drawLine(3, 4);
-
-  c1->RedrawAxis();
-  c1->Draw();
-  c1->Update();
-  c1->GetFrame()->SetBorderSize(12);
-  c1->Modified();
-
-
-
+//render everything  
   c1->Print("test.pdf");
 }
 

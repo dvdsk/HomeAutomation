@@ -192,7 +192,7 @@ void MainHeader::getNextFullTS(unsigned int byte, unsigned int& nextFullTSLoc,
     if(data[i+1] > byte){
       nextFullTS = data[i]; //return timestamp
       nextFullTSLoc = data[i+1];
-      std::cout<<"returning new timeHigh values: "<<nextFullTSLoc<<" \n";
+      //std::cout<<"returning new timeHigh values: "<<nextFullTSLoc<<" \n";
       return;
     }
   }
