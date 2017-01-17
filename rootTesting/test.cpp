@@ -13,6 +13,7 @@
 #include "TArrow.h"
 #include "TLatex.h"
 #include "TMultiGraph.h"
+#include "TGaxis.h"
 
 void drawLine(int start, int stop) {
   TLine *line = new TLine(start,0.5,stop,0.5);
@@ -76,10 +77,24 @@ void graph() {
   mg2->GetYaxis()->SetNdivisions(1);
 
   //create a new axis on the other side for pad 2
-  TGaxis* axis2 = new TGaxis(pad2->GetUxmin(), pad2->GetUymin(), 
-                             pad2->GetUxmax(), pad2->GetUymax(),
-                         
+  double xmin;
+  double ymin;
+  double xmax;
+  double ymax;
+  pad2->GetRangeAxis(xmin,ymin,xmax,ymax);
+  
+  std::cout<<xmin<<", "<<ymin<<", "<<xmax<<", "<<ymax<<"\n";
+  
 
+  TGaxis* axis2 = new TGaxis(0.95,0.1,0.95,0.9,ymin,ymax,510,"+L");
+  axis2->SetLabelOffset(0.01);
+  axis2->SetLabelSize(0.03);
+  //axis2->SetTextFont(4);
+  //TGaxis* axis2 = new TGaxis(pad2->GetUxmin(), pad2->GetUymin(), 
+  //                           pad2->GetUxmax(), pad2->GetUymax(),
+  //
+  //                           min, max, 510, "+L");
+  axis2->Draw("AP");
 //render everything  
   c1->Print("test.pdf");
 }
