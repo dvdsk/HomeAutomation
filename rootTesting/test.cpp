@@ -14,17 +14,32 @@
 #include "TLatex.h"
 #include "TMultiGraph.h"
 #include "TGaxis.h"
+#include "TText.h"
 
-void drawLine(int start, int stop) {
-  TLine *line = new TLine(start,0.5,stop,0.5);
-  line->SetLineWidth(2);
+void drawLine(int start, int stop, float h) {
+  TLine *line = new TLine(start,h,stop,h);
+  line->SetLineWidth(1);
   line->SetLineColor(4);
   line->Draw();
 }
 
+void extraYAxis(){
+
+
+
+
+
+}
 
 
 void graph() {
+  int mSensToPlot = 1;
+
+  //resize pads
+  double px1;
+  double py1;
+  double px2;
+  double py2;
 
   double startT = 0;
   double stopT = 4;  
@@ -49,9 +64,17 @@ void graph() {
   TPad* pad1 = new TPad("pad1","",0,0,1,1);
   TPad* pad2 = new TPad("pad2","",0,0,1,1);
 
+  // Makes pad1 transparant
+  pad2->SetFillStyle(4000);
+  pad2->SetFrameFillStyle(0);
+
   // Makes pad2 transparant
   pad2->SetFillStyle(4000);
   pad2->SetFrameFillStyle(0);
+
+  pad1->GetPadPar(px1,py1,px2,py2);
+  TLegend* leg = new TLegend(px1+0.1, py2-0.1, px2-0.1, py2-0.05);
+  leg-> SetNColumns(2);
 
 //config all the graphs
   TGraph* gr0 = new TGraph(2,x0,y0);
@@ -61,10 +84,12 @@ void graph() {
   TGraph* gr1 = new TGraph(4,x1,y1);
   gr1->SetMarkerColor(4);
   gr1->SetMarkerStyle(21);
+  leg->AddEntry(gr1,"other test data","l");
 
   TGraph* gr2 = new TGraph(4,x2,y2);
   gr2->SetMarkerColor(4);
   gr2->SetMarkerStyle(21);
+  leg->AddEntry(gr2,"Test data","l");
 
   TMultiGraph *mg1  = new TMultiGraph();
   TMultiGraph *mg2 = new TMultiGraph();
@@ -75,35 +100,82 @@ void graph() {
   mg2->Add(gr2);
   mg2->Add(gr0);
 
+  if(mSensToPlot > 0){ 
+    //resize pad
+    pad2->GetPadPar(px1,py1,px2,py2);
+    std::cout<<px1<<", "<<py1<<", "<<px2<<", "<<py2<<"\n";
+    
+    pad1->SetPad(px1,py1+0.2,px2,py2);
+    pad2->SetPad(px1,py1+0.2,px2,py2);//replace 0 with size to shrink
+
+
+
+    pad2->GetPadPar(px1,py1,px2,py2);
+    TPad* mpad = new TPad("mpad","movement report",px1,py1,px2,py1-0.2);
+    mpad->Draw();
+    
+    //removing frame info might lurk here:
+    //https://webcache.googleusercontent.com/search?q=cache:5-5rJ90JanUJ:https://root.cern.ch/phpBB3/viewtopic.php%3Ft%3D19143+&cd=1&hl=nl&ct=clnk&gl=nl
+
+    mpad->cd();  
+    
+    double ym[2] = {0,1};
+    TGraph* grm = new TGraph(2,x0,ym);
+    grm->SetLineColorAlpha(0,0);//set line fully transparant
+    grm->SetMarkerColorAlpha(0,0);//set marker fully transparant
+    grm->SetTitle("Movement sensors, 1: bathroom, 2:bed, 3:door, 4:kitchen, 5:heater, 6: bed 7: kitchen window side");
+    grm->Draw("AL");
+    
+    //remove the axis
+    grm->GetYaxis()->SetTickLength(0);
+    grm->GetYaxis()->SetLabelOffset(999);
+    grm->GetYaxis()->SetNdivisions(1);
+    grm->GetXaxis()->SetTickLength(0);
+    grm->GetXaxis()->SetLabelOffset(999);
+    grm->GetXaxis()->SetNdivisions(1);
+    
+    drawLine(2, 4, 0.5);
+    drawLine(2, 4, 0.25);
+    
+  //  //add describtion to lines
+    TText* line0 = new TText(-0.05,0.5,"1");
+    line0->Draw();
+    line0 = new TText(-0.05,0.25,"2");
+    line0->Draw(); 
+  }
+
 //link (draw) everything up correctly
   
   pad1->cd();  
   mg1->Draw("AL");
+  leg->Draw();
 
   pad2->cd();
   mg2->Draw("AL");
-  pad1->Update();//FIXME needed?
+  //pad1->Update();//FIXME needed?
   
   c1->cd();
   pad1->Draw();
   pad2->Draw();
 
-//remove the axis
+//manage extra axises;
+
+  //remove the axis
+  double xmin;
+  double ymin;
+  double xmax;
+  double ymax;
+
   mg2->GetYaxis()->SetTickLength(0);
   mg2->GetYaxis()->SetLabelOffset(999);
   mg2->GetYaxis()->SetNdivisions(1);
 
   //create a new axis on the other side for pad 2
-  double xmin;
-  double ymin;
-  double xmax;
-  double ymax;
-  pad2->GetRangeAxis(xmin,ymin,xmax,ymax);
-  
-  std::cout<<xmin<<", "<<ymin<<", "<<xmax<<", "<<ymax<<"\n";
-  
+  pad2->GetRangeAxis(xmin,ymin,xmax,ymax);  
+  pad2->GetPadPar(px1,py1,px2,py2);
+  std::cout<<xmin<<", "<<ymin<<", "<<xmax<<", "<<ymax<<"\n"; 
 
-  TGaxis* axis2 = new TGaxis(0.9,0.1,0.9,0.9,ymin,ymax,510,"+L");
+  TGaxis* axis2 = new TGaxis(0.9,py1+0.1,0.9,py2-0.1,ymin,ymax,510,"+L");
   axis2->SetLabelOffset(0.01);
   axis2->SetLabelSize(0.03);
   axis2->SetLineColor(kRed);
@@ -114,64 +186,11 @@ void graph() {
   axis2->SetTitleSize(0.03);
   axis2->Draw("AP");
   
-  //resize pads
-  double px1;
-  double py1;
-  double px2;
-  double py2;
-  pad2->GetPadPar(px1,py1,px2,py2);
   std::cout<<px1<<", "<<py1<<", "<<px2<<", "<<py2<<"\n";
   
   pad1->SetPad(px1,py1,px2-0,py2);
   pad2->SetPad(px1,py1,px2-0,py2);//replace 0 with size to shrink
-
-  //add a legend:
-  pad2->GetPadPar(px1,py1,px2,py2);
-  TLegend* leg = new TLegend(px1+0.1, py2-0.1, px2-0.1, py2-0.05);
-  leg-> SetNColumns(2);
-  leg->AddEntry(gr1,"Test data","l");
-  leg->AddEntry(gr2,"other test data","l");
-  leg->Draw();
-
-////////////////////////////////////////////////////////////////////////////////
-//Add motion sensor stuff
-
-  //resize pad
-  pad2->GetPadPar(px1,py1,px2,py2);
-  std::cout<<px1<<", "<<py1<<", "<<px2<<", "<<py2<<"\n";
-  
-  pad1->SetPad(px1,py1+0.2,px2,py2);
-  pad2->SetPad(px1,py1+0.2,px2,py2);//replace 0 with size to shrink
-
-
-
-  pad2->GetPadPar(px1,py1,px2,py2);
-  TPad* mpad = new TPad("mpad","",px1,py1,px2,py1-0.2);
-  TFrame *fr = mpad->GetFrame();
-  fr->SetLineColorAlpha(0,0);
-
-  //removing frame info might lurk here:
-  https://webcache.googleusercontent.com/search?q=cache:5-5rJ90JanUJ:https://root.cern.ch/phpBB3/viewtopic.php%3Ft%3D19143+&cd=1&hl=nl&ct=clnk&gl=nl
-
-  mpad->cd();  
-  
-  double ym[2] = {0,1};
-  TGraph* grm = new TGraph(2,x0,ym);
-  grm->SetLineColorAlpha(0,0);//set line fully transparant
-  grm->SetMarkerColorAlpha(0,0);//set marker fully transparant
-  grm->Draw("AL");
-  
-  //remove the axis
-  grm->GetYaxis()->SetTickLength(0);
-  grm->GetYaxis()->SetLabelOffset(999);
-  grm->GetYaxis()->SetNdivisions(1);
-  
-  drawLine(2, 4);
-
-  c1->cd();
-  mpad->Draw();
-
-  
+    
 //render everything  
   c1->Print("test.pdf");
 }
