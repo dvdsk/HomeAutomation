@@ -60,7 +60,11 @@ private:
   double x[MAXPLOTRESOLUTION];
   uint16_t len; //numb of datapoints to plot
   TCanvas* c1;
-  TGraph* gr;
+  TMultiGraph* mgT, mgH, mgC, mgB;
+  TPad* padT, padH, padC, padB;
+  TLegend* leg;
+  uint32_t startT, stopT;
+  double x0[2]; //used for plotting fake lines
   
   uint8_t mSensToPlot; //keep track of sensors to plot
   

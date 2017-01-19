@@ -23,24 +23,53 @@ void drawLine(int start, int stop, float h) {
   line->Draw();
 }
 
-void extraYAxis(){
+void drawYAxises(TMultiGraph* mgs[], TPad* pads[], const char* axisTitles[], int nAxises){
+  double xmin, ymin, xmax, ymax;
+  double px1, py1, px2, py2;  
 
+  //shrink all the pads to make space
+  pads[i]->GetPadPar(px1,py1,px2,py2);
+  pads[i]->SetPad(px1,py1,px2-nAxises*0.2,py2);
+  
 
-
-
-
+  for(int i =0; i<nAxises; i++){
+  //make existing y axis invisible //FIXME can we not just delete it?
+    mgs[i]->GetYaxis()->SetTickLength(0);
+    mgs[i]->GetYaxis()->SetLabelOffset(999);
+    mgs[i]->GetYaxis()->SetNdivisions(1);
+  //get the range of the axis to add
+    pads[i]->GetRangeAxis(xmin,ymin,xmax,ymax);  
+    TGaxis* axis = new TGaxis(0.9,py1+0.1,0.9,py2-0.1,ymin,ymax,510,"+L");
+  //setup axis visual paramaters
+    axis->SetLabelOffset(0.01);
+    axis->SetLabelSize(0.03);
+    axis->SetLineColor(kRed);
+    axis->SetLabelFont(42);
+    axis->SetTitle(axisTitles[i]);
+    axis->SetTitleFont(42);
+    axis->SetTitleSize(0.03);
+    axis->Draw("AP"); 
+  }
 }
 
 
+Tpad* addPad(){
+  TPad* pad = new TPad("pad1","",0,0,1,1);
+  pad->SetFillStyle(4000);
+  pad->SetFrameFillStyle(0);
+  
+  return pad;
+}
+
 void graph() {
+  TMultiGraph* mgs[8];
+  TPad* pads[8];
+  const char* axisTitles[8];
+  int nAxises = 0;
+  
   int mSensToPlot = 1;
 
-  //resize pads
-  double px1;
-  double py1;
-  double px2;
-  double py2;
-
+  double px1, py1, px2, py2; 
   double startT = 0;
   double stopT = 4;  
 
@@ -59,31 +88,29 @@ void graph() {
   float width = 1.4;
   int baseResolution = 800;
 
-//setup pads and canvasses
+//init main graph area
   TCanvas* c1 = new TCanvas("c1","",baseResolution*width,baseResolution);
-  TPad* pad1 = new TPad("pad1","",0,0,1,1);
-  TPad* pad2 = new TPad("pad2","",0,0,1,1);
 
-  // Makes pad1 transparant
-  pad2->SetFillStyle(4000);
-  pad2->SetFrameFillStyle(0);
+  //graph to ensure full range for all plots, this graph is added to all
+  //multiplot objects
+  TGraph* gr0 = new TGraph(2,x0,y0);
+  gr0->SetLineColorAlpha(0,0);//set line fully transparant
+  gr0->SetMarkerColorAlpha(0,0);//set marker fully transparant
 
-  // Makes pad2 transparant
-  pad2->SetFillStyle(4000);
-  pad2->SetFrameFillStyle(0);
+//setup pads and canvasses
+  TPad* pad1 = addPad();
+  TPad* pad2 = addPad();
 
   pad1->GetPadPar(px1,py1,px2,py2);
   TLegend* leg = new TLegend(px1+0.1, py2-0.1, px2-0.1, py2-0.05);
   leg-> SetNColumns(2);
 
-//config all the graphs
-  TGraph* gr0 = new TGraph(2,x0,y0);
-  gr0->SetLineColorAlpha(0,0);//set line fully transparant
-  gr0->SetMarkerColorAlpha(0,0);//set marker fully transparant
+
 
   TGraph* gr1 = new TGraph(4,x1,y1);
   gr1->SetMarkerColor(4);
   gr1->SetMarkerStyle(21);
+  mgs[nAxises]g
   leg->AddEntry(gr1,"other test data","l");
 
   TGraph* gr2 = new TGraph(4,x2,y2);
@@ -91,8 +118,11 @@ void graph() {
   gr2->SetMarkerStyle(21);
   leg->AddEntry(gr2,"Test data","l");
 
-  TMultiGraph *mg1  = new TMultiGraph();
-  TMultiGraph *mg2 = new TMultiGraph();
+  TMultiGraph* mg1  = new TMultiGraph();
+  mgs[nAxises] = mg1;
+  nAxises++;
+  TMultiGraph* mg2 = new TMultiGraph();
+  mgs[nAxises] = mg2;
   
 //add individual graphs to theire respective multigraph group
   mg1->Add(gr1);
@@ -159,37 +189,8 @@ void graph() {
   pad2->Draw();
 
 //manage extra axises;
+  addYAxises(mgs, pads, axisTitles, nAxises);
 
-  //remove the axis
-  double xmin;
-  double ymin;
-  double xmax;
-  double ymax;
-
-  mg2->GetYaxis()->SetTickLength(0);
-  mg2->GetYaxis()->SetLabelOffset(999);
-  mg2->GetYaxis()->SetNdivisions(1);
-
-  //create a new axis on the other side for pad 2
-  pad2->GetRangeAxis(xmin,ymin,xmax,ymax);  
-  pad2->GetPadPar(px1,py1,px2,py2);
-  std::cout<<xmin<<", "<<ymin<<", "<<xmax<<", "<<ymax<<"\n"; 
-
-  TGaxis* axis2 = new TGaxis(0.9,py1+0.1,0.9,py2-0.1,ymin,ymax,510,"+L");
-  axis2->SetLabelOffset(0.01);
-  axis2->SetLabelSize(0.03);
-  axis2->SetLineColor(kRed);
-  //axis2->SetTextColor(kRed);
-  axis2->SetLabelFont(42);
-  axis2->SetTitle("temperature C");
-  axis2->SetTitleFont(42);
-  axis2->SetTitleSize(0.03);
-  axis2->Draw("AP");
-  
-  std::cout<<px1<<", "<<py1<<", "<<px2<<", "<<py2<<"\n";
-  
-  pad1->SetPad(px1,py1,px2-0,py2);
-  pad2->SetPad(px1,py1,px2-0,py2);//replace 0 with size to shrink
     
 //render everything  
   c1->Print("test.pdf");
