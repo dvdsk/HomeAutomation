@@ -99,7 +99,7 @@ private:
   TPad* setupPadsForPirPlot(std::string msensorLegend);
   
   void drawYAxis(TMultiGraph* mg, TPad* pad, double py1, double py2, 
-                 const char* axisTitle);
+                 int nAxises, const char* axisTitle);
   void setMultiGroupXRange(TMultiGraph* mg, double y);
   
   void axisTimeFormatting(TMultiGraph* mg);

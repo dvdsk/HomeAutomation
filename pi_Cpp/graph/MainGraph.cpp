@@ -16,7 +16,7 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
   uint16_t y_bin[MAXPLOTRESOLUTION];
   double y[MAXPLOTRESOLUTION];
   int len;
-  yAxisesNumb=1;
+  yAxisesNumb=0;
   mSensToPlot=0;
   initPlot();
   std::string msensorLegend;
@@ -88,7 +88,6 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
           onlyPir = false;
           axisesToDraw = axisesToDraw | 0b00000010;
           len = slowData.fetchSlowData(startT, stopT, x, y, 4);//todo
-          std::cout<<"len: "<<len<<"\n";
           TGraph* gr4 = new TGraph(len,x,y);
           yH = y[0];
           leg->AddEntry(gr4,"Humidity bed","l");
@@ -281,11 +280,6 @@ void Graph::initPlot(){
   padT->GetPadPar(px1,py1,px2,py2);  
   leg = new TLegend(px1, py2-0.1, px2-0.1, py2-0.05);
   leg->SetNColumns(2);
-  
-  //c1->SetRightMargin(0.); TODO tweak value for optimal usage of space
-	//c1->SetLeftMargin(0.);
-	//c1->SetTopMargin(0.);
-	//c1->SetBottomMargin(0.); 
 }
 
 void Graph::axisTimeFormatting(TMultiGraph* mg){
@@ -303,7 +297,7 @@ void Graph::makeAxisInvisible(TMultiGraph* mg){
 }
 
 void Graph::drawYAxis(TMultiGraph* mg, TPad* pad, double py1, 
-                      double py2, const char* axisTitle){
+                      double py2, int nAxises, const char* axisTitle){
   double xmin, ymin, xmax, ymax;
   double xpos;
 
@@ -313,7 +307,7 @@ void Graph::drawYAxis(TMultiGraph* mg, TPad* pad, double py1,
   
   //get the range of the axis to add
   pad->GetRangeAxis(xmin,ymin,xmax,ymax);
-  xpos = 1-yAxisesNumb*AXISWITH;
+  xpos = 0.9-(nAxises-1)*(AXISWITH-0.01) + (yAxisesNumb)*(AXISWITH);
   std::cerr<<"xpos "<<xpos<<"\n"
            <<"py1: "<<py1<<" py2: "<<py2<<"\n";
   TGaxis* axis = new TGaxis(xpos,py1+0.1, 
@@ -351,21 +345,17 @@ void Graph::finishPlot(uint8_t axisesToDraw){
   float toShrink;
 
   //draw (connect) all graph parts in the right order
-  padT->cd();
-  mgT->Draw("AL");
-  padH->cd();
-  mgH->Draw("AL");
-  padC->cd();
-  mgC->Draw("AL");
-  padB->cd();
-  mgB->Draw("AL");
+  if(axisesToDraw & 0b00000001){padT->cd(); mgT->Draw("AL");}
+  if(axisesToDraw & 0b00000010){padH->cd(); mgH->Draw("AL");}
+  if(axisesToDraw & 0b00000100){padC->cd(); mgC->Draw("AL");}
+  if(axisesToDraw & 0b00001000){padB->cd(); mgB->Draw("AL");}
 
   c1->cd();
   padT->Draw();
   padH->Draw();
   padC->Draw();
   padB->Draw();
-  leg->Draw();
+  //leg->Draw(); //FIXME LEGEND POS NEEDS FIXING
 
   //add to all multigraphs the invisible graph gr0 that has as fixed
   //range the full range of the data request, this makes sure all graphs
@@ -384,27 +374,31 @@ void Graph::finishPlot(uint8_t axisesToDraw){
   //shrink all t epads to make space for extra axis
   nAxises = __builtin_popcount(axisesToDraw);
   toShrink = (nAxises-1)*AXISWITH;
+  std::cout<<"toShrink: "<<toShrink<<"\n";
   padT->GetPadPar(px1,py1,px2,py2);
+  std::cout<<","<<px1<<","<<px2<<","<<py1<<","<<py2<<"\n";
   
   padT->SetPad(px1,py1,px2-toShrink,py2);  
   padH->SetPad(px1,py1,px2-toShrink,py2);  
   padC->SetPad(px1,py1,px2-toShrink,py2);  
   padB->SetPad(px1,py1,px2-toShrink,py2);  
+  padT->GetPadPar(px1,py1,px2,py2);
+  std::cout<<","<<px1<<","<<px2<<","<<py1<<","<<py2<<"\n";
 
   //draw all the axis //TODO add location as variable and make some
   //formula to determine location from
   c1->cd();
   if(axisesToDraw & 0b00000001){
-    drawYAxis(mgT, padT, py1, py2, "Temperature (C)"); 
+    drawYAxis(mgT, padT, py1, py2, nAxises, "Temperature (C)"); 
   }
   if(axisesToDraw & 0b00000010){
-    drawYAxis(mgH, padH, py1, py2, "Humidity (%)"); 
+    drawYAxis(mgH, padH, py1, py2, nAxises, "Humidity (%)"); 
   }
   if(axisesToDraw & 0b00000100){
-    drawYAxis(mgC, padC, py1, py2, "CO2 concentration (ppm)"); 
+    drawYAxis(mgC, padC, py1, py2, nAxises, "CO2 concentration (ppm)"); 
   }
   if(axisesToDraw & 0b00001000){
-    drawYAxis(mgB, padB, py1, py2, "Brightness (relative)"); 
+    drawYAxis(mgB, padB, py1, py2, nAxises, "Brightness (relative)"); 
   }
   std::cout<<"PRINTING PLOT\n";
   c1->Print("test.pdf");
