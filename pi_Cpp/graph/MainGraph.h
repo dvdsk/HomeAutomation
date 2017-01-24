@@ -22,6 +22,7 @@
 #include <bitset>
 
 const int MAXPLOTRESOLUTION = 1000; //for now 
+const float AXISWITH = 0.1;
 
 class PirData;
 class SlowData;//FIXME is this needed?
@@ -63,7 +64,10 @@ private:
   //local cache of time data
   float y[MAXPLOTRESOLUTION];
   double x[MAXPLOTRESOLUTION];
-  double yT, yH, yC, yB; //one y value from each multigroup
+  double yT;
+  double yH; 
+  double yC;
+  double yB; //one y value from each multigroup
                     //yT then yH then yC then yB
   uint16_t len; //numb of datapoints to plot
   TCanvas* c1;
@@ -77,6 +81,7 @@ private:
   TPad* padB;
   TLegend* leg;
   uint32_t startT, stopT;
+  int yAxisesNumb;
   double x0[2]; //used for plotting fake lines
   
   uint8_t mSensToPlot; //keep track of sensors to plot
@@ -97,7 +102,6 @@ private:
                  const char* axisTitle);
   void setMultiGroupXRange(TMultiGraph* mg, double y);
   
-  void updateLength(uint32_t start_T, uint32_t stop_T);
   void axisTimeFormatting(TMultiGraph* mg);
   void makeAxisInvisible(TMultiGraph* mg);
 };
