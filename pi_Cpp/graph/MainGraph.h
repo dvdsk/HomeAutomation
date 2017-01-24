@@ -13,7 +13,12 @@
 #include "TLegend.h"
 #include "TArrow.h"
 #include "TLatex.h"
+#include "TPad.h"
+#include "TMultiGraph.h"
+#include "TGaxis.h"
+#include "TText.h"
 
+#include <string>
 #include <bitset>
 
 const int MAXPLOTRESOLUTION = 1000; //for now 
@@ -58,23 +63,43 @@ private:
   //local cache of time data
   float y[MAXPLOTRESOLUTION];
   double x[MAXPLOTRESOLUTION];
+  double yT, yH, yC, yB; //one y value from each multigroup
+                    //yT then yH then yC then yB
   uint16_t len; //numb of datapoints to plot
   TCanvas* c1;
-  TMultiGraph* mgT, mgH, mgC, mgB;
-  TPad* padT, padH, padC, padB;
+  TMultiGraph* mgT;
+  TMultiGraph* mgH;
+  TMultiGraph* mgC;
+  TMultiGraph* mgB;
+  TPad* padT; 
+  TPad* padH;
+  TPad* padC;
+  TPad* padB;
   TLegend* leg;
   uint32_t startT, stopT;
   double x0[2]; //used for plotting fake lines
   
   uint8_t mSensToPlot; //keep track of sensors to plot
   
+  void initPlot();
+  void finishPlot(uint8_t axisesToDraw);
+
   void plotPirData(uint8_t mSensToPlot, double x[MAXPLOTRESOLUTION], 
                    uint16_t y[MAXPLOTRESOLUTION], int len);
   void drawLine(double start, double stop, float h);
-  void initPlot();
-  void finishPlot();
+  
+  std::string setupPirLegendPart(std::string text);
+  
+  TPad* addPad();
+  TPad* setupPadsForPirPlot(std::string msensorLegend);
+  
+  void drawYAxis(TMultiGraph* mg, TPad* pad, double py1, double py2, 
+                 const char* axisTitle);
+  void setMultiGroupXRange(TMultiGraph* mg, double y);
+  
   void updateLength(uint32_t start_T, uint32_t stop_T);
-  void axisTimeFormatting();
+  void axisTimeFormatting(TMultiGraph* mg);
+  void makeAxisInvisible(TMultiGraph* mg);
 };
 
 #endif // MAINGRAPH_H

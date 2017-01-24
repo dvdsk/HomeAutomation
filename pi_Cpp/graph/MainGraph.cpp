@@ -3,6 +3,8 @@
 Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
              PirData& pirData, SlowData& slowData){
 
+  std::cout<<"STARTING PLOTTING\n";
+  
   startT = startT_;
   stopT = stopT_;
 
@@ -13,7 +15,6 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
   //DECODING THE TIME
   uint16_t y_bin[MAXPLOTRESOLUTION];
   double y[MAXPLOTRESOLUTION];
-  bool tempPlotted, 
   int len;
   mSensToPlot=0;
   initPlot();
@@ -24,43 +25,44 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
     switch(i){
       case MOVEMENTSENSOR0:
         mSensToPlot = mSensToPlot | 0b10000000;
-        msensorLegend += setupPirLegendPart();
+        msensorLegend += setupPirLegendPart(msensorLegend);
         break;
       case MOVEMENTSENSOR1:
         mSensToPlot = mSensToPlot | 0b01000000;
-        msensorLegend += setupPirLegendPart();
+        msensorLegend += setupPirLegendPart(msensorLegend);
         break;
       case MOVEMENTSENSOR2:
         mSensToPlot = mSensToPlot | 0b00100000;
-        msensorLegend += setupPirLegendPart();
+        msensorLegend += setupPirLegendPart(msensorLegend);
         break;
       case MOVEMENTSENSOR3:
         mSensToPlot = mSensToPlot | 0b00010000;
-        msensorLegend += setupPirLegendPart();
+        msensorLegend += setupPirLegendPart(msensorLegend);
         break;
       case MOVEMENTSENSOR4:
         mSensToPlot = mSensToPlot | 0b00001000;
-        msensorLegend += setupPirLegendPart();
+        msensorLegend += setupPirLegendPart(msensorLegend);
         break;
       case MOVEMENTSENSOR5:
         mSensToPlot = mSensToPlot | 0b00000100;
-        msensorLegend += setupPirLegendPart();
+        msensorLegend += setupPirLegendPart(msensorLegend);
         break;
       case MOVEMENTSENSOR6:
         mSensToPlot = mSensToPlot | 0b00000010;
-        msensorLegend += setupPirLegendPart();
+        msensorLegend += setupPirLegendPart(msensorLegend);
         break;
       case MOVEMENTSENSOR7:
         mSensToPlot = mSensToPlot | 0b00000001;
-        msensorLegend += setupPirLegendPart();
+        msensorLegend += setupPirLegendPart(msensorLegend);
         break;
 
       case TEMP_BED:
         {
           onlyPir = false;
-          toDraw = toDraw | 0b00000001;
+          axisesToDraw = axisesToDraw | 0b00000001;
           len = slowData.fetchSlowData(startT, stopT, x, y, 1);//todo
           TGraph* gr1 = new TGraph(len,x,y);
+          yT = y[0];
           leg->AddEntry(gr1,"temperature sensor at bed","l");
           mgT->Add(gr1);
         }
@@ -68,10 +70,11 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
       case TEMP_BATHROOM:
         {
           onlyPir = false;
-          toDraw = toDraw | 0b00000001;
+          axisesToDraw = axisesToDraw | 0b00000001;
           len = slowData.fetchSlowData(startT, stopT, x, y, 2);//todo
           TGraph* gr2 = new TGraph(len,x,y);
-          leg->AddEntry(gr1,"temperature sensor at bed","l");
+          yT = y[0];
+          leg->AddEntry(gr2,"temperature sensor at bed","l");
           mgT->Add(gr2);
         }
         break;
@@ -107,7 +110,7 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
   if(mSensToPlot > 0){
     
     len = pirData.fetchPirData(startT, stopT, x, y_bin);
-    TPad* mpad = setupPadsForPirPlot(msensorLegend)
+    TPad* mpad = setupPadsForPirPlot(msensorLegend);
     mpad->cd();
     
     if(len == 0){
@@ -125,14 +128,14 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
   }
 
   //updateLength(x[0], x[len-1]); 
-  finishPlot(); //COMMENT OUT WHEN NOT PLOTTING
+  finishPlot(axisesToDraw); //COMMENT OUT WHEN NOT PLOTTING
   //c1->Print("test.pdf");
 }
 
-std::string Graph::setupPirLegendPart(){  
-  std::string text = msensorLegend+" ("
-                    +std::to_string(__builtin_popcount(mSensToPlot))
-                    +") :movementsensor0";
+std::string Graph::setupPirLegendPart(std::string text){  
+  text = text+" ("+std::to_string(__builtin_popcount(mSensToPlot))
+         +") :movementsensor0";
+         
   return text;
 }
 
@@ -151,17 +154,17 @@ void Graph::plotPirData(uint8_t mSensToPlot, double x[MAXPLOTRESOLUTION],
   
   int numbPlots = __builtin_popcount(mSensToPlot);
   //std::cout<<"numb of plots: "<<numbPlots<<"\n";
-  float height[8];
+  double height[8];
   std::bitset<8> toPlot(mSensToPlot);
 
   //setup height and draw numbers
   int counter = 0;  
   for(int i=0; i<8; i++){
-    float spacing = 1.0/(numbPlots+1); //TODO change 1 to something sensible
+    double spacing = 1.0/(numbPlots+1); //TODO change 1 to something sensible
     if(toPlot.test(i)){
-      counter++
+      counter++;
       height[i] = spacing*counter; 
-      TText* line = new TText(-0.05,height[i],itoa(counter));
+      TText* line = new TText(-0.05,height[i],std::to_string(counter).c_str());
       line->Draw();
     }
   } 
@@ -225,7 +228,7 @@ TPad* Graph::setupPadsForPirPlot(std::string msensorLegend){
   TGraph* grm = new TGraph(2,x0,ym);
   grm->SetLineColorAlpha(0,0);//set line fully transparant
   grm->SetMarkerColorAlpha(0,0);//set marker fully transparant
-  grm->SetTitle(msensorLegendc_str() );
+  grm->SetTitle(msensorLegend.c_str() );
   grm->Draw("AL");
  
   //remove the axis
@@ -239,7 +242,7 @@ TPad* Graph::setupPadsForPirPlot(std::string msensorLegend){
   return mpad;
 }
 
-Tpad* Graph::addPad(){
+TPad* Graph::addPad(){
   TPad* pad = new TPad("pad1","",0,0,1,1);
   pad->SetFillStyle(4000);
   pad->SetFrameFillStyle(0);
@@ -248,6 +251,7 @@ Tpad* Graph::addPad(){
 }
 
 void Graph::initPlot(){
+  double px1, py1, px2, py2;
   c1 = new TCanvas();
   c1->SetGrid();
   
@@ -265,8 +269,9 @@ void Graph::initPlot(){
   padB = addPad();
   	
   //setup the legend;
+  padT->GetPadPar(px1,py1,px2,py2);  
   leg = new TLegend(px1+0.1, py2-0.1, px2-0.1, py2-0.05);
-  leg-> SetNColumns(2);
+  leg->SetNColumns(2);
   
   //c1->SetRightMargin(0.); TODO tweak value for optimal usage of space
 	//c1->SetLeftMargin(0.);
@@ -276,23 +281,31 @@ void Graph::initPlot(){
 
 void Graph::updateLength(uint32_t startT, uint32_t stopT){
   std::cout<<"limiting axis range to: "<<startT<<" to "<<stopT<<"\n";
-  
-  const double x[2] = {(double)startT,(double)stopT};
-  const double y[2] = {0,0};
-  gr = new TGraph(2,x,y);
-  gr->Draw("AP");
-  gr->GetXaxis()->SetLimits((double)startT, (double)stopT);
+
+  //FIXME should no longer be needed
+  //const double x[2] = {(double)startT,(double)stopT};
+  //const double y[2] = {0,0};
+  //gr = new TGraph(2,x,y);
+  //gr->Draw("AP");
+  //gr->GetXaxis()->SetLimits((double)startT, (double)stopT);
 }
 
-void Graph::axisTimeFormatting(){
-  //gr->GetXaxis()->SetLabelSize(0.006);
-  gr->GetXaxis()->SetNdivisions(-503);
-  gr->GetXaxis()->SetTimeDisplay(1);
-  gr->GetXaxis()->SetLabelOffset(0.02);
-  gr->GetXaxis()->SetTimeFormat("#splitline{%H\:%M}{%d\/%m\/%y} %F 1970-01-01 00:00:00");       
+void Graph::axisTimeFormatting(TMultiGraph* mg){
+  mg->GetXaxis()->SetNdivisions(-503);
+  mg->GetXaxis()->SetTimeDisplay(1);
+  mg->GetXaxis()->SetLabelOffset(0.02);
+  mg->GetXaxis()->SetTimeFormat("#splitline{%H\:%M}{%d\/%m\/%y} %F 1970-01-01 00:00:00");
 }
 
-void Graph::drawYAxis(TMultiGraph* mg, TPad* pad, double py1, double py2){
+void Graph::makeAxisInvisible(TMultiGraph* mg){
+  //FIXME some runtime bug with axises I think 
+  mg->GetXaxis()->SetNdivisions(1);
+  mg->GetXaxis()->SetLabelOffset(999);
+  mg->GetXaxis()->SetLabelSize(0); 
+}
+
+void Graph::drawYAxis(TMultiGraph* mg, TPad* pad, double py1, 
+                      double py2, const char* axisTitle){
   double xmin, ymin, xmax, ymax;
 
   //make existing y axis invisible //FIXME can we not just delete it?
@@ -307,20 +320,64 @@ void Graph::drawYAxis(TMultiGraph* mg, TPad* pad, double py1, double py2){
   axis->SetLabelSize(0.03);
   axis->SetLineColor(kRed);
   axis->SetLabelFont(42);
-  axis->SetTitle(axisTitles[i]);
+  axis->SetTitle(axisTitle);
   axis->SetTitleFont(42);
   axis->SetTitleSize(0.03);
   axis->Draw("AP"); 
 }
 
-void Graph::finishPlot(){
-  //axisTimeFormatting(); solve for multi plots
-  double px1, py1, px2, py2;    
+void Graph::setMultiGroupXRange(TMultiGraph* mg, double y){
+  double y0[2];
+  
+  y0[0] = y;
+  y0[1] = y;
+  
+  TGraph* gr0 = new TGraph(2,x0,y0);
+  gr0->SetLineColorAlpha(0,0);//set line fully transparant
+  gr0->SetMarkerColorAlpha(0,0);//set marker fully transparant  
+  
+  mg->Add(gr0);
+}
+
+void Graph::finishPlot(uint8_t axisesToDraw){
+  double px1, py1, px2, py2;
   int nAxises;
   float toShrink;
-  //shrink all t epads to make space
+
+  //draw (connect) all graph parts in the right order
+  padT->cd();
+  mgT->Draw("AL");
+  padH->cd();
+  mgH->Draw();
+  padC->cd();
+  mgC->Draw();
+  padB->cd();
+  mgB->Draw();
+
+  c1->cd();
+  padT->Draw();
+  padH->Draw();
+  padC->Draw();
+  padB->Draw();
+  leg->Draw();
+
+  //add to all multigraphs the invisible graph gr0 that has as fixed
+  //range the full range of the data request, this makes sure all graphs
+  //share an x axis
+  setMultiGroupXRange(mgT, yT);
+  setMultiGroupXRange(mgH, yH);
+  setMultiGroupXRange(mgC, yC);
+  setMultiGroupXRange(mgB, yB);
+
+  //format multigroup axis
+  if(axisesToDraw & 0b00000001){axisTimeFormatting(mgT); }
+  if(axisesToDraw & 0b00000010){axisTimeFormatting(mgH); }
+  if(axisesToDraw & 0b00000100){axisTimeFormatting(mgC); }
+  if(axisesToDraw & 0b00001000){axisTimeFormatting(mgB); }
+
+  //shrink all t epads to make space for extra axis
   nAxises = __builtin_popcount(axisesToDraw);
-  toShrink = nAxises*0.2
+  toShrink = nAxises*0.2;
   padT->GetPadPar(px1,py1,px2,py2);
   
   padT->SetPad(px1,py1,px2-toShrink,py2);  
@@ -328,27 +385,22 @@ void Graph::finishPlot(){
   padC->SetPad(px1,py1,px2-toShrink,py2);  
   padB->SetPad(px1,py1,px2-toShrink,py2);  
 
-  //FIXME needs to be moved to finish plot as we need data for
-  //each plot type to be able to fill in y0
-  TGraph* gr0 = new TGraph(2,x0,y0);
-  gr0->SetLineColorAlpha(0,0);//set line fully transparant
-  gr0->SetMarkerColorAlpha(0,0);//set marker fully transparant
-
-  //add to all multigraphs the invisible graph gr0 that has as fixed
-  //range the full range of the data request, this makes sure all graphs
-  //share an x axis
-  mgT->Add(gr0);
-  mgH->Add(gr0);
-  mgC->Add(gr0);
-  mgB->Add(gr0);
-
   //draw all the axis //TODO add location as variable and make some
   //formula to determine location from
   c1->cd();
-  if(axisesToDraw & 0b00000001){drawYAxis(mgT, padT, py1, py2); }
-  if(axisesToDraw & 0b00000010){drawYAxis(mgH, padH, py1, py2); }
-  if(axisesToDraw & 0b00000100){drawYAxis(mgC, padC, py1, py2); }
-  if(axisesToDraw & 0b00001000){drawYAxis(mgB, padB, py1, py2); }
+  if(axisesToDraw & 0b00000001){
+    drawYAxis(mgT, padT, py1, py2, "Temperature (C)"); 
+  }
+  if(axisesToDraw & 0b00000010){
+    std::cout<<"drawing H axis\n";
+    drawYAxis(mgH, padH, py1, py2, "Humidity (%)"); 
+  }
+  if(axisesToDraw & 0b00000100){
+    drawYAxis(mgC, padC, py1, py2, "CO2 concentration (ppm)"); 
+  }
+  if(axisesToDraw & 0b00001000){
+    drawYAxis(mgB, padB, py1, py2, "Brightness (relative)"); 
+  }
   
   c1->Print("test.pdf");
 }
