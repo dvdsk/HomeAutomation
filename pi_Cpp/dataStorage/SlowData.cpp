@@ -74,7 +74,7 @@ float decodeTemperature3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
 float decodeHumidity1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
   float humidity;
   
-  return 1.0; 
+  return 2.0; 
 }
 
 float decodeHumidity2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){

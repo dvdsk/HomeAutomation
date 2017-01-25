@@ -8,6 +8,10 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
   startT = startT_;
   stopT = stopT_;
 
+  x0[0]= startT;
+  x0[1]= stopT;
+
+
   bool onlyPir = true;
   uint8_t axisesToDraw = 0;
   
@@ -119,7 +123,7 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
     
     len = pirData.fetchPirData(startT, stopT, x, y_bin);
     TPad* mpad = setupPadsForPirPlot(msensorLegend);
-    mpad->cd();
+    //mpad->cd();
     
     if(len == 0){
       std::cerr<<"NO DATAPOINTS WHERE PASSED TO THE GRAPH FUNCTION I AM"
@@ -132,9 +136,9 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
     //if(onlyPir){
       //updateLength(x[0], x[len-1]); 
     //}    
-    plotPirData(mSensToPlot, x, y_bin, len);  
+    mpad->cd();
+    plotPirData(mSensToPlot, x, y_bin, len);
   }
-
   //updateLength(x[0], x[len-1]); 
   finishPlot(axisesToDraw); //COMMENT OUT WHEN NOT PLOTTING
   //c1->Print("test.pdf");
@@ -209,7 +213,7 @@ void Graph::plotPirData(uint8_t mSensToPlot, double x[MAXPLOTRESOLUTION],
 
 
 void Graph::drawLine(double start, double stop, float h) {
-  std::cout<<"drawing line between: "<<(uint32_t)start<<"\tand: "<<(uint32_t)stop<<"\t height: "<<h<<"\n";
+  //std::cout<<"drawing line between: "<<(uint32_t)start<<"\tand: "<<(uint32_t)stop<<"\t height: "<<h<<"\n";
   TLine *line = new TLine(start, h, stop, h);
   line->SetLineWidth(2);
   line->SetLineColor(4);
@@ -222,7 +226,8 @@ TPad* Graph::setupPadsForPirPlot(std::string msensorLegend){
   int numbPlots = __builtin_popcount(mSensToPlot); 
   double ym[2] = {0,1};
   
-  toShrink = 0.1*numbPlots;
+  std::cout<<"numbPlots: "<<numbPlots<<"\n";
+  toShrink = 0.2;//0.1*numbPlots;
   padT->GetPadPar(px1,py1,px2,py2);
   
   padT->SetPad(px1,py1+toShrink,px2,py2);
@@ -230,12 +235,18 @@ TPad* Graph::setupPadsForPirPlot(std::string msensorLegend){
   padC->SetPad(px1,py1+toShrink,px2,py2);
   padB->SetPad(px1,py1+toShrink,px2,py2);
   
-  TPad* mpad = new TPad("mpad","movement report",px1,py1,px2,py1-toShrink);
+  std::cout<<"x0[0]: "<<x0[0]<<" x0[1]: "<<x0[1]<<"\n";
+  //mpad = new TPad("mpad","movement report",px1,py1,px2,py1-toShrink);
+  mpad = new TPad("mpad","",px1,py1,px2,toShrink);
+  mpad->Draw();
+  mpad->cd();
+ 
+  
  
   //add a graph to set up the pad
   TGraph* grm = new TGraph(2,x0,ym);
-  grm->SetLineColorAlpha(0,0);//set line fully transparant
-  grm->SetMarkerColorAlpha(0,0);//set marker fully transparant
+  //grm->SetLineColorAlpha(0,0);//set line fully transparant
+  //grm->SetMarkerColorAlpha(0,0);//set marker fully transparant
   grm->SetTitle(msensorLegend.c_str() );
   grm->Draw("AL");
  
@@ -243,9 +254,10 @@ TPad* Graph::setupPadsForPirPlot(std::string msensorLegend){
   grm->GetYaxis()->SetTickLength(0); //FIXME cant we delete axis object?
   grm->GetYaxis()->SetLabelOffset(999);
   grm->GetYaxis()->SetNdivisions(1);
-  grm->GetXaxis()->SetTickLength(0);
-  grm->GetXaxis()->SetLabelOffset(999);
-  grm->GetXaxis()->SetNdivisions(1);
+  grm->GetXaxis()->SetLabelSize(0.14);
+  //grm->GetXaxis()->SetTickLength(0);
+  //grm->GetXaxis()->SetLabelOffset(999);
+  //grm->GetXaxis()->SetNdivisions(1);
  
   return mpad;
 }
@@ -366,10 +378,10 @@ void Graph::finishPlot(uint8_t axisesToDraw){
   setMultiGroupXRange(mgB, yB);
 
   //format multigroup axis
-  if(axisesToDraw & 0b00000001){axisTimeFormatting(mgT); }
-  if(axisesToDraw & 0b00000010){axisTimeFormatting(mgH); }
-  if(axisesToDraw & 0b00000100){axisTimeFormatting(mgC); }
-  if(axisesToDraw & 0b00001000){axisTimeFormatting(mgB); }
+  //if(axisesToDraw & 0b00000001){axisTimeFormatting(mgT); }
+  //if(axisesToDraw & 0b00000010){axisTimeFormatting(mgH); }
+  //if(axisesToDraw & 0b00000100){axisTimeFormatting(mgC); }
+  //if(axisesToDraw & 0b00001000){axisTimeFormatting(mgB); }
 
   //shrink all t epads to make space for extra axis
   nAxises = __builtin_popcount(axisesToDraw);

@@ -26,7 +26,7 @@ void drawLine(int start, int stop, float h) {
 
 
 void graph() {
-  int mSensToPlot = 0;
+  int mSensToPlot = 1;
 
   //resize pads
   double px1;

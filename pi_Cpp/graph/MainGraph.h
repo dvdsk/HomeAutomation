@@ -79,6 +79,7 @@ private:
   TPad* padH;
   TPad* padC;
   TPad* padB;
+  TPad* mpad;
   TLegend* leg;
   uint32_t startT, stopT;
   int yAxisesNumb;

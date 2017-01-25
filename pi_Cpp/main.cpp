@@ -134,8 +134,8 @@ void debug(PirData& pirData, SlowData& slowData){
   
   //std::vector<plotables> toPlot = {TEMP_BED, MOVEMENTSENSOR0};
   //std::vector<plotables> toPlot = {TEMP_BED};
-  std::vector<plotables> toPlot = {HUMIDITY_BED};
-  Graph graph(toPlot, 1481496152, 1481496152+1000, pirData, slowData);
+  std::vector<plotables> toPlot = {HUMIDITY_BED, MOVEMENTSENSOR0};
+  Graph graph(toPlot, 1481496152, 1481496152+100000000, pirData, slowData);
 }
 
 int main(int argc, char* argv[])
