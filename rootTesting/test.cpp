@@ -74,10 +74,14 @@ void graph() {
   gr0->SetLineColorAlpha(0,0);//set line fully transparant
   gr0->SetMarkerColorAlpha(0,0);//set marker fully transparant
 
+
+
   TGraph* gr1 = new TGraph(4,x1,y1);
   gr1->SetMarkerColor(4);
   gr1->SetMarkerStyle(21);
   leg->AddEntry(gr1,"other test data","l");
+
+
 
   TGraph* gr2 = new TGraph(4,x2,y2);
   gr2->SetMarkerColor(4);
@@ -93,6 +97,7 @@ void graph() {
   mg2->Add(gr2);
   mg2->Add(gr0);
 
+
   if(mSensToPlot > 0){ 
     //resize pad
     pad2->GetPadPar(px1,py1,px2,py2);
@@ -105,6 +110,15 @@ void graph() {
 
     pad2->GetPadPar(px1,py1,px2,py2);
     TPad* mpad = new TPad("mpad","movement report",px1,py1,px2,py1-0.2);
+    mpad->SetFrameBorderSize(1);
+//    mpad->SetLeftMargin(0.1);
+//    mpad->SetBottomMargin(0.1);
+//    mpad->SetTopMargin(0);
+//    mpad->SetRightMargin(0.1);
+    mpad->SetFillColor(0);
+    mpad->SetBorderMode(0); 
+    mpad->SetFrameBorderMode(0);
+    
     mpad->Draw();
     
     //removing frame info might lurk here:
@@ -114,8 +128,8 @@ void graph() {
     
     double ym[2] = {0,1};
     TGraph* grm = new TGraph(2,x0,ym);
-    grm->SetLineColorAlpha(0,0);//set line fully transparant
-    grm->SetMarkerColorAlpha(0,0);//set marker fully transparant
+//    grm->SetLineColorAlpha(0,0);//set line fully transparant
+//    grm->SetMarkerColorAlpha(0,0);//set marker fully transparant
     grm->SetTitle("Movement sensors, 1: bathroom, 2:bed, 3:door, 4:kitchen, 5:heater, 6: bed 7: kitchen window side");
     grm->Draw("AL");
     
@@ -123,13 +137,19 @@ void graph() {
     grm->GetYaxis()->SetTickLength(0);
     grm->GetYaxis()->SetLabelOffset(999);
     grm->GetYaxis()->SetNdivisions(1);
-    grm->GetXaxis()->SetTickLength(0);
-    grm->GetXaxis()->SetLabelOffset(999);
-    grm->GetXaxis()->SetNdivisions(1);
+    grm->GetXaxis()->SetLabelSize(0.14);
+    grm->GetXaxis()->SetTickSize(0.14);
+//    grm->GetXaxis()->SetTickLength(0);
+//    grm->GetXaxis()->SetLabelOffset(999);
+//    grm->GetXaxis()->SetNdivisions(1);
     
     drawLine(2, 4, 0.5);
     drawLine(2, 4, 0.25);
     
+    //mpad->RangeAxis(0,0,4,1);
+
+    //mpad->Update();
+        
   //  //add describtion to lines
     TText* line0 = new TText(-0.05,0.5,"1");
     line0->Draw();
@@ -150,6 +170,15 @@ void graph() {
   c1->cd();
   pad1->Draw();
   pad2->Draw();
+
+  mg1->GetYaxis()->SetTickLength(0);
+  mg1->GetYaxis()->SetLabelOffset(999);
+  mg1->GetYaxis()->SetNdivisions(1);
+  
+  mg2->GetYaxis()->SetTickLength(0);
+  mg2->GetYaxis()->SetLabelOffset(999);
+  mg2->GetYaxis()->SetNdivisions(1);
+
 
 //manage extra axises;
 
