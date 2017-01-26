@@ -76,15 +76,103 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
   return ret;
 }
 
-int main() {
-  struct MHD_Daemon* daemon;
+//used by load_file to find out the file size
+static long get_file_size (const char *filename)
+{
+  FILE *fp;
 
-  daemon = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY, PORT, NULL, NULL,
-                             &answer_to_connection, NULL, MHD_OPTION_END);
-  if (NULL == daemon) return 1;
+  fp = fopen (filename, "rb");
+  if (fp)
+    {
+      long size;
+
+      if ((0 != fseek (fp, 0, SEEK_END)) || (-1 == (size = ftell (fp))))
+        size = 0;
+
+      fclose (fp);
+
+      return size;
+    }
+  else
+    return 0;
+}
+
+//used to load the key files into memory
+static char* load_file (const char *filename)
+{
+  FILE *fp;
+  char* buffer;
+  unsigned long size;
+
+  size = get_file_size(filename);
+  if (0 == size)
+    return NULL;
+
+  fp = fopen(filename, "rb");
+  if (! fp)
+    return NULL;
+
+  buffer = (char*)malloc(size + 1);
+  if (! buffer)
+    {
+      fclose (fp);
+      return NULL;
+    }
+  buffer[size] = '\0';
+
+  if (size != fread (buffer, 1, size, fp))
+    {
+      free (buffer);
+      buffer = NULL;
+    }
+
+  fclose (fp);
+  return buffer;
+}
+
+int main() {
+ 
+  struct MHD_Daemon* daemon;
+  char *key_pem;
+  char *cert_pem;
   
-  getchar();
-  MHD_stop_daemon(daemon);
+  key_pem = load_file("server.key");
+  cert_pem = load_file("server.pem");
+
+  //check if key could be read
+  if ((key_pem == NULL) || (cert_pem == NULL))
+  {
+    printf ("The key/certificate files could not be read.\n");
+    return 1;
+  }
+
+  daemon = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY | MHD_USE_SSL,
+	   		                     PORT, NULL, NULL,
+                             &answer_to_connection, NULL,
+                             MHD_OPTION_HTTPS_MEM_KEY, key_pem,
+                             MHD_OPTION_HTTPS_MEM_CERT, cert_pem,
+                             MHD_OPTION_END);
+  
+  //check if the server started alright                           
+  if(NULL == daemon)
+    {
+      printf ("%s\n", cert_pem);
+      //free memory if the server crashed
+      free (key_pem);
+      free (cert_pem);
+
+      return 1;
+    }  
+  
+  std::cout<<"HELLO?\n";
+  getchar ();
+
+  //free memory if the server stops
+  MHD_stop_daemon (daemon);
+  free (key_pem);
+  free (cert_pem);
+
   return 0;
 }
+
 
