@@ -1,19 +1,12 @@
-#root files are located in: /usr/lib64/root (compiled libs) and
-#/usr/include/root (h files)
-
 CXX = g++
-CXXFLAGS = -Wall -pedantic -std=c++14 -lmicrohttpd
+CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 
-objects = test.o
-
-all: pi
+objects = mainServer.o
 
 pi: $(objects)
-	$(CXX) $(CXXFLAGS) $(ROOT) -o pi $(objects)
+	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o pi $(objects) \
+	-lmicrohttpd
 
-test.o: test.cpp 
-	$(CXX) $(CXXFLAGS) $(ROOT) -c test.cpp
-	
-.PHONY : clean
-clean:
-	rm pi $(objects)
+mainServer.o: mainServer.cpp
+	$(CXX) $(CXXFLAGS) -lmicrohttpd -c mainServer.cpp
+#g++ -L/usr/lib/x86_64-linux-gnu -lmicrohttpd -Wall mainServer.cpp

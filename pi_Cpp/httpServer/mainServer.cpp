@@ -130,17 +130,17 @@ int main() {
     return 1;
   }
 
-  daemon = MHD_start_daemon(MHD_USE_SELECT_INTERNALLY | MHD_USE_DEBUG,
-	   		                    PORT, NULL, NULL,
-                            &answer_to_connection, NULL,
-                            MHD_OPTION_HTTPS_MEM_KEY, key_pem,
-                            MHD_OPTION_HTTPS_MEM_CERT, cert_pem,
-                            MHD_OPTION_END);
+  daemon = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY | MHD_USE_SSL,
+							 PORT, NULL, NULL,
+                             &answer_to_connection, NULL,
+                             MHD_OPTION_HTTPS_MEM_KEY, key_pem,
+                             MHD_OPTION_HTTPS_MEM_CERT, cert_pem,
+                             MHD_OPTION_END);
   
   //check if the server started alright                           
   if(NULL == daemon)
     {
-      //printf ("%s\n", cert_pem);
+      printf ("%s\n", cert_pem);
       //free memory if the server crashed
       free (key_pem);
       free (cert_pem);
@@ -148,7 +148,6 @@ int main() {
       return 1;
     }  
   
-  std::cout<<"HELLO?\n";
   getchar ();
 
   //free memory if the server stops
