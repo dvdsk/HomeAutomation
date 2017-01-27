@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 
-objects = mainServer.o
+objects = mainServer.o state.o
 
 pi: $(objects)
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o pi $(objects) \
@@ -9,4 +9,7 @@ pi: $(objects)
 
 mainServer.o: mainServer.cpp
 	$(CXX) $(CXXFLAGS) -lmicrohttpd -c mainServer.cpp
+
+mainState.o: mainState.cpp
+	$(CXX) $(CXXFLAGS) -c mainState.cpp	
 #g++ -L/usr/lib/x86_64-linux-gnu -lmicrohttpd -Wall mainServer.cpp

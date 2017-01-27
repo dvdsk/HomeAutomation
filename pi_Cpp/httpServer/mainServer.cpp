@@ -5,6 +5,8 @@
 
 #include <iostream>
 
+#include ../state/mainState.cpp
+
 //following this tutorial:
 //https://www.gnu.org/software/libmicrohttpd/tutorial.html
 
@@ -16,6 +18,10 @@ int print_out_key (void *cls, enum MHD_ValueKind kind,
   printf ("%s: %s\n", key, value);
   return MHD_YES;
 }
+
+
+
+	
 
 int answer_to_connection(void* cls,struct MHD_Connection* connection, const char* url,
 		                     const char* method, const char* version, const char* upload_data,
@@ -36,7 +42,7 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
   user = MHD_basic_auth_get_username_password(connection, &pass);
   fail = ( (user == NULL) ||
 	       (0 != strcmp (user, "root")) ||
-	       (0 != strcmp (pass, "pa$$w0rd") ) );  
+	       (0 != strcmp (pass, "test") ) );  
   if (user != NULL) free (user);
   if (pass != NULL) free (pass);
   
@@ -45,15 +51,16 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
     {
       const char* page = "<html><body>Go away.</body></html>";
       response = MHD_create_response_from_buffer(strlen (page), (void*) page, 
-				                                         MHD_RESPMEM_PERSISTENT);
+				                                 MHD_RESPMEM_PERSISTENT);
       ret = MHD_queue_basic_auth_fail_response(connection, "my realm",response);
     }
   //continue with correct response if authentication is successfull
   else
     {
+      state::httpswitcher(url);
       const char *page = "<html><body>A secret.</body></html>";
       response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
-				                                         MHD_RESPMEM_PERSISTENT);
+				                                 MHD_RESPMEM_PERSISTENT);
       ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
     }
   MHD_destroy_response (response);
@@ -114,8 +121,7 @@ static char* load_file (const char *filename)
   return buffer;
 }
 
-int main() {
- 
+int Https_serv(){
   struct MHD_Daemon* daemon;
   char *key_pem;
   char *cert_pem;
@@ -131,7 +137,7 @@ int main() {
   }
 
   daemon = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY | MHD_USE_SSL,
-							 PORT, NULL, NULL,
+														 PORT, NULL, NULL,
                              &answer_to_connection, NULL,
                              MHD_OPTION_HTTPS_MEM_KEY, key_pem,
                              MHD_OPTION_HTTPS_MEM_CERT, cert_pem,
@@ -153,7 +159,14 @@ int main() {
   //free memory if the server stops
   MHD_stop_daemon (daemon);
   free (key_pem);
-  free (cert_pem);
+  free (cert_pem);	
+	
+	return 0;
+}
+
+int main() {
+	Https_serv();
+
 
   return 0;
 }
