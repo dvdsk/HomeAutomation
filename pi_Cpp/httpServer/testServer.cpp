@@ -6,6 +6,7 @@
 #include "mainServer.h"
 
 std::shared_ptr<std::mutex> stop = std::make_shared<std::mutex>();
+TelegramBot bot;
 
 int main(void)
 {
