@@ -1,29 +1,14 @@
-#include <microhttpd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
+#include "mainServer.h"
 
-#include <iostream>
 
-#include ../state/mainState.cpp
-
-//following this tutorial:
-//https://www.gnu.org/software/libmicrohttpd/tutorial.html
-
-const int PORT = 8888;
-
-int print_out_key (void *cls, enum MHD_ValueKind kind, 
+int MainServer::print_out_key (void *cls, enum MHD_ValueKind kind, 
                    const char *key, const char *value)
 {
   printf ("%s: %s\n", key, value);
   return MHD_YES;
 }
 
-
-
-	
-
-int answer_to_connection(void* cls,struct MHD_Connection* connection, const char* url,
+int MainServer::answer_to_connection(void* cls,struct MHD_Connection* connection, const char* url,
 		                     const char* method, const char* version, const char* upload_data,
 		                     size_t* upload_data_size, void** con_cls) {
   
@@ -57,7 +42,7 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
   //continue with correct response if authentication is successfull
   else
     {
-      state::httpswitcher(url);
+      //home.httpswitcher(url);
       const char *page = "<html><body>A secret.</body></html>";
       response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
 				                                 MHD_RESPMEM_PERSISTENT);
@@ -121,7 +106,8 @@ static char* load_file (const char *filename)
   return buffer;
 }
 
-int Https_serv(){
+
+int MainServer::Https_serv(){
   struct MHD_Daemon* daemon;
   char *key_pem;
   char *cert_pem;
@@ -164,11 +150,10 @@ int Https_serv(){
 	return 0;
 }
 
-int main() {
-	Https_serv();
 
-
-  return 0;
-}
+//int main() {
+//	Https_serv();
+//  return 0;
+//}
 
 

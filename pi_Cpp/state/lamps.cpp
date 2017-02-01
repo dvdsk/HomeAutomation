@@ -46,23 +46,17 @@ size_t readCurlToString(void *contents, size_t size,
 }
 
 static size_t read_callback(void *src, size_t size, size_t nmemb, void *stream){
-  //size_t size;
-  curl_off_t nread;
+  int retcode = 0;
+  int strSize;
 	
-	std::cout<<"now: "<<((put_data*)stream)->data<<"\n";
-	std::cout<<"now: "<<((put_data*)stream)->len<<"\n";
+	std::cout<<"now: "<<(const char*)stream<<"\n";
+	strSize = strlen((const char*)stream);
 
-  memcpy(src, &(((put_data*)stream)->data), ((put_data*)stream)->len);
-	size_t retcode = ((put_data*)stream)->len;
-	std::cout<<retcode<<"\n";
-	std::cout<<(char*)src<<"\n";
+  std::memcpy(src, stream, strSize);
+	std::cout<<(const char*)src<<"\n";
+	std::cout<<strSize<<"\n";
  
-  nread = (curl_off_t)retcode;
- 
-  //fprintf(stderr, "*** We read %" CURL_FORMAT_CURL_OFF_T
-          //" bytes from file\n", nread);
-	retcode = 0;
-  return retcode;
+  return strSize;
 }
 
 LampsAPI::LampsAPI(){
@@ -77,6 +71,7 @@ LampsAPI::~LampsAPI(){
 
 std::string LampsAPI::post(std::string apiCall, std::string post){
 	std::string result;
+  CURLcode res;
 	
 	curl_easy_setopt(curl, CURLOPT_URL, (hueIp+"/api/"+username+apiCall).c_str() );
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post.c_str() );
@@ -84,7 +79,11 @@ std::string LampsAPI::post(std::string apiCall, std::string post){
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, readCurlToString);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result);
 	
-	curl_easy_perform(curl);
+	res = curl_easy_perform(curl);
+	std::cout<<res<<"\n";
+	if(res != CURLE_OK)
+      fprintf(stderr, "curl_easy_perform() failed: %s\n",
+              curl_easy_strerror(res));
 	return result;
 }
 
@@ -104,22 +103,24 @@ std::string LampsAPI::get(std::string apiCall){
 std::string LampsAPI::put(std::string apiCall, std::string toput){
   CURLcode res;
 	std::string result;
-	put_data* userdata = new put_data;
-	userdata->data = (char*)toput.c_str();
-	userdata->len = strlen(userdata->data);
-	std::cout<<"here: "<<userdata<<"\n";
+	const char* strToPut = toput.c_str();
+	
+	std::cout<<"here: "<<strToPut<<"\n";
 	
 	curl_easy_setopt(curl, CURLOPT_URL, (hueIp+"/api/"+username+apiCall).c_str() );
 	curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
-	curl_easy_setopt(curl, CURLOPT_PUT, 1L);
+	//curl_easy_setopt(curl, CURLOPT_PUT, 1L);
 
 	curl_easy_setopt(curl, CURLOPT_READFUNCTION, read_callback);
-	curl_easy_setopt(curl, CURLOPT_READDATA, userdata);
+	curl_easy_setopt(curl, CURLOPT_READDATA, strToPut);
+	curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE,
+									 (curl_off_t)strlen(strToPut));
 	
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, readCurlToString);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result);
 	
 	res = curl_easy_perform(curl);
+	std::cout<<res<<"\n";
 	if(res != CURLE_OK)
       fprintf(stderr, "curl_easy_perform() failed: %s\n",
               curl_easy_strerror(res));
@@ -128,9 +129,7 @@ std::string LampsAPI::put(std::string apiCall, std::string toput){
 }
 
 void LampsAPI::allOff(){
-	put("/light/1/state","{\"hue\": 50000,\"on\": true,\"bri\": 200}");
-
-
+	post("/light/1/state","{\"on\": false}");
 }
 
 //returns a string with all lights
@@ -141,8 +140,7 @@ void LampsAPI::getLights(){
 int main(void)
 {
 	LampsAPI hue;
-	//hue.getLights();
 	hue.allOff();
-	
+	hue.getLights();
   return 0;
 }

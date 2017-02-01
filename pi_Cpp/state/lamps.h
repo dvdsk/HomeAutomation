@@ -5,6 +5,7 @@
 #include <curl/curl.h>
 #include <iostream> //cout
 #include <string.h> //strcmp
+#include <cstring> //std::memcpy
 
 std::string hueIp = "192.168.1.11";
 
