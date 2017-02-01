@@ -52,7 +52,10 @@ struct computer {
 	 * Example: there is a change in the brightness value for one of the
 	 * lamps. If the change is large enough the function reading the value
 	 * will wake up the pre scan thread of this class.
-	*/
+	 *
+	 * Data races are prevented by the functions of this class, the class
+	 * can safely be copied
+	 */
 	class MainState{
 		
 	public:

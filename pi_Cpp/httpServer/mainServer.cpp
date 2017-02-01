@@ -11,7 +11,13 @@ int print_out_key (void *cls, enum MHD_ValueKind kind,
 int answer_to_connection(void* cls,struct MHD_Connection* connection, const char* url,
 		                     const char* method, const char* version, const char* upload_data,
 		                     size_t* upload_data_size, void** con_cls) {
+	
+	//int* test1;
+	//void* test2[2];
   
+  //test2=cls;
+  //std::cout<<*((int*)test2[0])<<":new adress \n";
+ 
   int ret;  
   char* user;
   char* pass;
@@ -109,7 +115,9 @@ char* load_file (const char *filename)
 }
 
 
-int th_Https_serv(std::shared_ptr<std::mutex> stop){
+int thread_Https_serv(std::shared_ptr<std::mutex> stop, 
+											std::shared_ptr<TelegramBot> bot){
+												
   struct MHD_Daemon* daemon;
   char *key_pem;
   char *cert_pem;
@@ -124,9 +132,31 @@ int th_Https_serv(std::shared_ptr<std::mutex> stop){
     return 1;
   }
 
+	//make an array of shared pointers used to pass through to the
+	//awnser to connection function (the default handler). This array
+	//is read only.
+	int* test1 = new int;
+	int* test2 = new int;
+	*test1 = 10;
+	*test2 = 20;
+
+	std::cout<<test1<<","<<test2<<"\n";
+	void* dh_arguments[2] = {(void*)test1, (void*)test2};
+	void* test;
+
+	test = (void*)dh_arguments;
+	void** test0;
+	test0 = (void**)test;
+
+	std::cout<<dh_arguments[0]<<"\n";
+	std::cout<<*dh_arguments<<","<<*(dh_arguments+1)<<"\n";
+	std::cout<<*test0<<","<<*(test0+1)<<"\n";
+	std::cout<<*(int*)*test0<<","<<*(int*)*(test0+1)<<"\n";
+
+	std::cout<<dh_arguments<<":origional adress \n";
   daemon = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY | MHD_USE_SSL,
 														 PORT, NULL, NULL,
-                             &answer_to_connection, NULL,
+                             &answer_to_connection, (void*)dh_arguments,
                              MHD_OPTION_HTTPS_MEM_KEY, key_pem,
                              MHD_OPTION_HTTPS_MEM_CERT, cert_pem,
                              MHD_OPTION_END);

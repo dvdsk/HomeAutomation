@@ -10,6 +10,7 @@
 #include <iostream>
 
 #include "../state/mainState.cpp"
+#include "../telegramBot/telegramBot.h"
 
 //following this tutorial:
 //https://www.gnu.org/software/libmicrohttpd/tutorial.html
@@ -24,12 +25,12 @@ long get_file_size (const char *filename);
 //FIXME was static and not used wanted to get rid of warning
 char* load_file (const char *filename);
 
-int th_Https_serv(std::shared_ptr<std::mutex> stop);
+int thread_Https_serv(std::shared_ptr<std::mutex> stop, 
+											std::shared_ptr<TelegramBot> bot);
 
-
-//typedef void(*f2_type)(signed short int sensorData[9], byte PIRs[2], 
-//byte rqUpdate1[1], byte rqUpdate2[1]);
-int answer_to_connection(void* cls,struct MHD_Connection* connection, const char* url,
+												 
+int answer_to_connection(
+												 void* cls,struct MHD_Connection* connection, const char* url,
 												 const char* method, const char* version, const char* upload_data,
 												 size_t* upload_data_size, void** con_cls);
 

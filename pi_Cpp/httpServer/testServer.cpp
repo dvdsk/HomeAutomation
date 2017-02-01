@@ -6,13 +6,13 @@
 #include "mainServer.h"
 
 std::shared_ptr<std::mutex> stop = std::make_shared<std::mutex>();
-TelegramBot bot;
+std::shared_ptr<TelegramBot> bot = std::make_shared<TelegramBot>();
 
 int main(void)
 {
 
 	(*stop).lock();
-	std::thread t1(th_Https_serv, stop);
+	std::thread t1(thread_Https_serv, stop, bot);
 
 	getchar();
 	(*stop).unlock();
