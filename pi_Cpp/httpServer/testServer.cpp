@@ -15,6 +15,9 @@ int main(void)
 	std::thread t1(thread_Https_serv, stop, bot);
 
 	getchar();
+	bot->test();
+	bot->processMessage();
+	getchar();
 	(*stop).unlock();
 	
 	t1.join();

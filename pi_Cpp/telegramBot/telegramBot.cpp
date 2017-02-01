@@ -14,5 +14,18 @@ std::string baseBotAPIUrl = baseBotUrl+BotToken;
 
 
 TelegramBot::TelegramBot()
-: HttpGetPostPut(baseBotAPIUrl){
+:HttpGetPostPut(baseBotAPIUrl){
+	testv = std::make_shared<bool>();
+	*testv = false;
+}
+
+void TelegramBot::test(){
+	*testv = true;
+	
+}
+
+void TelegramBot::processMessage(){
+	
+	std::cout<<"YAYYY: ";
+	std::cout<<*testv<<"\n";
 }

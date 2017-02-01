@@ -6,6 +6,7 @@
 #include <iostream> //cout
 #include <string.h> //strcmp
 #include <cstring> //std::memcpy
+#include <memory>
 
 #include "httpGetPostPut.h"
 
@@ -15,8 +16,12 @@ class TelegramBot : public HttpGetPostPut
 		TelegramBot();
 		void processMessage();
 		
+		void test();	
 	private:
 		bool authorised();
+		
+	
+		std::shared_ptr<bool> testv;
 		
 };
 
