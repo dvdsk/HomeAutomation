@@ -1,14 +1,14 @@
 #include "mainServer.h"
 
 
-int MainServer::print_out_key (void *cls, enum MHD_ValueKind kind, 
+int print_out_key (void *cls, enum MHD_ValueKind kind, 
                    const char *key, const char *value)
 {
   printf ("%s: %s\n", key, value);
   return MHD_YES;
 }
 
-int MainServer::answer_to_connection(void* cls,struct MHD_Connection* connection, const char* url,
+int answer_to_connection(void* cls,struct MHD_Connection* connection, const char* url,
 		                     const char* method, const char* version, const char* upload_data,
 		                     size_t* upload_data_size, void** con_cls) {
   
@@ -53,7 +53,8 @@ int MainServer::answer_to_connection(void* cls,struct MHD_Connection* connection
 }
 
 //used by load_file to find out the file size
-static long get_file_size (const char *filename)
+//FIXME was static 
+long get_file_size (const char *filename)
 {
   FILE *fp;
 
@@ -74,7 +75,8 @@ static long get_file_size (const char *filename)
 }
 
 //used to load the key files into memory
-static char* load_file (const char *filename)
+//FIXME was static and not used wanted to get rid of warning
+char* load_file (const char *filename)
 {
   FILE *fp;
   char* buffer;
@@ -107,7 +109,7 @@ static char* load_file (const char *filename)
 }
 
 
-int MainServer::Https_serv(){
+int th_Https_serv(std::shared_ptr<std::mutex> stop){
   struct MHD_Daemon* daemon;
   char *key_pem;
   char *cert_pem;
@@ -134,26 +136,21 @@ int MainServer::Https_serv(){
     {
       printf ("%s\n", cert_pem);
       //free memory if the server crashed
-      free (key_pem);
-      free (cert_pem);
+      free(key_pem);
+      free(cert_pem);
 
       return 1;
-    }  
-  
-  getchar ();
-
-  //free memory if the server stops
-  MHD_stop_daemon (daemon);
-  free (key_pem);
-  free (cert_pem);	
+    }
+    
+	//for as long as we cant lock stop we keep the server
+	//up. Stop is the shutdown signal.
+	(*stop).lock();	
+	std::cout<<"shutting https server down gracefully\n";
 	
-	return 0;
+  //free memory if the server stops
+  MHD_stop_daemon(daemon);
+  free(key_pem);
+  free(cert_pem);	
+  
+  return 0;      
 }
-
-
-//int main() {
-//	Https_serv();
-//  return 0;
-//}
-
-
