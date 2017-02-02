@@ -29,3 +29,9 @@ void TelegramBot::processMessage(){
 	
 	std::cout<<"pointer in process: "<<*testv<<"\n";
 }
+
+void TelegramBot::setWebHook(){
+	std::cout<<post("/setWebhook",
+	
+	
+}

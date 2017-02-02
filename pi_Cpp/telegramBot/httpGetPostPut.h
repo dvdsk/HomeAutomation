@@ -24,6 +24,7 @@ class HttpGetPostPut{
 	std::string post(std::string urlCall, std::string post);
 	std::string get(std::string urlCall);
 	std::string putString(std::string urlCall, std::string put);
+	std::string get_withFile(std::string url);
 	
 	private:
 	CURL* curl;	

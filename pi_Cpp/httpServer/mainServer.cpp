@@ -8,58 +8,80 @@ int print_out_key (void *cls, enum MHD_ValueKind kind,
   return MHD_YES;
 }
 
+inline int authorised_connection(struct MHD_Connection* connection){
+	int fail;
+	char* pass = NULL;
+	char* user = MHD_basic_auth_get_username_password(connection, &pass);
+	fail = ( (user == NULL) ||
+				 (0 != strcmp (user, "root")) ||
+				 (0 != strcmp (pass, "test")) );  
+	if (user != NULL) free (user);
+	if (pass != NULL) free (pass);
+	return fail;
+}
+
+inline void convert_arguments(void* cls, TelegramBot*& bot, MainState*& state){
+	void** arrayOfPointers;
+	void* element1;
+	void* element2;
+
+	//convert arguments back (hope this optimises well),
+	//this gives us access to all the classes below with all threads
+	//having the same functions and variables availible.
+	arrayOfPointers = (void**)cls;
+	element1 = (void*)*(arrayOfPointers+0);
+	element2 = (void*)*(arrayOfPointers+1);
+	bot = (TelegramBot*)element1;
+	state = (MainState*)element2;
+	return;																		 
+}
+
 int answer_to_connection(void* cls,struct MHD_Connection* connection, const char* url,
 		                     const char* method, const char* version, const char* upload_data,
 		                     size_t* upload_data_size, void** con_cls) {
-	
-	void** test0 = (void**)cls;
-	void* test1 = (void*)*test0;
-	TelegramBot* bot = (TelegramBot*)test1;
-	//std::shared_ptr<TelegramBot> bot = (std::shared_ptr<TelegramBot>)*test0;
-	std::cout<<"shared pointer to telegrambot class (in answer to conn): "<<bot<<"\n";		
-	bot->processMessage();
-	//int* test1;
-	//void* test2[2];
-  
-  //test2=cls;
-  //std::cout<<*((int*)test2[0])<<":new adress \n";
- 
   int ret;  
-  char* user;
-  char* pass;
   int fail;
-  struct MHD_Response *response;
+  struct MHD_Response *response;	
 
-  if (0 != strcmp(method, "GET")) return MHD_NO;
-  if (NULL == *con_cls) {*con_cls = connection; return MHD_YES;}
+	TelegramBot* bot;
+	MainState* state;
+
+	convert_arguments(cls, bot, state);
+ 
+	fail = authorised_connection(connection); //check if other party authorised
+  if (0 == strcmp(method, "GET")){
+		if (NULL == *con_cls) {*con_cls = connection; return MHD_YES;}
+		
+		printf ("New %s request for %s using version %s\n", method, url, version);
+		
+
+		
+		//if user authentication fails
+		if (fail){
+				const char* page = "<html><body>Go away.</body></html>";
+				response = MHD_create_response_from_buffer(strlen (page), (void*) page, 
+									 MHD_RESPMEM_PERSISTENT);
+				ret = MHD_queue_basic_auth_fail_response(connection, "my realm",response);
+			}
+		//continue with correct response if authentication is successfull
+		else{
+				const char *page = "<html><body>A secret.</body></html>";
+				
+				state->httpSwitcher(url); //can send commands to state
+				
+				response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
+									 MHD_RESPMEM_PERSISTENT);
+				ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+			}
+  }//else possible telegram webhook call
+  else if (0 == strcmp(method, "GET")){
+		
+		bot->processMessage(); //entire bot hangs on this function 
+		
+	}
+	//unrecognised or unallowed protocol break connection
+	else{ return MHD_NO;}
   
-  printf ("New %s request for %s using version %s\n", method, url, version);
-  
-  pass = NULL;
-  user = MHD_basic_auth_get_username_password(connection, &pass);
-  fail = ( (user == NULL) ||
-	       (0 != strcmp (user, "root")) ||
-	       (0 != strcmp (pass, "test") ) );  
-  if (user != NULL) free (user);
-  if (pass != NULL) free (pass);
-  
-  //if user authentication fails
-  if (fail)
-    {
-      const char* page = "<html><body>Go away.</body></html>";
-      response = MHD_create_response_from_buffer(strlen (page), (void*) page, 
-				                                 MHD_RESPMEM_PERSISTENT);
-      ret = MHD_queue_basic_auth_fail_response(connection, "my realm",response);
-    }
-  //continue with correct response if authentication is successfull
-  else
-    {
-      //home.httpswitcher(url);
-      const char *page = "<html><body>A secret.</body></html>";
-      response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
-				                                 MHD_RESPMEM_PERSISTENT);
-      ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
-    }
   MHD_destroy_response (response);
   return ret;
 }
@@ -122,7 +144,8 @@ char* load_file (const char *filename)
 
 
 int thread_Https_serv(std::shared_ptr<std::mutex> stop, 
-											std::shared_ptr<TelegramBot> bot){
+											std::shared_ptr<TelegramBot> bot,
+											std::shared_ptr<MainState> state){
 												
   struct MHD_Daemon* daemon;
   char *key_pem;
@@ -138,36 +161,17 @@ int thread_Https_serv(std::shared_ptr<std::mutex> stop,
     return 1;
   }
 
-	//make an array of shared pointers used to pass through to the
+	//make an array of pointers used to pass through to the
 	//awnser to connection function (the default handler). This array
-	//is read only.
-	//int* test1 = new int;
-	//int* test2 = new int;
-	//*test1 = 10;
-	//*test2 = 20;
+	//is read only. The pointers better be in shared memory space for 
+	//the awnser function to be able to reach them
+	void* arrayOfPointers[2] = {bot.get(), state.get()};
 
-	//std::cout<<test1<<","<<test2<<"\n";
-	void* dh_arguments[2] = {bot.get(), NULL};
-	//void* test;
 
-	//test = (void*)dh_arguments;
-	//void** test0;
-	//test0 = (void**)test;
-
-	//std::cout<<dh_arguments[0]<<"\n";
-	//std::cout<<*dh_arguments<<","<<*(dh_arguments+1)<<"\n";
-	//std::cout<<*test0<<","<<*(test0+1)<<"\n";
-	//std::cout<<*(int*)*test0<<","<<*(int*)*(test0+1)<<"\n";
-
-	//std::cout<<dh_arguments<<":origional adress \n";
-
-	std::cout<<"pointers in telegrambot class: "<<bot.get()<<"\n"
-																							<<dh_arguments<<"\n"
-																							<<(void*)dh_arguments<<"\n";
 
   daemon = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY | MHD_USE_SSL,
 														 PORT, NULL, NULL,
-                             &answer_to_connection, (void*)dh_arguments,
+                             &answer_to_connection, (void*)arrayOfPointers,
                              MHD_OPTION_HTTPS_MEM_KEY, key_pem,
                              MHD_OPTION_HTTPS_MEM_CERT, cert_pem,
                              MHD_OPTION_END);

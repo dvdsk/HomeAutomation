@@ -6,10 +6,15 @@
 #include <string.h>
 #include <stdio.h>
 #include <mutex>
+#include <memory>
 
 #include <iostream>
 
-#include "../state/mainState.cpp"
+//class MainState;
+//class TelegramBot;
+
+//this gave linking errors so now pre declaring
+#include "../state/mainState.h"
 #include "../telegramBot/telegramBot.h"
 
 //following this tutorial:
@@ -25,12 +30,16 @@ long get_file_size (const char *filename);
 //FIXME was static and not used wanted to get rid of warning
 char* load_file (const char *filename);
 
+inline void convert_arguments(void* cls, TelegramBot*& bot, MainState*& state);
+
+inline int authorised_connection(struct MHD_Connection* connection);
+
 int thread_Https_serv(std::shared_ptr<std::mutex> stop, 
-											std::shared_ptr<TelegramBot> bot);
+											std::shared_ptr<TelegramBot> bot,
+											std::shared_ptr<MainState> state);
 
 												 
-int answer_to_connection(
-												 void* cls,struct MHD_Connection* connection, const char* url,
+int answer_to_connection(void* cls,struct MHD_Connection* connection, const char* url,
 												 const char* method, const char* version, const char* upload_data,
 												 size_t* upload_data_size, void** con_cls);
 

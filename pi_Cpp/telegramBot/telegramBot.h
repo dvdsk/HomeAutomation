@@ -15,7 +15,7 @@ class TelegramBot : public HttpGetPostPut
 	public:
 		TelegramBot();
 		void processMessage();
-		
+		void setWebHook();
 		void test();	
 	private:
 		bool authorised();
