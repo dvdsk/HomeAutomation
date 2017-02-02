@@ -13,7 +13,10 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 		                     size_t* upload_data_size, void** con_cls) {
 	
 	void** test0 = (void**)cls;
-	std::shared_ptr<TelegramBot> bot = *(std::shared_ptr<TelegramBot>*)*test0;
+	void* test1 = (void*)*test0;
+	TelegramBot* bot = (TelegramBot*)test1;
+	//std::shared_ptr<TelegramBot> bot = (std::shared_ptr<TelegramBot>)*test0;
+	std::cout<<"shared pointer to telegrambot class (in answer to conn): "<<bot<<"\n";		
 	bot->processMessage();
 	//int* test1;
 	//void* test2[2];
@@ -144,7 +147,7 @@ int thread_Https_serv(std::shared_ptr<std::mutex> stop,
 	//*test2 = 20;
 
 	//std::cout<<test1<<","<<test2<<"\n";
-	void* dh_arguments[2] = {(void*)bot.get(), NULL};
+	void* dh_arguments[2] = {bot.get(), NULL};
 	//void* test;
 
 	//test = (void*)dh_arguments;
@@ -156,7 +159,12 @@ int thread_Https_serv(std::shared_ptr<std::mutex> stop,
 	//std::cout<<*test0<<","<<*(test0+1)<<"\n";
 	//std::cout<<*(int*)*test0<<","<<*(int*)*(test0+1)<<"\n";
 
-	std::cout<<dh_arguments<<":origional adress \n";
+	//std::cout<<dh_arguments<<":origional adress \n";
+
+	std::cout<<"pointers in telegrambot class: "<<bot.get()<<"\n"
+																							<<dh_arguments<<"\n"
+																							<<(void*)dh_arguments<<"\n";
+
   daemon = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY | MHD_USE_SSL,
 														 PORT, NULL, NULL,
                              &answer_to_connection, (void*)dh_arguments,

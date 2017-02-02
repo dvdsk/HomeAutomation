@@ -16,7 +16,7 @@ int main(void)
 
 	getchar();
 	bot->test();
-	bot->processMessage();
+	//bot->processMessage();
 	getchar();
 	(*stop).unlock();
 	

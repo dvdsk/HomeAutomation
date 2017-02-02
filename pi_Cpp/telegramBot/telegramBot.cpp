@@ -21,11 +21,11 @@ TelegramBot::TelegramBot()
 
 void TelegramBot::test(){
 	*testv = true;
+	std::cout<<"pointer in test: "<<*testv<<"\n";
 	
 }
 
 void TelegramBot::processMessage(){
 	
-	std::cout<<"YAYYY: ";
-	std::cout<<*testv<<"\n";
+	std::cout<<"pointer in process: "<<*testv<<"\n";
 }
