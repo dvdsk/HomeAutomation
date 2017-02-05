@@ -10,17 +10,15 @@
 
 #include <iostream>
 
-//class MainState;
-//class TelegramBot;
-
-//this gave linking errors so now pre declaring
 #include "../state/mainState.h"
 #include "../telegramBot/telegramBot.h"
 
+constexpr const int HTTPSERVER_PORT = 8443;
+constexpr const char* HTTPSERVER_USER = "kleingeld";
+constexpr const char* HTTPSERVER_PASS = "nRhRudGLWs35rHukzxrz"; //using random strings as passw
+
 //following this tutorial:
 //https://www.gnu.org/software/libmicrohttpd/tutorial.html
-
-constexpr int PORT = 8888;
 
 //used by load_file to find out the file size
 //FIXME was static and not used wanted to get rid of warning

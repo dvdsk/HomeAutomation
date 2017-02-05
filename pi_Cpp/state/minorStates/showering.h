@@ -1,6 +1,50 @@
 #ifndef MAINSTATE
 #define MAINSTATE
 
+
+#include <thread>
+#include <mutex>
+#include <memory> //for shared_ptr
+#include <array>
+#include <string.h> //strcmp
+#include <iostream> //cout
+#include "../config.h"
+
+//lamps
+constexpr int l_DOOR = 0; 
+constexpr int l_KITCHEN = 1;
+constexpr int l_CEILING = 2;
+constexpr int l_BUREAU = 3;
+constexpr int l_RADIATOR = 4;
+constexpr int l_BATHROOM = 5;
+
+//movement sensors
+constexpr int m_KITCHEN = 1;
+constexpr int m_BEDLEFT = 2;
+constexpr int m_BEDRIGHT = 3;
+constexpr int m_BATHROOM = 4
+
+enum Command {LIGHTS_ALLON, LIGHTS_ALLOFF};
+
+struct user {
+  bool not_present;
+  bool sleeping;
+  
+	bool authorised;
+  bool goingToBed;
+  bool awoken;
+  
+  bool bedMode;
+	bool showering;
+
+  bool inBathroom;
+  bool inKitchenArea;
+};
+
+struct computer {
+	bool playingSound;
+};
+
 	/* An automatic update will be triggerd whenever there is new data
 	 * (from sensors). It then can send out a command. Commands can cause
 	 * a change of state that can trigger an automatic update issueing
@@ -26,41 +70,7 @@
 	 * Data races are prevented by the functions of this class, the class
 	 * can safely be copied
 	 */
-	 
-	 
-	/* States are devided into two groups, the mutually exculusive 
-	 * major states and the non exclusive minor states. A major state
-	 * might be sleeping or default. In the sleeping state there should 
-	 * be a diffrent response to many changing values then in the default
-	 * state. The minor states can refine responses, think off showering
-	 * going to the toilet etc.
-	 * 
-	 */
-
-
-#include <thread>
-#include <mutex>
-#include <memory> //for shared_ptr
-#include <array>
-#include <string.h> //strcmp
-#include <iostream> //cout
-
-#include "../config.h"
-
-enum Command {LIGHTS_ALLON, LIGHTS_ALLOFF};
-
-enum MajorStates {AWAY, DEFAULT, ALMOSTSLEEPING, SLEEPING};
-
-struct MinorStates {
-	bool authorised;
-	bool listenToAudioBook;
-	bool wakingUp;
-  bool inBathroom;
-  bool inKitchenArea;
-};
-
-	 
-class MainState{
+	class MainState{
 		
 	public:
 		//creates shared objects
@@ -78,58 +88,49 @@ class MainState{
 		void thread_watchForUpdate();
 	
 	private:
-		std::mutex alarmProcedureStarted;
 		//using bitwise ops to indicate if a values changed 
 		std::shared_ptr<std::array<int, 5>> lightValues;
-		std::shared_ptr<bool> lightValues_updated; 		
+		std::shared_ptr<bool> lightValues_updated; 
+		std::shared_ptr<std::mutex> lightValues_mutex;		
 		
 		//array with unix time when a movement sensor
 		//was last activated.
 		std::shared_ptr<std::array<uint32_t, 5>> movement;
+		std::shared_ptr<std::mutex> movement_mutex;		
 		
-		std::shared_ptr<struct MinorStates> minorStates;
-		std::shared_ptr<MajorStates> majorState;
-		
+		std::shared_ptr<struct user> userState;	//len = 10;
+		std::shared_ptr<std::mutex> userState_mutex;
 
 		std::shared_ptr<std::array<bool, 6>> lampOn; //needs mutex?
 		
-		
 		//4 mutually exclusive paths for checking which conditions should
 		//be checked by the updating functions
-		void update_away();			
-		void update_sleeping();
-		void update_default();
-		void update_almostSleeping();
+		void pre_scan_notPresent();		//alarm is on;				
+		void pre_scan_sleeping();			//alarm is on;
+		void pre_scan_inBed();
+		void pre_scan_default();
 		
-		//functions that should be ran when changed into this state
-		void init_away();
-		void init_sleeping();
-		void init_default();
-		void init_almostSleeping();
-
-		//state mutually exclusive state transition functions, they are
-		//ran on every check.
-		void transitions_away();
-		void transitions_sleeping();
-		void transitions_default();
-		void transitions_almostSleeping();
-
-		//away functions in away.cpp
-		void away_intruder_alarm();
-
-		//default functions in default.cpp
-		void def_lampcheck_Door();
-		void def_lampCheck_Kitchen();
-		void def_lampCheck_CeilingAndRadiator();
-		void def_lampCheck_Bureau();
-		void def_lampCheck_Bathroom();
-		void environmental_alarm();
-
-		//almostSleeping functions in almostSleeping.cpp
-		void almostSleeping_lampCheck();
+		//update functions started by the updated paths
+		void update_basic_lights(); //dep user, dep light
 		
-		//sleeping functions in sleeping.cpp
-		void sleeping_intruder_alarm();
+		void update_movement_lights(); //dep user, dep light, dep movement
+		
+		void update_music();
+		
+		void update_computer();
+		//end of determining functions
+		
+		
+		
+		//inline functions present for more readable code
+		inline void def_lampCheck_Door();								//dep. on: l
+		inline void def_lampCheck_Bureau();							//dep. on: l
+		inline void def_lampCheck_CeilingAndRadiator();	//dep. on: l
+		
+		inline void def_lampCheck_Kitchen();	//dep. on: l,m
+		inline void lampCheck_Bathroom();			//dep. on: m
+		
+		inline void lampCheck_outOfBed; 			//dep. on: m
 	};
 	
 	

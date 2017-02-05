@@ -61,49 +61,49 @@ std::string HttpGetPostPut::post(std::string url, std::string post){
 	return result;
 }
 
-std::string HttpGetPostPut::postJson(std::string url, std::string post){
+//std::string HttpGetPostPut::postJson(std::string url, std::string post){
 	
-	//create header manually;
-	struct curl_slist *headers = NULL;
-	headers = curl_slist_append(headers, "Accept: application/json");
-	headers = curl_slist_append(headers, "Content-Type: application/json");
-	headers = curl_slist_append(headers, "charsets: utf-8");
+	////create header manually;
+	//struct curl_slist *headers = NULL;
+	//headers = curl_slist_append(headers, "Accept: application/json");
+	//headers = curl_slist_append(headers, "Content-Type: application/json");
+	//headers = curl_slist_append(headers, "charsets: utf-8");
 	
-	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonObj);
+	//curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
+	//curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonObj);
 
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, readCurlToString);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result);
+	//curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, readCurlToString);
+	//curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result);
 	
-	res = curl_easy_perform(curl);
-	std::cout<<res<<"\n";
-	if(res != CURLE_OK)
-      fprintf(stderr, "curl_easy_perform() failed: %s\n",
-              curl_easy_strerror(res));
-	return result;
-}
+	//res = curl_easy_perform(curl);
+	//std::cout<<res<<"\n";
+	//if(res != CURLE_OK)
+      //fprintf(stderr, "curl_easy_perform() failed: %s\n",
+              //curl_easy_strerror(res));
+	//return result;
+//}
 
-std::string HttpGetPostPut::postFile(std::string url, std::string jsonObj){
+//std::string HttpGetPostPut::postFile(std::string url, std::string jsonObj){
 	
-	//create header manually;
-	struct curl_slist *headers = NULL;
-	headers = curl_slist_append(headers, "Accept: application/json");
-	headers = curl_slist_append(headers, "Content-Type: multipart/form-data");
-	headers = curl_slist_append(headers, "charsets: utf-8");
+	////create header manually;
+	//struct curl_slist *headers = NULL;
+	//headers = curl_slist_append(headers, "Accept: application/json");
+	//headers = curl_slist_append(headers, "Content-Type: multipart/form-data");
+	//headers = curl_slist_append(headers, "charsets: utf-8");
 	
-	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonObj);
+	//curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
+	//curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonObj);
 
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, readCurlToString);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result);
+	//curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, readCurlToString);
+	//curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result);
 	
-	res = curl_easy_perform(curl);
-	std::cout<<res<<"\n";
-	if(res != CURLE_OK)
-      fprintf(stderr, "curl_easy_perform() failed: %s\n",
-              curl_easy_strerror(res));
-	return result;
-}
+	//res = curl_easy_perform(curl);
+	//std::cout<<res<<"\n";
+	//if(res != CURLE_OK)
+      //fprintf(stderr, "curl_easy_perform() failed: %s\n",
+              //curl_easy_strerror(res));
+	//return result;
+//}
 
 
 
@@ -120,18 +120,18 @@ std::string HttpGetPostPut::get(std::string url){
 }
 
 
-std::string HttpGetPostPut::get_noSSL(std::string url){
-	std::string result;
+//std::string HttpGetPostPut::get_noSSL(std::string url){
+	//std::string result;
 
-	curl_easy_setopt(curl, CURLOPT_URL, (baseUrl+url).c_str() );
-	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); //no need for https
+	//curl_easy_setopt(curl, CURLOPT_URL, (baseUrl+url).c_str() );
+	//curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); //no need for https
 	
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, readCurlToString);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result);
+	//curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, readCurlToString);
+	//curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result);
 	
-	curl_easy_perform(curl);
-	return result;
-}
+	//curl_easy_perform(curl);
+	//return result;
+//}
 
 
 std::string HttpGetPostPut::putString(std::string url, std::string toput){

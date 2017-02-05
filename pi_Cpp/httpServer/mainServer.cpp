@@ -1,5 +1,5 @@
 #include "mainServer.h"
-
+#include "config.h"
 
 int print_out_key (void *cls, enum MHD_ValueKind kind, 
                    const char *key, const char *value)
@@ -13,8 +13,8 @@ inline int authorised_connection(struct MHD_Connection* connection){
 	char* pass = NULL;
 	char* user = MHD_basic_auth_get_username_password(connection, &pass);
 	fail = ( (user == NULL) ||
-				 (0 != strcmp (user, "root")) ||
-				 (0 != strcmp (pass, "test")) );  
+				 (0 != strcmp (user, HTTPSERVER_USER)) ||
+				 (0 != strcmp (pass, HTTPSERVER_PASS)) );  
 	if (user != NULL) free (user);
 	if (pass != NULL) free (pass);
 	return fail;
@@ -74,7 +74,7 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 				ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
 			}
   }//else possible telegram webhook call
-  else if (0 == strcmp(method, "GET")){
+  else if (0 == strcmp(method, "POST")){
 		
 		bot->processMessage(); //entire bot hangs on this function 
 		
@@ -170,7 +170,7 @@ int thread_Https_serv(std::shared_ptr<std::mutex> stop,
 
 
   daemon = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY | MHD_USE_SSL,
-														 PORT, NULL, NULL,
+														 HTTPSERVER_PORT, NULL, NULL,
                              &answer_to_connection, (void*)arrayOfPointers,
                              MHD_OPTION_HTTPS_MEM_KEY, key_pem,
                              MHD_OPTION_HTTPS_MEM_CERT, cert_pem,

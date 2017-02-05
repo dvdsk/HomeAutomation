@@ -13,7 +13,8 @@
 class TelegramBot : public HttpGetPostPut
 {
 	public:
-		TelegramBot();
+		TelegramBot();// need to pass state to this so we can access its functions
+									// such as parse command
 		void processMessage();
 		void setWebHook();
 		void test();	

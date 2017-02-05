@@ -31,7 +31,7 @@ void TelegramBot::processMessage(){
 }
 
 void TelegramBot::setWebHook(){
-	std::cout<<post("/setWebhook",
+	std::cout<<post("/setWebhook","things");
 	
 	
 }

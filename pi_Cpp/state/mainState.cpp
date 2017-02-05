@@ -5,9 +5,9 @@ void MainState::httpSwitcher(const char* raw_url){
 
 	if(0 == strcmp(raw_url, "/lamps")){
 		std::cout<<"lamps call has been made\n";
-		
+		parseCommand(LIGHTS_ALLOFF);
 	}
-
+	return;
 }
 
 void MainState::parseCommand(Command toParse){
@@ -27,23 +27,40 @@ void MainState::parseCommand(Command toParse){
 
 MainState::MainState(){
 	
+	userState_updated= std::make_shared<int>();
+	
 	lightValues = std::make_shared<std::array<int, 5>>();
-	lightValues_updated = std::make_shared<int>();
 	lightValues_mutex = std::make_shared<std::mutex>();
 	
 	userState = std::make_shared<user>();
-	userState_updated= std::make_shared<int>();
 	userState_mutex = std::make_shared<std::mutex>();
+	
+	lampOn = std::make_shared<std::array<bool, 6>>();
+	
+	*userState_updated = 0;
+}
+
+MainState::thread_watchForUpdate(){
+	uint32_t CurrentTime;
+	uint32_t lastBedMovement;
+	
+	while(true){ //can later be replaced with mutex to check if we should stop
+		updateTime(&CurrentTime);
+		
+		switch(*majorState){
+			case AWAY:
+			update_away();			
+			case SLEEPING:
+			update_sleeping();
+			break;
+			case DEFAULT:
+			update_default();
+			break;
+			case ALMOSTSLEEPING:
+			update_almostSleeping();
+			break;
+		}
+	}
 }
 
 
-
-void MainState::pre_scan(){}
-
-//determine if and if so which command should be send to the ..
-void MainState::update_lights(){}
-
-void MainState::update_music(){}
-
-void MainState::update_computer(){}
-//end of determining functions
