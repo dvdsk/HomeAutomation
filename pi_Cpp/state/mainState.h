@@ -171,6 +171,6 @@ class MainState{
 	
 //general support functions
 inline void sleep(int seconds);
-
+inline std::string toTime(uint32_t seconds);
 
 #endif // MAINSTATE

@@ -18,17 +18,20 @@ namespace config {
 	constexpr int ALARM_TEMP_ABOVE = 350; //in 0.1 Celcius, 35 deg
 	constexpr int ALARM_TEMP_BELOW = 50;  //in 0.1 Celcius, 5 deg
 	
-	constexpr int ALERT_HUMIDITY_ABOVE = 240; //in 0.1 Celcius, 24 deg
-	constexpr int ALERT_HUMIDITY_BELOW = 140; //in 0.1 Celcius, 14 deg
+	constexpr int ALERT_HUMIDITY_ABOVE = 50; //in 0.1 Celcius, 24 deg
+	constexpr int ALERT_HUMIDITY_BELOW = 30; //in 0.1 Celcius, 14 deg
 	
-	constexpr int ALARM_HUMIDITY_ABOVE = 350; //in 0.1 Celcius, 35 deg
-	constexpr int ALARM_HUMIDITY_BELOW = 50;  //in 0.1 Celcius, 5 deg
+	constexpr int ALARM_HUMIDITY_ABOVE = 90; //in 0.1 Celcius, 35 deg
+	constexpr int ALARM_HUMIDITY_BELOW = 10;  //in 0.1 Celcius, 5 deg
 	
 	constexpr int ALERT_CO2PPM = 400;
 	constexpr int ALARM_CO2PPM = 500;	
 	
 	constexpr int WCPIR_TIMEOUT = 60; //timout for bathroom lamp in seconds
 	constexpr int KTCHN_TIMEOUT = 30; //timout for kitchen lamp in seconds
+	
+	constexpr int DT_HUMIDALARM_SHOWER = 600; //time allowed for humidity to
+																						//drop in the bathroom
 }
 
 namespace lght {//lightvalues
@@ -45,6 +48,13 @@ namespace mov {//movement sensors
 	constexpr int RADIATOR = 4;
 	constexpr int MIDDLEROOM = 5;
 	constexpr int BATHROOM = 6;
+}
+
+namespace hum {//movement sensors
+	constexpr const char* NAMES[]{"below bed\n", "in bathroom\n", "above door\n"};
+	constexpr int BED = 0;
+	constexpr int BATHROOM = 1;
+	constexpr int DOOR = 2;
 }
 
 namespace lmp {//lamps
