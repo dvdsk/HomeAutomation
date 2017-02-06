@@ -37,8 +37,9 @@
 	 * 
 	 */
 
-
+#include <ctime> //time()
 #include <thread>
+
 #include <mutex>
 #include <memory> //for shared_ptr
 #include <array>
@@ -47,16 +48,19 @@
 
 #include "../config.h"
 
-enum Command {LIGHTS_ALLON, LIGHTS_ALLOFF};
+enum Command {LIGHTS_ALLON, LIGHTS_ALLOFF, MS_SLEEPING, MOVIEMODE};
 
 enum MajorStates {AWAY, DEFAULT, ALMOSTSLEEPING, SLEEPING};
 
 struct MinorStates {
-	bool authorised;
+	bool alarmDisarm;
+	bool authorisedClose;
 	bool listenToAudioBook;
 	bool wakingUp;
   bool inBathroom;
+  bool showering;
   bool inKitchenArea;
+  bool movieMode;
 };
 
 	 
@@ -79,20 +83,25 @@ class MainState{
 	
 	private:
 		std::mutex alarmProcedureStarted;
-		//using bitwise ops to indicate if a values changed 
-		std::shared_ptr<std::array<int, 5>> lightValues;
-		std::shared_ptr<bool> lightValues_updated; 		
+		uint32_t currentTime;
+		uint32_t lastBedMovement;
 		
-		//array with unix time when a movement sensor
-		//was last activated.
-		std::shared_ptr<std::array<uint32_t, 5>> movement;
+		//sensorValues
+		std::array<int, 5> lightValues;
+		bool lightValues_updated; 		
+		std::array<int, 5> tempValues;
+		bool tempValues_updated; 		
+		std::array<int, 5> humidityValues;
+		bool humidityValues_updated; 		
+		std::array<int, 5> soilHumidityValues;
+		bool soilHumidity_updated; 		
+		std::array<uint32_t, 5> movement;
+		int CO2ppm;
 		
-		std::shared_ptr<struct MinorStates> minorStates;
-		std::shared_ptr<MajorStates> majorState;
-		
-
-		std::shared_ptr<std::array<bool, 6>> lampOn; //needs mutex?
-		
+		//stateBookKeeping
+		MinorStates minorState;
+		MajorStates majorState;		
+		std::array<bool, 6> lampOn;
 		
 		//4 mutually exclusive paths for checking which conditions should
 		//be checked by the updating functions
@@ -105,7 +114,7 @@ class MainState{
 		void init_away();
 		void init_sleeping();
 		void init_default();
-		void init_almostSleeping();
+		void init_almostSleeping(MajorStates fromState);
 
 		//state mutually exclusive state transition functions, they are
 		//ran on every check.
@@ -116,26 +125,37 @@ class MainState{
 
 		//away functions in away.cpp
 		void away_intruder_alarm();
+		void check_Plants();
 
 		//default functions in default.cpp
 		void def_lampcheck_Door();
 		void def_lampCheck_Kitchen();
 		void def_lampCheck_CeilingAndRadiator();
 		void def_lampCheck_Bureau();
-		void def_lampCheck_Bathroom();
+		void lampCheck_Bathroom(); //used in other major states too
 		void environmental_alarm();
 
 		//almostSleeping functions in almostSleeping.cpp
 		void almostSleeping_lampCheck();
 		
 		//sleeping functions in sleeping.cpp
-		void sleeping_intruder_alarm();
-	};
+		void night_alarm();
+		
+		
+		//functions that change states
+		 //turn lamps on
+		 
+		 //turn lamps off
+		 
+		 //movie mode
+		 
+		//general support functions that need access to this class
+		inline bool recent(uint32_t time, unsigned int threshold);
+		inline bool anyRecent(std::array<uint32_t, 5> times, unsigned int threshold);
+};
 	
-	
-
-
-
+//general support functions
+inline void sleep(int seconds);
 
 
 #endif // MAINSTATE

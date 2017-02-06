@@ -1,5 +1,4 @@
 #include "mainServer.h"
-#include "config.h"
 
 int print_out_key (void *cls, enum MHD_ValueKind kind, 
                    const char *key, const char *value)
@@ -13,8 +12,8 @@ inline int authorised_connection(struct MHD_Connection* connection){
 	char* pass = NULL;
 	char* user = MHD_basic_auth_get_username_password(connection, &pass);
 	fail = ( (user == NULL) ||
-				 (0 != strcmp (user, HTTPSERVER_USER)) ||
-				 (0 != strcmp (pass, HTTPSERVER_PASS)) );  
+				 (0 != strcmp (user, config::HTTPSERVER_USER)) ||
+				 (0 != strcmp (pass, config::HTTPSERVER_PASS)) );  
 	if (user != NULL) free (user);
 	if (pass != NULL) free (pass);
 	return fail;
@@ -170,7 +169,7 @@ int thread_Https_serv(std::shared_ptr<std::mutex> stop,
 
 
   daemon = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY | MHD_USE_SSL,
-														 HTTPSERVER_PORT, NULL, NULL,
+														 config::HTTPSERVER_PORT, NULL, NULL,
                              &answer_to_connection, (void*)arrayOfPointers,
                              MHD_OPTION_HTTPS_MEM_KEY, key_pem,
                              MHD_OPTION_HTTPS_MEM_CERT, cert_pem,

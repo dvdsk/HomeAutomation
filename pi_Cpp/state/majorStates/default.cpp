@@ -1,8 +1,17 @@
 #include "mainState.h"
 
-//default scan mode, controls lights based on light level and
-//movement
-void MainState::pre_scan_default(){
+void MainState::init_default(){
+	majorState = DEFAULT;
+	
+}
+
+void MainState::transitions_default(){
+	if(!minorState.showering && anyRecent(movement)){
+		init_away();
+	}
+}
+
+void MainState::update_default(){
 
 	if(*lightValues_updated){
 		def_lampcheck_Door();
@@ -11,16 +20,45 @@ void MainState::pre_scan_default(){
 		def_lampCheck_CeilingAndRadiator();
 	}
 	else{lampCheck_Kitchen; }
-	
 	lampCheck_Bathroom();
-	updateState_fromDefault();
+	
+	environmental_alarm();
+	check_Plants();
+	transitions_default();
 }
 
 void MainState::environmental_alarm(){
-	
+	for(temp : tempValues)
+		if(temp > config::ALERT_TEMP_ABOVE){
+			if(temp > config::ALARM_TEMP_ABOVE){
+				//full alarm
+			}
+			else{
+				//text alart
+			}
+		}
+	for(humidity : humidityValues)
+		if(humidity > config::ALERT_HUMIDITY_ABOVE){
+			if(humidity > config::ALARM_HUMIDITY_ABOVE){
+				//full alarm
+			}
+			else{
+				//text alart				
+			}
+		}
+	if(CO2ppm > ALERT_CO2PPM){
+		if(CO2ppm > ALARM_CO2PPM){
+				//full alarm			
+		}
+		else{
+				//text alart					
+		}
+	}
 }
 
-//inline functions present for more readable code
+
+
+//functions
 void MainState::def_lampcheck_Door(){	
 	if(lightValues[l_DOOR] < 300	&& !lampOn[l_DOOR]){				
 		std::cout<<"turning lamp at door on\n"; //add function turn lamps off
