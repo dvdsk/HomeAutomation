@@ -7,6 +7,10 @@ void MainState::httpSwitcher(const char* raw_url){
 		std::cout<<"lamps call has been made\n";
 		parseCommand(LIGHTS_ALLOFF);
 	}
+	if(0 == strcmp(raw_url, "/sleep")){
+		std::cout<<"sleep call has been made\n";
+		majorState = SLEEPING;
+	}
 	return;
 }
 
@@ -23,22 +27,25 @@ void MainState::parseCommand(Command toParse){
 		
 		case MS_SLEEPING:
 		majorState = SLEEPING;
+		runUpdate();
 		break;
 		
 		case MOVIEMODE:
 		minorState.movieMode = true;
-		
+		break;
 		
 	}
 }
 
 MainState::MainState(){
-	
+	is_ready = false;
 }
 
 void MainState::thread_watchForUpdate(){
+	std::unique_lock<std::mutex> lk(m);
 	
 	while(true){ //can later be replaced with mutex to check if we should stop
+		cv.wait(lk);
 		currentTime = (uint32_t)time(nullptr);
 		
 		switch(majorState){
@@ -327,4 +334,10 @@ unsigned int threshold){
 	for(auto time : times)
 		if(currentTime - time < threshold){recent = true; } 
 	return recent;
+}
+
+void MainState::runUpdate(){
+	std::unique_lock<std::mutex> lk(m);
+	is_ready = true;
+	cv.notify_one();
 }

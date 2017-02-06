@@ -41,6 +41,7 @@
 #include <thread>
 
 #include <mutex>
+#include <condition_variable>
 #include <memory> //for shared_ptr
 #include <array>
 #include <string.h> //strcmp
@@ -85,6 +86,12 @@ class MainState{
 		std::mutex alarmProcedureStarted;
 		uint32_t currentTime;
 		uint32_t lastBedMovement;
+		
+		//update thread wakeup mechanism
+		bool is_ready;
+		std::mutex m;
+		std::condition_variable cv;
+
 		
 		//sensorValues
 		std::array<int, 5> lightValues;
@@ -152,6 +159,7 @@ class MainState{
 		//general support functions that need access to this class
 		inline bool recent(uint32_t time, unsigned int threshold);
 		inline bool anyRecent(std::array<uint32_t, 5> times, unsigned int threshold);
+		void runUpdate();
 };
 	
 //general support functions

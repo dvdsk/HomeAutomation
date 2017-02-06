@@ -14,7 +14,7 @@ mainServer.o: mainServer.cpp mainServer.h
 	$(CXX) $(CXXFLAGS) -lmicrohttpd -c mainServer.cpp
 
 mainState.o: ../state/mainState.cpp ../state/mainState.h
-	$(CXX) $(CXXFLAGS) -c ../state/mainState.cpp	
+	$(CXX) $(CXXFLAGS) -pthread -c ../state/mainState.cpp	
 
 telegramBot.o: ../telegramBot/telegramBot.cpp ../telegramBot/telegramBot.h \
 		../telegramBot/httpGetPostPut.h
