@@ -39,13 +39,26 @@ void MainState::parseCommand(Command toParse){
 
 MainState::MainState(){
 	is_ready = false;
+	majorState = DEFAULT;
+	
+	minorState.alarmDisarm = false;
+	minorState.authorisedClose = false;
+	minorState.listenToAudioBook = false;
+	minorState.wakingUp = false;
+  minorState.inBathroom = false;
+  minorState.showering = false;
+  minorState.inKitchenArea = false;
+  minorState.movieMode = false;
 }
 
 void MainState::thread_watchForUpdate(){
+	bool keepGoing = true;
 	std::unique_lock<std::mutex> lk(m);
 	
-	while(true){ //can later be replaced with mutex to check if we should stop
+	while(keepGoing){
 		cv.wait(lk);
+		std::cout<<"running update\n";		
+
 		currentTime = (uint32_t)time(nullptr);
 		
 		switch(majorState){
@@ -61,9 +74,18 @@ void MainState::thread_watchForUpdate(){
 			case ALMOSTSLEEPING:
 			update_almostSleeping();
 			break;
+			case MINIMAL:
+			update_minimal();
+			break;
+			case STOP:
+			std::cout<<"shutting down state update thread\n";
+			keepGoing = false;
+			break;		
 		}
 	}
+	return;
 }
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -91,6 +113,7 @@ void MainState::transitions_away(){
 
 void MainState::update_away(){
 	
+	environmental_alarm();
 	check_Plants();
 	transitions_away();
 	return;
@@ -114,15 +137,21 @@ void MainState::away_intruder_alarm(){
 }
 
 void MainState::check_Plants(){
-	char* warningText = (char*)"SOIL HUMIDITY ALERT\n\n";
+	std::string warningText = "SOIL HUMIDITY ALERT\n\n";
 	bool sendAlert = false;
+	int percentBelow;
 	for(int i = 0; i<plnt::NUMB_OF_PLANT_SENSORS; i++){
 		if(soilHumidityValues[i] < plnt::ALERT_HUMIDITY_BELOW[i])		
-			warningText = strcat(warningText, plnt::NAMES[i]);
-			warningText = strcat(warningText, "'s humidity has dropped below the minimum\n");
+			percentBelow = (plnt::ALERT_HUMIDITY_BELOW[i] - soilHumidityValues[i])
+										 /plnt::ALERT_HUMIDITY_BELOW[i]*100;
+			warningText += std::string(plnt::NAMES[i]);
+			warningText += "'s humidity ";
+			warningText += std::to_string(percentBelow);
+			warningText += "below the minimum\n";
 			sendAlert = true;
 	}
 	if(sendAlert){
+		std::cout<<"sending telegram message: \n"<<warningText;
 		//send a telegram message		
 	}
 	return;
@@ -316,6 +345,27 @@ void MainState::update_almostSleeping(){
 	transitions_almostSleeping();
 }
 
+/////////////////////////////////////////////////////////////////////////////////////
+void MainState::init_minimal(MajorStates fromState){
+	lastState = majorState;
+	timeMinimalStarted = currentTime;
+}
+
+void MainState::update_minimal(){
+	
+	environmental_alarm();
+	check_Plants();
+	transitions_minimal();
+}
+
+void MainState::transitions_minimal(){
+	if(timeMinimalStarted - currentTime < stat::MAXMINIMALDURATION){
+	majorState = lastState;
+	lastState = MINIMAL;	
+	}
+	return;
+}
+
 //GENERAL FUNCTIONS
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -337,7 +387,14 @@ unsigned int threshold){
 }
 
 void MainState::runUpdate(){
+	std::cout<<"signal to update\n";
+	
 	std::unique_lock<std::mutex> lk(m);
 	is_ready = true;
 	cv.notify_one();
+}
+
+void MainState::shutdown(){
+	majorState = STOP;
+	runUpdate();
 }

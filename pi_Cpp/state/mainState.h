@@ -49,9 +49,9 @@
 
 #include "../config.h"
 
-enum Command {LIGHTS_ALLON, LIGHTS_ALLOFF, MS_SLEEPING, MOVIEMODE};
-
-enum MajorStates {AWAY, DEFAULT, ALMOSTSLEEPING, SLEEPING};
+//here stop is a special state  that triggers shutdown for the thread
+//watchforupdates function.
+enum MajorStates {AWAY, DEFAULT, ALMOSTSLEEPING, SLEEPING, MINIMAL, STOP};
 
 struct MinorStates {
 	bool alarmDisarm;
@@ -81,17 +81,20 @@ class MainState{
 		
 		//is waken and then executes pre_scan();
 		void thread_watchForUpdate();
+		//signals the above function to run an update
+		void runUpdate();
+		void shutdown();
 	
 	private:
 		std::mutex alarmProcedureStarted;
 		uint32_t currentTime;
 		uint32_t lastBedMovement;
 		
-		//update thread wakeup mechanism
+		//update thread wakeup and stop mechanism
+		bool stop;
 		bool is_ready;
 		std::mutex m;
 		std::condition_variable cv;
-
 		
 		//sensorValues
 		std::array<int, 5> lightValues;
@@ -108,7 +111,9 @@ class MainState{
 		//stateBookKeeping
 		MinorStates minorState;
 		MajorStates majorState;		
+		MajorStates lastState;
 		std::array<bool, 6> lampOn;
+		uint32_t timeMinimalStarted;
 		
 		//4 mutually exclusive paths for checking which conditions should
 		//be checked by the updating functions
@@ -116,19 +121,22 @@ class MainState{
 		void update_sleeping();
 		void update_default();
 		void update_almostSleeping();
+		void update_minimal();
 		
 		//functions that should be ran when changed into this state
 		void init_away();
 		void init_sleeping();
 		void init_default();
 		void init_almostSleeping(MajorStates fromState);
-
+		void init_minimal(MajorStates fromState);
+		
 		//state mutually exclusive state transition functions, they are
 		//ran on every check.
 		void transitions_away();
 		void transitions_sleeping();
 		void transitions_default();
 		void transitions_almostSleeping();
+		void transitions_minimal();
 
 		//away functions in away.cpp
 		void away_intruder_alarm();
@@ -159,7 +167,6 @@ class MainState{
 		//general support functions that need access to this class
 		inline bool recent(uint32_t time, unsigned int threshold);
 		inline bool anyRecent(std::array<uint32_t, 5> times, unsigned int threshold);
-		void runUpdate();
 };
 	
 //general support functions

@@ -1,6 +1,12 @@
 #ifndef CONFIG
 #define CONFIG
 
+enum Command {LIGHTS_ALLON, LIGHTS_ALLOFF, MS_SLEEPING, MOVIEMODE};
+
+namespace stat {
+	constexpr int MAXMINIMALDURATION = 3600; //seconds: 1 hour
+}
+
 namespace config {
 	constexpr int HTTPSERVER_PORT = 8443;
 	constexpr const char* HTTPSERVER_USER = "kleingeld";
