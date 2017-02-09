@@ -37,7 +37,8 @@ void MainState::parseCommand(Command toParse){
 	}
 }
 
-MainState::MainState(){
+MainState::MainState(std::shared_ptr<std::mutex> stop){
+
 	is_ready = false;
 	majorState = DEFAULT;
 	
@@ -49,6 +50,18 @@ MainState::MainState(){
   minorState.showering = false;
   minorState.inKitchenArea = false;
   minorState.movieMode = false;
+
+	lightValues_updated = false;
+	tempValues_updated = false;
+	humidityValues_updated = false;
+	soilHumidity_updated = false;
+	CO2ppm_updated = false;
+	movement[0] =0 ;
+	
+	while
+
+		cv.wait(lk);
+		std::cout<<"running update\n";
 }
 
 void MainState::thread_watchForUpdate(){
@@ -237,7 +250,7 @@ void MainState::environmental_alarm(){
 	
 	//check temperature values TODO adjust TEMP_ABOVE to account for
 	//outside weather from weather forecast	
-	for(unsigned int i=0; i<tempValues.size(); i++)
+	for(unsigned int i=0; i<tempValues.size(); i++){
 		if(tempValues[i] > config::ALERT_TEMP_ABOVE){
 			if(tempValues[i] > config::ALARM_TEMP_ABOVE){
 				alarm = true;
@@ -249,8 +262,20 @@ void MainState::environmental_alarm(){
 			  alertString += "temperature "+std::string(hum::NAMES[i]) 
 			  + "at "+std::to_string(tempValues[i]/10)+"°C\n";
 			}
-
 		}
+		if(tempValues[i] > config::ALERT_TEMP_BELOW){
+			if(tempValues[i] > config::ALARM_TEMP_BELOW){
+				alarm = true;
+				alarmString += "temperature "+std::string(hum::NAMES[i]) 
+			  + "at "+std::to_string(tempValues[i]/10)+"°C\n";
+			}
+			else{
+			  alert = true;
+			  alertString += "temperature "+std::string(hum::NAMES[i]) 
+			  + "at "+std::to_string(tempValues[i]/10)+"°C\n";
+			}
+		}		
+	}
 	//check humidity with seperate bathroom handeling to account for 
 	//increased humidity due to showering
 	for(unsigned int i=0; i< humidityValues.size(); i++){
@@ -268,7 +293,19 @@ void MainState::environmental_alarm(){
 					+ "at "+std::to_string(humidityValues[i]/10)+"%, last bathroom "
 					+ "activity was: "+ toTime(mov::BATHROOM-currentTime)+" ago\n";	
 				}	
-			}			
+			}
+			if(humidityValues[i] > config::ALERT_HUMIDITY_BELOW){
+				if(humidityValues[i] > config::ALARM_HUMIDITY_BELOW){
+					alarm = true;
+					alarmString += "humidity "+std::string(hum::NAMES[i]) 
+					+ "at "+std::to_string(humidityValues[i]/10)+"%\n";	
+				}
+				else{
+					alert = true;
+					alertString += "humidity "+std::string(hum::NAMES[i]) 
+					+ "at "+std::to_string(humidityValues[i]/10)+"%\n";	
+				}	
+			}					
 		}
 		else{
 			if(humidityValues[i] > config::ALERT_HUMIDITY_ABOVE){
@@ -283,6 +320,18 @@ void MainState::environmental_alarm(){
 					+ "at "+std::to_string(humidityValues[i]/10)+"%\n";		
 				}
 			}
+			if(humidityValues[i] > config::ALERT_HUMIDITY_BELOW){
+				if(humidityValues[i] > config::ALARM_HUMIDITY_BELOW){
+					alarm = true;
+					alarmString += "humidity "+std::string(hum::NAMES[i]) 
+					+ "at "+std::to_string(humidityValues[i]/10)+"%\n";	
+				}
+				else{
+					alert = true;
+					alertString += "humidity "+std::string(hum::NAMES[i]) 
+					+ "at "+std::to_string(humidityValues[i]/10)+"%\n";	
+				}	
+			}	
 		}
 	}
 	//check co2 levels 
@@ -451,3 +500,8 @@ inline std::string toTime(uint32_t seconds){
 	else{return std::to_string(seconds/(24*3600))+"days"; }
 } 
 
+inline bool setting_up_values_done(){
+
+	return( lightValues && tempValues_updated && humidityValues_updated && soilHumidity_updated && CO2ppm_updated && movement[0]>0 );
+
+}

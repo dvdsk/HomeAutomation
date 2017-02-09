@@ -105,8 +105,10 @@ class MainState{
 		bool humidityValues_updated; 		
 		std::array<int, 5> soilHumidityValues;
 		bool soilHumidity_updated; 		
-		std::array<uint32_t, 5> movement;
 		int CO2ppm;
+		bool CO2ppm_updated;
+		std::array<uint32_t, 5> movement;
+
 		
 		//stateBookKeeping
 		MinorStates minorState;
@@ -172,5 +174,6 @@ class MainState{
 //general support functions
 inline void sleep(int seconds);
 inline std::string toTime(uint32_t seconds);
+inline bool setting_up_values_done();
 
 #endif // MAINSTATE
