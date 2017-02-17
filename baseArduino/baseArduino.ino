@@ -4,7 +4,6 @@
 #include "printf.h"
 
 #include "humiditySensor.h"
-#include "accelerometer.h"
 
 //the "union" construct is useful, in which you can refer to the 
 //same memory space in two different ways
@@ -292,9 +291,6 @@ void setup()
   Serial1.begin(9600);  //Opens the second serial port with a baud of 9600 
                        //connect TX from MH Co2 sensor to TX1 on arduino etc
   printf_begin();
- 
-  //initialising and calibrating accelerometer
-  acSen.setup();
  
   //initialise radio
   radio.begin();
