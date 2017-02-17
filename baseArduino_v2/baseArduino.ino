@@ -3,6 +3,7 @@
 #include "RF24.h"
 #include "printf.h"
 
+#include "config.h"
 #include "humiditySensor.h"
 
 //the "union" construct is useful, in which you can refer to the 
@@ -18,7 +19,6 @@ static const int term_dataPin = 24; //PB2
 static const int term_clockPin = 22; //PB0
 
 // Specify signal connections
-static const int pir_signal = 49;
 static const int light_signal = 0; //anolog
 
 // Radio connections
@@ -89,7 +89,6 @@ signed short int sensorData[SENSORDATA_SIZE] = {32767,32767,32767,32767,32767,32
 
 //runs constructor to make opjebt test of class tempHumid from humiditySensor.h
 TempHumid thSen (term_dataPin, term_clockPin);
-Accelerometer acSen;
 RF24 radio(CEPIN,CSPIN); //Set up nRF24L01 radio on SPI bus plus cepin, cspin
 
 //needed for passing function to a class, dont know why its needed though..
