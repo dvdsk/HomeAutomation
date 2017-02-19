@@ -10,7 +10,7 @@
 class TempHumid
 {
   public:
-    void setup(int dataPin, int clockPin, RemoteNodes* radio_, LocalSensors* sensors_, uint16_t* slowData_);
+    void setup(RemoteNodes* radio_, LocalSensors* sensors_, void(*sendFastDataPtr)(void), uint16_t* slowData_);
     void readPIR();
     
 		void getTempHumid();		
@@ -20,11 +20,11 @@ class TempHumid
     int _clockPin;
 
     void skipCrcSHT();
-    int getData16SHT(int _dataPin, int _clockPin);
-    void sendCommandSHT(int _command, int _dataPin, int _clockPin);  
+    int getData16SHT();
+    void sendCommandSHT(int _command);  
     
     float readTemperatureRaw();                                 
-    void waitForResultSHT(int _dataPin);
+    void waitForResultSHT();
 
 		float readTemperatureC();
     float readHumidity(float tempC);
@@ -32,6 +32,7 @@ class TempHumid
 		uint16_t* slowData;
 		RemoteNodes* radio;
 		LocalSensors* local;
+		void(*sendFastDataPtr)(void);
 };
 
 static const unsigned char PIRDATA2 = 202;//TODO might need removing when fast polling data

@@ -5,11 +5,10 @@
 
 //constructor
 
-void TempHumid::setup(int dataPin, int clockPin, RemoteNodes* radio_, LocalSensors* local_, uint16_t* slowData_)
+void TempHumid::setup(RemoteNodes* radio_, LocalSensors* local_, 
+											void(*sendFastDataPtr_)(void), uint16_t* slowData_)
 {
-   _dataPin = dataPin;
-   _clockPin = clockPin;
-
+	sendFastDataPtr = sendFastDataPtr_;
 	slowData = slowData_;
 	radio = radio_;
 	local = local_;
@@ -32,37 +31,31 @@ void TempHumid::skipCrcSHT()
   PORTA = PIN_TERM_DATA;
 }
 
-void TempHumid::waitForResultSHT(int _dataPin)
+void TempHumid::waitForResultSHT()
 {
   unsigned int ack;
 
-  pinMode(_dataPin, INPUT);
+  pinMode(pin::TERM_DATA, INPUT);
 
   for(int i= 0; i < 1000; ++i)
-  {
-    //delay(10);
-    //instead of using the above delay (and wasting cycles) we run readPir
-    //and other functions    
+  { 
 		radio->pollNodes();
 		local->updateFast_Local();		
-
-//    //send PIR data
-//    Serial.write(PIRDATA2);
-//    Serial.write(PIRs[0]);//TODO function for this that sends the fast polling data
-//    Serial.write(PIRs[1]);
-//    PIRs[1] = 0; //reset the "polled PIR's record"
+		(*sendFastDataPtr)();
     
     ack = PINA;
     if ((ack & PIN_TERM_DATA) == 0) break;
   }
-
-//  if (ack == HIGH) {
-//    //Serial.println("Ack Error 2"); // Can't do serial stuff here, 
-//    //need another way of reporting errors
-//  }
+  if (ack == HIGH) {
+		#ifdef DEBUG
+		Serial.println("ACK TIMEOUT");	
+		#endif
+		//if we time out unset the slowdata aquired bits.
+		*(slowData+Idx::updated) = 0;
+  }
 }
 
-int TempHumid::getData16SHT(int _dataPin, int _clockPin){
+int TempHumid::getData16SHT(){
   int val;
 
   // Get the most significant bits
@@ -71,7 +64,7 @@ int TempHumid::getData16SHT(int _dataPin, int _clockPin){
   //-> replaced with port manipulation
   DDRA = PIN_TERM_CLOCK;
   
-  val = shiftIn(_dataPin, _clockPin, 8);
+  val = shiftIn(pin::TERM_DATA, pin::TERM_CLOCK, 8);
   val *= 256;
 
   // Send the required ack
@@ -96,11 +89,11 @@ int TempHumid::getData16SHT(int _dataPin, int _clockPin){
   //-> replaced with port manipulation
   DDRA = PIN_TERM_CLOCK;
   
-  val |= shiftIn(_dataPin, _clockPin, 8);
+  val |= shiftIn(pin::TERM_DATA, pin::TERM_CLOCK, 8);
   return val;
 }
 
-void TempHumid::sendCommandSHT(int _command, int _dataPin, int _clockPin){
+void TempHumid::sendCommandSHT(int _command){
 /*  unsigned int ack;*/
 
   // Transmission Start
@@ -108,9 +101,9 @@ void TempHumid::sendCommandSHT(int _command, int _dataPin, int _clockPin){
   //  pinMode(_clockPin, OUTPUT);
   //-> replaced with port manipulation
   DDRA = PIN_TERM_CLOCK | PIN_TERM_DATA;
-  
-  digitalWrite(_dataPin, HIGH);
-  digitalWrite(_clockPin, HIGH);
+
+  digitalWrite(pin::TERM_DATA, HIGH);  
+  digitalWrite(pin::TERM_CLOCK, HIGH);
   //-> replaced with port manipulation
   PORTA = PIN_TERM_CLOCK | PIN_TERM_DATA;
     
@@ -130,7 +123,7 @@ void TempHumid::sendCommandSHT(int _command, int _dataPin, int _clockPin){
   PORTA = PIN_TERM_DATA;
 
   // The command (3 msb are address and must be 000, and last 5 bits are command)
-  shiftOut(_dataPin, _clockPin, MSBFIRST, _command);
+  shiftOut(pin::TERM_DATA, pin::TERM_CLOCK, MSBFIRST, _command);
 
   //skipping data verificatin for MOAR SPEEED
   // Verify we get the correct ack
@@ -179,9 +172,9 @@ float TempHumid::readTemperatureRaw()
   // Command to send to the SHT1x to request Temperature
   int _gTempCmd  = 0b00000011;
 
-  sendCommandSHT(_gTempCmd, _dataPin, _clockPin);
-  waitForResultSHT(_dataPin);
-  _val = getData16SHT(_dataPin, _clockPin);
+  sendCommandSHT(_gTempCmd);
+  waitForResultSHT();
+  _val = getData16SHT();
   skipCrcSHT();
 
   return (_val);
@@ -222,9 +215,9 @@ float TempHumid::readHumidity(float tempC)
   int _gHumidCmd = 0b00000101;
 
   // Fetch the value from the sensor
-  sendCommandSHT(_gHumidCmd, _dataPin, _clockPin);
-  waitForResultSHT(_dataPin);
-  _val = getData16SHT(_dataPin, _clockPin);
+  sendCommandSHT(_gHumidCmd);
+  waitForResultSHT();
+  _val = getData16SHT();
   skipCrcSHT();
 
   // Apply linear conversion to raw value
@@ -239,12 +232,16 @@ float TempHumid::readHumidity(float tempC)
 void TempHumid::getTempHumid(){
 	float tempC;
 	float humid;	
+
+	//set slowdata bits to fetched, if something times out during readTemp we unset it.
+	*(slowData+Idx::updated) |= (1 << Idx::temperature_bed) | (1<<Idx::humidity_bed);
+
 	tempC = readTemperatureC();
 	humid = readHumidity(tempC);
 
 	*(slowData+Idx::temperature_bed) = (uint16_t)(tempC*10) +100;
 	*(slowData+Idx::humidity_bed) = (uint16_t)(humid*10);
-	*(slowData+Idx::updated) |= (1 << Idx::temperature_bed) | (1<<Idx::humidity_bed);//indicate co2 has been updated
+
 
 }
 

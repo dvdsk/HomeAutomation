@@ -31,6 +31,7 @@ Co2 co2;
 RemoteNodes* radioPtr = &radio;
 LocalSensors* localPtr = &local;
 TempHumid* thPtr = &thSen;
+void(*sendFastDataPtr)(void);
 
 
 
@@ -104,7 +105,8 @@ void setup(){
 
 	radio.setup(fastData, slowData, recieverPtr);	
 	local.setup(fastData);
-	thSen.setup(pin::TERM_DATA, pin::TERM_CLOCK, radioPtr, localPtr, slowData);
+	sendFastDataPtr = &sendFastData;
+	thSen.setup(radioPtr, localPtr, sendFastDataPtr, slowData);
 	co2.setup(slowData);
 
 	slowData[0] = 0;

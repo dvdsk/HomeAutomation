@@ -26,8 +26,8 @@ namespace config {
 
 //pins
 namespace pin {
-	constexpr int TERM_DATA = 24; //PB2 (hard coded register banks)
-	constexpr int TERM_CLOCK = 22; //PB0 (hard coded register banks)
+	constexpr int TERM_DATA = 24; //PA2 (hard coded register banks)
+	constexpr int TERM_CLOCK = 22; //PA0 (hard coded register banks)
 
 	constexpr int LIGHT_BED = 0; //anolog in
 
