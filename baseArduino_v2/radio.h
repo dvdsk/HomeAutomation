@@ -1,6 +1,7 @@
 #ifndef REMOTENODES_H
 #define REMOTENODES_H
 
+#include "Arduino.h"
 #include "RF24.h"
 #include "config.h"
 

@@ -9,21 +9,20 @@
 #include "config.h"
 #include "humiditySensor.h"
 
+#ifdef DEBUG
+	#include "printf.h"
+#endif
+
 char commandBuffer[3];
 uint8_t commandBuffer_Len = 0;
 
 uint16_t slowData[SLOWDATA_SIZE] = {32767,32767,32767,32767,32767,32767,0,0,0};
 uint16_t fastData[FASTDATA_SIZE];
 
-RemoteNodes radio(fastData, slowData);
-LocalSensors local(fastData);
+RemoteNodes* radioPtr;
+LocalSensors* localPtr;
+TempHumid* thPtr;
 
-RemoteNodes* radioPtr = &radio;
-LocalSensors* localPtr = &local;
-
-void sendFastData();
-TempHumid thSen (pin::TERM_DATA, pin::TERM_CLOCK, radioPtr, localPtr);
-Co2 co2 ();
 
 ////////////////////////////////////////////////////
 ////////////////////////////////////////////////////
@@ -35,9 +34,9 @@ void updateSlow_Local(){
   
 	//co2.rqCO2();FIXME
   //geather data from the local sensors
-  result = thSen.readTemperatureC();
+  result = thPtr->readTemperatureC();
   slowData[0] = int(result*100);
-  result = thSen.readHumidity(result);
+  result = thPtr->readHumidity(result);
   slowData[2] = int(result*100);
   
  // sensorData[4] = int(co2Sen.readCO2() );FIXME
@@ -64,10 +63,14 @@ void sendFastData(){
 //  Serial.println("");//FIXME
   for (unsigned int i = 0; i < FASTDATA_SIZE; i++){
   //send 16 bit integers over serial in binairy
-//    Serial.println(slowData[i]);//FIXME //TODO do some ifdef debug here
-    toSend.number = *(fastData+i);    
+	#ifdef DEBUG 
+    Serial.println(fastData[i]);//FIXME //TODO do some ifdef debug here
+	#endif
+	#ifndef DEBUG 
+    toSend.number = fastData[i];    
     Serial.write(toSend.bytes[0]);
     Serial.write(toSend.bytes[1]);
+	#endif
   }
   
   //reset sensorData to default values so we can easily check if it is complete
@@ -85,10 +88,14 @@ void sendSlowData(){
 //  Serial.println("");//FIXME
   for (unsigned int i = 0; i < SLOWDATA_SIZE; i++){
   //send 16 bit integers over serial in binairy
-//    Serial.println(slowData[i]);//FIXME //TODO do some ifdef debug here
+	#ifdef DEBUG 
+    Serial.println(slowData[i]);//FIXME //TODO do some ifdef debug here
+	#endif
+	#ifndef DEBUG 
     toSend.number = slowData[i];    
     Serial.write(toSend.bytes[0]);
     Serial.write(toSend.bytes[1]);
+	#endif
   }
   
   //reset sensorData to default values so we can easily check if it is complete
@@ -96,21 +103,34 @@ void sendSlowData(){
 }
 
 void setup() { 
-  Serial.begin(115200); //Open serial connection to report values to host
-  Serial1.begin(9600);  //Opens the second serial port with a baud of 9600 
-                        //connect TX from MH Co2 sensor to TX1 on arduino etc
-    
+  Serial.begin(9600); //Open serial connection to report values to host
+	#ifdef DEBUG
+	Serial.print("starting setup\n"); 	
+	printf_begin();
+	#endif
+
+	RemoteNodes radio(fastData, slowData);	
+	LocalSensors local(fastData);
+	Co2 co2 ();
+
+	radioPtr = &radio;
+	localPtr = &local;
+
+	TempHumid thSen (pin::TERM_DATA, pin::TERM_CLOCK, radioPtr, localPtr);
+	thPtr = &thSen;
+
   //give the pir sensor some time to calibrate
   delay(config::CALIBRATION_TIME);
-  
+	#ifdef DEBUG  
 	Serial.print("setup done, starting response loop\n");
+	#endif
   Serial.write(headers::SETUP_DONE);
 }
 
 
 void loop(){
   // serial read section
-  while (Serial.available()){ // this will be skipped if no data present, leading to
+	while (Serial.available()){ // this will be skipped if no data present, leading to
                               // the code sitting in the delay function below
     delay(config::READSPEED);  //delay to allow buffer to fill //TODO check if really needed (should not be)
     if (Serial.available() >0)
@@ -147,13 +167,15 @@ void loop(){
   commandBuffer_Len = 0;//empty the string
 
 	//read local fast sensors  
-	local.updateFast_Local();
+	localPtr->updateFast_Local();
 
   //read remote sensors
-  radio.pollNodes();
+  radioPtr->pollNodes();
+ 
   
   //check if all data has been collected
 	if (slowDataComplete){sendSlowData();}
+	Serial.print("sending some data");
 	sendFastData();
   
   delay(config::RESETSPEED);

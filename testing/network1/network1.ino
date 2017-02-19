@@ -24,7 +24,9 @@ bool notdone = true;
 void setup(){
   Serial.begin(115200);
   radio.begin();
-
+	
+	Serial.println("test?");    	
+	
   radio.setAddressWidth(3);               //sets adress with to 3 bytes long
   radio.setAutoAck(1);                    // Ensure autoACK is enabled
   radio.enableAckPayload();               // Allow optional ack payloads
@@ -35,10 +37,10 @@ void setup(){
   radio.setChannel(108);// 2.508 Ghz - Above most Wifi Channels
   
   radio.startListening();                 // Start listening
-  radio.printDetails();                   // Dump the configuration of the rf unit for debugging
+  //radio.printDetails();                   // Dump the configuration of the rf unit for debugging
   radio.stopListening();
 
-  startTime = millis();
+  startTime = millis(); 
 }
 void loop(void) {
     byte gotByte[5]; // Initialize a variable for the incoming response
@@ -60,8 +62,8 @@ void loop(void) {
 
 /*    unsigned long time = micros();  // Record the current microsecond count   */
     
-    radio.openWritingPipe(ADDRESSES[1]);//set address to node 1                        
-    if (radio.write(&counter,1) ){  // Send the counter variable to the other radio 
+    radio.openWritingPipe(ADDRESSES[1]);//set address to node 1                           
+		if (radio.write(&counter,1) ){  // Send the counter variable to the other radio 
         if(!radio.available()){     // If nothing in the buffer, we got an ack but it is blank
         }else{      
             while(radio.available() ){  // If an ack with payload was received

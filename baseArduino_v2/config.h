@@ -19,9 +19,9 @@ namespace sdat {
 }
 
 namespace config {
-	constexpr int CALIBRATION_TIME = 2000; //milliseconds
+	constexpr int CALIBRATION_TIME = 1; //milliseconds
 	constexpr int READSPEED = 1; //millisec
-	constexpr int RESETSPEED = 1000;
+	constexpr int RESETSPEED = 1;
 }
 
 //pins

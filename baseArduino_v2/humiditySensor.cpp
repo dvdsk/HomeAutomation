@@ -1,4 +1,3 @@
-#include "Arduino.h"
 #include "humiditySensor.h"
 
 //rewritten all ports to new bank, thus pin 51 (PB2) [term_dataPin] and 53 (PB0)[term_clockPin] 
