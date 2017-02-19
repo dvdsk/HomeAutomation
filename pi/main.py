@@ -59,10 +59,10 @@ if __name__ == '__main__':
     p3.start()
 
     #start sensor shit
-    p4 = multiprocessing.Process(target=data.sensors.read, 
-                                 args=(sensorRequest, sensorData,
-                                       lightSceneQueue, sleeping))
-    p4.start()    
+    #p4 = multiprocessing.Process(target=data.sensors.read, 
+    #                             args=(sensorRequest, sensorData,
+    #                                   lightSceneQueue, sleeping))
+    #p4.start()    
 
     #start database management     
     p5 = multiprocessing.Process(target=data.analysisAndSaving.process, 

@@ -1,9 +1,27 @@
 #ifndef CONFIG
 #define CONFIG
 
+//the "union" construct is useful, in which you can refer to the 
+//same memory space in two different ways
+typedef union
+{
+  int number;
+  uint8_t bytes[2];
+} INTUNION_t;
+
+namespace fDat {
+	constexpr int PIRS = 0;
+	constexpr int LIGHT_BED = 1;
+}
+
+namespace sdat {
+	constexpr int CO2 = 0;
+}
+
 namespace config {
 	constexpr int CALIBRATION_TIME = 2000; //milliseconds
 	constexpr int READSPEED = 1; //millisec
+	constexpr int RESETSPEED = 1000;
 }
 
 //pins
@@ -19,24 +37,28 @@ namespace pin {
 
 namespace headers {
 	constexpr unsigned char SETUP_DONE = 200;
-	constexpr unsigned char FAST_UPDATE = 25;
+	constexpr unsigned char FAST_UPDATE = 255;
 	constexpr unsigned char SLOW_UPDATE = 26;
 }
 
-namespace radio {
-	constexpr unsigned char NODE1_RQ_FAST_UPDATE = 1;
-	constexpr unsigned char NODE2_RQ_FAST_UPDATE = 2;
+namespace radioRQ {
+	constexpr unsigned char NODE1_FAST_UPDATE = 1;
+	constexpr unsigned char NODE2_FAST_UPDATE = 2;
 
-	constexpr unsigned char NODE1_RQ_SLOW_UPDATE = 3;
-	constexpr unsigned char NODE2_RQ_SLOW_UPDATE = 4;
+	constexpr unsigned char NODE1_SLOW_UPDATE = 3;
+	constexpr unsigned char NODE2_SLOW_UPDATE = 4;
 
-	constexpr unsigned char NODE1_RQ_RESEND_SLOW = 5;
-	constexpr unsigned char NODE2_RQ_RESEND_SLOW = 6;
+	constexpr unsigned char NODE1_RESEND_SLOW = 5;
+	constexpr unsigned char NODE2_RESEND_SLOW = 6;
 }
 
 //needed constants
 constexpr uint8_t RADIO_ADDRESSES[][4] = { "1No", "2No", "3No" }; // Radio pipe addresses 3 bytes 
 constexpr byte REQUESTCO2[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; //TODO change to uint8_t if possible
+
+constexpr uint8_t FASTDATA_SIZE = 4;
+constexpr uint8_t SLOWDATA_SIZE = 9;
+constexpr uint16_t SLOWDATA_DEF[SLOWDATA_SIZE] = {32767,32767,32767,32767,32767,32767,0,0,0};
 
 #endif
 

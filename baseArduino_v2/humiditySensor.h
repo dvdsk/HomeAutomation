@@ -2,39 +2,31 @@
 #define HUMIDITYSENSOR_H
 
 #include <Arduino.h> //needed for Serial.print
+#include "radio.h"
+#include "localSensors.h"
 
 //type declaration for saving space and sanity in passing functions
-typedef void(*f1_type)(byte PIRs[2]);
-typedef void(*f2_type)(signed short int sensorData[9], byte PIRs[2], 
-                       byte rqUpdate1[1], byte rqUpdate2[1]);
-typedef void(*f3_type)(signed short int sensorData[9]);
 
 class TempHumid
 {
   public:
-    TempHumid(int dataPin, int clockPin);
+    TempHumid(int dataPin, int clockPin, RemoteNodes* radio_, LocalSensors* sensors_);
     void readPIR();
-    float readTemperatureC(f1_type f1, f2_type f2, f3_type f3,
-                           signed short int sensorData[9], byte PIRs[2], 
-                           byte rqUpdate1[1], byte rqUpdate2[1]);
+    float readTemperatureC();
     
-    float readHumidity(float tempC, f1_type f1, f2_type f2, f3_type f3, 
-                       signed short int sensorData[9], byte PIRs[2], 
-                       byte rqUpdate1[1], byte rqUpdate2[1]);
+    float readHumidity(float tempC);
   private:
     int _dataPin;
     int _clockPin;
-    void skipCrcSHT(int _dataPin, int _clockPin);
+    void skipCrcSHT();
     int getData16SHT(int _dataPin, int _clockPin);
     void sendCommandSHT(int _command, int _dataPin, int _clockPin);  
     
-    float readTemperatureRaw(f1_type f1, f2_type f2, f3_type f3, 
-                             signed short int sensorData[9], byte PIRs[2], 
-                             byte rqUpdate1[1], byte rqUpdate2[1]);
-                                 
-    void waitForResultSHT(int _dataPin, f1_type f1, f2_type f2, f3_type f3, 
-                          signed short int sensorData[9], byte PIRs[2], 
-                          byte rqUpdate1[1], byte rqUpdate2[1]);
+    float readTemperatureRaw();                                 
+    void waitForResultSHT(int _dataPin);
+
+		RemoteNodes* radio;
+		LocalSensors* local;
 };
 
 static const unsigned char PIRDATA2 = 202;//TODO might need removing when fast polling data
