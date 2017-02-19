@@ -2,7 +2,7 @@
 #define HUMIDITYSENSOR_H
 
 #include <Arduino.h> //needed for Serial.print
-#include "radio.h"
+#include "remoteNodes.h"
 #include "localSensors.h"
 
 //type declaration for saving space and sanity in passing functions
@@ -10,7 +10,7 @@
 class TempHumid
 {
   public:
-    TempHumid(int dataPin, int clockPin, RemoteNodes* radio_, LocalSensors* sensors_);
+    void setup(int dataPin, int clockPin, RemoteNodes* radio_, LocalSensors* sensors_);
     void readPIR();
     float readTemperatureC();
     

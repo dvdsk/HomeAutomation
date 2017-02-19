@@ -7,7 +7,7 @@
 class LocalSensors
 {
 	public:
-		LocalSensors(uint16_t* fastData_);
+		void setup(uint16_t* fastData_);
 		void updateFast_Local();
 
 	private:

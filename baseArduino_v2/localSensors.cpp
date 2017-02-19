@@ -1,8 +1,6 @@
-#include "Arduino.h"
-#include "config.h"
 #include "localSensors.h"
 
-LocalSensors::LocalSensors(uint16_t* fastData_){fastData = fastData_; }
+void LocalSensors::setup(uint16_t* fastData_){fastData = fastData_; }
 
 void LocalSensors::updateFast_Local(){
 	readPIRs();

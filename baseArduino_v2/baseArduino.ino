@@ -5,7 +5,7 @@
 
 #include "co2.h"
 #include "localSensors.h"
-#include "radio.h"
+#include "remoteNodes.h"
 #include "config.h"
 #include "humiditySensor.h"
 
@@ -19,9 +19,18 @@ uint8_t commandBuffer_Len = 0;
 uint16_t slowData[SLOWDATA_SIZE] = {32767,32767,32767,32767,32767,32767,0,0,0};
 uint16_t fastData[FASTDATA_SIZE];
 
-RemoteNodes* radioPtr;
-LocalSensors* localPtr;
-TempHumid* thPtr;
+RF24 reciever(pin::RADIO_CE, pin::RADIO_CS);
+RF24* recieverPtr= &reciever;
+
+RemoteNodes radio;
+LocalSensors local;
+TempHumid thSen;
+Co2 co2;
+
+RemoteNodes* radioPtr = &radio;
+LocalSensors* localPtr = &local;
+TempHumid* thPtr = &thSen;
+
 
 
 ////////////////////////////////////////////////////
@@ -102,22 +111,16 @@ void sendSlowData(){
   memcpy(slowData, SLOWDATA_DEF, SLOWDATA_SIZE);
 }
 
-void setup() { 
+void setup(){ 
   Serial.begin(9600); //Open serial connection to report values to host
 	#ifdef DEBUG
 	Serial.print("starting setup\n"); 	
 	printf_begin();
 	#endif
 
-	RemoteNodes radio(fastData, slowData);	
-	LocalSensors local(fastData);
-	Co2 co2 ();
-
-	radioPtr = &radio;
-	localPtr = &local;
-
-	TempHumid thSen (pin::TERM_DATA, pin::TERM_CLOCK, radioPtr, localPtr);
-	thPtr = &thSen;
+	radio.setup(fastData, slowData, recieverPtr);	
+	local.setup(fastData);
+	thSen.setup(pin::TERM_DATA, pin::TERM_CLOCK, radioPtr, localPtr);
 
   //give the pir sensor some time to calibrate
   delay(config::CALIBRATION_TIME);
@@ -167,10 +170,10 @@ void loop(){
   commandBuffer_Len = 0;//empty the string
 
 	//read local fast sensors  
-	localPtr->updateFast_Local();
+	local.updateFast_Local();
 
   //read remote sensors
-  radioPtr->pollNodes();
+  radio.pollNodes();
  
   
   //check if all data has been collected

@@ -4,14 +4,14 @@
 //to: pin 24 (PA2) and 22 (PA0)
 
 //constructor
-TempHumid::TempHumid(int dataPin, int clockPin, RemoteNodes* radio_, LocalSensors* local_)
+
+void TempHumid::setup(int dataPin, int clockPin, RemoteNodes* radio_, LocalSensors* local_)
 {
    _dataPin = dataPin;
    _clockPin = clockPin;
 	radio = radio_;
 	local = local_;
 }
-
   
 void TempHumid::skipCrcSHT()
 {
