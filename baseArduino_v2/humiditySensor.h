@@ -10,14 +10,15 @@
 class TempHumid
 {
   public:
-    void setup(int dataPin, int clockPin, RemoteNodes* radio_, LocalSensors* sensors_);
+    void setup(int dataPin, int clockPin, RemoteNodes* radio_, LocalSensors* sensors_, uint16_t* slowData_);
     void readPIR();
-    float readTemperatureC();
     
-    float readHumidity(float tempC);
+		void getTempHumid();		
+
   private:
     int _dataPin;
     int _clockPin;
+
     void skipCrcSHT();
     int getData16SHT(int _dataPin, int _clockPin);
     void sendCommandSHT(int _command, int _dataPin, int _clockPin);  
@@ -25,6 +26,10 @@ class TempHumid
     float readTemperatureRaw();                                 
     void waitForResultSHT(int _dataPin);
 
+		float readTemperatureC();
+    float readHumidity(float tempC);
+
+		uint16_t* slowData;
 		RemoteNodes* radio;
 		LocalSensors* local;
 };

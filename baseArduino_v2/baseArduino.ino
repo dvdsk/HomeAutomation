@@ -16,7 +16,8 @@
 char commandBuffer[3];
 uint8_t commandBuffer_Len = 0;
 
-uint16_t slowData[SLOWDATA_SIZE] = {32767,32767,32767,32767,32767,32767,0,0,0};
+//first element of slowdata used to check which values have been updated
+uint16_t slowData[SLOWDATA_SIZE];
 uint16_t fastData[FASTDATA_SIZE];
 
 RF24 reciever(pin::RADIO_CE, pin::RADIO_CS);
@@ -39,76 +40,59 @@ TempHumid* thPtr = &thSen;
 
   
 void updateSlow_Local(){
-  float result;
-  
-	//co2.rqCO2();FIXME
-  //geather data from the local sensors
-  result = thPtr->readTemperatureC();
-  slowData[0] = int(result*100);
-  result = thPtr->readHumidity(result);
-  slowData[2] = int(result*100);
-  
- // sensorData[4] = int(co2Sen.readCO2() );FIXME
+	co2.rqCO2();
+	thSen.getTempHumid();
+  co2.readCO2();
 }
 
-bool slowDataComplete(){
-	bool complete = true;
-	for (unsigned int i =0; i < SLOWDATA_SIZE; i++){
-	  if(slowData[i] == 32767){ //if the element is the default value not all
-	    complete = false;//data has been collected and we are not rdy to send
-	  }
-	}
-	return complete;
-}
+inline bool slowDataComplete(){	return (slowData[0] == SLOWDATA_COMPLETE);}
 
 void sendFastData(){
   //used to send the data to the raspberry pi 
   //when the sensorArray has been filled
   
+	#ifdef DEBUG
+  Serial.print("fastData: ");
+	for (unsigned int i = 0; i < FASTDATA_SIZE; i++){
+    Serial.print(fastData[i]);
+		Serial.print("  ");	
+	}
+	Serial.print("\n");	
+	#endif
+	#ifndef DEBUG
   INTUNION_t toSend;
-  
-  //header that announces the data format
   Serial.write(headers::FAST_UPDATE);
-//  Serial.println("");//FIXME
   for (unsigned int i = 0; i < FASTDATA_SIZE; i++){
   //send 16 bit integers over serial in binairy
-	#ifdef DEBUG 
-    Serial.println(fastData[i]);//FIXME //TODO do some ifdef debug here
-	#endif
-	#ifndef DEBUG 
     toSend.number = fastData[i];    
     Serial.write(toSend.bytes[0]);
     Serial.write(toSend.bytes[1]);
+	}	
 	#endif
-  }
-  
-  //reset sensorData to default values so we can easily check if it is complete
-  memcpy(slowData, SLOWDATA_DEF, SLOWDATA_SIZE);
 }
 
 void sendSlowData(){
   //used to send the data to the raspberry pi 
   //when the sensorArray has been filled
   
+	#ifdef DEBUG
+  Serial.print("slowData: ");
+	for (unsigned int i = 0; i < SLOWDATA_SIZE; i++){
+    Serial.print(slowData[i]);
+		Serial.print("  ");	
+	}
+	Serial.print("\n");	
+	#endif
+	#ifndef DEBUG
   INTUNION_t toSend;
-  
-  //header that announces the data format
-  Serial.write(headers::SLOW_UPDATE);
-//  Serial.println("");//FIXME
+  Serial.write(headers::FAST_UPDATE);
   for (unsigned int i = 0; i < SLOWDATA_SIZE; i++){
   //send 16 bit integers over serial in binairy
-	#ifdef DEBUG 
-    Serial.println(slowData[i]);//FIXME //TODO do some ifdef debug here
-	#endif
-	#ifndef DEBUG 
     toSend.number = slowData[i];    
     Serial.write(toSend.bytes[0]);
     Serial.write(toSend.bytes[1]);
+	}	
 	#endif
-  }
-  
-  //reset sensorData to default values so we can easily check if it is complete
-  memcpy(slowData, SLOWDATA_DEF, SLOWDATA_SIZE);
 }
 
 void setup(){ 
@@ -120,7 +104,12 @@ void setup(){
 
 	radio.setup(fastData, slowData, recieverPtr);	
 	local.setup(fastData);
-	thSen.setup(pin::TERM_DATA, pin::TERM_CLOCK, radioPtr, localPtr);
+	thSen.setup(pin::TERM_DATA, pin::TERM_CLOCK, radioPtr, localPtr, slowData);
+	co2.setup(slowData);
+
+	slowData[0] = 0;
+		
+	Serial.println(SLOWDATA_COMPLETE);
 
   //give the pir sensor some time to calibrate
   delay(config::CALIBRATION_TIME);
@@ -177,8 +166,12 @@ void loop(){
  
   
   //check if all data has been collected
-	if (slowDataComplete){sendSlowData();}
-	Serial.print("sending some data");
+	if(slowDataComplete()){
+		Serial.print("sending slowdata"); 
+		sendSlowData();
+		slowData[0] = 0;//set slowdata to incomplete again.	
+	}
+	
 	sendFastData();
   
   delay(config::RESETSPEED);

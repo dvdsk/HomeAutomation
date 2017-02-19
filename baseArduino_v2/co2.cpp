@@ -2,7 +2,9 @@
 #include "config.h"
 #include "co2.h"
 
-Co2::Co2(){
+void Co2::setup(uint16_t* slowData_){
+	
+	slowData = slowData_;
 	Serial1.begin(9600);  //Opens the second serial port with a baud of 9600 
 		                     //connect TX from MH Co2 sensor to TX1 on arduino etc
 }
@@ -24,7 +26,7 @@ inline byte Co2::calculate_checkV(const byte data[9]){
 }			
 
 
-int Co2::readCO2(){
+void Co2::readCO2(){
   //reads awnser from Co2 sensor that resides in the hardware serial buffer
   //this can be called some time after reqeusting the data thus it is not 
   //needed to wait for a reply after the request, Will also not 
@@ -46,12 +48,13 @@ int Co2::readCO2(){
       Serial1.readBytes(response+1, 8);
       responseHigh = (uint8_t) response[2];
       responseLow = (uint8_t) response[3];			
-			ppm = ((uint16_t)responseHigh)*256+(uint16_t)responseLow;
-					
-			return ppm;
+			ppm = ((uint16_t)responseHigh)*256+(uint16_t)responseLow;			
+			*(slowData+Idx::co2) = ppm;
+			*(slowData+Idx::updated) |= 1 << Idx::co2; //indicate co2 has been updated
+			return;
     }
   }
-  return -1;
+  return;
 }
 
 

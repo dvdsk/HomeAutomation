@@ -15,8 +15,8 @@ void LocalSensors::readPIRs(){
 	//returns byte on is high bit off is low. See this chart for which bit in the 
 	//byte corrosponds to which pin http://forum.arduino.cc/index.php?topic=45329.0
 	delay(1);//crashes if removed  TODO checkthis!!!
-	*(fastData+0) = PINL | 0b10000000;  //set bedSouth value to recieved data
-	*(fastData+1) = 0b10000000;  //location on pinbank
+	*(fastData+Idx::pirs) = PINL | 0b10000000;  //set bedSouth value to recieved data
+	*(fastData+Idx::pirs_updated) = 0b10000000;  //location on pinbank
 }
 
 void LocalSensors::readLight(){
@@ -28,5 +28,5 @@ void LocalSensors::readLight(){
 	INTUNION_t light;
 	
 	light.number = analogRead(pin::LIGHT_BED);    // read the input pin
-	*(fastData+5) = light.number;
+	*(fastData+Idx::light_bed) = light.number;
 }

@@ -5,10 +5,12 @@
 
 //constructor
 
-void TempHumid::setup(int dataPin, int clockPin, RemoteNodes* radio_, LocalSensors* local_)
+void TempHumid::setup(int dataPin, int clockPin, RemoteNodes* radio_, LocalSensors* local_, uint16_t* slowData_)
 {
    _dataPin = dataPin;
    _clockPin = clockPin;
+
+	slowData = slowData_;
 	radio = radio_;
 	local = local_;
 }
@@ -233,3 +235,18 @@ float TempHumid::readHumidity(float tempC)
 
   return (_correctedHumidity);
 }
+
+void TempHumid::getTempHumid(){
+	float tempC;
+	float humid;	
+	tempC = readTemperatureC();
+	humid = readHumidity(tempC);
+
+	*(slowData+Idx::temperature_bed) = (uint16_t)(tempC*10) +100;
+	*(slowData+Idx::humidity_bed) = (uint16_t)(humid*10);
+	*(slowData+Idx::updated) |= (1 << Idx::temperature_bed) | (1<<Idx::humidity_bed);//indicate co2 has been updated
+
+}
+
+
+

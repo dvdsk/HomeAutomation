@@ -21,7 +21,7 @@ namespace sdat {
 namespace config {
 	constexpr int CALIBRATION_TIME = 1; //milliseconds
 	constexpr int READSPEED = 1; //millisec
-	constexpr int RESETSPEED = 1;
+	constexpr int RESETSPEED = 500;
 }
 
 //pins
@@ -52,13 +52,27 @@ namespace radioRQ {
 	constexpr unsigned char NODE2_RESEND_SLOW = 6;
 }
 
+namespace Idx {
+	constexpr int updated = 0;	
+	constexpr int co2 = 3;
+	constexpr int temperature_bed = 1;
+	constexpr int humidity_bed = 2;
+
+	constexpr int pirs = 0;
+	constexpr int pirs_updated = 1;
+	constexpr int light_bed = 2;
+}
+
 //needed constants
 constexpr uint8_t RADIO_ADDRESSES[][4] = { "1No", "2No", "3No" }; // Radio pipe addresses 3 bytes 
 constexpr byte REQUESTCO2[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; //TODO change to uint8_t if possible
 
 constexpr uint8_t FASTDATA_SIZE = 4;
 constexpr uint8_t SLOWDATA_SIZE = 9;
-constexpr uint16_t SLOWDATA_DEF[SLOWDATA_SIZE] = {32767,32767,32767,32767,32767,32767,0,0,0};
+constexpr uint16_t SLOWDATA_COMPLETE = 0 | (1 << Idx::temperature_bed) 
+																				 | (1 << Idx::humidity_bed)
+																				 | (1 << Idx::co2);
+
 
 #endif
 
