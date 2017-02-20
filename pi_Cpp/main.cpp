@@ -4,10 +4,12 @@
 
 #include <math.h>       /* sin */ //FIXME for debugging only
 
+#include "config.h"
 #include "Serial.h"
 #include "dataStorage/MainData.h"
 #include "dataStorage/PirData.h"
 #include "graph/MainGraph.h"
+
 
 #include <signal.h>
 #include <boost/exception/diagnostic_information.hpp> //for debugging
@@ -58,22 +60,20 @@ void checkSensorData(PirData* pirData){
   uint32_t Tstamp;
   
   uint8_t pirDat[2];
-  uint8_t fastData[2];//TODO change back to 10
-  uint8_t slowData[10];      
+  uint8_t fastData[FASTDATA_SIZE];//TODO change back to 10
+  uint8_t slowData[SLOWDATA_SIZE];      
   uint8_t toLog[18];   
   
   Serial arduino("/dev/ttyUSB0",115200);
   while (true){
     uint8_t x;
-    x = arduino.readHeader();
-    x = (int)x;
+    x = (int)arduino.readHeader();
     switch (x) {      
-      case POLLING_FAST:
+    	Tstamp = unix_timestamp();   
+	  	case POLLING_FAST:
 
-        arduino.readMessage(fastData, 2);//TODO 2 to 10
-        Tstamp = unix_timestamp();
-        
-        std::cout << "got: " << +fastData[0]<<" " << +fastData[1] << "\n";
+        arduino.readMessage(fastData, FASTDATA_SIZE);//TODO 2 to 10
+
         std::memcpy(pirData, fastData+0, 2);  //save PIR data
         
         std::memcpy(light_outside.bytes, fastData+2, 2);  
@@ -86,8 +86,8 @@ void checkSensorData(PirData* pirData){
       
       case POLLING_SLOW:
         
-        arduino.readMessage(slowData, 10);
-        std::cout << "got slow\n";          
+        arduino.readMessage(slowData, SLOWDATA_SIZE);
+         
         std::memcpy(temp_bed.bytes, slowData, 2);  
         std::memcpy(temp_bathroom.bytes, slowData+2, 2);  
         std::memcpy(humidity_bed.bytes, slowData+4, 2);  
@@ -140,14 +140,17 @@ void debug(PirData& pirData, SlowData& slowData){
 
 int main(int argc, char* argv[])
 {
-  PirData pirData("pirs", cache1, CACHESIZE_pir);
-  SlowData slowData("slowData", cache2, CACHESIZE_slowData);
-  file1 = pirData.getFileP();
-  file2 = slowData.getFileP();
-  
-  signal(SIGINT, interruptHandler);  
-  //checkSensorData(&pirData);
-  debug(pirData, slowData);
+
+	checkSensorData(PirData* pirData);
+
+//  PirData pirData("pirs", cache1, CACHESIZE_pir);
+//  SlowData slowData("slowData", cache2, CACHESIZE_slowData);
+//  file1 = pirData.getFileP();
+//  file2 = slowData.getFileP();
+//  
+//  signal(SIGINT, interruptHandler);  
+//  //checkSensorData(&pirData);
+//  debug(pirData, slowData);
 
 
   

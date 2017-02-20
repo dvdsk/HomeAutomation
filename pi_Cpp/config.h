@@ -72,4 +72,19 @@ namespace plnt {//plants
 	constexpr int NUMB_OF_PLANT_SENSORS = 3;
 }
 
+//dont forget to update in the arduino config file
+namespace Idx {
+	constexpr int updated = 0;	
+	constexpr int co2 = 3;
+	constexpr int temperature_bed = 1;
+	constexpr int humidity_bed = 2;
+
+	constexpr int pirs = 0;
+	constexpr int pirs_updated = 1;
+	constexpr int light_bed = 2;
+}
+
+constexpr uint8_t FASTDATA_SIZE = 4;
+constexpr uint8_t SLOWDATA_SIZE = 9;
+
 #endif

@@ -54,6 +54,7 @@ namespace radioRQ {
 	constexpr unsigned char NODE2_RESEND_SLOW = 6;
 }
 
+//dont forget to update in the pi config file
 namespace Idx {
 	constexpr int updated = 0;	
 	constexpr int co2 = 3;
