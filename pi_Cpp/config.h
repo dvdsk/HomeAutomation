@@ -14,6 +14,10 @@ namespace config {
 	constexpr const char* HTTPSERVER_USER = "kleingeld";
 	constexpr const char* HTTPSERVER_PASS = "nRhRudGLWs35rHukzxrz"; //using random strings as passw
 	
+	constexpr uint8_t SETUP_DONE = 200;	
+	constexpr uint8_t STARTUP_DONE = 201;
+	constexpr uint16_t ARDUINO_BAUDRATE = 9600;
+
 	constexpr int ALERT_TEMP_ABOVE = 240; //in 0.1 Celcius, 24 deg
 	constexpr int ALERT_TEMP_BELOW = 140; //in 0.1 Celcius, 14 deg
 	

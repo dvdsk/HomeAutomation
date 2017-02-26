@@ -17,8 +17,8 @@ void checkSensorData(std::shared_ptr<PirData> pirData,
 	uint8_t data[SLOWDATA_SIZE]; 
   uint8_t x; 
  
-  Serial arduino("/dev/ttyUSB0",115200);
-  while (true){
+  Serial arduino("/dev/ttyUSB0", config::ARDUINO_BAUDRATE);
+	while (true){
     x = arduino.readHeader();
     switch (x){      
       case POLLING_FAST:
