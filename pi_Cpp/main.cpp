@@ -27,7 +27,7 @@ uint8_t cache2[CACHESIZE_slowData];
 
 std::shared_ptr<std::mutex> stop = std::make_shared<std::mutex>();
 std::shared_ptr<TelegramBot> bot = std::make_shared<TelegramBot>();
-std::shared_ptr<MainState> state = std::make_shared<MainState>();
+std::shared_ptr<MainState> state = std::make_shared<MainState>(stop);
 std::shared_ptr<PirData> pirData = std::make_shared<PirData>("pirs", cache1, CACHESIZE_pir);
 std::shared_ptr<SlowData> slowData = std::make_shared<SlowData>(
 																		 "slowData", cache2, CACHESIZE_slowData);

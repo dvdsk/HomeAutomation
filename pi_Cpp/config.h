@@ -95,6 +95,8 @@ namespace Idx_slow {
 	constexpr int HUM_BATHROOM = 2;		
 	constexpr int HUM_DOOR = 2;		
 
+	constexpr int LIGHT_BED = 2;
+
 	constexpr int CO2 = 3;						 
 }
 

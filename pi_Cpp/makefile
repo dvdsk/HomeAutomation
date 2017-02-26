@@ -3,7 +3,7 @@ CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 ROOTFLAGS = `root-config --cflags --glibs`
 
 
-objects = main.o Decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o MainGraph.o mainServer.o mainState.o telegramBot.o httpGetPostPut.o
+objects = main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o MainGraph.o mainServer.o mainState.o telegramBot.o httpGetPostPut.o
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
 all: pi
@@ -12,7 +12,7 @@ debug: pi
 
 pi: $(objects)
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o pi $(objects) \
-	-lboost_system -lboost_thread -lpthread
+	-lmicrohttpd -lcurl -lboost_system -lboost_thread -lpthread
 
 main.o: main.cpp config.h arduinoContact/decode.h dataStorage/MainData.h dataStorage/PirData.h \
         dataStorage/SlowData.h graph/MainGraph.h state/mainState.h telegramBot/telegramBot.h \
@@ -32,7 +32,7 @@ PirData.o: dataStorage/PirData.cpp dataStorage/PirData.h dataStorage/MainData.h
 SlowData.o: dataStorage/SlowData.cpp dataStorage/SlowData.h dataStorage/MainData.h
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c dataStorage/SlowData.cpp
 
-Decode.o: arduinoContact/decode.cpp arduinoContact/decode.h arduinoContact/Serial.h
+decode.o: arduinoContact/decode.cpp arduinoContact/decode.h arduinoContact/Serial.h
 	$(CXX) $(CXXFLAGS) -c arduinoContact/decode.cpp		
 Serial.o: arduinoContact/Serial.cpp arduinoContact/Serial.h
 	$(CXX) $(CXXFLAGS) -c arduinoContact/Serial.cpp	
@@ -43,8 +43,8 @@ MainGraph.o: graph/MainGraph.cpp graph/MainGraph.h
 mainState.o: state/mainState.cpp state/mainState.h
 	$(CXX) $(CXXFLAGS) -pthread -c state/mainState.cpp	
 
-mainServer.o: httpServer/mainServer.cpp mainServer.h
-	$(CXX) $(CXXFLAGS) -lmicrohttpd -c mainServer.cpp
+mainServer.o: httpServer/mainServer.cpp httpServer/mainServer.h
+	$(CXX) $(CXXFLAGS) -lmicrohttpd -c httpServer/mainServer.cpp
 telegramBot.o: telegramBot/telegramBot.cpp telegramBot/telegramBot.h \
 	telegramBot/httpGetPostPut.h
 	$(CXX) $(CXXFLAGS) -c telegramBot/telegramBot.cpp

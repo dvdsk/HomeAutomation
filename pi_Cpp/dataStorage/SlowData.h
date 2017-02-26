@@ -32,7 +32,7 @@ We save in the same format as the bitstream
 
 */
 constexpr int LIGHT_LEN = 1;
-const int SLOWDATA_PACKAGESIZE = SLOWDATA_SIZE+2+2; //slow data + light data + timestamp 
+const int SLOWDATA_PACKAGESIZE = SLOWDATA_SIZE+LIGHT_LEN*2+2; //slow data + light data + timestamp 
 
 //data specific functions and variables, inherits AllData
 class SlowData : public Data
@@ -45,7 +45,7 @@ class SlowData : public Data
 
     int fetchSlowData(uint32_t startT, uint32_t stopT, 
                       double x[], double y[], int sensor);
-		void preProcess_light(const uint8_t raw[FASTDATA_SIZE], const uint32_t Tstamp);
+		void preProcess_light(uint8_t raw[FASTDATA_SIZE], const uint32_t Tstamp);
 
   private:
     bool newData(const uint8_t raw[SLOWDATA_SIZE], uint16_t light_Mean[LIGHT_LEN]);
@@ -57,9 +57,9 @@ class SlowData : public Data
     uint8_t prevRaw[9];
 };
 
-inline float decodeLight(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
-inline float decodeTemperature(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
-inline float decodeHumidity(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
-inline float decodeCO2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
+float decodeLight(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
+float decodeTemperature(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
+float decodeHumidity(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
+float decodeCO2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
 
 #endif // DATASTORE_H

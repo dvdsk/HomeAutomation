@@ -73,7 +73,7 @@ class MainState{
 		
 	public:
 		//creates shared objects
-		MainState();
+		MainState(std::shared_ptr<std::mutex> stop);
 			
 		//gets data in the form of url's transformes it to commands or
 		//state changes and if the state changed executes an update ran

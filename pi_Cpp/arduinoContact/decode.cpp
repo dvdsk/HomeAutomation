@@ -6,7 +6,9 @@ uint32_t unix_timestamp() {
   return now;
 }
 
-void checkSensorData(PirData* pirData, SlowData* slowData, MainState* state){
+void checkSensorData(std::shared_ptr<PirData> pirData, 
+										 std::shared_ptr<SlowData> slowData, 
+										 std::shared_ptr<MainState> state){
   
   const unsigned char POLLING_FAST = 200;   //PIR and light Level
   const unsigned char POLLING_SLOW = 202;   //Temperature, humidity and co2
@@ -35,8 +37,10 @@ void checkSensorData(PirData* pirData, SlowData* slowData, MainState* state){
   }
 }
 
-void decodeFastData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE], 
-PirData* pirData, SlowData* slowData, MainState* state){
+void decodeFastData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
+										std::shared_ptr<PirData> pirData, 
+										std::shared_ptr<SlowData> slowData, 
+										std::shared_ptr<MainState> state){
 	uint8_t temp;
 	//process movement values
 	//if the there has been movement recently the value temp will be one this indicates that
@@ -57,8 +61,10 @@ PirData* pirData, SlowData* slowData, MainState* state){
 }
 
 
-void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE], 
-PirData* pirData, SlowData* slowData, MainState* state){
+void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
+										std::shared_ptr<PirData> pirData, 
+										std::shared_ptr<SlowData> slowData, 
+										std::shared_ptr<MainState> state){
 
 	//decode temp, humidity, co2 and store in state
 	state->tempValues[temp::BED] = decodeTemperature(Idx_slow::TEMP_BED, data);

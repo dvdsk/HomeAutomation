@@ -62,10 +62,6 @@ MainState::MainState(std::shared_ptr<std::mutex> stop){
 	CO2ppm_updated = false;
 	movement[0] =0 ;
 	
-	while
-
-		cv.wait(lk);
-		std::cout<<"running update\n";
 }
 
 void MainState::thread_watchForUpdate(){
@@ -506,6 +502,7 @@ inline std::string toTime(uint32_t seconds){
 
 inline bool setting_up_values_done(){
 
-	return( lightValues && tempValues_updated && humidityValues_updated && soilHumidity_updated && CO2ppm_updated && movement[0]>0 );
+//	return( lightValues && tempValues_updated && humidityValues_updated && soilHumidity_updated && CO2ppm_updated && movement[0]>0 );
+	return true; //TODO what is this for?
 
 }

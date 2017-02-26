@@ -14,12 +14,15 @@ void checkSensorData(std::shared_ptr<PirData> pirData,
 										 std::shared_ptr<SlowData> slowData, 
 										 std::shared_ptr<MainState> state);
 
-void decodeFastData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE], 
-		 PirData* pirData, SlowData* slowData, MainState* state);
+void decodeFastData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
+										std::shared_ptr<PirData> pirData, 
+										std::shared_ptr<SlowData> slowData, 
+										std::shared_ptr<MainState> state);
 
-
-void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE], 
-		 PirData* pirData, SlowData* slowData, MainState* state);
+void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
+										std::shared_ptr<PirData> pirData, 
+										std::shared_ptr<SlowData> slowData, 
+										std::shared_ptr<MainState> state);
 
 
 #endif // SERIAL_H

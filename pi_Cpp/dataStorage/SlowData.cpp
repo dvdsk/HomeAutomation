@@ -30,7 +30,7 @@ bool SlowData::newData(const uint8_t raw[SLOWDATA_SIZE], uint16_t light_Mean[LIG
   return true;
 }
 
-void SlowData::preProcess_light(const uint8_t raw[FASTDATA_SIZE], const uint32_t Tstamp){  
+void SlowData::preProcess_light(uint8_t raw[FASTDATA_SIZE], const uint32_t Tstamp){  
 	//add all the light values for averaging later
 	light_Sum[lght::BED] += (uint32_t)decodeLight(Idx_fast::LIGHT_BED, raw); 
 	//add other lights
@@ -41,7 +41,7 @@ void SlowData::process(const uint8_t raw[SLOWDATA_SIZE], const uint32_t Tstamp){
 	uint8_t rawP[SLOWDATA_PACKAGESIZE-2]; //package without tstamp
 	uint16_t light_Mean[LIGHT_LEN];
 	for(int i = 0; i<LIGHT_LEN; i++){
-  	uint16_t light_Mean[i] = light_Sum[i]/light_N;
+  	light_Mean[i] = light_Sum[i]/light_N;
 	}
 	
 	if(newData(raw, light_Mean)){
@@ -58,15 +58,15 @@ void SlowData::process(const uint8_t raw[SLOWDATA_SIZE], const uint32_t Tstamp){
 }
 
 //DECODE FUNCT.
-inline float decodeLight(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+float decodeLight(const int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
 //blockIdx_B is the location in bytes from the start of block where
 //the light data starts 
-  float light;
+  float light = 2.0;
   
   return light; 
 }
 
-inline float decodeTemperature(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+float decodeTemperature(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
   uint16_t temp_int;
   float temp;
   
@@ -79,35 +79,35 @@ inline float decodeTemperature(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
   return temp;
 }
 
-inline float decodeHumidity(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-  float humidity;
-  
-  return 2.0; 
+float decodeHumidity(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+  float humidity = 2.0;
+
+  return humidity; 
 }
 
-inline float decodeCO2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-  float humidity;
+float decodeCO2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+  float co2 = 2.0;
   
-  return humidity; 
+  return co2; 
 }
 
 //SPECIFIC DECODER FUNCT
 float dTemp1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-						 decodeTemperature(blockIdx_B+Idx_slow::TEMP_BED, block) }
+						 return decodeTemperature(blockIdx_B+Idx_slow::TEMP_BED, block); }
 float dTemp2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-						 decodeTemperature(blockIdx_B+Idx_slow::TEMP_BATHROOM, block) }
+						 return decodeTemperature(blockIdx_B+Idx_slow::TEMP_BATHROOM, block); }
 float dTemp3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-						 decodeTemperature(blockIdx_B+Idx_slow::TEMP_DOOR, block) }
+						 return decodeTemperature(blockIdx_B+Idx_slow::TEMP_DOOR, block); }
 
 float dHum1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-					  decodeHumidity(blockIdx_B+Idx_slow::HUM_BED, block) }
+					  return decodeHumidity(blockIdx_B+Idx_slow::HUM_BED, block); }
 float dHum2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-					  decodeHumidity(blockIdx_B+Idx_slow::HUM_BATHROOM, block) }
+					  return decodeHumidity(blockIdx_B+Idx_slow::HUM_BATHROOM, block); }
 float dHum3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-					  decodeHumidity(blockIdx_B+Idx_slow::HUM_DOOR, block) }
+					  return decodeHumidity(blockIdx_B+Idx_slow::HUM_DOOR, block); }
 
 float dLight1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-						  decodeLight(blockIdx_B+Idx_slow::LIGHT_BED, block) }
+						return decodeLight(blockIdx_B+Idx_slow::LIGHT_BED, block); }
 
 //TODO possible optimisation using template and no longer a function pointer
 int SlowData::fetchSlowData(uint32_t startT, uint32_t stopT, 
