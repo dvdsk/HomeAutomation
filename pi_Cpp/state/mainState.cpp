@@ -1,5 +1,9 @@
 #include "mainState.h"
 
+void stateWatcher(std::shared_ptr<MainState> state){
+	state->thread_watchForUpdate();
+}
+
 //decode url to a command to change a state or pass to a function
 void MainState::httpSwitcher(const char* raw_url){
 
@@ -454,7 +458,7 @@ void MainState::update_minimal(){
 }
 
 void MainState::transitions_minimal(){
-	if(timeMinimalStarted - currentTime < stat::MAXMINIMALDURATION){
+	if(timeMinimalStarted - currentTime < stateConf::MAXMINIMALDURATION){
 	majorState = lastState;
 	lastState = MINIMAL;	
 	}

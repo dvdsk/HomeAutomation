@@ -4,6 +4,7 @@
 #include <cstring> //memcopy
 #include <cstdint> //uint16_t
 
+#include "../config.h"
 #include "MainData.h"
 
 /*
@@ -30,8 +31,8 @@ Co2: 13 bits        [storing 0 to 6000ppm, in values 0 to 6000]
 We save in the same format as the bitstream
 
 */
-
-const int SLOWDATA_PACKAGESIZE = 9+2; //timestamp + data
+constexpr int LIGHT_LEN = 1;
+const int SLOWDATA_PACKAGESIZE = SLOWDATA_SIZE+2+2; //slow data + light data + timestamp 
 
 //data specific functions and variables, inherits AllData
 class SlowData : public Data
@@ -44,13 +45,21 @@ class SlowData : public Data
 
     int fetchSlowData(uint32_t startT, uint32_t stopT, 
                       double x[], double y[], int sensor);
+		void preProcess_light(const uint8_t raw[FASTDATA_SIZE], const uint32_t Tstamp);
 
   private:
-    bool newData(const uint8_t raw[9]);
+    bool newData(const uint8_t raw[SLOWDATA_SIZE], uint16_t light_Mean[LIGHT_LEN]);
+		uint32_t light_Sum[LIGHT_LEN];
+		uint16_t light_N;
+		uint16_t prevLight_Mean[LIGHT_LEN];
 
     /*checks if data is diffrent the previous data*/
     uint8_t prevRaw[9];
-
 };
+
+inline float decodeLight(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
+inline float decodeTemperature(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
+inline float decodeHumidity(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
+inline float decodeCO2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
 
 #endif // DATASTORE_H

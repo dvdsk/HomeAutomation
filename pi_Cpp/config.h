@@ -1,9 +1,11 @@
 #ifndef CONFIG
 #define CONFIG
 
+#include <cstdint> //uint16_t
+
 enum Command {LIGHTS_ALLON, LIGHTS_ALLOFF, MS_SLEEPING, MOVIEMODE};
 
-namespace stat {
+namespace stateConf {
 	constexpr int MAXMINIMALDURATION = 3600; //seconds: 1 hour
 }
 
@@ -50,7 +52,14 @@ namespace mov {//movement sensors
 	constexpr int BATHROOM = 6;
 }
 
-namespace hum {//movement sensors
+namespace temp {//temp sensors
+	constexpr const char* NAMES[]{"below bed\n", "in bathroom\n", "above door\n"};
+	constexpr int BED = 0;
+	constexpr int BATHROOM = 1;
+	constexpr int DOOR = 2;
+}
+
+namespace hum {//humidity sensors
 	constexpr const char* NAMES[]{"below bed\n", "in bathroom\n", "above door\n"};
 	constexpr int BED = 0;
 	constexpr int BATHROOM = 1;
@@ -73,15 +82,32 @@ namespace plnt {//plants
 }
 
 //dont forget to update in the arduino config file
-namespace Idx {
-	constexpr int updated = 0;	
-	constexpr int co2 = 3;
-	constexpr int temperature_bed = 1;
-	constexpr int humidity_bed = 2;
+namespace Idx_slow {
+	//location where data starts in bytes
+	constexpr int updated = 0;				 
 
+	//we need all value groups to have neighboring increasing indexes
+	constexpr int TEMP_BED = 1; 
+	constexpr int TEMP_BATHROOM = 3; 
+	constexpr int TEMP_DOOR = 5; 
+
+	constexpr int HUM_BED = 2;		 
+	constexpr int HUM_BATHROOM = 2;		
+	constexpr int HUM_DOOR = 2;		
+
+	constexpr int CO2 = 3;						 
+}
+
+//dont forget to update in the arduino config file
+namespace Idx_fast {
+	//location where data starts in bytes
+
+	//we need all value groups to have neighboring increasing indexes
+	constexpr int LIGHT_BED = 2;
+
+	//need to stay at 0 and 1 for pirdata process to work
 	constexpr int pirs = 0;
 	constexpr int pirs_updated = 1;
-	constexpr int light_bed = 2;
 }
 
 constexpr uint8_t FASTDATA_SIZE = 4;

@@ -64,6 +64,10 @@ struct MinorStates {
   bool movieMode;
 };
 
+class MainState;
+
+//function that starts the class member thread_watchForUpdates()
+void stateWatcher(std::shared_ptr<MainState> state);
 	 
 class MainState{
 		
@@ -84,19 +88,8 @@ class MainState{
 		//signals the above function to run an update
 		void runUpdate();
 		void shutdown();
-	
-	private:
-		std::mutex alarmProcedureStarted;
-		uint32_t currentTime;
-		uint32_t lastBedMovement;
-		
-		//update thread wakeup and stop mechanism
-		bool stop;
-		bool is_ready;
-		std::mutex m;
-		std::condition_variable cv;
-		
-		//sensorValues
+
+		//sensorValues (needs to be accessible from decode)
 		std::array<int, 5> lightValues;
 		bool lightValues_updated; 		
 		std::array<int, 5> tempValues;
@@ -108,7 +101,17 @@ class MainState{
 		int CO2ppm;
 		bool CO2ppm_updated;
 		std::array<uint32_t, 5> movement;
-
+	
+	private:
+		std::mutex alarmProcedureStarted;
+		uint32_t currentTime;
+		uint32_t lastBedMovement;
+		
+		//update thread wakeup and stop mechanism
+		bool stop;
+		bool is_ready;
+		std::mutex m;
+		std::condition_variable cv;
 		
 		//stateBookKeeping
 		MinorStates minorState;

@@ -1,18 +1,21 @@
 #include <iostream>
-#include <typeinfo>//FIXME for debugging only
 #include <ctime>
+#include <signal.h>
+#include <boost/exception/diagnostic_information.hpp> //for debugging
 
-#include <math.h>       /* sin */ //FIXME for debugging only
+#include <chrono>
+#include <thread>
+#include <mutex>
 
 #include "config.h"
-#include "Serial.h"
+#include "arduinoContact/Serial.h"
+#include "arduinoContact/decode.h"
 #include "dataStorage/MainData.h"
 #include "dataStorage/PirData.h"
 #include "graph/MainGraph.h"
-
-
-#include <signal.h>
-#include <boost/exception/diagnostic_information.hpp> //for debugging
+#include "state/mainState.h"
+#include "telegramBot/telegramBot.h"
+#include "httpServer/mainServer.h"
 
 const std::string PATHPIR = "pirs.binDat";
 const int CACHESIZE_pir = 8;
@@ -21,137 +24,56 @@ const int CACHESIZE_slowData = 22;
 //cache for data
 uint8_t cache1[CACHESIZE_pir];
 uint8_t cache2[CACHESIZE_slowData];
-//uint8_t cache3[CACHESIZE_pir];
+
+std::shared_ptr<std::mutex> stop = std::make_shared<std::mutex>();
+std::shared_ptr<TelegramBot> bot = std::make_shared<TelegramBot>();
+std::shared_ptr<MainState> state = std::make_shared<MainState>();
+std::shared_ptr<PirData> pirData = std::make_shared<PirData>("pirs", cache1, CACHESIZE_pir);
+std::shared_ptr<SlowData> slowData = std::make_shared<SlowData>(
+																		 "slowData", cache2, CACHESIZE_slowData);
+
 
 FILE* file1; //needed as global for interrupt handling
 FILE* file2;
-FILE* file3;
-
-typedef union
-{
-  int number;
-  uint8_t bytes[2];
-} INTUNION_t;
-
 
 void interruptHandler(int s){
-
   fflush(file1);
   fflush(file2);
-  fflush(file3);
   printf("Caught signal %d\n",s);
   exit(1); 
 }
 
-uint32_t unix_timestamp() {
-  time_t t = std::time(0);
-  uint32_t now = static_cast<uint32_t> (t);
-  return now;
-}
-
-void checkSensorData(PirData* pirData){
-  
-  const unsigned char POLLING_FAST = 200;   //PIR and light Level
-  const unsigned char POLLING_SLOW = 202;   //Temperature, humidity and co2
-  
-  INTUNION_t temp_bed, temp_bathroom, humidity_bed, humidity_bathroom;
-  INTUNION_t co2, light_outside, light_bed, light_door, light_kitchen;
-  
-  uint32_t Tstamp;
-  
-  uint8_t pirDat[2];
-  uint8_t fastData[FASTDATA_SIZE];//TODO change back to 10
-  uint8_t slowData[SLOWDATA_SIZE];      
-  uint8_t toLog[18];   
-  
-  Serial arduino("/dev/ttyUSB0",115200);
-  while (true){
-    uint8_t x;
-    x = (int)arduino.readHeader();
-    switch (x) {      
-    	Tstamp = unix_timestamp();   
-	  	case POLLING_FAST:
-
-        arduino.readMessage(fastData, FASTDATA_SIZE);//TODO 2 to 10
-
-        std::memcpy(pirData, fastData+0, 2);  //save PIR data
-        
-        std::memcpy(light_outside.bytes, fastData+2, 2);  
-        std::memcpy(light_bed.bytes, fastData+4, 2);      
-        std::memcpy(light_door.bytes, fastData+6, 2);  
-        std::memcpy(light_kitchen.bytes, fastData+8, 2);
-        
-        pirData->process(pirDat, Tstamp);
-        break;        
-      
-      case POLLING_SLOW:
-        
-        arduino.readMessage(slowData, SLOWDATA_SIZE);
-         
-        std::memcpy(temp_bed.bytes, slowData, 2);  
-        std::memcpy(temp_bathroom.bytes, slowData+2, 2);  
-        std::memcpy(humidity_bed.bytes, slowData+4, 2);  
-        std::memcpy(humidity_bathroom.bytes, slowData+6, 2);
-        std::memcpy(co2.bytes, slowData+8, 2);    
-        
-        //add last light data and send off for saving as binairy file
-        std::memcpy(toLog, slowData, 10);
-        std::memcpy(toLog+10, fastData+2, 8);          
-        
-      default:
-        std::cout << "error no code matched, header: " << +x <<"\n";     
-    }
-  }
-}
-
-void debug(PirData& pirData, SlowData& slowData){
-  uint32_t Tstamp;
-  uint8_t pirDat[2];
-  uint8_t slowDat[9];
-  uint16_t temp;
-
-  ////INPUT FAKE PIR DATA:
-  //Tstamp = 1481496152;
-  //for(uint32_t i=Tstamp; i<Tstamp+100000000; i+=10){
-
-    //pirDat[0] = 0b00000000;
-    //pirDat[1] = 0b11111111;  
-    //pirData.process(pirDat, i);
-    
-    //pirDat[0] = 0b11111111;
-    //pirDat[1] = 0b11111111;  
-    //pirData.process(pirDat, i+5);  
-  //}
-
-  ////INPUT FAKE TEMP DATA:
-  //Tstamp = 1481496152;
-  //for(uint32_t i=Tstamp; i<Tstamp+100000000; i+=10){
-    //temp = (uint16_t)(sin(i/40.0)*100+100);
-    //slowDat[0] = (uint8_t)temp;
-    //slowDat[1] = (uint8_t)(temp >> 8);
-    //slowData.process(slowDat, i);
-  //}
-  
-  //std::vector<plotables> toPlot = {TEMP_BED, MOVEMENTSENSOR0};
-  //std::vector<plotables> toPlot = {TEMP_BED};
-  std::vector<plotables> toPlot = {HUMIDITY_BED, MOVEMENTSENSOR0};
-  Graph graph(toPlot, 1481496152, 1481496152+100000000, pirData, slowData);
-}
-
 int main(int argc, char* argv[])
 {
-
-	checkSensorData(PirData* pirData);
-
 //  PirData pirData("pirs", cache1, CACHESIZE_pir);
 //  SlowData slowData("slowData", cache2, CACHESIZE_slowData);
-//  file1 = pirData.getFileP();
-//  file2 = slowData.getFileP();
-//  
-//  signal(SIGINT, interruptHandler);  
-//  //checkSensorData(&pirData);
-//  debug(pirData, slowData);
+  file1 = pirData->getFileP();
+  file2 = slowData->getFileP();
 
+	//start the http server that serves the telegram bot and
+	//custom http protocol. NOTE: each connection spawns its 
+	//own thread.
+	std::thread t1(thread_Https_serv, stop, bot, state);
 
+	//start the thread that checks the output of the arduino 
+	//it is responsible for setting the enviremental variables
+	//the statewatcher responds too
+	std::thread t2(checkSensorData, pirData, slowData, state);
+
+	//sleep to give checkSensorData time to aquire some data
+	//from the arduino
+	std::this_thread::sleep_for(std::chrono::seconds(10));
+
+	//start the thread that is notified of state changes 
+	//and re-evalutes the system on such as change
+	std::thread t3(stateWatcher, state);
   
+
+  signal(SIGINT, interruptHandler);  
+
+	t1.join();
+	t2.join();
+	t3.join();
+  
+	return 0;
 }
