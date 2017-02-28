@@ -10,9 +10,6 @@ void checkSensorData(std::shared_ptr<PirData> pirData,
 										 std::shared_ptr<SlowData> slowData, 
 										 std::shared_ptr<MainState> state){
   
-  const unsigned char POLLING_FAST = 200;   //PIR and light Level
-  const unsigned char POLLING_SLOW = 202;   //Temperature, humidity and co2
-  
   uint32_t Tstamp;
 	uint8_t data[SLOWDATA_SIZE]; 
   uint8_t x; 
@@ -21,12 +18,14 @@ void checkSensorData(std::shared_ptr<PirData> pirData,
 	while (true){
     x = arduino.readHeader();
     switch (x){      
-      case POLLING_FAST:
+      case headers::FAST_UPDATE:
+				std::cout<<"update fast\n";
 				Tstamp = unix_timestamp();
 				arduino.readMessage(data, FASTDATA_SIZE);			
 				decodeFastData(Tstamp, data, pirData, slowData, state);           
         break;             
-      case POLLING_SLOW:
+      case headers::SLOW_UPDATE:
+				std::cout<<"update slow\n";
 				Tstamp = unix_timestamp();
 				arduino.readMessage(data, SLOWDATA_SIZE);				
 				decodeSlowData(Tstamp, data, pirData, slowData, state);
@@ -46,9 +45,11 @@ void decodeFastData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 	//if the there has been movement recently the value temp will be one this indicates that
 	//movement[] needs to be updated for that sensor. Instead of an if statement we use multiplication 
 	//with temp, as temp is either 1 or 0.
-	for (int i = 0; i<5; i++){
-		temp = (data[Idx_fast::pirs] & (0b00001<<i)) & (data[Idx_fast::pirs_updated] & (0b00001<<i));
+	for (int i = 0; i<8; i++){
+		temp = (data[0] & (1<<i)) & (data[2] & (1<<i));
 		state->movement[i] = !temp * state->movement[i] + temp*Tstamp;
+		temp = (data[1] & (1<<i)) & (data[3] & (1<<i));
+		state->movement[i+8] = !temp * state->movement[i+8] + temp*Tstamp;
 	}
 
 	//process light values

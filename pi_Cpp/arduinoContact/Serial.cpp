@@ -11,10 +11,11 @@ Serial::Serial(const std::string& port, const unsigned int& baud_rate)
   //wait till the arduino sends its done with initialising
 	do{
 		std::cout<<"\tResetting Arduino\n";
-		resetArduino();
-		std::this_thread::sleep_for(std::chrono::milliseconds(500));	
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		resetArduino();	
 	}
 	while(readHeader() != config::STARTUP_DONE);
+	
   while(readHeader() != config::SETUP_DONE){
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}

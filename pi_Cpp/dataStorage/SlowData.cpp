@@ -58,15 +58,20 @@ void SlowData::process(const uint8_t raw[SLOWDATA_SIZE], const uint32_t Tstamp){
 }
 
 //DECODE FUNCT.
-float decodeLight(const int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+float decodeLight(int blockIdx_B, int bitOffSet, uint8_t block[MAXBLOCKSIZE]){
 //blockIdx_B is the location in bytes from the start of block where
 //the light data starts 
+	uint16_t light_int;  
   float light = 2.0;
-  
+
+	light_int = ((uint16_t)(block[blockIdx_B] >> bitOffSet)) |
+							((uint16_t)(block[blockIdx_B+1] << (8-bitOffSet));
+	
+	light = (float)light_int; //space for conversion formula
   return light; 
 }
 
-float decodeTemperature(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+float decodeTemperature(int blockIdx_B, int bitOffSet, uint8_t block[MAXBLOCKSIZE]){
   uint16_t temp_int;
   float temp;
   

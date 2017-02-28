@@ -28,7 +28,8 @@ inline bool slowDataComplete(){	return (slowData[0] == SLOWDATA_COMPLETE);}
 void sendFastData(){
   //used to send the data to the raspberry pi 
   //when the sensorArray has been filled
-  
+	uint8_t toSend[8];
+
 	#ifdef DEBUG
   Serial.print("fastData: ");
 	for (unsigned int i = 0; i < FASTDATA_SIZE; i++){
@@ -38,15 +39,25 @@ void sendFastData(){
 	Serial.print("\n");	
 	#endif
 	#ifndef DEBUG
-  INTUNION_t toSend;
   Serial.write(headers::FAST_UPDATE);
 
-  Serial.write((uint8_t)fastData[0]);
-	for (unsigned int i = 1; i < FASTDATA_SIZE-2; i++){
-  //send 16 bit integers over serial in binairy
-    toSend.number = fastData[i];    
-    Serial.write(toSend.bytes[0]);
-    Serial.write(toSend.bytes[1]);
+	//encode data:
+	toSend[0] = uint8_t(fastData[0]);			 //pirs
+	toSend[1] = uint8_t(fastData[0] >> 8); //pirs
+
+	toSend[2] = uint8_t(fastData[1]);			 //pirs updated
+	toSend[3] = uint8_t(fastData[1] >> 8); //pirs updated
+
+	toSend[4] = uint8_t(fastData[2]); //8 bytes of light sensor 1
+	toSend[5] = uint8_t(fastData[2]) & 0b00000011; //remaining 2 bytes of light sens 1.
+	
+	toSend[5] |= uint8_t(fastData[3] << 2); //6 lower bytes of sensor 2
+	toSend[6] = uint8_t(fastData[3] >> 6) &0b00001111; //remaining 4 bytes of sensor 2
+
+	toSend[6] |= uint8_t(fastData[4] << 4); //4 lower bytes of sensor 3
+	toSend[7] = uint8_t(fastData[4] >> 6); //remaining 6 bytes
+
+	Serial.write(toSend, 7)
 	}	
 	#endif
 }

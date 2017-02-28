@@ -9,13 +9,18 @@ namespace stateConf {
 	constexpr int MAXMINIMALDURATION = 3600; //seconds: 1 hour
 }
 
+namespace headers {
+	constexpr uint8_t SETUP_DONE = 200;
+	constexpr uint8_t STARTUP_DONE = 201;
+	constexpr uint8_t FAST_UPDATE = 255;
+	constexpr uint8_t SLOW_UPDATE = 26;
+}
+
 namespace config {
 	constexpr int HTTPSERVER_PORT = 8443;
 	constexpr const char* HTTPSERVER_USER = "kleingeld";
 	constexpr const char* HTTPSERVER_PASS = "nRhRudGLWs35rHukzxrz"; //using random strings as passw
-	
-	constexpr uint8_t SETUP_DONE = 200;	
-	constexpr uint8_t STARTUP_DONE = 201;
+
 	constexpr uint16_t ARDUINO_BAUDRATE = 9600;
 
 	constexpr int ALERT_TEMP_ABOVE = 240; //in 0.1 Celcius, 24 deg
@@ -116,7 +121,8 @@ namespace Idx_fast {
 	constexpr int pirs_updated = 1;
 }
 
+//length in bytes
 constexpr uint8_t FASTDATA_SIZE = 4;
-constexpr uint8_t SLOWDATA_SIZE = 9;
+constexpr uint8_t SLOWDATA_SIZE = 7;
 
 #endif
