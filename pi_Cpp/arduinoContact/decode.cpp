@@ -53,12 +53,14 @@ void decodeFastData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 	}
 
 	//process light values
-	state->lightValues[lght::BED] = decodeLight(Idx_fast::LIGHT_BED, data);
+	state->lightValues[lght::BED] = decode(data, Idx_fast::LIGHT_BED, Idx_fast::LEN_LIGHT);
+	state->lightValues[lght::KITCHEN] = decode(data, Idx_fast::LIGHT_KITCHEN, Idx_fast::LEN_LIGHT);
+	state->lightValues[lght::DOOR] = decode(data, Idx_fast::LIGHT_DOOR, Idx_fast::LEN_LIGHT);
 	state->lightValues_updated = true;
 
 	//store
 	pirData->process(data, Tstamp);
-	slowData->preProcess_light(data, Tstamp);
+	slowData->preProcess_light(state->lightValues, Tstamp);
 }
 
 
@@ -68,18 +70,23 @@ void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 										std::shared_ptr<MainState> state){
 
 	//decode temp, humidity, co2 and store in state
-	state->tempValues[temp::BED] = decodeTemperature(Idx_slow::TEMP_BED, data);
-	state->tempValues[temp::BATHROOM] = decodeTemperature(Idx_slow::TEMP_BATHROOM, data);
-	state->tempValues[temp::DOOR] = decodeTemperature(Idx_slow::TEMP_DOOR, data);
+	state->tempValues[temp::BED] = decode(data, Idx_slow::TEMP_BED, Idx_slow::LEN_TEMP)
+	state->tempValues[temp::BATHROOM] = decode(data, Idx_slow::TEMP_BATHROOM, Idx_slow::LEN_TEMP)
+	state->tempValues[temp::DOOR] = decode(data, Idx_slow::TEMP_DOOR, Idx_slow::LEN_TEMP)
 	state->tempValues_updated = true;
 
-	state->humidityValues[hum::BED] = decodeHumidity(Idx_slow::HUM_BED, data);
-	state->humidityValues[hum::BATHROOM] = decodeHumidity(Idx_slow::HUM_BATHROOM, data);
-	state->humidityValues[hum::DOOR] = decodeHumidity(Idx_slow::HUM_DOOR, data);
+	state->humidityValues[hum::BED] = decode(data, Idx_slow::HUM_BED, Idx_slow::LEN_TEMP)
+	state->humidityValues[hum::BATHROOM] = decode(data, Idx_slow::HUM_BATHROOM, Idx_slow::LEN_TEMP)
+	state->humidityValues[hum::DOOR] = decode(data, Idx_slow::HUM_DOOR, Idx_slow::LEN_TEMP)
 	state->humidityValues_updated = true;
 
-	state->CO2ppm = decodeCO2(Idx_slow::CO2, data);
+	state->CO2ppm = decode(data, Idx_slow::CO2, Idx_slow::LEN_CO2)
 	
 	//store
 	slowData->process(data,Tstamp);
+}
+
+inline float decodeTemp(uint8_t data[], int packageOffset){
+	uint16_t temp_int = decode(data, Idx_slow::TEMP_BED, Idx_slow::LEN_TEMP)
+	return (float(temp_int))/10 +10;
 }

@@ -1,4 +1,5 @@
 #include "SlowData.h"
+#include "..compression.h"
 
 //package format:
 //Temp: 9 bits        [storing -10.0 to 40.0 degrees, in values 0 to 500,
@@ -30,10 +31,11 @@ bool SlowData::newData(const uint8_t raw[SLOWDATA_SIZE], uint16_t light_Mean[LIG
   return true;
 }
 
-void SlowData::preProcess_light(uint8_t raw[FASTDATA_SIZE], const uint32_t Tstamp){  
+void SlowData::preProcess_light(std::array<int, 5>* lightValues, const uint32_t Tstamp){  
 	//add all the light values for averaging later
-	light_Sum[lght::BED] += (uint32_t)decodeLight(Idx_fast::LIGHT_BED, raw); 
-	//add other lights
+	light_Sum[lght::BED] 			+= *(lightValues+Idx_fast::LIGHT_BED); 
+	light_Sum[lght::KITCHEN] 	+= *(lightValues+Idx_fast::LIGHT_KITCHEN); 
+	light_Sum[lght::DOOR] 		+= *(lightValues+Idx_fast::LIGHT_DOOR); 
 	light_N ++;
 }
 
@@ -57,90 +59,69 @@ void SlowData::process(const uint8_t raw[SLOWDATA_SIZE], const uint32_t Tstamp){
   }
 }
 
-//DECODE FUNCT.
-float decodeLight(int blockIdx_B, int bitOffSet, uint8_t block[MAXBLOCKSIZE]){
-//blockIdx_B is the location in bytes from the start of block where
-//the light data starts 
-	uint16_t light_int;  
-  float light = 2.0;
-
-	light_int = ((uint16_t)(block[blockIdx_B] >> bitOffSet)) |
-							((uint16_t)(block[blockIdx_B+1] << (8-bitOffSet));
-	
-	light = (float)light_int; //space for conversion formula
-  return light; 
-}
-
-float decodeTemperature(int blockIdx_B, int bitOffSet, uint8_t block[MAXBLOCKSIZE]){
-  uint16_t temp_int;
-  float temp;
-  
-  temp_int =  (uint16_t)block[blockIdx_B+0];
-  temp_int = temp_int | ((uint16_t)(block[blockIdx_B+1] & 1)) << 8;
-  temp = (float)temp_int;
-
-  temp = temp/10 -10;
-  
-  return temp;
-}
-
-float decodeHumidity(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-  float humidity = 2.0;
-
-  return humidity; 
-}
-
-float decodeCO2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-  float co2 = 2.0;
-  
-  return co2; 
-}
-
 //SPECIFIC DECODER FUNCT
 float dTemp1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-						 return decodeTemperature(blockIdx_B+Idx_slow::TEMP_BED, block); }
+	uint16_t temp_int = decode(block, blockIdx_B, Idx_slow::TEMP_BED, Idx_slow::LEN_TEMP);
+	return (float(temp_int))/10 -10; }
 float dTemp2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-						 return decodeTemperature(blockIdx_B+Idx_slow::TEMP_BATHROOM, block); }
+	uint16_t temp_int = decode(block, blockIdx_B, Idx_slow::TEMP_BATHROOM, Idx_slow::LEN_TEMP);
+	return (float(temp_int))/10 -10; }
 float dTemp3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-						 return decodeTemperature(blockIdx_B+Idx_slow::TEMP_DOOR, block); }
+	uint16_t temp_int = decode(block, blockIdx_B, Idx_slow::TEMP_DOOR, Idx_slow::LEN_TEMP);
+	return (float(temp_int))/10 -10; }
 
 float dHum1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-					  return decodeHumidity(blockIdx_B+Idx_slow::HUM_BED, block); }
+	uint16_t hum_int = decode(block, blockIdx_B, Idx_slow::HUM_BED, Idx_slow::LEN_HUM);
+	return (float(hum_int))/10 -10; }//TODO REPLACE THESE CALC
 float dHum2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-					  return decodeHumidity(blockIdx_B+Idx_slow::HUM_BATHROOM, block); }
+	uint16_t hum_int = decode(block, blockIdx_B, Idx_slow::HUM_BATHROOM, Idx_slow::LEN_HUM);
+	return (float(hum_int))/10 -10; }//TODO REPLACE THESE CALC
 float dHum3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-					  return decodeHumidity(blockIdx_B+Idx_slow::HUM_DOOR, block); }
+	uint16_t hum_int = decode(block, blockIdx_B, Idx_slow::HUM_DOOR, Idx_slow::LEN_HUM);
+	return (float(hum_int))/10 -10; }//TODO REPLACE THESE CALC
 
 float dLight1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-						return decodeLight(blockIdx_B+Idx_slow::LIGHT_BED, block); }
+	uint16_t lightValue = decode(block, blockIdx_B, Idx_slow::LIGHT_BED, Idx_slow::LEN_LIGHT);
+	return (float)lightValue;}
+float dLight2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+	uint16_t lightValue = decode(block, blockIdx_B, Idx_slow::LIGHT_DOOR, Idx_slow::LEN_LIGHT);
+	return (float)lightValue;}
+float dLight3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+	uint16_t lightValue = decode(block, blockIdx_B, Idx_slow::LIGHT_KITCHEN, Idx_slow::LEN_LIGHT);
+	return (float)lightValue;}
+
+float dCo2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+	uint16_t co2Val = decode(block, blockIdx_B, Idx_slow::CO2, Idx_slow::LEN_CO2);
+	return (float)co2Val;}
+
 
 //TODO possible optimisation using template and no longer a function pointer
 int SlowData::fetchSlowData(uint32_t startT, uint32_t stopT, 
-                            double x[], double y[], int sensor){
+                            double x[], double y[], plotables sensor){
   int len;
   switch(sensor){
-    case 1:
+    case TEMP_BED:
       len = Data::fetchData(startT, stopT, x, y, dTemp1);   
       break;
-    case 2:
+    case TEMP_BATHROOM:
       len = Data::fetchData(startT, stopT, x, y, dTemp2);  
       break;
-    case 3:
+    case TEMP_DOORHIGH:
       len = Data::fetchData(startT, stopT, x, y, dTemp3);  
       break;    
-    case 4:
+    case HUMIDITY_BED:
       len = Data::fetchData(startT, stopT, x, y, dHum1);  
       break;    
-    case 5:
+    case HUMIDITY_BATHROOM:
       len = Data::fetchData(startT, stopT, x, y, dHum2);  
       break;    
-    case 6:
+    case HUMIDITY_DOORHIGH:
       len = Data::fetchData(startT, stopT, x, y, dHum3);  
       break;    
-    case 7: 
-      len = Data::fetchData(startT, stopT, x, y, decodeCO2);  
+    case CO2PPM: 
+      len = Data::fetchData(startT, stopT, x, y, dCo2);  
       break;
-    case 8:
+    case BRIGHTNESS_BED:
       len = Data::fetchData(startT, stopT, x, y, dLight1);  
       break;    
   }  

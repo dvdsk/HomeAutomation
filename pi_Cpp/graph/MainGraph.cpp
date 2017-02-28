@@ -65,7 +65,7 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
         {
           onlyPir = false;
           axisesToDraw = axisesToDraw | 0b00000001;
-          len = slowData.fetchSlowData(startT, stopT, x, y, 1);//todo
+          len = slowData.fetchSlowData(startT, stopT, x, y, toPlot);//todo
           TGraph* gr1 = new TGraph(len,x,y);
           yT = y[0];
           leg->AddEntry(gr1,"temperature bed","l");
@@ -76,7 +76,7 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
         {
           onlyPir = false;
           axisesToDraw = axisesToDraw | 0b00000001;
-          len = slowData.fetchSlowData(startT, stopT, x, y, 2);//todo
+          len = slowData.fetchSlowData(startT, stopT, x, y, toPlot);//todo
           TGraph* gr2 = new TGraph(len,x,y);
           yT = y[0];
           leg->AddEntry(gr2,"temperature bathroom","l");
@@ -85,13 +85,13 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
         break;
       case TEMP_DOORHIGH:
         onlyPir = false;
-        slowData.fetchSlowData(startT, stopT, x, y, 3);
+        slowData.fetchSlowData(startT, stopT, x, y, toPlot);
         break;
       case HUMIDITY_BED:
         {
           onlyPir = false;
           axisesToDraw = axisesToDraw | 0b00000010;
-          len = slowData.fetchSlowData(startT, stopT, x, y, 4);//todo
+          len = slowData.fetchSlowData(startT, stopT, x, y, toPlot);//todo
           TGraph* gr4 = new TGraph(len,x,y);
           yH = y[0];
           leg->AddEntry(gr4,"Humidity bed","l");
@@ -100,15 +100,15 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
         break;
       case HUMIDITY_BATHROOM:
         onlyPir = false;
-        slowData.fetchSlowData(startT, stopT, x, y, 5);
+        slowData.fetchSlowData(startT, stopT, x, y, toPlot);
         break;
       case HUMIDITY_DOORHIGH:
         onlyPir = false;
-        slowData.fetchSlowData(startT, stopT, x, y, 6);
+        slowData.fetchSlowData(startT, stopT, x, y, toPlot);
         break;
       case CO2PPM:
         onlyPir = false;
-        slowData.fetchSlowData(startT, stopT, x, y, 7);
+        slowData.fetchSlowData(startT, stopT, x, y, toPlot);
         break;
       case BRIGHTNESS_BED:
         onlyPir = false;

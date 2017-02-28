@@ -92,34 +92,67 @@ namespace plnt {//plants
 
 //dont forget to update in the arduino config file
 namespace Idx_slow {
-	//location where data starts in bytes
+	//location where data starts in bits and lenght of data info
 	constexpr int updated = 0;				 
 
-	//we need all value groups to have neighboring increasing indexes
 	constexpr int TEMP_BED = 1; 
 	constexpr int TEMP_BATHROOM = 3; 
 	constexpr int TEMP_DOOR = 5; 
+	constexpr int LEN_TEMP = 4;
 
 	constexpr int HUM_BED = 2;		 
 	constexpr int HUM_BATHROOM = 2;		
 	constexpr int HUM_DOOR = 2;		
-
-	constexpr int LIGHT_BED = 2;
+	constexpr int LEN_HUM = 2;	
 
 	constexpr int CO2 = 3;						 
+	constexpr int LEN_CO2 = 3;
+
+	constexpr int LIGHT_BED = 2;
+	constexpr int LIGHT_DOOR = 2+10;
+	constexpr int LIGHT_KITCHEN = 2+10+10;
+	constexpr int LEN_LIGHT = 10;
 }
 
 //dont forget to update in the arduino config file
 namespace Idx_fast {
-	//location where data starts in bytes
+	//location where data starts in bits and lenght of data info
 
-	//we need all value groups to have neighboring increasing indexes
 	constexpr int LIGHT_BED = 2;
+	constexpr int LIGHT_DOOR = 2+10;
+	constexpr int LIGHT_KITCHEN = 2+10+10;
+	constexpr int LIGHT_LEN = 10;
 
 	//need to stay at 0 and 1 for pirdata process to work
 	constexpr int pirs = 0;
 	constexpr int pirs_updated = 1;
 }
+
+enum plotables{
+  MOVEMENTSENSOR0,
+  MOVEMENTSENSOR1,
+  MOVEMENTSENSOR2,
+  MOVEMENTSENSOR3,
+  MOVEMENTSENSOR4,
+  MOVEMENTSENSOR5,
+  MOVEMENTSENSOR6,
+  MOVEMENTSENSOR7,
+
+  TEMP_BED,
+  TEMP_BATHROOM,
+  TEMP_DOORHIGH,
+
+  HUMIDITY_BED,
+  HUMIDITY_BATHROOM,
+  HUMIDITY_DOORHIGH,
+
+  CO2PPM,
+
+  BRIGHTNESS_BED,
+  BRIGHTNESS_BEYONDCURTAINS,
+  BRIGHTNESS_KITCHEN,
+  BRIGHTNESS_DOORHIGH
+};
 
 //length in bytes
 constexpr uint8_t FASTDATA_SIZE = 4;

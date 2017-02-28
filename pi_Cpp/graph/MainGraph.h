@@ -28,32 +28,7 @@ class PirData;
 class SlowData;//FIXME is this needed?
 #include "../dataStorage/PirData.h"
 #include "../dataStorage/SlowData.h"
-
-enum plotables{
-  MOVEMENTSENSOR0,
-  MOVEMENTSENSOR1,
-  MOVEMENTSENSOR2,
-  MOVEMENTSENSOR3,
-  MOVEMENTSENSOR4,
-  MOVEMENTSENSOR5,
-  MOVEMENTSENSOR6,
-  MOVEMENTSENSOR7,
-
-  TEMP_BED,
-  TEMP_BATHROOM,
-  TEMP_DOORHIGH,
-
-  HUMIDITY_BED,
-  HUMIDITY_BATHROOM,
-  HUMIDITY_DOORHIGH,
-
-  CO2PPM,
-
-  BRIGHTNESS_BED,
-  BRIGHTNESS_BEYONDCURTAINS,
-  BRIGHTNESS_KITCHEN,
-  BRIGHTNESS_DOORHIGH
-};
+#include "../config.h"
 
 class Graph
 {
