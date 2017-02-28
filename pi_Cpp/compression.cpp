@@ -41,7 +41,6 @@ int main(){
 	uint8_t encoded[10] = {0,0,0,0,0,0,0,0,0,0};
 
 	std::cout<<"unencoded value:"<<test1<<"\n";	
-	encode(encoded, test1, 2, 4, 10);			
-	std::cout<<"decoded value:"<<decode(encoded, 2, 4, 10)<<"\n";
-	decode(encoded, 2, 4, 10);
+	encode(encoded, test1, 0, 0, 10);			
+	std::cout<<"decoded value:"<<decode(encoded, 0, 0, 10)<<"\n";
 }
