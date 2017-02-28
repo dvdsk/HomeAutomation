@@ -121,7 +121,7 @@ namespace Idx_fast {
 	constexpr int LIGHT_BED = 2;
 	constexpr int LIGHT_DOOR = 2+10;
 	constexpr int LIGHT_KITCHEN = 2+10+10;
-	constexpr int LIGHT_LEN = 10;
+	constexpr int LEN_LIGHT = 10;
 
 	//need to stay at 0 and 1 for pirdata process to work
 	constexpr int pirs = 0;

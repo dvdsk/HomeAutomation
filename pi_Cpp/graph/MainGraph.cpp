@@ -12,7 +12,7 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
   x0[1]= stopT;
 
 
-  bool onlyPir = true;
+  //bool onlyPir = true;
   uint8_t axisesToDraw = 0;
   
   //bool slowData_gotTimeAxis; IMPLEMENT THIS FUNCTIONALITY TO SAVE TIME
@@ -63,9 +63,9 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
 
       case TEMP_BED:
         {
-          onlyPir = false;
+          //onlyPir = false;
           axisesToDraw = axisesToDraw | 0b00000001;
-          len = slowData.fetchSlowData(startT, stopT, x, y, toPlot);//todo
+          len = slowData.fetchSlowData(startT, stopT, x, y, i);//todo
           TGraph* gr1 = new TGraph(len,x,y);
           yT = y[0];
           leg->AddEntry(gr1,"temperature bed","l");
@@ -74,9 +74,9 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
         break;
       case TEMP_BATHROOM:
         {
-          onlyPir = false;
+          //onlyPir = false;
           axisesToDraw = axisesToDraw | 0b00000001;
-          len = slowData.fetchSlowData(startT, stopT, x, y, toPlot);//todo
+          len = slowData.fetchSlowData(startT, stopT, x, y, i);//todo
           TGraph* gr2 = new TGraph(len,x,y);
           yT = y[0];
           leg->AddEntry(gr2,"temperature bathroom","l");
@@ -84,14 +84,14 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
         }
         break;
       case TEMP_DOORHIGH:
-        onlyPir = false;
-        slowData.fetchSlowData(startT, stopT, x, y, toPlot);
+        //onlyPir = false;
+        slowData.fetchSlowData(startT, stopT, x, y, i);
         break;
       case HUMIDITY_BED:
         {
-          onlyPir = false;
+          //onlyPir = false;
           axisesToDraw = axisesToDraw | 0b00000010;
-          len = slowData.fetchSlowData(startT, stopT, x, y, toPlot);//todo
+          len = slowData.fetchSlowData(startT, stopT, x, y, i);//todo
           TGraph* gr4 = new TGraph(len,x,y);
           yH = y[0];
           leg->AddEntry(gr4,"Humidity bed","l");
@@ -99,19 +99,19 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
         }
         break;
       case HUMIDITY_BATHROOM:
-        onlyPir = false;
-        slowData.fetchSlowData(startT, stopT, x, y, toPlot);
+        //onlyPir = false;
+        slowData.fetchSlowData(startT, stopT, x, y, i);
         break;
       case HUMIDITY_DOORHIGH:
-        onlyPir = false;
-        slowData.fetchSlowData(startT, stopT, x, y, toPlot);
+        //onlyPir = false;
+        slowData.fetchSlowData(startT, stopT, x, y, i);
         break;
       case CO2PPM:
-        onlyPir = false;
-        slowData.fetchSlowData(startT, stopT, x, y, toPlot);
+        //onlyPir = false;
+        slowData.fetchSlowData(startT, stopT, x, y, i);
         break;
       case BRIGHTNESS_BED:
-        onlyPir = false;
+        //onlyPir = false;
         //nonPirFastData;
         break;    
       default:

@@ -3,8 +3,10 @@
 #include <iostream>
 #include <cstring> //memcopy
 #include <cstdint> //uint16_t
+#include <array>
 
 #include "../config.h"
+#include "../compression.h"
 #include "MainData.h"
 
 /*
@@ -44,22 +46,17 @@ class SlowData : public Data
     void process(const uint8_t raw[9], const uint32_t Tstamp);
 
     int fetchSlowData(uint32_t startT, uint32_t stopT, 
-                      double x[], double y[], int sensor);
-		void preProcess_light(uint8_t raw[FASTDATA_SIZE], const uint32_t Tstamp);
+                      double x[], double y[], plotables sensor);
+		void preProcess_light(std::array<int, 5> lightValues, const uint32_t Tstamp);
 
   private:
     bool newData(const uint8_t raw[SLOWDATA_SIZE], uint16_t light_Mean[LIGHT_LEN]);
-		uint32_t light_Sum[LIGHT_LEN];
+		uint32_t light_Sum[3];
 		uint16_t light_N;
-		uint16_t prevLight_Mean[LIGHT_LEN];
+		uint16_t prevLight_Mean[3];
 
     /*checks if data is diffrent the previous data*/
     uint8_t prevRaw[9];
 };
-
-float decodeLight(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
-float decodeTemperature(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
-float decodeHumidity(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
-float decodeCO2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]);
 
 #endif // DATASTORE_H

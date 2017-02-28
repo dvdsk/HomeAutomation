@@ -523,7 +523,7 @@ int Data::findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSea
       timelow = (uint16_t)block[blockIdx_B+1] << 8 |
                 (uint16_t)block[blockIdx_B];
       if(timelow >= TS_low){
-        int orgIdx_B = startSearch+i*blockSize_B+ blockIdx_B;  
+        orgIdx_B = startSearch+i*blockSize_B+ blockIdx_B;  
         //std::cout<<"fulltime here is: "<< +((uint32_t) timelow | timeHigh) <<"\n";   
         //std::cout<<"HERE1";
         if(timelow == TS_low){return orgIdx_B;}
@@ -599,7 +599,7 @@ int Data::findTimestamp_inFile_upperBound(uint16_t TS_low, unsigned int startSea
               (uint16_t)block[blockIdx_B];
     //std::cerr<<blockIdx_B<<" ";
     if(timelow <= TS_low){
-      int orgIdx_B = stopSearch-rest_B + blockIdx_B;
+      orgIdx_B = stopSearch-rest_B + blockIdx_B;
       //std::cout<<"fulltime here is: "<< +((uint32_t) timelow | timeHigh) <<"\n";
       //std::cout<<"HEREERO1\n";
       //std::cout<<"orgIdx_B"<<orgIdx_B<<"\n";

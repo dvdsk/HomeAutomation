@@ -1,21 +1,21 @@
-#ifndef COMPR.H 
-#define COMPR.H 
+#ifndef COMPR_H 
+#define COMPR_H 
 
 #include <cstdint> //uint16_t
 //#include <iostream>
 
 
 //TODO make constexpr as soon as supported by c++
-uint8_t mask(const int bit_offset, const int length_bits){
+inline uint8_t mask(const int bit_offset, const int length_bits){
 
 	uint8_t unused_bits;
-	uint8_t mask;
+	uint8_t maski;
 	//=total bits - (needed bits - (bits in first byte))
 	unused_bits = 8-(length_bits - (8-bit_offset));
-	mask = (~0);
-	mask = mask >> unused_bits;
+	maski = (~0);
+	maski = maski >> unused_bits;
 
-	return mask;
+	return maski;
 }
 
 //function that does the actual work

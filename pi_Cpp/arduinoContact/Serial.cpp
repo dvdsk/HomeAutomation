@@ -14,9 +14,9 @@ Serial::Serial(const std::string& port, const unsigned int& baud_rate)
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		resetArduino();	
 	}
-	while(readHeader() != config::STARTUP_DONE);
+	while(readHeader() != headers::STARTUP_DONE);
 	
-  while(readHeader() != config::SETUP_DONE){
+  while(readHeader() != headers::SETUP_DONE){
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
   std::cout << "\tSensors report startup completed\n";

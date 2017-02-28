@@ -13,9 +13,8 @@ int MainHeader::fileSize(int fd, const char* filePath){
   uint32_t data[BUFFERSIZE/sizeof(uint32_t)];
   int good_lines;
   int usefull;
-  int result; 
   
-  int filesize = getFilesize(filePath);
+  unsigned int filesize = getFilesize(filePath);
   std::cout<<"filesize: "<<filesize<<"\n";
   if(filesize < BUFFERSIZE){ return filesize;}
   filesize = filesize/2 *2; //make filesize even
@@ -23,7 +22,7 @@ int MainHeader::fileSize(int fd, const char* filePath){
   int startCheck = filesize-(1*(int)BUFFERSIZE);
   int stopCheck = filesize;
   
-  result = lseek(fd, startCheck, SEEK_SET);
+  lseek(fd, startCheck, SEEK_SET);
   int res = read(fd, &data, stopCheck-startCheck);
   std::cout<<"res: "<<res<<"\n";
   std::cout<<"start/stopcheck: "<<startCheck<<"/"<<stopCheck<<"\n";
@@ -188,7 +187,7 @@ uint32_t MainHeader::fullTSJustBefore(unsigned int byte){
 
 void MainHeader::getNextFullTS(unsigned int byte, unsigned int& nextFullTSLoc, 
                                uint32_t& nextFullTS){
-  for(int i = 0; i<= pos-2; i+=2){
+  for(unsigned int i = 0; i<= pos-2; i+=2){
     if(data[i+1] > byte){
       nextFullTS = data[i]; //return timestamp
       nextFullTSLoc = data[i+1];

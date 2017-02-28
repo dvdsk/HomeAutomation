@@ -1,5 +1,4 @@
 #include "SlowData.h"
-#include "..compression.h"
 
 //package format:
 //Temp: 9 bits        [storing -10.0 to 40.0 degrees, in values 0 to 500,
@@ -19,41 +18,40 @@ SlowData::SlowData(const std::string filePath, uint8_t* cache, const int cacheLe
 }
 
 bool SlowData::newData(const uint8_t raw[SLOWDATA_SIZE], uint16_t light_Mean[LIGHT_LEN]){
-  for(int i = 1; i<9; i++){
-    if(raw[i] == prevRaw[i]){ return false;}
+	for(int i = 1; i<9; i++){
+    if(raw[i] != prevRaw[i]){ return true;}
   }
-	for(int i = 0; i<LIGHT_LEN; i++){	
-		if(light_Mean[lght::BED] == prevLight_Mean[lght::BED]){ return false;}
-	}	
-
-	std::memcpy(prevLight_Mean, light_Mean, LIGHT_LEN);
-  std::memcpy(prevRaw, raw, SLOWDATA_SIZE);
-  return true;
+	if(light_Mean[lght::BED] != prevLight_Mean[lght::BED]){ return true;}
+	if(light_Mean[lght::KITCHEN] != prevLight_Mean[lght::KITCHEN]){ return true;}
+	if(light_Mean[lght::DOOR] != prevLight_Mean[lght::DOOR]){ return true;}
+	
+	return false;
 }
 
-void SlowData::preProcess_light(std::array<int, 5>* lightValues, const uint32_t Tstamp){  
+void SlowData::preProcess_light(std::array<int, 5> lightValues, const uint32_t Tstamp){  
 	//add all the light values for averaging later
-	light_Sum[lght::BED] 			+= *(lightValues+Idx_fast::LIGHT_BED); 
-	light_Sum[lght::KITCHEN] 	+= *(lightValues+Idx_fast::LIGHT_KITCHEN); 
-	light_Sum[lght::DOOR] 		+= *(lightValues+Idx_fast::LIGHT_DOOR); 
+	light_Sum[lght::BED] 			+= lightValues[Idx_fast::LIGHT_BED]; 
+	light_Sum[lght::KITCHEN] 	+= lightValues[Idx_fast::LIGHT_KITCHEN]; 
+	light_Sum[lght::DOOR] 		+= lightValues[Idx_fast::LIGHT_DOOR]; 
 	light_N ++;
 }
 
 void SlowData::process(const uint8_t raw[SLOWDATA_SIZE], const uint32_t Tstamp){  
 	uint8_t rawP[SLOWDATA_PACKAGESIZE-2]; //package without tstamp
-	uint16_t light_Mean[LIGHT_LEN];
+	uint16_t light_Mean[3];
 	for(int i = 0; i<LIGHT_LEN; i++){
   	light_Mean[i] = light_Sum[i]/light_N;
 	}
 	
 	if(newData(raw, light_Mean)){
 		//encode the light mean;
+		std::memcpy(prevLight_Mean, light_Mean, LIGHT_LEN);
+  	std::memcpy(prevRaw, raw, SLOWDATA_SIZE);				
 		memcpy(rawP, raw, SLOWDATA_SIZE);
 	
-		for(int i = 0; i<LIGHT_LEN; i++){
-			rawP[SLOWDATA_SIZE-LIGHT_LEN+i] 	= (uint8_t)(light_Mean[i] >> 8);	
-			rawP[SLOWDATA_SIZE-LIGHT_LEN+i+1] = (uint8_t)(light_Mean[i]);	
-		}		
+		encode(rawP, light_Mean[lght::BED], 		Idx_slow::LIGHT_BED, Idx_slow::LEN_LIGHT);
+		encode(rawP, light_Mean[lght::DOOR], 		Idx_slow::LIGHT_DOOR, Idx_slow::LEN_LIGHT);
+		encode(rawP, light_Mean[lght::KITCHEN], Idx_slow::LIGHT_KITCHEN, Idx_slow::LEN_LIGHT);
 
     Data::append(rawP, Tstamp); 
   }
@@ -123,7 +121,10 @@ int SlowData::fetchSlowData(uint32_t startT, uint32_t stopT,
       break;
     case BRIGHTNESS_BED:
       len = Data::fetchData(startT, stopT, x, y, dLight1);  
-      break;    
+      break; 
+		default:
+			std::cout<<"ERROR: INVALID CASE: "<<sensor<<"\n";
+			break;   
   }  
   return len;
 }

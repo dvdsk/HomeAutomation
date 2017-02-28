@@ -5,6 +5,7 @@
 #include "../dataStorage/SlowData.h"
 #include "../dataStorage/PirData.h"
 #include "../state/mainState.h"
+#include "../compression.h"
 
 #include "Serial.h"
 

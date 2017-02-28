@@ -70,23 +70,18 @@ void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 										std::shared_ptr<MainState> state){
 
 	//decode temp, humidity, co2 and store in state
-	state->tempValues[temp::BED] = decode(data, Idx_slow::TEMP_BED, Idx_slow::LEN_TEMP)
-	state->tempValues[temp::BATHROOM] = decode(data, Idx_slow::TEMP_BATHROOM, Idx_slow::LEN_TEMP)
-	state->tempValues[temp::DOOR] = decode(data, Idx_slow::TEMP_DOOR, Idx_slow::LEN_TEMP)
+	state->tempValues[temp::BED] = decode(data, Idx_slow::TEMP_BED, Idx_slow::LEN_TEMP);
+	state->tempValues[temp::BATHROOM] = decode(data, Idx_slow::TEMP_BATHROOM, Idx_slow::LEN_TEMP);
+	state->tempValues[temp::DOOR] = decode(data, Idx_slow::TEMP_DOOR, Idx_slow::LEN_TEMP);
 	state->tempValues_updated = true;
 
-	state->humidityValues[hum::BED] = decode(data, Idx_slow::HUM_BED, Idx_slow::LEN_TEMP)
-	state->humidityValues[hum::BATHROOM] = decode(data, Idx_slow::HUM_BATHROOM, Idx_slow::LEN_TEMP)
-	state->humidityValues[hum::DOOR] = decode(data, Idx_slow::HUM_DOOR, Idx_slow::LEN_TEMP)
+	state->humidityValues[hum::BED] = decode(data, Idx_slow::HUM_BED, Idx_slow::LEN_TEMP);
+	state->humidityValues[hum::BATHROOM] = decode(data, Idx_slow::HUM_BATHROOM, Idx_slow::LEN_TEMP);
+	state->humidityValues[hum::DOOR] = decode(data, Idx_slow::HUM_DOOR, Idx_slow::LEN_TEMP);
 	state->humidityValues_updated = true;
 
-	state->CO2ppm = decode(data, Idx_slow::CO2, Idx_slow::LEN_CO2)
+	state->CO2ppm = decode(data, Idx_slow::CO2, Idx_slow::LEN_CO2);
 	
 	//store
 	slowData->process(data,Tstamp);
-}
-
-inline float decodeTemp(uint8_t data[], int packageOffset){
-	uint16_t temp_int = decode(data, Idx_slow::TEMP_BED, Idx_slow::LEN_TEMP)
-	return (float(temp_int))/10 +10;
 }
