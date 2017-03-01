@@ -9,12 +9,17 @@ Serial::Serial(const std::string& port, const unsigned int& baud_rate)
   _serial.set_option(boost::asio::serial_port_base::baud_rate(baud_rate));
 
   //wait till the arduino sends its done with initialising
+	uint8_t header;	
 	do{
-		std::cout<<"\tResetting Arduino\n";
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		resetArduino();	
+		std::cout<<"\tResetting Arduino\n";
+		for(int i = 0; i< 200; i++){
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+			header = readHeader();			
+			if(header == headers::STARTUP_DONE){break; }
+		}
 	}
-	while(readHeader() != headers::STARTUP_DONE);
+	while(header != headers::STARTUP_DONE);
 	
   while(readHeader() != headers::SETUP_DONE){
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));

@@ -1,6 +1,10 @@
 #ifndef ENCODINGSCHEME
 #define ENCODINGSCHEME
 
+constexpr int roundUp(int a, int b){
+	return (a+b-1)/b;
+}
+
 namespace Enc_slow {
 	//location where data starts in bits and lenght of data info
 	constexpr int updated = 0;				 
@@ -25,16 +29,16 @@ namespace Enc_fast {
 	//location where data starts in bits and lenght of data info
 
 	//need to stay at 0 and 1 for pirdata process to work
+	constexpr int LEN_PIRS = 32; //pirs + pirs_updated
 	constexpr int PIRS = 0;
 	constexpr int PIRS_UPDATED = 16;
-	constexpr int LEN_PIRS = 32;
 
-	constexpr int LIGHT_BED = 2;
-	constexpr int LIGHT_DOOR = 2+10;
-	constexpr int LIGHT_KITCHEN = 2+10+10;
 	constexpr int LEN_LIGHT = 10;
+	constexpr int LIGHT_BED = LEN_PIRS;
+	constexpr int LIGHT_DOOR = LIGHT_BED+LEN_LIGHT;
+	constexpr int LIGHT_KITCHEN = LIGHT_DOOR+LEN_LIGHT;
 
-	constexpr int LEN_ENCODED = 10; //in bytes
+	constexpr int LEN_ENCODED = roundUp(LIGHT_KITCHEN+LEN_LIGHT,8); //in bytes
 }
 
 /*Encoding Scheme:

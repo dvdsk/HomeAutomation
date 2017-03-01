@@ -1,9 +1,7 @@
 #ifndef COMPR_H 
 #define COMPR_H 
 
-#ifndef ARDUINO
-	#include <cstdint> //uint16_t
-#endif
+//#include <cstdint> //uint16_t
 //#include <iostream>
 
 

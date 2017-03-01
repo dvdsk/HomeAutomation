@@ -31,7 +31,8 @@ inline bool slowDataComplete(){	return (slowData[0] == SLOWDATA_COMPLETE);}
 void sendFastData(){
   //used to send the data to the raspberry pi 
   //when the sensorArray has been filled
-	uint8_t toSend[8];
+	uint8_t toSend[Enc_fast::LEN_ENCODED];
+	memset(toSend, 0, Enc_fast::LEN_ENCODED);
 
 	#ifdef DEBUG
   Serial.print("fastData: ");
@@ -44,6 +45,13 @@ void sendFastData(){
 	#ifndef DEBUG
   Serial.write(headers::FAST_UPDATE);
 
+	//uint8_t encoded[8];
+	//memset(encoded, 0, 8);
+	//uint16_t test1 = 211;
+	//uint16_t test2 = 218;
+	//encode(encoded, test1, 0, 10);
+	//encode(toSend, 20, 10, 10);
+
 	//encode data:
 	toSend[0] = uint8_t(fastData[Idx::PIRS]);			 //pirs
 	toSend[1] = uint8_t(fastData[Idx::PIRS] >> 8); //pirs
@@ -53,10 +61,15 @@ void sendFastData(){
 
 	//encode non pir data
 	encode(toSend, fastData[Idx::LIGHT_BED], 		 Enc_fast::LIGHT_BED, Enc_fast::LEN_LIGHT);
-	encode(toSend, fastData[Idx::LIGHT_DOOR], 	 Enc_fast::LIGHT_BED, Enc_fast::LEN_LIGHT);
-	encode(toSend, fastData[Idx::LIGHT_KITCHEN], Enc_fast::LIGHT_BED, Enc_fast::LEN_LIGHT);
+	encode(toSend, fastData[Idx::LIGHT_DOOR], 	 Enc_fast::LIGHT_DOOR, Enc_fast::LEN_LIGHT);
+	encode(toSend, fastData[Idx::LIGHT_KITCHEN], Enc_fast::LIGHT_KITCHEN, Enc_fast::LEN_LIGHT);
 
-	Serial.write(toSend, FASTDATA_SIZE);
+	//Serial.print("\ndecoded: ");
+	//Serial.println(+decode(toSend, Enc_fast::LIGHT_BED, 10));
+	//Serial.println(fastData[Idx::LIGHT_BED]);
+	//Serial.println(Enc_fast::LIGHT_BED);
+
+	Serial.write(toSend, Enc_fast::LEN_ENCODED);
 	#endif
 }
 

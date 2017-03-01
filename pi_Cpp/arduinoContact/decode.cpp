@@ -21,13 +21,13 @@ void checkSensorData(std::shared_ptr<PirData> pirData,
       case headers::FAST_UPDATE:
 				std::cout<<"update fast\n";
 				Tstamp = unix_timestamp();
-				arduino.readMessage(data, FASTDATA_SIZE);			
+				arduino.readMessage(data, Enc_fast::LEN_ENCODED);			
 				decodeFastData(Tstamp, data, pirData, slowData, state);           
         break;             
       case headers::SLOW_UPDATE:
 				std::cout<<"update slow\n";
 				Tstamp = unix_timestamp();
-				arduino.readMessage(data, SLOWDATA_SIZE);				
+				arduino.readMessage(data, Enc_slow::LEN_ENCODED);				
 				decodeSlowData(Tstamp, data, pirData, slowData, state);
 				break;        
       default:
@@ -57,6 +57,10 @@ void decodeFastData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 	state->lightValues[lght::KITCHEN] = decode(data, Enc_fast::LIGHT_KITCHEN, Enc_fast::LEN_LIGHT);
 	state->lightValues[lght::DOOR] = 		decode(data, Enc_fast::LIGHT_DOOR, Enc_fast::LEN_LIGHT);
 	state->lightValues_updated = true;
+
+	std::cout<<"\t"<<state->lightValues[lght::BED]<<"\n";
+	std::cout<<"\t"<<state->lightValues[lght::KITCHEN]<<"\n";
+	std::cout<<"\t"<<state->lightValues[lght::DOOR]<<"\n";
 
 	//store
 	pirData->process(data, Tstamp);
