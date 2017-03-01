@@ -90,23 +90,11 @@ namespace plnt {//plants
 	constexpr int NUMB_OF_PLANT_SENSORS = 3;
 }
 
-//dont forget to update in the arduino config file
-namespace Idx_slow {
-	//location where data starts in bits and lenght of data info
-	constexpr int updated = 0;				 
 
-	constexpr int TEMP_BED = 1; 
-	constexpr int TEMP_BATHROOM = 3; 
-	constexpr int TEMP_DOOR = 5; 
-	constexpr int LEN_TEMP = 4;
-
-	constexpr int HUM_BED = 2;		 
-	constexpr int HUM_BATHROOM = 2;		
-	constexpr int HUM_DOOR = 2;		
-	constexpr int LEN_HUM = 2;	
-
-	constexpr int CO2 = 3;						 
-	constexpr int LEN_CO2 = 3;
+// THIS IS THE ENCODING USED BY DATASTORAGE TO STORE DATA IN MEMORY, IT 
+// DIFFERS SUBTILY FROM THE ENCODING USED BY THE SENSORDATA
+namespace Enc_slow {
+	//location where data starts in bits and lenght of data info			 
 
 	constexpr int LIGHT_BED = 2;
 	constexpr int LIGHT_DOOR = 2+10;
@@ -114,19 +102,6 @@ namespace Idx_slow {
 	constexpr int LEN_LIGHT = 10;
 }
 
-//dont forget to update in the arduino config file
-namespace Idx_fast {
-	//location where data starts in bits and lenght of data info
-
-	constexpr int LIGHT_BED = 2;
-	constexpr int LIGHT_DOOR = 2+10;
-	constexpr int LIGHT_KITCHEN = 2+10+10;
-	constexpr int LEN_LIGHT = 10;
-
-	//need to stay at 0 and 1 for pirdata process to work
-	constexpr int pirs = 0;
-	constexpr int pirs_updated = 1;
-}
 
 enum plotables{
   MOVEMENTSENSOR0,

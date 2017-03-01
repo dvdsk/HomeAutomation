@@ -6,6 +6,7 @@
 #include <array>
 
 #include "../config.h"
+#include "../encodingScheme.h"
 #include "../compression.h"
 #include "MainData.h"
 

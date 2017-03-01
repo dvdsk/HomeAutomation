@@ -29,10 +29,12 @@ MainData.o: dataStorage/MainData.cpp dataStorage/MainData.h dataStorage/Cache.h 
 
 PirData.o: dataStorage/PirData.cpp dataStorage/PirData.h dataStorage/MainData.h
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c dataStorage/PirData.cpp
-SlowData.o: dataStorage/SlowData.cpp dataStorage/SlowData.h dataStorage/MainData.h compression.h
+SlowData.o: dataStorage/SlowData.cpp dataStorage/SlowData.h dataStorage/MainData.h \
+						compression.h compression.h encodingScheme.h
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c dataStorage/SlowData.cpp
 
-decode.o: arduinoContact/decode.cpp arduinoContact/decode.h arduinoContact/Serial.h compression.h
+decode.o: arduinoContact/decode.cpp arduinoContact/decode.h arduinoContact/Serial.h \
+					compression.h encodingScheme.h
 	$(CXX) $(CXXFLAGS) -c arduinoContact/decode.cpp		
 Serial.o: arduinoContact/Serial.cpp arduinoContact/Serial.h
 	$(CXX) $(CXXFLAGS) -c arduinoContact/Serial.cpp	

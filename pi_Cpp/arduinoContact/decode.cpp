@@ -53,9 +53,9 @@ void decodeFastData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 	}
 
 	//process light values
-	state->lightValues[lght::BED] = decode(data, Idx_fast::LIGHT_BED, Idx_fast::LEN_LIGHT);
-	state->lightValues[lght::KITCHEN] = decode(data, Idx_fast::LIGHT_KITCHEN, Idx_fast::LEN_LIGHT);
-	state->lightValues[lght::DOOR] = decode(data, Idx_fast::LIGHT_DOOR, Idx_fast::LEN_LIGHT);
+	state->lightValues[lght::BED] = 		decode(data, Enc_fast::LIGHT_BED, Enc_fast::LEN_LIGHT);
+	state->lightValues[lght::KITCHEN] = decode(data, Enc_fast::LIGHT_KITCHEN, Enc_fast::LEN_LIGHT);
+	state->lightValues[lght::DOOR] = 		decode(data, Enc_fast::LIGHT_DOOR, Enc_fast::LEN_LIGHT);
 	state->lightValues_updated = true;
 
 	//store
@@ -70,17 +70,17 @@ void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 										std::shared_ptr<MainState> state){
 
 	//decode temp, humidity, co2 and store in state
-	state->tempValues[temp::BED] = decode(data, Idx_slow::TEMP_BED, Idx_slow::LEN_TEMP);
-	state->tempValues[temp::BATHROOM] = decode(data, Idx_slow::TEMP_BATHROOM, Idx_slow::LEN_TEMP);
-	state->tempValues[temp::DOOR] = decode(data, Idx_slow::TEMP_DOOR, Idx_slow::LEN_TEMP);
+	state->tempValues[temp::BED] = 			decode(data, Enc_slow::TEMP_BED, Enc_slow::LEN_TEMP);
+	state->tempValues[temp::BATHROOM] = decode(data, Enc_slow::TEMP_BATHROOM, Enc_slow::LEN_TEMP);
+	state->tempValues[temp::DOOR] = 		decode(data, Enc_slow::TEMP_DOOR, Enc_slow::LEN_TEMP);
 	state->tempValues_updated = true;
 
-	state->humidityValues[hum::BED] = decode(data, Idx_slow::HUM_BED, Idx_slow::LEN_TEMP);
-	state->humidityValues[hum::BATHROOM] = decode(data, Idx_slow::HUM_BATHROOM, Idx_slow::LEN_TEMP);
-	state->humidityValues[hum::DOOR] = decode(data, Idx_slow::HUM_DOOR, Idx_slow::LEN_TEMP);
+	state->humidityValues[hum::BED] = decode(data, Enc_slow::HUM_BED, Enc_slow::LEN_TEMP);
+	state->humidityValues[hum::BATHROOM] = decode(data, Enc_slow::HUM_BATHROOM, Enc_slow::LEN_TEMP);
+	state->humidityValues[hum::DOOR] = decode(data, Enc_slow::HUM_DOOR, Enc_slow::LEN_TEMP);
 	state->humidityValues_updated = true;
 
-	state->CO2ppm = decode(data, Idx_slow::CO2, Idx_slow::LEN_CO2);
+	state->CO2ppm = decode(data, Enc_slow::CO2, Enc_slow::LEN_CO2);
 	
 	//store
 	slowData->process(data,Tstamp);

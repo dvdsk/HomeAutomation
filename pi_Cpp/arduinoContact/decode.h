@@ -2,6 +2,7 @@
 #define DECODE_H
 
 #include "../config.h"
+#include "../encodingScheme.h"
 #include "../dataStorage/SlowData.h"
 #include "../dataStorage/PirData.h"
 #include "../state/mainState.h"

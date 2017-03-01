@@ -1,4 +1,7 @@
 #include "config.h"
+#include "encodingScheme.h"
+#include "compression.h"
+
 
 char commandBuffer[3];
 uint8_t commandBuffer_Len = 0;
@@ -42,23 +45,18 @@ void sendFastData(){
   Serial.write(headers::FAST_UPDATE);
 
 	//encode data:
-	toSend[0] = uint8_t(fastData[0]);			 //pirs
-	toSend[1] = uint8_t(fastData[0] >> 8); //pirs
+	toSend[0] = uint8_t(fastData[Idx::PIRS]);			 //pirs
+	toSend[1] = uint8_t(fastData[Idx::PIRS] >> 8); //pirs
 
-	toSend[2] = uint8_t(fastData[1]);			 //pirs updated
-	toSend[3] = uint8_t(fastData[1] >> 8); //pirs updated
+	toSend[2] = uint8_t(fastData[Idx::PIRS_UPDATED]);			 //pirs updated
+	toSend[3] = uint8_t(fastData[Idx::PIRS_UPDATED] >> 8); //pirs updated
 
-	toSend[4] = uint8_t(fastData[2]); //8 bytes of light sensor 1
-	toSend[5] = uint8_t(fastData[2]) & 0b00000011; //remaining 2 bytes of light sens 1.
-	
-	toSend[5] |= uint8_t(fastData[3] << 2); //6 lower bytes of sensor 2
-	toSend[6] = uint8_t(fastData[3] >> 6) &0b00001111; //remaining 4 bytes of sensor 2
+	//encode non pir data
+	encode(toSend, fastData[Idx::LIGHT_BED], 		 Enc_fast::LIGHT_BED, Enc_fast::LEN_LIGHT);
+	encode(toSend, fastData[Idx::LIGHT_DOOR], 	 Enc_fast::LIGHT_BED, Enc_fast::LEN_LIGHT);
+	encode(toSend, fastData[Idx::LIGHT_KITCHEN], Enc_fast::LIGHT_BED, Enc_fast::LEN_LIGHT);
 
-	toSend[6] |= uint8_t(fastData[4] << 4); //4 lower bytes of sensor 3
-	toSend[7] = uint8_t(fastData[4] >> 6); //remaining 6 bytes
-
-	Serial.write(toSend, 7)
-	}	
+	Serial.write(toSend, FASTDATA_SIZE);
 	#endif
 }
 
@@ -142,7 +140,9 @@ void loop(){
 	//read local fast sensors  
 	///////local.updateFast_Local();///////////
 	fastData[Idx::PIRS] = 0b01010000;
-	fastData[Idx::LIGHT_BED] = 100;
+	fastData[Idx::LIGHT_BED] = 101;
+	fastData[Idx::LIGHT_DOOR] = 102;
+	fastData[Idx::LIGHT_KITCHEN] = 103;
 
   //read remote sensors
   //radio.pollNodes(); //TODO does nothing at the moment
