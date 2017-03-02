@@ -9,17 +9,8 @@ typedef union
   uint8_t bytes[2];
 } INTUNION_t;
 
-namespace fDat {
-	constexpr int PIRS = 0;
-	constexpr int LIGHT_BED = 1;
-}
-
-namespace sdat {
-	constexpr int CO2 = 0;
-}
-
 namespace config {
-	constexpr int CALIBRATION_TIME = 1; //milliseconds
+	constexpr int CALIBRATION_TIME = 1000; //milliseconds
 	constexpr int READSPEED = 1; //millisec
 	constexpr int RESETSPEED = 500;
 }
@@ -38,43 +29,57 @@ namespace pin {
 }
 
 namespace headers {
-	constexpr unsigned char SETUP_DONE = 200;
-	constexpr unsigned char FAST_UPDATE = 255;
-	constexpr unsigned char SLOW_UPDATE = 26;
+	constexpr uint8_t SETUP_DONE = 200;
+	constexpr uint8_t STARTUP_DONE = 201;
+	constexpr uint8_t FAST_UPDATE = 255;
+	constexpr uint8_t SLOW_UPDATE = 26;
 }
 
 namespace radioRQ {
-	constexpr unsigned char NODE1_FAST_UPDATE = 1;
-	constexpr unsigned char NODE2_FAST_UPDATE = 2;
+	constexpr uint8_t NODE1_FAST_UPDATE = 1;
+	constexpr uint8_t NODE2_FAST_UPDATE = 2;
 
-	constexpr unsigned char NODE1_SLOW_UPDATE = 3;
-	constexpr unsigned char NODE2_SLOW_UPDATE = 4;
+	constexpr uint8_t NODE1_SLOW_UPDATE = 3;
+	constexpr uint8_t NODE2_SLOW_UPDATE = 4;
 
-	constexpr unsigned char NODE1_RESEND_SLOW = 5;
-	constexpr unsigned char NODE2_RESEND_SLOW = 6;
+	constexpr uint8_t NODE1_RESEND_SLOW = 5;
+	constexpr uint8_t NODE2_RESEND_SLOW = 6;
 }
 
-//dont forget to update in the pi config file
+//these are indexes in a uint16_t array
 namespace Idx {
-	constexpr int updated = 0;	
-	constexpr int co2 = 3;
-	constexpr int temperature_bed = 1;
-	constexpr int humidity_bed = 2;
+	//fast package
+	constexpr int UPDATED = 0;								//1 byte, not send
+	constexpr int CO2 = 1;										//2 bytes
 
-	constexpr int pirs = 0;
-	constexpr int pirs_updated = 1;
-	constexpr int light_bed = 2;
+	constexpr int TEMPERATURE_BED = 2;				//2 bytes
+	constexpr int HUMIDITY_BED = 3;						//2 bytes
+
+	constexpr int TEMPERATURE_DOOR = 4;				//2 bytes
+	constexpr int HUMIDITY_DOOR = 5;					//2 bytes
+
+	constexpr int TEMPERATURE_BATHROOM = 6;		//2 bytes
+	constexpr int HUMIDITY_BATHROOM = 7;			//2 bytes
+
+	//slow package
+	constexpr int PIRS = 0;										//1 byte
+	constexpr int PIRS_UPDATED = 1;						//1 byte
+	
+	constexpr int LIGHT_BED = 2;							//2 bytes
+	constexpr int LIGHT_DOOR = 3;							//2 bytes
+	constexpr int LIGHT_KITCHEN = 4;					//2 bytes
 }
 
 //needed constants
 constexpr uint8_t RADIO_ADDRESSES[][4] = { "1No", "2No", "3No" }; // Radio pipe addresses 3 bytes 
 constexpr byte REQUESTCO2[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; //TODO change to uint8_t if possible
 
-constexpr uint8_t FASTDATA_SIZE = 4;
-constexpr uint8_t SLOWDATA_SIZE = 9;
-constexpr uint16_t SLOWDATA_COMPLETE = 0 | (1 << Idx::temperature_bed) 
-																				 | (1 << Idx::humidity_bed)
-																				 | (1 << Idx::co2);
+
+constexpr uint8_t FASTDATA_SIZE = 5;
+constexpr uint8_t SLOWDATA_SIZE = 8;
+constexpr uint16_t SLOWDATA_COMPLETE = 0 | (1 << Idx::TEMPERATURE_BED) 
+																				 | (1 << Idx::HUMIDITY_BED)
+																				 | (1 << Idx::CO2);
 
 
 #endif

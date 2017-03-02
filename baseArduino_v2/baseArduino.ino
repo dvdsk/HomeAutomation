@@ -46,12 +46,13 @@ void updateSlow_Local(){
   co2.readCO2();
 }
 
-inline bool slowDataComplete(){	return (slowData[0] == SLOWDATA_COMPLETE);}
+inline bool slowDataComplete(){	return (slowData[Idx::UPDATED] == SLOWDATA_COMPLETE);}
 
 void sendFastData(){
   //used to send the data to the raspberry pi 
   //when the sensorArray has been filled
-  
+
+
 	#ifdef DEBUG
   Serial.print("fastData: ");
 	for (unsigned int i = 0; i < FASTDATA_SIZE; i++){
@@ -61,14 +62,24 @@ void sendFastData(){
 	Serial.print("\n");	
 	#endif
 	#ifndef DEBUG
-  INTUNION_t toSend;
-  Serial.write(headers::FAST_UPDATE);
-  for (unsigned int i = 0; i < FASTDATA_SIZE; i++){
-  //send 16 bit integers over serial in binairy
-    toSend.number = fastData[i];    
-    Serial.write(toSend.bytes[0]);
-    Serial.write(toSend.bytes[1]);
-	}	
+	uint8_t toSend[Enc_fast::LEN_ENCODED];
+	memset(toSend, 0, Enc_fast::LEN_ENCODED);
+
+	Serial.write(headers::FAST_UPDATE);
+
+	//encode data:
+	toSend[0] = uint8_t(fastData[Idx::PIRS]);			 //pirs
+	toSend[1] = uint8_t(fastData[Idx::PIRS] >> 8); //pirs
+
+	toSend[2] = uint8_t(fastData[Idx::PIRS_UPDATED]);			 //pirs updated
+	toSend[3] = uint8_t(fastData[Idx::PIRS_UPDATED] >> 8); //pirs updated
+
+	//encode non pir data
+	encode(toSend, fastData[Idx::LIGHT_BED], 		 Enc_fast::LIGHT_BED, Enc_fast::LEN_LIGHT);
+	encode(toSend, fastData[Idx::LIGHT_DOOR], 	 Enc_fast::LIGHT_DOOR, Enc_fast::LEN_LIGHT);
+	encode(toSend, fastData[Idx::LIGHT_KITCHEN], Enc_fast::LIGHT_KITCHEN, Enc_fast::LEN_LIGHT);
+
+	Serial.write(toSend, Enc_fast::LEN_ENCODED);
 	#endif
 }
 
@@ -78,26 +89,45 @@ void sendSlowData(){
   
 	#ifdef DEBUG
   Serial.print("slowData: ");
-	for (unsigned int i = 0; i < SLOWDATA_SIZE; i++){
+	for (unsigned int i = 1; i < SLOWDATA_SIZE; i++){
     Serial.print(slowData[i]);
 		Serial.print("  ");	
 	}
 	Serial.print("\n");	
 	#endif
 	#ifndef DEBUG
-  INTUNION_t toSend;
-  Serial.write(headers::FAST_UPDATE);
-  for (unsigned int i = 0; i < SLOWDATA_SIZE; i++){
-  //send 16 bit integers over serial in binairy
-    toSend.number = slowData[i];    
-    Serial.write(toSend.bytes[0]);
-    Serial.write(toSend.bytes[1]);
-	}	
+	uint8_t toSend[Enc_slow::LEN_ENCODED];
+	memset(toSend, 0, Enc_slow::LEN_ENCODED);
+	slowData[Idx::UPDATED] = 0;  
+
+  Serial.write(headers::SLOW_UPDATE);
+	
+	encode(toSend, slowData[Idx::TEMPERATURE_BED], 
+		Enc_slow::TEMP_BED, Enc_slow::LEN_TEMP);
+	encode(toSend, slowData[Idx::TEMPERATURE_DOOR], 
+		Enc_slow::TEMP_DOOR, Enc_slow::LEN_TEMP);
+	encode(toSend, slowData[Idx::TEMPERATURE_BATHROOM], 
+		Enc_slow::TEMP_BATHROOM, Enc_slow::LEN_TEMP);
+
+	encode(toSend, slowData[Idx::HUMIDITY_BED],
+		Enc_slow::HUM_BED, Enc_slow::LEN_HUM);
+	encode(toSend, slowData[Idx::HUMIDITY_DOOR], 	 			
+		Enc_slow::HUM_DOOR, Enc_slow::LEN_HUM);	
+	encode(toSend, slowData[Idx::HUMIDITY_BATHROOM],		
+		Enc_slow::HUM_BATHROOM, Enc_slow::LEN_HUM);
+
+	encode(toSend, slowData[Idx::CO2],
+		Enc_slow::CO2, Enc_slow::LEN_CO2);
+
+
+	Serial.write(toSend, Enc_slow::LEN_ENCODED);
 	#endif
 }
 
+
 void setup(){ 
   Serial.begin(9600); //Open serial connection to report values to host
+  Serial.write(headers::STARTUP_DONE);
 	#ifdef DEBUG
 	Serial.print("starting setup\n"); 	
 	printf_begin();
@@ -109,9 +139,7 @@ void setup(){
 	thSen.setup(radioPtr, localPtr, sendFastDataPtr, slowData);
 	co2.setup(slowData);
 
-	slowData[0] = 0;
-		
-	Serial.println(SLOWDATA_COMPLETE);
+	slowData[Idx::UPDATED] = 0;
 
   //give the pir sensor some time to calibrate
   delay(config::CALIBRATION_TIME);
@@ -169,9 +197,11 @@ void loop(){
   
   //check if all data has been collected
 	if(slowDataComplete()){
+		#ifdef DEBUG
 		Serial.print("sending slowdata"); 
+		#endif		
 		sendSlowData();
-		slowData[0] = 0;//set slowdata to incomplete again.	
+		slowData[Idx::UPDATED] = 0;//set slowdata to incomplete again.	
 	}
 	
 	sendFastData();
