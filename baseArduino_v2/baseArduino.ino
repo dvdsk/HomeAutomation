@@ -6,8 +6,12 @@
 #include "co2.h"
 #include "localSensors.h"
 #include "remoteNodes.h"
-#include "config.h"
 #include "humiditySensor.h"
+
+#include "config.h"
+#include "compression.h"
+#include "encodingScheme.h"
+
 
 #ifdef DEBUG
 	#include "printf.h"

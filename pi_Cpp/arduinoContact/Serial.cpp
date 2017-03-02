@@ -14,15 +14,16 @@ Serial::Serial(const std::string& port, const unsigned int& baud_rate)
 		resetArduino();	
 		std::cout<<"\tResetting Arduino\n";
 		for(int i = 0; i< 200; i++){
-			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			header = readHeader();			
 			if(header == headers::STARTUP_DONE){break; }
 		}
 	}
 	while(header != headers::STARTUP_DONE);
-	
+	std::cout<<"\tArduino restarted, waiting for setup to complete\n";	
+
   while(readHeader() != headers::SETUP_DONE){
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
   std::cout << "\tSensors report startup completed\n";
 }

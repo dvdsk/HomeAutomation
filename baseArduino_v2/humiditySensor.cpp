@@ -51,7 +51,7 @@ void TempHumid::waitForResultSHT()
 		Serial.println("ACK TIMEOUT");	
 		#endif
 		//if we time out unset the slowdata aquired bits.
-		*(slowData+Idx::updated) = 0;
+		*(slowData+Idx::UPDATED) = 0;
   }
 }
 
@@ -234,13 +234,13 @@ void TempHumid::getTempHumid(){
 	float humid;	
 
 	//set slowdata bits to fetched, if something times out during readTemp we unset it.
-	*(slowData+Idx::updated) |= (1 << Idx::temperature_bed) | (1<<Idx::humidity_bed);
+	*(slowData+Idx::UPDATED) |= (1 << Idx::TEMPERATURE_BED) | (1<<Idx::HUMIDITY_BED);
 
 	tempC = readTemperatureC();
 	humid = readHumidity(tempC);
 
-	*(slowData+Idx::temperature_bed) = (uint16_t)(tempC*10) +100;
-	*(slowData+Idx::humidity_bed) = (uint16_t)(humid*10);
+	*(slowData+Idx::TEMPERATURE_BED) = (uint16_t)(tempC*10) +100;
+	*(slowData+Idx::HUMIDITY_BED) = (uint16_t)(humid*10);
 
 
 }

@@ -72,9 +72,9 @@ void decodeFastData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 	state->lightValues[lght::DOOR] = 		decode(data, Enc_fast::LIGHT_DOOR, Enc_fast::LEN_LIGHT);
 	state->lightValues_updated = true;
 
-	std::cout<<"\t"<<state->lightValues[lght::BED]<<"\n";
-	std::cout<<"\t"<<state->lightValues[lght::KITCHEN]<<"\n";
-	std::cout<<"\t"<<state->lightValues[lght::DOOR]<<"\n";
+//	std::cout<<"\t"<<state->lightValues[lght::BED]<<"\n";
+//	std::cout<<"\t"<<state->lightValues[lght::KITCHEN]<<"\n";
+//	std::cout<<"\t"<<state->lightValues[lght::DOOR]<<"\n";
 
 	//store
 	pirData->process(data, Tstamp);

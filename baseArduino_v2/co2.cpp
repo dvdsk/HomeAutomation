@@ -49,8 +49,8 @@ void Co2::readCO2(){
       responseHigh = (uint8_t) response[2];
       responseLow = (uint8_t) response[3];			
 			ppm = ((uint16_t)responseHigh)*256+(uint16_t)responseLow;
-			*(slowData+Idx::co2) = ppm;
-			*(slowData+Idx::updated) |= 1 << Idx::co2; //indicate co2 has been updated
+			*(slowData+Idx::CO2) = ppm;
+			*(slowData+Idx::UPDATED) |= 1 << Idx::CO2; //indicate co2 has been updated
 			return;
     }
   }
