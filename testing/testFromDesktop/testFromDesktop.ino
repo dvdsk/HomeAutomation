@@ -26,13 +26,12 @@ void updateSlow_Local(){
 	slowData[Idx::UPDATED] |= 1 << Idx::CO2; //indicate co2 has been updated
 }
 
-inline bool slowDataComplete(){	return (slowData[0] == SLOWDATA_COMPLETE);}
+inline bool slowDataComplete(){	return (slowData[Idx::UPDATED] == SLOWDATA_COMPLETE);}
 
 void sendFastData(){
   //used to send the data to the raspberry pi 
   //when the sensorArray has been filled
-	uint8_t toSend[Enc_fast::LEN_ENCODED];
-	memset(toSend, 0, Enc_fast::LEN_ENCODED);
+
 
 	#ifdef DEBUG
   Serial.print("fastData: ");
@@ -43,7 +42,10 @@ void sendFastData(){
 	Serial.print("\n");	
 	#endif
 	#ifndef DEBUG
-  Serial.write(headers::FAST_UPDATE);
+	uint8_t toSend[Enc_fast::LEN_ENCODED];
+	memset(toSend, 0, Enc_fast::LEN_ENCODED);
+
+	Serial.write(headers::FAST_UPDATE);
 
 	//uint8_t encoded[8];
 	//memset(encoded, 0, 8);
@@ -86,15 +88,31 @@ void sendSlowData(){
 	Serial.print("\n");	
 	#endif
 	#ifndef DEBUG
-  INTUNION_t toSend;
-  Serial.write(headers::FAST_UPDATE);
-	//i=1 as we dont want to send the completeness info
-  for (unsigned int i = 1; i < SLOWDATA_SIZE; i++){
-  //send 16 bit integers over serial in binairy
-    toSend.number = slowData[i];    
-    Serial.write(toSend.bytes[0]);
-    Serial.write(toSend.bytes[1]);
-	}	
+	uint8_t toSend[Enc_slow::LEN_ENCODED];
+	memset(toSend, 0, Enc_slow::LEN_ENCODED);
+	slowData[Idx::UPDATED] = 0;  
+
+  Serial.write(headers::SLOW_UPDATE);
+	
+	encode(toSend, slowData[Idx::TEMPERATURE_BED], 
+		Enc_slow::TEMP_BED, Enc_slow::LEN_TEMP);
+	encode(toSend, slowData[Idx::TEMPERATURE_DOOR], 
+		Enc_slow::TEMP_DOOR, Enc_slow::LEN_TEMP);
+	encode(toSend, slowData[Idx::TEMPERATURE_BATHROOM], 
+		Enc_slow::TEMP_BATHROOM, Enc_slow::LEN_TEMP);
+
+	encode(toSend, slowData[Idx::HUMIDITY_BED],
+		Enc_slow::HUM_BED, Enc_slow::LEN_HUM);
+	encode(toSend, slowData[Idx::HUMIDITY_DOOR], 	 			
+		Enc_slow::HUM_DOOR, Enc_slow::LEN_HUM);	
+	encode(toSend, slowData[Idx::HUMIDITY_BATHROOM],		
+		Enc_slow::HUM_BATHROOM, Enc_slow::LEN_HUM);
+
+	encode(toSend, slowData[Idx::CO2],
+		Enc_slow::CO2, Enc_slow::LEN_CO2);
+
+
+	Serial.write(toSend, Enc_slow::LEN_ENCODED);
 	#endif
 }
 
@@ -163,7 +181,7 @@ void loop(){
   
   //check if all data has been collected
 	if(slowDataComplete()){
-		Serial.print("sending slowdata"); 
+		//Serial.print("sending slowdata"); 
 		sendSlowData();
 		slowData[0] = 0;//set slowdata to incomplete again.	
 	}

@@ -17,6 +17,7 @@ class Serial
     Serial(const std::string& port, const unsigned int& baud_rate);
     unsigned char readHeader();
     void readMessage(unsigned char message[], unsigned char messageLen);
+		void writeString(const char* s);
 
   private:
   	void resetArduino();

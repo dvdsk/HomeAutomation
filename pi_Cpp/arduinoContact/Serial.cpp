@@ -43,6 +43,11 @@ void Serial::writeString(const std::string& s) {
     boost::asio::write(_serial,boost::asio::buffer(s.c_str(),s.size()));
 }
 
+//Send message to Arduino
+void Serial::writeString(const char* s) {
+    boost::asio::write(_serial,boost::asio::buffer(s,1));
+}
+
 //Read from Arduino
 std::string Serial::readLine() {
 

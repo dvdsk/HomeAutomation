@@ -6,23 +6,21 @@ constexpr int roundUp(int a, int b){
 }
 
 namespace Enc_slow {
-	//location where data starts in bits and lenght of data info
-	constexpr int updated = 0;				 
+	//location where data starts in bits and lenght of data info		 
+	constexpr int LEN_TEMP = 9;
+	constexpr int TEMP_BED = 0; 
+	constexpr int TEMP_BATHROOM = TEMP_BED+LEN_TEMP; 
+	constexpr int TEMP_DOOR = TEMP_BATHROOM+LEN_TEMP; 
 
-	constexpr int TEMP_BED = 1; 
-	constexpr int TEMP_BATHROOM = 3; 
-	constexpr int TEMP_DOOR = 5; 
-	constexpr int LEN_TEMP = 4;
+	constexpr int LEN_HUM = 10;	
+	constexpr int HUM_BED = TEMP_DOOR+LEN_TEMP;		 
+	constexpr int HUM_BATHROOM = HUM_BED+LEN_HUM;		
+	constexpr int HUM_DOOR = HUM_BATHROOM+LEN_HUM;		
 
-	constexpr int HUM_BED = 2;		 
-	constexpr int HUM_BATHROOM = 2;		
-	constexpr int HUM_DOOR = 2;		
-	constexpr int LEN_HUM = 2;	
-
-	constexpr int CO2 = 3;						 
-	constexpr int LEN_CO2 = 3;
+	constexpr int LEN_CO2 = 13;
+	constexpr int CO2 = HUM_DOOR+LEN_HUM;						 
 	
-	constexpr int LEN_ENCODED = 10; //in bytes
+	constexpr int LEN_ENCODED = roundUp(CO2+LEN_CO2,8); //in bytes
 }
 
 namespace Enc_fast {

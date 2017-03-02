@@ -75,8 +75,8 @@ constexpr uint8_t RADIO_ADDRESSES[][4] = { "1No", "2No", "3No" }; // Radio pipe 
 constexpr byte REQUESTCO2[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; //TODO change to uint8_t if possible
 
 
-constexpr uint8_t FASTDATA_SIZE = 4;
-constexpr uint8_t SLOWDATA_SIZE = 7;
+constexpr uint8_t FASTDATA_SIZE = 5;
+constexpr uint8_t SLOWDATA_SIZE = 8;
 constexpr uint16_t SLOWDATA_COMPLETE = 0 | (1 << Idx::TEMPERATURE_BED) 
 																				 | (1 << Idx::HUMIDITY_BED)
 																				 | (1 << Idx::CO2);
