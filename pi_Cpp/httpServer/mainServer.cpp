@@ -195,6 +195,7 @@ int thread_Https_serv(std::shared_ptr<std::mutex> stop,
   MHD_stop_daemon(daemon);
   free(key_pem);
   free(cert_pem);	
-  
+
+	(*stop).unlock();	  
   return 0;      
 }
