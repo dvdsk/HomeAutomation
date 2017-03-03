@@ -16,8 +16,8 @@ char *choices[] = {
 int n_choices = sizeof(choices) / sizeof(char *);
 void print_menu(int highlight);
 
-int main()
-{	WINDOW *menu_win;
+void mainMenu(){
+	WINDOW *menu_win;
 	int highlight = 1;
 	int choice = 0;
 	int c;
@@ -28,7 +28,7 @@ int main()
 	cbreak();	/* Line buffering disabled. pass on everything */
 	keypad(stdscr, TRUE); //init keypad for standard screen
 
-	mvprintw(0, 0, "Use arrow keys to go up and down, Press enter to select a choice");
+	mvprintw(0,2, "Menu");
 	refresh();
 	print_menu(highlight);
 	while(1) {	
@@ -62,7 +62,11 @@ int main()
 	clrtoeol();
 	refresh();
 	endwin();
-	return 0;
+}
+
+
+int main()
+	mainMenu();
 }
 
 
