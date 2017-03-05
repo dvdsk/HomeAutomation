@@ -1,7 +1,7 @@
 #include "mainState.h"
 
-void stateWatcher(std::shared_ptr<MainState> state){
-	state->thread_watchForUpdate();
+void stateWatcher(std::shared_ptr<MainState> state, std::shared_ptr<std::atomic<bool>> notShuttingdown){
+	state->thread_watchForUpdate(notShuttingdown);
 }
 
 //decode url to a command to change a state or pass to a function
@@ -41,7 +41,7 @@ void MainState::parseCommand(Command toParse){
 	}
 }
 
-MainState::MainState(std::shared_ptr<std::mutex> stop){
+MainState::MainState(){
 
 	is_ready = false;
 	majorState = DEFAULT;
@@ -64,11 +64,10 @@ MainState::MainState(std::shared_ptr<std::mutex> stop){
 	
 }
 
-void MainState::thread_watchForUpdate(){
-	bool keepGoing = true;
+void MainState::thread_watchForUpdate(std::shared_ptr<std::atomic<bool>> notShuttingdown){
 	std::unique_lock<std::mutex> lk(m);
 	
-	while(keepGoing){
+	while(notShuttingdown){
 		cv.wait(lk);
 		std::cout<<"running update\n";		
 
@@ -90,10 +89,6 @@ void MainState::thread_watchForUpdate(){
 			case MINIMAL:
 			update_minimal();
 			break;
-			case STOP:
-			std::cout<<"shutting down state update thread\n";
-			keepGoing = false;
-			break;		
 		}
 	}
 	return;
@@ -487,11 +482,6 @@ void MainState::runUpdate(){
 	std::unique_lock<std::mutex> lk(m);
 	is_ready = true;
 	cv.notify_one();
-}
-
-void MainState::shutdown(){
-	majorState = STOP;
-	runUpdate();
 }
 
 inline std::string toTime(uint32_t seconds){

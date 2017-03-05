@@ -25,6 +25,7 @@ void CommandLineInterface::mainMenu(){
 	int highlight = 1;
 	int choice = 0;
 	int c;
+	bool exit;
 
 	const char* choices[] = {"System Info",	"Sensor values",	"Graph Sensor Data",
 										 "Https Server", "Exit", };
@@ -74,22 +75,20 @@ void CommandLineInterface::mainMenu(){
 			clear();			
 			graph_menu();
 			break;
+			case 5:
+			clear();	
+			exit=true;			
+			break;
 		}
 		print_mainMenu(highlight, choices, n_choices);
 
-		if(choice != 0){	/* User did a choice come out of the infinite loop */
-			mvprintw(23, 0, "You chose choice %d with choice string %s\n", choice, choices[choice - 1]);
-			refresh();			
-//			break;
+		if(exit){	/* User did a choice come out of the infinite loop */			
+			break;
 		}
 	}	
-//	mvprintw(23, 0, "You chose choice %d with choice string %s\n", choice, choices[choice - 1]);
-//	refresh();	
-	while(1){}
-	//clrtoeol();
+	clrtoeol();
 	refresh();
 	endwin();
-
 }
 
 void CommandLineInterface::print_mainMenu(int highlight, const char* choices[], int n_choices){

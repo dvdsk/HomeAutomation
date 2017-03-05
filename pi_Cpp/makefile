@@ -9,6 +9,8 @@ objects = main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainH
 all: pi
 debug: CXXFLAGS += -DDEBUG -g
 debug: pi
+main: CXXFLAGS += -DNOTATTCHED
+main: pi
 
 pi: $(objects)
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o pi $(objects) \

@@ -6,17 +6,20 @@ uint32_t unix_timestamp() {
   return now;
 }
 
-void requestSensorData(std::shared_ptr<Serial> arduino){
-	while(1){	
+void requestSensorData(std::shared_ptr<Serial> arduino, 
+	std::shared_ptr<std::atomic<bool>> notShuttingdown){
+	while(*notShuttingdown){
 		arduino->writeString("0");
-		std::cout<<"requesting new data from arduino\n";
+		//std::cout<<"requesting new data from arduino\n";
 		std::this_thread::sleep_for(std::chrono::seconds(5));
 	}
+	return;
 }
 
 void checkSensorData(std::shared_ptr<PirData> pirData, 
 										 std::shared_ptr<SlowData> slowData, 
-										 std::shared_ptr<MainState> state){
+										 std::shared_ptr<MainState> state,
+										 std::shared_ptr<std::atomic<bool>> notShuttingdown){
   
   uint32_t Tstamp;
 	uint8_t data[SLOWDATA_SIZE]; 
@@ -26,28 +29,31 @@ void checkSensorData(std::shared_ptr<PirData> pirData,
 																		config::ARDUINO_BAUDRATE);
 	
 	//spawn thread that sends request for 'slow data'
-	std::thread t4(requestSensorData, arduino);
+	std::thread t4(requestSensorData, arduino, notShuttingdown);
 
-	while (true){
+	while (*notShuttingdown){
     x = arduino->readHeader();
     switch (x){      
       case headers::FAST_UPDATE:
-				std::cout<<"update fast\n";
+				//std::cout<<"update fast\n";
 				Tstamp = unix_timestamp();
 				arduino->readMessage(data, Enc_fast::LEN_ENCODED);			
 				decodeFastData(Tstamp, data, pirData, slowData, state);           
         break;             
       case headers::SLOW_UPDATE:
-				std::cout<<"update slow\n";
+				//std::cout<<"update slow\n";
 				Tstamp = unix_timestamp();
 				arduino->readMessage(data, Enc_slow::LEN_ENCODED);				
 				decodeSlowData(Tstamp, data, pirData, slowData, state);
 				break;        
       default:
-        std::cout << "error no code matched, header: " << +x <<"\n";     
+        //std::cout << "error no code matched, header: " << +x <<"\n";   
+				break;  
     }
   }
+	std::cout<<"are we stuck on joining?\n";
 	t4.join();
+	std::cout<<"Sensor readout shut down gracefully";
 }
 
 void decodeFastData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
@@ -100,13 +106,13 @@ void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 
 	state->CO2ppm = decode(data, Enc_slow::CO2, Enc_slow::LEN_CO2);
 	
-	std::cout<<"\t"<<state->tempValues[temp::BED]<<"\n";
-	std::cout<<"\t"<<state->tempValues[temp::BATHROOM]<<"\n";
-	std::cout<<"\t"<<state->tempValues[temp::DOOR]<<"\n";
-	std::cout<<"\t"<<state->humidityValues[hum::BED]<<"\n";
-	std::cout<<"\t"<<state->humidityValues[hum::BATHROOM]<<"\n";
-	std::cout<<"\t"<<state->humidityValues[hum::DOOR]<<"\n";
-	std::cout<<"\t"<<state->CO2ppm<<"\n";
+//	std::cout<<"\t"<<state->tempValues[temp::BED]<<"\n";
+//	std::cout<<"\t"<<state->tempValues[temp::BATHROOM]<<"\n";
+//	std::cout<<"\t"<<state->tempValues[temp::DOOR]<<"\n";
+//	std::cout<<"\t"<<state->humidityValues[hum::BED]<<"\n";
+//	std::cout<<"\t"<<state->humidityValues[hum::BATHROOM]<<"\n";
+//	std::cout<<"\t"<<state->humidityValues[hum::DOOR]<<"\n";
+//	std::cout<<"\t"<<state->CO2ppm<<"\n";
 
 
 	//store

@@ -6,6 +6,8 @@
 #include <chrono>
 #include <thread>
 #include <mutex>
+#include <memory>
+#include <atomic>
 
 #include "config.h"
 #include "arduinoContact/Serial.h"
@@ -38,46 +40,54 @@ void interruptHandler(int s){
 
 int main(int argc, char* argv[])
 {
-	std::shared_ptr<std::mutex> stop = std::make_shared<std::mutex>();
+	std::shared_ptr<std::mutex> stopHttpServ = std::make_shared<std::mutex>();
+	std::shared_ptr<std::atomic<bool>> notShuttingdown = std::make_shared<std::atomic<bool>>();
 	std::shared_ptr<TelegramBot> bot = std::make_shared<TelegramBot>();
-	std::shared_ptr<MainState> state = std::make_shared<MainState>(stop);
+	std::shared_ptr<MainState> state = std::make_shared<MainState>();
 	std::shared_ptr<PirData> pirData = std::make_shared<PirData>("pirs", cache1, CACHESIZE_pir);
-	std::shared_ptr<SlowData> slowData = std::make_shared<SlowData>(
-																			 "slowData", cache2, CACHESIZE_slowData);
+	std::shared_ptr<SlowData> slowData = std::make_shared<SlowData>("slowData", cache2, CACHESIZE_slowData);
 
-	(*stop).lock();
+	(*stopHttpServ).lock();
+	(*notShuttingdown) = true;
 	file1 = pirData->getFileP();
   file2 = slowData->getFileP();
 
 	/*start the http server that serves the telegram bot and
 	  custom http protocol. NOTE: each connection spawns its 
 	  own thread.*/	
-	std::thread t1(thread_Https_serv, stop, bot, state);
+	std::thread t1(thread_Https_serv, stopHttpServ, bot, state);
 	std::cout<<"Https-Server started\n";
 
 	/*start the thread that checks the output of the arduino 
 	  it is responsible for setting the enviremental variables
 	  the statewatcher responds too*/
-	std::thread t2(checkSensorData, pirData, slowData, state);
+	std::thread t2(checkSensorData, pirData, slowData, state, notShuttingdown);
 	std::cout<<"Sensor readout started\n";
 
 	/*sleep to give checkSensorData time to aquire some data
 	  from the arduino.*/
-	std::this_thread::sleep_for(std::chrono::seconds(10));
+	std::cout<<"Waiting 5 seconds for sensors to set room states\n";
+	std::this_thread::sleep_for(std::chrono::seconds(5));
 
 	/*start the thread that is notified of state changes 
 	  and re-evalutes the system on such as change. */
-	std::thread t3(stateWatcher, state);
+	std::thread t3(stateWatcher, state, notShuttingdown);
  	std::cout<<"State management started\n"; 
 
   signal(SIGINT, interruptHandler);  
-
-	CommandLineInterface interface(pirData, slowData);
-	interface.mainMenu();
+	
+	std::cout<<"cmd interface starting\n";
+	std::this_thread::sleep_for(std::chrono::seconds(10));
+	//CommandLineInterface interface(pirData, slowData);
+	//interface.mainMenu();
+	
+	(*stopHttpServ).unlock();
+	(*notShuttingdown) = false;
+	std::cout<<"shared pointer is false";
 
 	t1.join();
 	t2.join();
-//	t3.join();
+	t3.join();
   
 	return 0;
 }

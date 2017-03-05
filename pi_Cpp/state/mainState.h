@@ -43,6 +43,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <memory> //for shared_ptr
+#include <atomic>
 #include <array>
 #include <string.h> //strcmp
 #include <iostream> //cout
@@ -51,7 +52,7 @@
 
 //here stop is a special state  that triggers shutdown for the thread
 //watchforupdates function.
-enum MajorStates {AWAY, DEFAULT, ALMOSTSLEEPING, SLEEPING, MINIMAL, STOP};
+enum MajorStates {AWAY, DEFAULT, ALMOSTSLEEPING, SLEEPING, MINIMAL};
 
 struct MinorStates {
 	bool alarmDisarm;
@@ -67,13 +68,13 @@ struct MinorStates {
 class MainState;
 
 //function that starts the class member thread_watchForUpdates()
-void stateWatcher(std::shared_ptr<MainState> state);
+void stateWatcher(std::shared_ptr<MainState> state, std::shared_ptr<std::atomic<bool>> notShuttingdown);
 	 
 class MainState{
 		
 	public:
 		//creates shared objects
-		MainState(std::shared_ptr<std::mutex> stop);
+		MainState();
 			
 		//gets data in the form of url's transformes it to commands or
 		//state changes and if the state changed executes an update ran
@@ -84,7 +85,7 @@ class MainState{
 		void parseCommand(Command toParse);
 		
 		//is waken and then executes pre_scan();
-		void thread_watchForUpdate();
+		void thread_watchForUpdate(std::shared_ptr<std::atomic<bool>> notShuttingdown);
 		//signals the above function to run an update
 		void runUpdate();
 		void shutdown();
