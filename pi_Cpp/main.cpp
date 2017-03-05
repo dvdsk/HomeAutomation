@@ -16,6 +16,7 @@
 #include "state/mainState.h"
 #include "telegramBot/telegramBot.h"
 #include "httpServer/mainServer.h"
+#include "commandLine/commandline.h"
 
 const std::string PATHPIR = "pirs.binDat";
 const int CACHESIZE_pir = 8;
@@ -70,6 +71,9 @@ int main(int argc, char* argv[])
  	std::cout<<"State management started\n"; 
 
   signal(SIGINT, interruptHandler);  
+
+	CommandLineInterface interface(pirData, slowData);
+	interface.mainMenu();
 
 	t1.join();
 	t2.join();

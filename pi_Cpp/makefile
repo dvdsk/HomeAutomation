@@ -1,9 +1,9 @@
 CXX = g++
 CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
-ROOTFLAGS = `root-config --cflags --glibs`
+ROOTFLAGS = `root-config --cflags --glibs --libs`
 
 
-objects = main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o MainGraph.o mainServer.o mainState.o telegramBot.o httpGetPostPut.o
+objects = main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o MainGraph.o mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
 all: pi
@@ -12,12 +12,15 @@ debug: pi
 
 pi: $(objects)
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o pi $(objects) \
-	-lmicrohttpd -lcurl -lboost_system -lboost_thread -lpthread
+	-lmicrohttpd -lcurl -lboost_system -lboost_thread -lpthread -lmenu -lncurses
 
 main.o: main.cpp config.h arduinoContact/decode.h dataStorage/MainData.h dataStorage/PirData.h \
         dataStorage/SlowData.h graph/MainGraph.h state/mainState.h telegramBot/telegramBot.h \
-				httpServer/mainServer.h arduinoContact/Serial.h
+				httpServer/mainServer.h arduinoContact/Serial.h commandLine/commandline.h
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c main.cpp
+
+commandline.o: commandLine/commandline.cpp commandLine/commandline.h graph/MainGraph.h config.h
+	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c commandLine/commandline.cpp
 
 Cache.o: dataStorage/Cache.cpp dataStorage/Cache.h
 	$(CXX) $(CXXFLAGS) -c dataStorage/Cache.cpp

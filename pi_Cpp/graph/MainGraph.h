@@ -20,6 +20,7 @@
 
 #include <string>
 #include <bitset>
+#include <memory>
 
 const int MAXPLOTRESOLUTION = 1000; //for now 
 const float AXISWITH = 0.1;
@@ -34,7 +35,7 @@ class Graph
 {
 public:
   Graph(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT,
-        PirData& pirData, SlowData& slowData);
+        std::shared_ptr<PirData> pirData, std::shared_ptr<SlowData> slowData);
 private:
   //local cache of time data
   float y[MAXPLOTRESOLUTION];
