@@ -162,12 +162,11 @@ plotables CommandLineInterface::decodeMenu(int menuChoice){
 	return toAdd;
 }
 
-bool CommandLineInterface::fillPlotVector(MENU* my_menu, int n_choices, std::vector<plotables> toPlot){
+bool CommandLineInterface::fillPlotVector(MENU* my_menu, int n_choices, std::vector<plotables>& toPlot){
 	ITEM **items;
-
 	items = menu_items(my_menu);	
 	for(int i=0; i<n_choices; i++){
-		if(item_value(items[i])){		
+		if(item_value(items[i]) == 1){		
 			toPlot.push_back(decodeMenu(i));
 		}			
 	}

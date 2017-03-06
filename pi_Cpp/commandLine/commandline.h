@@ -39,7 +39,7 @@ class CommandLineInterface{
 
 	void print_description();
 	plotables decodeMenu(int menuChoice);
-	bool fillPlotVector(MENU* my_menu, int n_choices, std::vector<plotables> toPlot);
+	bool fillPlotVector(MENU* my_menu, int n_choices, std::vector<plotables>& toPlot);
 	uint32_t unix_timestamp();
 };
 
