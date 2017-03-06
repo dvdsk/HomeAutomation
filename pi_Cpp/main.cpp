@@ -21,8 +21,8 @@
 #include "commandLine/commandline.h"
 
 const std::string PATHPIR = "pirs.binDat";
-const int CACHESIZE_pir = 8;
-const int CACHESIZE_slowData = 26;
+const int CACHESIZE_pir      = pirData::PACKAGESIZE*2;
+const int CACHESIZE_slowData = slowData::PACKAGESIZE*2;
 
 //cache for data
 uint8_t cache1[CACHESIZE_pir];
@@ -77,9 +77,9 @@ int main(int argc, char* argv[])
   signal(SIGINT, interruptHandler);  
 	
 	std::cout<<"cmd interface starting\n";
-	std::this_thread::sleep_for(std::chrono::seconds(10));
-	//CommandLineInterface interface(pirData, slowData);
-	//interface.mainMenu();
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	CommandLineInterface interface(pirData, slowData, state);
+	interface.mainMenu();
 	
 	(*stopHttpServ).unlock();
 	(*notShuttingdown) = false;

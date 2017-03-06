@@ -50,9 +50,9 @@ namespace config {
 }
 
 namespace lght {//lightvalues
-	constexpr int DOOR = 0;
+	constexpr int BED = 0;
 	constexpr int KITCHEN = 1;
-	constexpr int BED = 2;
+	constexpr int DOOR = 2;
 }
 
 namespace mov {//movement sensors

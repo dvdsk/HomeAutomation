@@ -9,8 +9,10 @@ Cache::Cache(const uint8_t packageSize, const int cacheSize ){
   cacheOldest_ = 0;
 
   //throw error if the cacheSize is not N*packageSize
-  if (cacheSize % packageSize){ std::cerr << "ERROR: cache size must be an "
-                                << "integer times the packageSize \n"; }
+  if (cacheSize % packageSize){ std::cerr << "ERROR: cache size ("
+																<< +cacheSize << ") must be an "
+                                << "integer times the packageSize: "
+	                              << +packageSize <<"\n"; }
   if (packageSize > MAXPACKAGESIZE){ std::cerr << "ERROR: packageSize must be "
                                       << "smaller then: "<< MAXPACKAGESIZE <<" "
                                       << "try increasing 'MAXPACKAGESIZE'\n"; }

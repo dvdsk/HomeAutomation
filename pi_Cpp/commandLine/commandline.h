@@ -35,7 +35,7 @@ class CommandLineInterface{
 	void sensor_values();
 
 	void print_mainMenu(int highlight, const char* choices[], int n_choices);
-	float mean(int array[], const int len);
+	int mean(int* array, const int len);
 
 	void print_description();
 	plotables decodeMenu(int menuChoice);

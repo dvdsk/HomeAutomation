@@ -60,6 +60,9 @@ void CommandLineInterface::mainMenu(){
 			case 10:
 				choice = highlight;
 				break;
+			case 'q':
+				choice = 5;//choice 5=exit
+				break;
 			default:
 				mvprintw(24, 0, "Charcter pressed is = %3d Hopefully it can be printed as '%c'", c, c);
 				refresh();
@@ -72,10 +75,12 @@ void CommandLineInterface::mainMenu(){
 			case 2:
 			clear();
 			sensor_values();
+			choice = 0;
 			break;
 			case 3:
 			clear();			
 			graph_menu();
+			choice = 0;
 			break;
 			case 5:
 			clear();	
@@ -240,7 +245,7 @@ void CommandLineInterface::graph_menu(){
 	post_menu(my_menu);
 	refresh();
 	
-	while((c = wgetch(stdscr)) != 10) { //10=KEY_ENTER
+	while((c = wgetch(stdscr)) != 10 && c !='q' ) { //10=KEY_ENTER
   	switch(c) {
 			case KEY_DOWN:
 				menu_driver(my_menu, REQ_DOWN_ITEM);
@@ -268,54 +273,61 @@ void CommandLineInterface::graph_menu(){
 	}
 	//fill the toplot items vector
 	fillPlotVector(my_menu, n_choices, toPlot);
-	mvprintw(12, 2, "Enter the range from now to plot followed by ENTER:");
-	mvprintw(13, 2, "(format: days:hours:minutes:seconds)    ");	
-	move(13, 42);	
-	echo();	
-	refresh();	
+	if(toPlot.size()>0){	
+		mvprintw(12, 2, "Enter the range from now to plot followed by ENTER:");
+		mvprintw(13, 2, "(format: days:hours:minutes:seconds)    ");	
+		move(13, 42);	
+		echo();	
+		refresh();	
 
-	char rawInput[80];	
-	getstr(rawInput);
-	std::istringstream input(rawInput);
+		char rawInput[80];	
+		getstr(rawInput);
+		std::istringstream input(rawInput);
 
-	std::string days, hours, minutes, seconds;
-	std::getline(input, days, ':');
-	std::getline(input, hours, ':');
-	std::getline(input, minutes, ':');
-	std::getline(input, seconds);
+		std::string days, hours, minutes, seconds;
+		std::getline(input, days, ':');
+		std::getline(input, hours, ':');
+		std::getline(input, minutes, ':');
+		std::getline(input, seconds);
 	
-	uint32_t now = unix_timestamp();
-	int secondsAgo = std::stoi(days)*24*60*60 +std::stoi(hours)*60*60+
-	                 std::stoi(minutes)*60 +std::stoi(seconds);
+		uint32_t now = unix_timestamp();
+		int secondsAgo = std::stoi(days)*24*60*60 +std::stoi(hours)*60*60+
+			               std::stoi(minutes)*60 +std::stoi(seconds);
 
-	Graph graph(toPlot, now-secondsAgo, now, pirData, slowData);
-
+		Graph graph(toPlot, now-secondsAgo, now, pirData, slowData);
+	}
 	/* Unpost and free all the memory taken up */
-  unpost_menu(my_menu);
+	clear();  
+	unpost_menu(my_menu);
   free_menu(my_menu);
   for(i = 0; i < n_choices; ++i)
 		free_item(my_items[i]);
 	endwin();
 }
 
-float CommandLineInterface::mean(int array[], const int len){
-	float mean = 0;
-	for(int i=0; i<len; i++){	mean += (float)array[i];}
+int CommandLineInterface::mean(int* array, int len){
+	int mean = 0;
+	len = 1;
+	for(int i=0; i<len; i++) {mean = *(array+0);}
 	
-	return mean/len;
+	return mean;
 }
 
 void CommandLineInterface::sensor_values(){
 	char c;	
 	
 	constexpr int COL1 = 2;
-	constexpr int COL2 = 10;
-	constexpr int COL3 = 15;
-	constexpr int COL4 = 17;
-	constexpr int COL5 = 18;
+	constexpr int COL2 = 17;
+	constexpr int COL3 = 23;
+	constexpr int COL4 = 30;
+	constexpr int COL5 = 37;
 
-	mvprintw(1, 2,  "Mean of sensor types:");
-	mvprintw(1, 10, "now | avg of last minute | avg of last 5 minutes");
+	mvprintw(1, COL1,  "Sensor type:");
+
+	mvprintw(1, COL2, "now |");
+	mvprintw(1, COL3, "5min |");
+	mvprintw(1, COL4, "15min");
+	mvprintw(1, COL5, "unit");
 
 	mvprintw(3, COL1, "Temperature:");
 	mvprintw(4, COL1, "Humidity:");
@@ -323,11 +335,13 @@ void CommandLineInterface::sensor_values(){
 	mvprintw(6, COL1, "Co2:");
 	mvprintw(7, COL1, "Air Pressure:");
 
-	mvprintw(3, COL2, "%d", mean(mainState->tempValues, mainState::LEN_tempValues)/10-10);
-	mvprintw(4, COL2, "%d", mean(mainState->humidityValues, mainState::LEN_humidityValues)/10);
-	mvprintw(5, COL2, "%d", mean(mainState->lightValues, mainState::LEN_lightValues));
-	mvprintw(6, COL2, "%d", mainState->CO2ppm);
-	mvprintw(7, COL2, "%d", 5);
+	mvprintw(3, COL2, "%.1f", ((float)mean(mainState->tempValues, 
+	         mainState::LEN_tempValues))/10-10 );
+	mvprintw(4, COL2, "%.1f", ((float)mean(mainState->humidityValues,
+	         mainState::LEN_humidityValues))/10 );
+	mvprintw(5, COL2, "%d",mean(mainState->lightValues, mainState::LEN_lightValues));
+	mvprintw(6, COL2, "%d",mainState->CO2ppm);
+	mvprintw(7, COL2, "%d",5);
 
 	mvprintw(3, COL3, "%d", 5);
 	mvprintw(4, COL3, "%d", 5);
@@ -348,7 +362,8 @@ void CommandLineInterface::sensor_values(){
 	mvprintw(7, COL5, "");
 
 	mvprintw(LINES - 2, 2, "Enter to Exit");
-	while((c = wgetch(stdscr)) != 10) { }
+	c = wgetch(stdscr);
+	clear();
 
 	//MENU TO SELECT DETAILED SENSOR VALUES
 }
