@@ -334,13 +334,23 @@ void CommandLineInterface::sensor_values(){
 	mvprintw(6, COL1, "Co2:");
 	mvprintw(7, COL1, "Air Pressure:");
 
+	mvprintw(3, COL5, "(deg Celcius)");
+	mvprintw(4, COL5, "(%)");
+	mvprintw(5, COL5, "(-)");
+	mvprintw(6, COL5, "(ppm):");
+	mvprintw(7, COL5, "");
+
+	timeout(1000);//timeout of 1 second for blocking calls
+	mvprintw(LINES - 2, 2, "Enter to Exit");
+	
+	do{
 	mvprintw(3, COL2, "%.1f", ((float)mean(mainState->tempValues, 
-	         mainState::LEN_tempValues))/10-10 );
+	                            mainState::LEN_tempValues))/10-10 );
 	mvprintw(4, COL2, "%.1f", ((float)mean(mainState->humidityValues,
-	         mainState::LEN_humidityValues))/10 );
-	mvprintw(5, COL2, "%d",mean(mainState->lightValues, mainState::LEN_lightValues));
-	mvprintw(6, COL2, "%d",mainState->CO2ppm);
-	mvprintw(7, COL2, "%d",5);
+	                            mainState::LEN_humidityValues))/10 );
+	mvprintw(5, COL2, "%d", mean(mainState->lightValues, mainState::LEN_lightValues));
+	mvprintw(6, COL2, "%d", mainState->CO2ppm);
+	mvprintw(7, COL2, "%d", 5);
 
 	mvprintw(3, COL3, "%d", 5);
 	mvprintw(4, COL3, "%d", 5);
@@ -353,16 +363,10 @@ void CommandLineInterface::sensor_values(){
 	mvprintw(5, COL4, "%d", 5);
 	mvprintw(6, COL4, "%d", 5);
 	mvprintw(7, COL4, "%d", 5);
-
-	mvprintw(3, COL5, "(deg Celcius)");
-	mvprintw(4, COL5, "(%)");
-	mvprintw(5, COL5, "(-)");
-	mvprintw(6, COL5, "(ppm):");
-	mvprintw(7, COL5, "");
-
-	mvprintw(LINES - 2, 2, "Enter to Exit");
+	
 	c = wgetch(stdscr);
-	clear();
+	}while(c == -1);
 
+	clear();
 	//MENU TO SELECT DETAILED SENSOR VALUES
 }
