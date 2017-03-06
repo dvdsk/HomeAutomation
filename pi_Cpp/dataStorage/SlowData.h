@@ -46,7 +46,7 @@ class SlowData : public Data
 
     int fetchSlowData(uint32_t startT, uint32_t stopT, 
                       double x[], double y[], plotables sensor);
-		void preProcess_light(std::array<int, 5> lightValues, const uint32_t Tstamp);
+		void preProcess_light(int lightValues[], const uint32_t Tstamp);
 
   private:
     bool newData(const uint8_t raw[SLOWDATA_SIZE], uint16_t light_Mean[slowData::LIGHT_LEN]);
