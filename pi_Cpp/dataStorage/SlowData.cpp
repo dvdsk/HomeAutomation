@@ -11,13 +11,13 @@
 //the final 2 bytes.
 
 SlowData::SlowData(const std::string filePath, uint8_t* cache, const int cacheLen)
-: Data(filePath, cache, SLOWDATA_PACKAGESIZE, cacheLen){
+: Data(filePath, cache, slowData::PACKAGESIZE, cacheLen){
   
   //init local variables
   memset(&prevRaw, 0, 9);
 }
 
-bool SlowData::newData(const uint8_t raw[SLOWDATA_SIZE], uint16_t light_Mean[LIGHT_LEN]){
+bool SlowData::newData(const uint8_t raw[SLOWDATA_SIZE], uint16_t light_Mean[slowData::LIGHT_LEN]){
 	for(int i = 1; i<9; i++){
     if(raw[i] != prevRaw[i]){ return true;}
   }
@@ -37,15 +37,15 @@ void SlowData::preProcess_light(std::array<int, 5> lightValues, const uint32_t T
 }
 
 void SlowData::process(const uint8_t raw[SLOWDATA_SIZE], const uint32_t Tstamp){  
-	uint8_t rawP[SLOWDATA_PACKAGESIZE-2]; //package without tstamp
+	uint8_t rawP[slowData::PACKAGESIZE-2]; //package without tstamp
 	uint16_t light_Mean[3];
-	for(int i = 0; i<LIGHT_LEN; i++){
+	for(int i = 0; i<slowData::LIGHT_LEN; i++){
   	light_Mean[i] = light_Sum[i]/light_N;
 	}
 	
 	if(newData(raw, light_Mean)){
 		//encode the light mean;
-		std::memcpy(prevLight_Mean, light_Mean, LIGHT_LEN);
+		std::memcpy(prevLight_Mean, light_Mean, slowData::LIGHT_LEN);
   	std::memcpy(prevRaw, raw, SLOWDATA_SIZE);				
 		memcpy(rawP, raw, SLOWDATA_SIZE);
 	

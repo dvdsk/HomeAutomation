@@ -3,6 +3,10 @@
 
 #include <cstdint> //uint16_t
 
+//length in bytes
+constexpr uint8_t FASTDATA_SIZE = 4;
+constexpr uint8_t SLOWDATA_SIZE = 7;
+
 enum Command {LIGHTS_ALLON, LIGHTS_ALLOFF, MS_SLEEPING, MOVIEMODE};
 
 namespace stateConf {
@@ -102,7 +106,6 @@ namespace Enc_slow {
 	constexpr int LEN_LIGHT = 10;
 }
 
-
 enum plotables{
   MOVEMENTSENSOR0,
   MOVEMENTSENSOR1,
@@ -129,8 +132,22 @@ enum plotables{
   BRIGHTNESS_DOORHIGH
 };
 
-//length in bytes
-constexpr uint8_t FASTDATA_SIZE = 4;
-constexpr uint8_t SLOWDATA_SIZE = 7;
+namespace mainState {
+	constexpr int LEN_lightValues = 5;	
+	constexpr int LEN_tempValues = 5;	
+	constexpr int LEN_humidityValues = 5;		
+	constexpr int LEN_soilHumidityValues = 5;		
+	constexpr int LEN_movement = 5;	
+}
+
+namespace pirData {
+	constexpr int PACKAGESIZE = 4+2;
+	constexpr int PIR_DT= 1; //time to bin data for
+}
+
+namespace slowData {
+	constexpr int LIGHT_LEN = 1;
+	constexpr int PACKAGESIZE = SLOWDATA_SIZE+LIGHT_LEN*2+2; //slow data + light data + timestamp
+}
 
 #endif

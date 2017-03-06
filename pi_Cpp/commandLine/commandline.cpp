@@ -12,10 +12,11 @@ int startx = 0;
 int starty = 0;
 
 CommandLineInterface::CommandLineInterface(std::shared_ptr<PirData> pirData_,
-	std::shared_ptr<SlowData> slowData_){
+	std::shared_ptr<SlowData> slowData_, std::shared_ptr<MainState> mainState_){
 
 	pirData = pirData_;
 	slowData = slowData_;
+	mainState =mainState_;
 }
 
 
@@ -28,7 +29,7 @@ void CommandLineInterface::mainMenu(){
 	bool exit;
 
 	const char* choices[] = {"System Info",	"Sensor values",	"Graph Sensor Data",
-										 "Https Server", "Exit", };
+		                       "Https Server", "Exit", };
 	
 	int n_choices = sizeof(choices) / sizeof(char *);
 
@@ -69,7 +70,8 @@ void CommandLineInterface::mainMenu(){
 			//do syst info
 			break;
 			case 2:
-			//print sensor values
+			clear();
+			sensor_values();
 			break;
 			case 3:
 			clear();			
@@ -296,4 +298,57 @@ void CommandLineInterface::graph_menu(){
 	endwin();
 }
 
+float CommandLineInterface::mean(int array[], const int len){
+	float mean = 0;
+	for(int i=0; i<len; i++){	mean += (float)array[i];}
+	
+	return mean/len;
+}
 
+void CommandLineInterface::sensor_values(){
+	char c;	
+	
+	constexpr int COL1 = 2;
+	constexpr int COL2 = 10;
+	constexpr int COL3 = 15;
+	constexpr int COL4 = 17;
+	constexpr int COL5 = 18;
+
+	mvprintw(1, 2,  "Mean of sensor types:");
+	mvprintw(1, 10, "now | avg of last minute | avg of last 5 minutes");
+
+	mvprintw(3, COL1, "Temperature:");
+	mvprintw(4, COL1, "Humidity:");
+	mvprintw(5, COL1, "Brightness:");
+	mvprintw(6, COL1, "Co2:");
+	mvprintw(7, COL1, "Air Pressure:");
+
+	mvprintw(3, COL2, "%d", mean(mainState->tempValues, mainState::LEN_tempValues)/10-10);
+	mvprintw(4, COL2, "%d", mean(mainState->humidityValues, mainState::LEN_humidityValues)/10);
+	mvprintw(5, COL2, "%d", mean(mainState->lightValues, mainState::LEN_lightValues));
+	mvprintw(6, COL2, "%d", mainState->CO2ppm);
+	mvprintw(7, COL2, "%d", 5);
+
+	mvprintw(3, COL3, "%d", 5);
+	mvprintw(4, COL3, "%d", 5);
+	mvprintw(5, COL3, "%d", 5);
+	mvprintw(6, COL3, "%d", 5);
+	mvprintw(7, COL3, "%d", 5);
+
+	mvprintw(3, COL4, "%d", 5);
+	mvprintw(4, COL4, "%d", 5);
+	mvprintw(5, COL4, "%d", 5);
+	mvprintw(6, COL4, "%d", 5);
+	mvprintw(7, COL4, "%d", 5);
+
+	mvprintw(3, COL5, "(deg Celcius)");
+	mvprintw(4, COL5, "(%)");
+	mvprintw(5, COL5, "(-)");
+	mvprintw(6, COL5, "(ppm):");
+	mvprintw(7, COL5, "");
+
+	mvprintw(LINES - 2, 2, "Enter to Exit");
+	while((c = wgetch(stdscr)) != 10) { }
+
+	//MENU TO SELECT DETAILED SENSOR VALUES
+}

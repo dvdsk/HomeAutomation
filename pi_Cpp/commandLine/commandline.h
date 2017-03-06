@@ -11,8 +11,9 @@
 #include <memory>
 
 #include "../config.h"
-#include "../dataStorage/PirData.h" //TODO needed?
-#include "../dataStorage/SlowData.h" //TODO needed?
+#include "../dataStorage/PirData.h"
+#include "../dataStorage/SlowData.h"
+#include "../state/mainState.h"
 #include "../graph/MainGraph.h" 
 
 //need to link with : -lmenu -lncurses
@@ -21,16 +22,20 @@ class CommandLineInterface{
 
 	public:
 	CommandLineInterface(std::shared_ptr<PirData> pirData_,
-	                     std::shared_ptr<SlowData> slowData_);
+	                     std::shared_ptr<SlowData> slowData_,
+											 std::shared_ptr<MainState> mainState_);
 	void mainMenu();
 
 	private:
 	std::shared_ptr<PirData> pirData;
 	std::shared_ptr<SlowData> slowData;
+	std::shared_ptr<MainState> mainState;
 
 	void graph_menu();
+	void sensor_values();
 
 	void print_mainMenu(int highlight, const char* choices[], int n_choices);
+	float mean(int array[], const int len);
 
 	void print_description();
 	plotables decodeMenu(int menuChoice);

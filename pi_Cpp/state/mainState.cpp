@@ -245,7 +245,7 @@ void MainState::environmental_alarm(){
 	
 	//check temperature values TODO adjust TEMP_ABOVE to account for
 	//outside weather from weather forecast	
-	for(unsigned int i=0; i<tempValues.size(); i++){
+	for(unsigned int i=0; i<mainState::LEN_tempValues; i++){
 		if(tempValues[i] > config::ALERT_TEMP_ABOVE){
 			if(tempValues[i] > config::ALARM_TEMP_ABOVE){
 				alarm = true;
@@ -273,7 +273,7 @@ void MainState::environmental_alarm(){
 	}
 	//check humidity with seperate bathroom handeling to account for 
 	//increased humidity due to showering
-	for(unsigned int i=0; i< humidityValues.size(); i++){
+	for(unsigned int i=0; i< mainState::LEN_humidityValues; i++){
 		if(i == hum::BATHROOM && !recent(mov::BATHROOM, config::DT_HUMIDALARM_SHOWER)){
 			if(humidityValues[i] > config::ALERT_HUMIDITY_ABOVE){
 				if(humidityValues[i] > config::ALARM_HUMIDITY_ABOVE){
@@ -468,11 +468,11 @@ inline bool MainState::recent(uint32_t time, unsigned int threshold){
 	else{return false; }
 }
 
-inline bool MainState::anyRecent(std::array<uint32_t, 5> times,
+inline bool MainState::anyRecent(uint32_t times[],
 unsigned int threshold){
 	bool recent = false;
-	for(auto time : times)
-		if(currentTime - time < threshold){recent = true; } 
+	for(int i=0; i<mainState::LEN_movement; i++)
+		if(currentTime - times[i] < threshold){recent = true; } 
 	return recent;
 }
 

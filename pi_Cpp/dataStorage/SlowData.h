@@ -34,8 +34,6 @@ Co2: 13 bits        [storing 0 to 6000ppm, in values 0 to 6000]
 We save in the same format as the bitstream
 
 */
-constexpr int LIGHT_LEN = 1;
-const int SLOWDATA_PACKAGESIZE = SLOWDATA_SIZE+LIGHT_LEN*2+2; //slow data + light data + timestamp 
 
 //data specific functions and variables, inherits AllData
 class SlowData : public Data
@@ -51,7 +49,7 @@ class SlowData : public Data
 		void preProcess_light(std::array<int, 5> lightValues, const uint32_t Tstamp);
 
   private:
-    bool newData(const uint8_t raw[SLOWDATA_SIZE], uint16_t light_Mean[LIGHT_LEN]);
+    bool newData(const uint8_t raw[SLOWDATA_SIZE], uint16_t light_Mean[slowData::LIGHT_LEN]);
 		uint32_t light_Sum[3];
 		uint16_t light_N;
 		uint16_t prevLight_Mean[3];

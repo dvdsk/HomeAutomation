@@ -21,7 +21,8 @@ main.o: main.cpp config.h arduinoContact/decode.h dataStorage/MainData.h dataSto
 				httpServer/mainServer.h arduinoContact/Serial.h commandLine/commandline.h
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c main.cpp
 
-commandline.o: commandLine/commandline.cpp commandLine/commandline.h graph/MainGraph.h config.h
+commandline.o: commandLine/commandline.cpp commandLine/commandline.h graph/MainGraph.h \
+							 config.h state/mainState.h
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c commandLine/commandline.cpp
 
 Cache.o: dataStorage/Cache.cpp dataStorage/Cache.h

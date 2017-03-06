@@ -90,18 +90,18 @@ class MainState{
 		void runUpdate();
 		void shutdown();
 
-		//sensorValues (needs to be accessible from decode)
-		std::array<int, 5> lightValues;
+		//sensorValues (needs to be accessible from decode)	
+		int lightValues[mainState::LEN_lightValues];
 		bool lightValues_updated; 		
-		std::array<int, 5> tempValues;
+		int tempValues[mainState::LEN_tempValues];
 		bool tempValues_updated; 		
-		std::array<int, 5> humidityValues;
+		int humidityValues[mainState::LEN_humidityValues];
 		bool humidityValues_updated; 		
-		std::array<int, 5> soilHumidityValues;
+		int soilHumidityValues[mainState::LEN_soilHumidityValues];
 		bool soilHumidity_updated; 		
+		uint32_t movement[mainState::LEN_movement];
 		int CO2ppm;
 		bool CO2ppm_updated;
-		std::array<uint32_t, 5> movement;
 	
 	private:
 		std::mutex alarmProcedureStarted;
@@ -172,7 +172,7 @@ class MainState{
 		 
 		//general support functions that need access to this class
 		inline bool recent(uint32_t time, unsigned int threshold);
-		inline bool anyRecent(std::array<uint32_t, 5> times, unsigned int threshold);
+		inline bool anyRecent(uint32_t times[], unsigned int threshold);
 };
 	
 //general support functions

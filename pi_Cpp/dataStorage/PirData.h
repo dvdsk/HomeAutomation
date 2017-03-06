@@ -6,16 +6,13 @@
 #include <functional> //std::function
 
 #include "MainData.h"
-
+#include "../config.h"
 /*
 pir (passive infrared receptor) data storage. Raw data is recieved from serial 
 and processed. During processing the format is changed from on/off (1/0), 
 sensor polled/not polled (1/0) => polled and one, polled and zero. The data to
 a moniroring process and binned (PIR_DT second bintime) then stored on file.
 */
-
-const int PIR_DT= 1; //time to bin data for
-const int PACKAGESIZE = 2+2; //timestamp + data
 
 //data specific functions and variables
 class PirData : public Data
