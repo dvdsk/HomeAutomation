@@ -78,12 +78,12 @@ int main(int argc, char* argv[])
 	
 	std::cout<<"cmd interface starting\n";
 	std::this_thread::sleep_for(std::chrono::seconds(1));
-	CommandLineInterface interface(pirData, slowData, state);
-	interface.mainMenu();
-	
-	(*stopHttpServ).unlock();
-	(*notShuttingdown) = false;
-	std::cout<<"shared pointer is false";
+//	CommandLineInterface interface(pirData, slowData, state);
+//	interface.mainMenu();
+//	
+//	(*stopHttpServ).unlock();
+//	(*notShuttingdown) = false;
+//	std::cout<<"shared pointer is false";
 
 	t1.join();
 	t2.join();

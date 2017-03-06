@@ -48,7 +48,7 @@ namespace radioRQ {
 
 //these are indexes in a uint16_t array
 namespace Idx {
-	//fast package
+	//slow package
 	constexpr int UPDATED = 0;								//1 byte, not send
 	constexpr int CO2 = 1;										//2 bytes
 
@@ -61,7 +61,7 @@ namespace Idx {
 	constexpr int TEMPERATURE_BATHROOM = 6;		//2 bytes
 	constexpr int HUMIDITY_BATHROOM = 7;			//2 bytes
 
-	//slow package
+	//fast package
 	constexpr int PIRS = 0;										//1 byte
 	constexpr int PIRS_UPDATED = 1;						//1 byte
 	
