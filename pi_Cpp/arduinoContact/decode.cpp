@@ -99,20 +99,20 @@ void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 	state->tempValues[temp::DOOR] = 		decode(data, Enc_slow::TEMP_DOOR, Enc_slow::LEN_TEMP);
 	state->tempValues_updated = true;
 
-	state->humidityValues[hum::BED] = decode(data, Enc_slow::HUM_BED, Enc_slow::LEN_TEMP);
-	state->humidityValues[hum::BATHROOM] = decode(data, Enc_slow::HUM_BATHROOM, Enc_slow::LEN_TEMP);
-	state->humidityValues[hum::DOOR] = decode(data, Enc_slow::HUM_DOOR, Enc_slow::LEN_TEMP);
+	state->humidityValues[hum::BED] = decode(data, Enc_slow::HUM_BED, Enc_slow::LEN_HUM);
+	state->humidityValues[hum::BATHROOM] = decode(data, Enc_slow::HUM_BATHROOM, Enc_slow::LEN_HUM);
+	state->humidityValues[hum::DOOR] = decode(data, Enc_slow::HUM_DOOR, Enc_slow::LEN_HUM);
 	state->humidityValues_updated = true;
 
 	state->CO2ppm = decode(data, Enc_slow::CO2, Enc_slow::LEN_CO2);
 	
-	std::cout<<"\t"<<state->tempValues[temp::BED]<<"\n";
-	std::cout<<"\t"<<state->tempValues[temp::BATHROOM]<<"\n";
-	std::cout<<"\t"<<state->tempValues[temp::DOOR]<<"\n";
-	std::cout<<"\t"<<state->humidityValues[hum::BED]<<"\n";
-	std::cout<<"\t"<<state->humidityValues[hum::BATHROOM]<<"\n";
-	std::cout<<"\t"<<state->humidityValues[hum::DOOR]<<"\n";
-	std::cout<<"\t"<<state->CO2ppm<<"\n";
+//	std::cout<<"\t"<<state->tempValues[temp::BED]<<"\n";
+//	std::cout<<"\t"<<state->tempValues[temp::BATHROOM]<<"\n";
+//	std::cout<<"\t"<<state->tempValues[temp::DOOR]<<"\n";
+//	std::cout<<"\t"<<state->humidityValues[hum::BED]<<"\n";
+//	std::cout<<"\t"<<state->humidityValues[hum::BATHROOM]<<"\n";
+//	std::cout<<"\t"<<state->humidityValues[hum::DOOR]<<"\n";
+//	std::cout<<"\t"<<state->CO2ppm<<"\n";
 
 
 	//store

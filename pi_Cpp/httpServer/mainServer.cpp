@@ -193,9 +193,9 @@ int thread_Https_serv(std::shared_ptr<std::mutex> stop,
 	
   //free memory if the server stops
   MHD_stop_daemon(daemon);
+	std::cout<<"HOI\n";
   free(key_pem);
   free(cert_pem);	
-
 	(*stop).unlock();	  
   return 0;      
 }
