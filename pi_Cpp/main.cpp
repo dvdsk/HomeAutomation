@@ -61,8 +61,8 @@ int main(int argc, char* argv[])
 	/*start the thread that checks the output of the arduino 
 	  it is responsible for setting the enviremental variables
 	  the statewatcher responds too*/
-	//std::thread t2(checkSensorData, pirData, slowData, state, notShuttingdown);
-	//std::cout<<"Sensor readout started\n";
+	std::thread t2(checkSensorData, pirData, slowData, state, notShuttingdown);
+	std::cout<<"Sensor readout started\n";
 
 	/*sleep to give checkSensorData time to aquire some data
 	  from the arduino.*/
@@ -71,8 +71,8 @@ int main(int argc, char* argv[])
 
 	/*start the thread that is notified of state changes 
 	  and re-evalutes the system on such as change. */
-	//std::thread t3(stateWatcher, state, notShuttingdown);
- 	//std::cout<<"State management started\n"; 
+	std::thread t3(stateWatcher, state, notShuttingdown);
+ 	std::cout<<"State management started\n"; 
 
   signal(SIGINT, interruptHandler);  
 	
@@ -86,7 +86,6 @@ int main(int argc, char* argv[])
 	(*stopHttpServ).unlock();
 	(*notShuttingdown) = false;
 	state->runUpdate();//(disadvantage) will run a final check
-//	std::cout<<"shared pointer is false";
 
 	//t1.join();
 	//t2.join();
