@@ -81,8 +81,11 @@ int main(int argc, char* argv[])
 //	CommandLineInterface interface(pirData, slowData, state);
 //	interface.mainMenu();
 //	
-//	(*stopHttpServ).unlock();
-//	(*notShuttingdown) = false;
+
+	//shutdown code
+	(*stopHttpServ).unlock();
+	(*notShuttingdown) = false;
+	state->runUpdate();//(disadvantage) will run a final check
 //	std::cout<<"shared pointer is false";
 
 	t1.join();

@@ -22,7 +22,7 @@ void updateSlow_Local(){
 	slowData[Idx::TEMPERATURE_BED] = 200;
 	slowData[Idx::HUMIDITY_BED] = 201;
   //co2.readCO2();
-	slowData[Idx::CO2] = 500;
+	slowData[Idx::CO2] = 1800;
 	slowData[Idx::UPDATED] |= 1 << Idx::CO2; //indicate co2 has been updated
 }
 

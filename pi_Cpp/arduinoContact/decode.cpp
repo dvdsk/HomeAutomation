@@ -13,6 +13,7 @@ void requestSensorData(std::shared_ptr<Serial> arduino,
 		//std::cout<<"requesting new data from arduino\n";
 		std::this_thread::sleep_for(std::chrono::seconds(5));
 	}
+	std::cout<<"reqSensorDat shut down successfully\n";
 	return;
 }
 
@@ -51,8 +52,7 @@ void checkSensorData(std::shared_ptr<PirData> pirData,
 				break;  
     }
   }
-	std::cout<<"are we stuck on joining?\n";
-	t4.join();
+	if(!t4.joinable()){ t4.join();}
 	std::cout<<"Sensor readout shut down gracefully";
 }
 

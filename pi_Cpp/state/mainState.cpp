@@ -2,6 +2,8 @@
 
 void stateWatcher(std::shared_ptr<MainState> state, std::shared_ptr<std::atomic<bool>> notShuttingdown){
 	state->thread_watchForUpdate(notShuttingdown);
+	std::cout<<"State menagement shut down gracefully\n";
+	return;
 }
 
 //decode url to a command to change a state or pass to a function
@@ -67,7 +69,7 @@ MainState::MainState(){
 void MainState::thread_watchForUpdate(std::shared_ptr<std::atomic<bool>> notShuttingdown){
 	std::unique_lock<std::mutex> lk(m);
 	
-	while(notShuttingdown){
+	while(*notShuttingdown){
 		cv.wait(lk);
 		std::cout<<"running update\n";		
 
