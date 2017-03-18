@@ -18,7 +18,7 @@ pi: $(objects)
 
 main.o: main.cpp config.h arduinoContact/decode.h dataStorage/MainData.h dataStorage/PirData.h \
         dataStorage/SlowData.h graph/MainGraph.h state/mainState.h telegramBot/telegramBot.h \
-				httpServer/mainServer.h arduinoContact/Serial.h commandLine/commandline.h
+				httpServer/mainServer.h arduinoContact/Serial.h commandLine/commandline.h debug.h
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c main.cpp
 
 commandline.o: commandLine/commandline.cpp commandLine/commandline.h graph/MainGraph.h \

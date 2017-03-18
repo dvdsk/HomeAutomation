@@ -214,7 +214,7 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, double x[], uint16_t y[]
         else{
           skippedIndexes++;
         }
-      }
+      }//done with filling this bin
       if(binSize_P-skippedIndexes == 0){
         binOffset++; //counter and condition one down so we can
       }
@@ -485,7 +485,7 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
 
 int Data::findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSearch, unsigned int stopSearch){
   
-  //std::cout<<"enterd lowerbound\n";
+  std::cout<<"enterd lowerbound\n";
   uint16_t timelow;
 
   unsigned int nBlocks;
@@ -507,8 +507,8 @@ int Data::findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSea
   
   //FIXME DEBUG
   timeHigh = MainHeader::fullTSJustBefore(4) & 0b11111111111111110000000000000000;
-  //std::cout<<"timestamp we want: "<< ((uint32_t)TS_low | timeHigh)<<"\n";
-  //std::cout<<"timeHigh used: "<< +timeHigh<<"\n";
+  std::cout<<"timestamp we want: "<< ((uint32_t)TS_low | timeHigh)<<"\n";
+  std::cout<<"timeHigh used: "<< +timeHigh<<"\n";
   //FIXME DEBUG
   
   
@@ -657,6 +657,8 @@ Data::iterator::iterator(unsigned int startByte, unsigned int stopByte, unsigned
   numbOfValues = (stopByte-startByte)/packageSize;
   numbUnusable = numbOfValues%MAXPLOTRESOLUTION; 
    
+	std::cout<<"numbOfValues, numbUnusable: "<<numbOfValues<<", "<<numbUnusable<<"\n";
+
   if(numbOfValues < MAXPLOTRESOLUTION){binSize_P = 1; }
   else{binSize_P = numbOfValues/MAXPLOTRESOLUTION;}
   
@@ -669,7 +671,7 @@ bool Data::iterator::useValue(unsigned int i){
   //calculate if element 'i' should be used or not
   if(i == (unsigned int)(counter*spacing)){
     counter++;
-    std::cout<<"ignoring datapoint"<<"\n";
+    std::cout<<"ignored "<<counter-1<<" datapoints"<<"\n";
     return false;
   }
   else{return true;}
