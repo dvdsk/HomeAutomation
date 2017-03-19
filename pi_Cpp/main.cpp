@@ -56,48 +56,48 @@ int main(int argc, char* argv[])
 
 
 
-//	/*start the http server that serves the telegram bot and
-//	  custom http protocol. NOTE: each connection spawns its 
-//	  own thread.*/	
-//	std::thread t1(thread_Https_serv, stopHttpServ, bot, state);
-//	std::cout<<"Https-Server started\n";
+	/*start the http server that serves the telegram bot and
+	  custom http protocol. NOTE: each connection spawns its 
+	  own thread.*/	
+	std::thread t1(thread_Https_serv, stopHttpServ, bot, state);
+	std::cout<<"Https-Server started\n";
 
-//	/*start the thread that checks the output of the arduino 
-//	  it is responsible for setting the enviremental variables
-//	  the statewatcher responds too*/
-//	std::thread t2(checkSensorData, pirData, slowData, state, notShuttingdown);
-//	std::cout<<"Sensor readout started\n";
+	/*start the thread that checks the output of the arduino 
+	  it is responsible for setting the enviremental variables
+	  the statewatcher responds too*/
+	std::thread t2(checkSensorData, pirData, slowData, state, notShuttingdown);
+	std::cout<<"Sensor readout started\n";
 
-//	/*sleep to give checkSensorData time to aquire some data
-//	  from the arduino.*/
-//	std::cout<<"Waiting 5 seconds for sensors to set room states\n";
-//	std::this_thread::sleep_for(std::chrono::seconds(5));
+	/*sleep to give checkSensorData time to aquire some data
+	  from the arduino.*/
+	std::cout<<"Waiting 5 seconds for sensors to set room states\n";
+	std::this_thread::sleep_for(std::chrono::seconds(5));
 
-//	/*start the thread that is notified of state changes 
-//	  and re-evalutes the system on such as change. */
-//	std::thread t3(stateWatcher, state, notShuttingdown);
-// 	std::cout<<"State management started\n"; 
+	/*start the thread that is notified of state changes 
+	  and re-evalutes the system on such as change. */
+	std::thread t3(stateWatcher, state, notShuttingdown);
+ 	std::cout<<"State management started\n"; 
 
-//  signal(SIGINT, interruptHandler);  
-//	
-//	std::cout<<"cmd interface starting\n";
-//	std::this_thread::sleep_for(std::chrono::seconds(1));
-//	CommandLineInterface interface(pirData, slowData, state);
-//	interface.mainMenu();
-
-
+  signal(SIGINT, interruptHandler);  
+	
+	std::cout<<"cmd interface starting\n";
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	CommandLineInterface interface(pirData, slowData, state);
+	interface.mainMenu();
 
 
-//	//shutdown code
-//	(*stopHttpServ).unlock();
-//	(*notShuttingdown) = false;
-//	state->runUpdate();//(disadvantage) will run a final check
 
-	//t1.join();
-	//t2.join();
-	//t3.join();
 
-	debug(pirData,	slowData, state);
+	//shutdown code
+	(*stopHttpServ).unlock();
+	(*notShuttingdown) = false;
+	state->runUpdate();//(disadvantage) will run a final check
+
+	t1.join();
+	t2.join();
+	t3.join();
+
+	//debug(pirData,	slowData, state);
 	
   
 	return 0;

@@ -378,10 +378,10 @@ void Graph::finishPlot(uint8_t axisesToDraw){
   setMultiGroupXRange(mgB, yB);
 
   //format multigroup axis
-  //if(axisesToDraw & 0b00000001){axisTimeFormatting(mgT); }
-  //if(axisesToDraw & 0b00000010){axisTimeFormatting(mgH); }
-  //if(axisesToDraw & 0b00000100){axisTimeFormatting(mgC); }
-  //if(axisesToDraw & 0b00001000){axisTimeFormatting(mgB); }
+  if(axisesToDraw & 0b00000001){axisTimeFormatting(mgT); }
+  if(axisesToDraw & 0b00000010){axisTimeFormatting(mgH); }
+  if(axisesToDraw & 0b00000100){axisTimeFormatting(mgC); }
+  if(axisesToDraw & 0b00001000){axisTimeFormatting(mgB); }
 
   //shrink all t epads to make space for extra axis
   nAxises = __builtin_popcount(axisesToDraw);
