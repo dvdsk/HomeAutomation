@@ -126,14 +126,20 @@ void MainHeader::findFullTS(uint32_t Tstamp, int& A, int& B) {
   uint32_t midData;
   int mid;
   int prevMid;
-  std::cout<<"searching for Tstamp: "<<Tstamp<<"\n";
-  std::cout<<"data[pos-2]: "<<data[pos-2]<<"\n";
+  //std::cout<<"\tsearching for Tstamp: "<<Tstamp<<"\n";
+  //std::cout<<"\tdata[pos-2]: "<<data[pos-2]<<"\n";
   
-  //check and handle edge case TS > last in data
-  if(data[pos-2] < Tstamp){
+  //check and handle edge cases TS not in data range
+  if(Tstamp > data[pos-2]){
     A = data[pos-2+1];
     B = -1; //signals calling function that value is out of range
-    std::cout<<"wanted Tstamp larger then last full timestamp\n";
+    std::cout<<"\twanted Tstamp larger then last full timestamp\n";
+    return;
+  }
+  if(Tstamp < data[0]){
+    A = 0;//Though the data wil not lie within this range
+    B = data[1];//this will be detected in a later function
+    std::cout<<"\twanted Tstamp smaller then first full timestamp\n";
     return;
   }
   
@@ -144,13 +150,13 @@ void MainHeader::findFullTS(uint32_t Tstamp, int& A, int& B) {
     if(mid == prevMid){
       A = data[low*2+1];
       B = data[high*2+1];
-      std::cout<<"returning: "<<A<<", "<<B<<"\n";
+      std::cout<<"\treturning: "<<A<<", "<<B<<"\n";
       return;
     }
     else if(midData == Tstamp){
       A = data[mid*2+1];
       B = data[high*2+1];
-      std::cout<<"returning (found exact value): "<<A<<", "<<B<<"\n";
+      std::cout<<"\treturning (found exact value): "<<A<<", "<<B<<"\n";
       return;
     }
     else if(midData > Tstamp){

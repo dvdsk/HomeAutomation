@@ -96,7 +96,7 @@ private:
    * make the process more efficient. Returns the best value in the range*/
   int findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSearch,
                                       unsigned int stopSearch);
-  int findTimestamp_inFile_upperBound(uint16_t TS_low, unsigned int startSearch,
+  int findTimestamp_inFile_upperBound(uint32_t TS, unsigned int startSearch,
                                       unsigned int stopSearch);
   
   /*possible full timestamp part of the previous package*/
