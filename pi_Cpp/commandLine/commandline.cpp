@@ -178,6 +178,23 @@ uint32_t CommandLineInterface::unix_timestamp() {
   return now;
 }
 
+int getdigit(const char* unit){
+	char rawInput[4];
+	rawInput[0] = 0;			
+	
+	mvprintw(13, 2, unit);		
+	move(13, 10);	
+	clrtobot();	//clear text that was after the cursor
+
+	refresh();	
+	getstr(rawInput);
+
+	if(rawInput[0] != 0){
+		return std::stoi((std::string)rawInput);
+	}
+	return 0;
+}
+
 //TODO check sidewards scrolling possibility
 void CommandLineInterface::graph_menu(){
 
@@ -274,24 +291,14 @@ void CommandLineInterface::graph_menu(){
 	fillPlotVector(my_menu, n_choices, toPlot);
 	if(toPlot.size()>0){	
 		mvprintw(12, 2, "Enter the range from now to plot followed by ENTER:");
-		mvprintw(13, 2, "(format: days:hours:minutes:seconds)    ");	
-		move(13, 42);	
 		echo();	
-		refresh();	
 
-		char rawInput[80];	
-		getstr(rawInput);
-		std::istringstream input(rawInput);
 
-		std::string days, hours, minutes, seconds;
-		std::getline(input, days, ':');
-		std::getline(input, hours, ':');
-		std::getline(input, minutes, ':');
-		std::getline(input, seconds);
-	
 		uint32_t now = unix_timestamp();
-		int secondsAgo = std::stoi(days)*24*60*60 +std::stoi(hours)*60*60+
-			               std::stoi(minutes)*60 +std::stoi(seconds);
+		int secondsAgo = getdigit("days:")*24*60*60 +
+		               	 getdigit("hours:")*60*60+
+			               getdigit("minutes:")*60 +
+			               getdigit("seconds:");
 
 		Graph graph(toPlot, now-secondsAgo, now, pirData, slowData);
 	}
