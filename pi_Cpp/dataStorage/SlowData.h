@@ -49,7 +49,7 @@ class SlowData : public Data
 		void preProcess_light(int lightValues[], const uint32_t Tstamp);
 
   private:
-    bool newData(const uint8_t raw[SLOWDATA_SIZE], uint16_t light_Mean[slowData::LIGHT_LEN]);
+    bool newData(const uint8_t raw[Enc_slow::LEN_ENCODED], uint16_t light_Mean[3]);
 		uint32_t light_Sum[3];
 		uint16_t light_N;
 		uint16_t prevLight_Mean[3];

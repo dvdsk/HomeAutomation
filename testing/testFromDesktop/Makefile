@@ -7,6 +7,6 @@ ARDUINO_PORT = /dev/ttyUSB0
 AVR_TOOLS_DIR = /usr
 MONITOR_BAUDRATE = 9600
 
-CXXFLAGS += -Wall -Wextra -std=gnu++11 -DDEBUG -O3
+CXXFLAGS += -Wall -Wextra -std=gnu++11 #-DDEBUG -O3
 include /usr/share/arduino/Arduino.mk
 

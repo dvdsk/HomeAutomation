@@ -17,7 +17,7 @@ SlowData::SlowData(const std::string filePath, uint8_t* cache, const int cacheLe
   memset(&prevRaw, 0, 9);
 }
 
-bool SlowData::newData(const uint8_t raw[SLOWDATA_SIZE], uint16_t light_Mean[slowData::LIGHT_LEN]){
+bool SlowData::newData(const uint8_t raw[Enc_slow::LEN_ENCODED], uint16_t light_Mean[3]){
 	for(int i = 1; i<9; i++){
     if(raw[i] != prevRaw[i]){ return true;}
   }
@@ -36,19 +36,21 @@ void SlowData::preProcess_light(int lightValues[], const uint32_t Tstamp){
 	light_N ++;
 }
 
-void SlowData::process(const uint8_t raw[SLOWDATA_SIZE], const uint32_t Tstamp){  
-	uint8_t rawP[slowData::PACKAGESIZE-2]; //package without tstamp
+void SlowData::process(const uint8_t raw[Enc_slow::LEN_ENCODED], const uint32_t Tstamp){  
+	uint8_t rawP[Enc_slow::LEN_ENCODED+Enc_slow::LEN_ADD_ENCODED]; //package without tstamp
 	uint16_t light_Mean[3];
-	for(int i = 0; i<slowData::LIGHT_LEN; i++){
+
+	/*calculate the mean of all light data since the last slowdata package*/
+	for(int i = 0; i<3; i++){
   	light_Mean[i] = light_Sum[i]/light_N;
 	}
 	
 	if(newData(raw, light_Mean)){
 		//encode the light mean;
-		std::memcpy(prevLight_Mean, light_Mean, slowData::LIGHT_LEN);
-  	std::memcpy(prevRaw, raw, SLOWDATA_SIZE);				
-		memcpy(rawP, raw, SLOWDATA_SIZE);
-	
+		std::memcpy(prevLight_Mean, light_Mean, 3);
+  	std::memcpy(prevRaw, raw, Enc_slow::LEN_ENCODED);				
+		
+		memcpy(rawP, raw, Enc_slow::LEN_ENCODED+Enc_slow::LEN_ADD_ENCODED);
 		encode(rawP, light_Mean[lght::BED], 		Enc_slow::LIGHT_BED, 		 Enc_slow::LEN_LIGHT);
 		encode(rawP, light_Mean[lght::DOOR], 		Enc_slow::LIGHT_DOOR, 	 Enc_slow::LEN_LIGHT);
 		encode(rawP, light_Mean[lght::KITCHEN], Enc_slow::LIGHT_KITCHEN, Enc_slow::LEN_LIGHT);
@@ -58,38 +60,39 @@ void SlowData::process(const uint8_t raw[SLOWDATA_SIZE], const uint32_t Tstamp){
 }
 
 //SPECIFIC DECODER FUNCT
+/* +2 converts arduino packages to packages with a 2 byte timestamp in front*/
 float dTemp1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t temp_int = decode(block, blockIdx_B, Enc_slow::TEMP_BED, Enc_slow::LEN_TEMP);
+	uint16_t temp_int = decode(block, blockIdx_B+2, Enc_slow::TEMP_BED, Enc_slow::LEN_TEMP);
 	return (float(temp_int))/10 -10; }
 float dTemp2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t temp_int = decode(block, blockIdx_B, Enc_slow::TEMP_BATHROOM, Enc_slow::LEN_TEMP);
+	uint16_t temp_int = decode(block, blockIdx_B+2, Enc_slow::TEMP_BATHROOM, Enc_slow::LEN_TEMP);
 	return (float(temp_int))/10 -10; }
 float dTemp3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t temp_int = decode(block, blockIdx_B, Enc_slow::TEMP_DOOR, Enc_slow::LEN_TEMP);
+	uint16_t temp_int = decode(block, blockIdx_B+2, Enc_slow::TEMP_DOOR, Enc_slow::LEN_TEMP);
 	return (float(temp_int))/10 -10; }
 
 float dHum1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t hum_int = decode(block, blockIdx_B, Enc_slow::HUM_BED, Enc_slow::LEN_HUM);
+	uint16_t hum_int = decode(block, blockIdx_B+2, Enc_slow::HUM_BED, Enc_slow::LEN_HUM);
 	return (float(hum_int))/10 -10; }//TODO REPLACE THESE CALC
 float dHum2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t hum_int = decode(block, blockIdx_B, Enc_slow::HUM_BATHROOM, Enc_slow::LEN_HUM);
+	uint16_t hum_int = decode(block, blockIdx_B+2, Enc_slow::HUM_BATHROOM, Enc_slow::LEN_HUM);
 	return (float(hum_int))/10 -10; }//TODO REPLACE THESE CALC
 float dHum3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t hum_int = decode(block, blockIdx_B, Enc_slow::HUM_DOOR, Enc_slow::LEN_HUM);
+	uint16_t hum_int = decode(block, blockIdx_B+2, Enc_slow::HUM_DOOR, Enc_slow::LEN_HUM);
 	return (float(hum_int))/10 -10; }//TODO REPLACE THESE CALC
 
 float dLight1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t lightValue = decode(block, blockIdx_B, Enc_slow::LIGHT_BED, Enc_slow::LEN_LIGHT);
+	uint16_t lightValue = decode(block, blockIdx_B+2, Enc_slow::LIGHT_BED, Enc_slow::LEN_LIGHT);
 	return (float)lightValue;}
 float dLight2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t lightValue = decode(block, blockIdx_B, Enc_slow::LIGHT_DOOR, Enc_slow::LEN_LIGHT);
+	uint16_t lightValue = decode(block, blockIdx_B+2, Enc_slow::LIGHT_DOOR, Enc_slow::LEN_LIGHT);
 	return (float)lightValue;}
 float dLight3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t lightValue = decode(block, blockIdx_B, Enc_slow::LIGHT_KITCHEN, Enc_slow::LEN_LIGHT);
+	uint16_t lightValue = decode(block, blockIdx_B+2, Enc_slow::LIGHT_KITCHEN, Enc_slow::LEN_LIGHT);
 	return (float)lightValue;}
 
 float dCo2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t co2Val = decode(block, blockIdx_B, Enc_slow::CO2, Enc_slow::LEN_CO2);
+	uint16_t co2Val = decode(block, blockIdx_B+2, Enc_slow::CO2, Enc_slow::LEN_CO2);
 	return (float)co2Val;}
 
 

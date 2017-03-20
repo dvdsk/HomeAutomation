@@ -2,6 +2,7 @@
 #define CONFIG
 
 #include <cstdint> //uint16_t
+#include "encodingScheme.h"
 
 //length in bytes
 constexpr uint8_t FASTDATA_SIZE = 4;
@@ -100,10 +101,12 @@ namespace plnt {//plants
 namespace Enc_slow {
 	//location where data starts in bits and lenght of data info			 
 
-	constexpr int LIGHT_BED = 2;
-	constexpr int LIGHT_DOOR = 2+10;
-	constexpr int LIGHT_KITCHEN = 2+10+10;
 	constexpr int LEN_LIGHT = 10;
+	constexpr int LIGHT_BED = CO2+LEN_CO2;
+	constexpr int LIGHT_DOOR = LIGHT_BED+LEN_LIGHT;
+	constexpr int LIGHT_KITCHEN = LIGHT_DOOR+LEN_LIGHT;
+
+	constexpr int LEN_ADD_ENCODED = LEN_LIGHT*3;
 }
 
 enum plotables{
@@ -141,13 +144,13 @@ namespace mainState {
 }
 
 namespace pirData {
-	constexpr int PACKAGESIZE = 4+2;
+	constexpr int PACKAGESIZE = Enc_fast::LEN_ENCODED+2;
 	constexpr int PIR_DT= 1; //time to bin data for
 }
 
 namespace slowData {
-	constexpr int LIGHT_LEN = 1;
-	constexpr int PACKAGESIZE = SLOWDATA_SIZE+LIGHT_LEN*2+2; //slow data + light data + timestamp
+	constexpr int PACKAGESIZE = Enc_slow::LEN_ENCODED+Enc_slow::LEN_ADD_ENCODED+2; 
+	//slow data + light data + timestamp
 }
 
 #endif

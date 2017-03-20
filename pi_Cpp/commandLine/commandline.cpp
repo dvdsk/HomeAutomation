@@ -179,6 +179,7 @@ uint32_t CommandLineInterface::unix_timestamp() {
 }
 
 int getdigit(const char* unit){
+	timeout(-1);//no timeout	
 	char rawInput[4];
 	rawInput[0] = 0;			
 	
