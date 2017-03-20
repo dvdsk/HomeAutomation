@@ -36,7 +36,7 @@ std::shared_ptr<MainState> mainState){
 	uint32_t startT = now-secondsAgo;
 	double x[1000];
 	double y[1000];	
-	plotables i = CO2PPM;
+	plotables i = TEMP_BED;
 
 	int len = slowData->fetchSlowData(startT, stopT, x, y, i);//todo
 
