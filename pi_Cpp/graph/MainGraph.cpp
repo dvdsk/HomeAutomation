@@ -357,10 +357,11 @@ void Graph::finishPlot(uint8_t axisesToDraw){
   float toShrink;
 
   //draw (connect) all graph parts in the right order
-  if(axisesToDraw & 0b00000001){padT->cd(); mgT->Draw("AL");}
-  if(axisesToDraw & 0b00000010){padH->cd(); mgH->Draw("AL");}
-  if(axisesToDraw & 0b00000100){padC->cd(); mgC->Draw("AL");}
-  if(axisesToDraw & 0b00001000){padB->cd(); mgB->Draw("AL");}
+	// "AL" simple polyline, "AC" smooth curve
+  if(axisesToDraw & 0b00000001){padT->cd(); mgT->Draw("AC");}
+  if(axisesToDraw & 0b00000010){padH->cd(); mgH->Draw("AC");}
+  if(axisesToDraw & 0b00000100){padC->cd(); mgC->Draw("AC");}
+  if(axisesToDraw & 0b00001000){padB->cd(); mgB->Draw("AC");}
 
   c1->cd();
   padT->Draw();
