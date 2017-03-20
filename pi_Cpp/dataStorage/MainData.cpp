@@ -257,7 +257,7 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, double x[], uint16_t y[]
 
 int Data::fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
                     uint16_t (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE]), 
-										double (*func2)(uint16_t integer_var) {
+										double (*func2)(uint16_t integer_var)) {
 
   int len = 0; //Length of y
   unsigned int startByte; //start position in the file
@@ -327,7 +327,7 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
 					binIdx_P = 0;
 
 					x[binNumber] = meanT(x_bin, binSize_P);
-		      y[binNumber] = meanB(y_bin, binSize_P);
+		      y[binNumber] = func2(meanB(y_bin, binSize_P));
 					binNumber++;
 					len++;
 				}
@@ -366,7 +366,7 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
 			if(binIdx_P == binSize_P){//save bin result to array if at bincapacity
 				binIdx_P = 0;
 				x[binNumber] = meanT(x_bin, binSize_P);
-	      y[binNumber] = meanB(y_bin, binSize_P);
+	      y[binNumber] = func2(meanB(y_bin, binSize_P));
 				binNumber++;
 				len++;
 			}

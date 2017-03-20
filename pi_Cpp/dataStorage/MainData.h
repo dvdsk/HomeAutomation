@@ -41,7 +41,7 @@ public:
    * the plotresolution. The data is plotted from the start time to and including
    * the end time*/
   int fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
-	              float (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE]), 
+	              uint16_t (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE]), 
 	              double (*func2)(uint16_t integer_var));
 
   /* variand of fetchData that does not return floats but uses uint16 type and
