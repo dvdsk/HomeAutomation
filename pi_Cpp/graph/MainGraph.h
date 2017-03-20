@@ -40,11 +40,11 @@ private:
   //local cache of time data
   float y[MAXPLOTRESOLUTION];
   double x[MAXPLOTRESOLUTION];
-  double yT;
+  double yT; 
   double yH; 
   double yC;
   double yB; //one y value from each multigroup
-                    //yT then yH then yC then yB
+             //yT then yH then yC then yB
   uint16_t len; //numb of datapoints to plot
   TCanvas* c1;
   TMultiGraph* mgT;

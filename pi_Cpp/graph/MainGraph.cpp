@@ -108,11 +108,26 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
         break;
       case CO2PPM:
         //onlyPir = false;
-        slowData->fetchSlowData(startT, stopT, x, y, i);
+        {
+          //onlyPir = false;
+          axisesToDraw = axisesToDraw | 0b00000100;
+          len = slowData->fetchSlowData(startT, stopT, x, y, i);//todo
+          TGraph* gr7 = new TGraph(len,x,y);
+          yC = y[0];
+          leg->AddEntry(gr7,"Co2","l");
+          mgC->Add(gr7);
+        }
         break;
       case BRIGHTNESS_BED:
         //onlyPir = false;
-        //nonPirFastData;
+        {
+          axisesToDraw = axisesToDraw | 0b00001000;
+          len = slowData->fetchSlowData(startT, stopT, x, y, i);//todo
+          TGraph* gr8 = new TGraph(len,x,y);
+          yB = y[0];
+          leg->AddEntry(gr8,"Brightness bed","l");
+          mgB->Add(gr8);
+        }
         break;    
       default:
         break;

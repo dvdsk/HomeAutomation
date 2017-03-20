@@ -133,31 +133,40 @@ plotables CommandLineInterface::decodeMenu(int menuChoice){
 		case 2:				
 			toAdd = TEMP_DOORHIGH;
 			break;
-		case 3:				
+		case 4:				
 			toAdd = HUMIDITY_BED;
 			break;
-		case 4:				
+		case 5:				
 			toAdd = HUMIDITY_BATHROOM;
 			break;
-		case 5:				
+		case 6:				
 			toAdd = HUMIDITY_DOORHIGH;
 			break;
-		case 6:				
+		case 8:				
 			toAdd = BRIGHTNESS_BED;
 			break;
-		case 7:				
+		case 9:				
 			toAdd = BRIGHTNESS_KITCHEN; //brightness window
 			break;
-		case 8:				
+		case 10:				
 			toAdd = BRIGHTNESS_DOORHIGH; //brightness window
 			break;
-		case 9:				
+		case 11:				
 			toAdd = BRIGHTNESS_BEYONDCURTAINS; //brightness window
 			break;
-		case 10:				
+		case 12:				
 			toAdd = MOVEMENTSENSOR0; //brightness window
 			break;
 		//all other movementsensors....
+		case 24:				
+			toAdd = CO2PPM; //brightness window
+			break;
+		case 23:				
+			toAdd = CO2PPM; //brightness window
+			break;
+		case 22:				
+			toAdd = CO2PPM; //brightness window
+			break;
 	}
 	return toAdd;
 }
@@ -201,13 +210,13 @@ void CommandLineInterface::graph_menu(){
 
 	std::vector<plotables> toPlot;
 	const char *choices[] = {
-		"Bed", 	"Bathroom", 	"Door", " ", 	
-		"Bed", 	"Bathroom", 	"Door", " ",
-		"Bed", 	"Kitchen", 		"Door", 	"Window",
-		"Bed left", 	"Bed right", 	"Heater", 	" ", 
-		"Kitch. 1", 	"Kitch. 2",	"Kitch. 3", "Kitch. 4",
-	 	"Bathroom left", 	"Bathroom right", " ", " ",
-		"Co2", "Air Pressure", (char *)NULL,
+		"Bed", 	"Bathroom", 	"Door", " ", 								//0-3
+		"Bed", 	"Bathroom", 	"Door", " ",								//4-7
+		"Bed", 	"Kitchen", 		"Door", 	"Window",					//8-11
+		"Bed left", 	"Bed right", 	"Heater", 	" ", 			//12-15
+		"Kitch. 1", 	"Kitch. 2",	"Kitch. 3", "Kitch. 4",	//16-19
+	 	"Bathroom left", 	"Bathroom right", " ", " ",			//20-23
+		"Co2", "Air Pressure", (char *)NULL,							//24-25
 	};
 
 	ITEM **my_items;
