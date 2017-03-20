@@ -61,39 +61,35 @@ void SlowData::process(const uint8_t raw[Enc_slow::LEN_ENCODED], const uint32_t 
 
 //SPECIFIC DECODER FUNCT
 /* +2 converts arduino packages to packages with a 2 byte timestamp in front*/
-float dTemp1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t temp_int = decode(block, blockIdx_B+2, Enc_slow::TEMP_BED, Enc_slow::LEN_TEMP);
-	return (float(temp_int))/10 -10; }
-float dTemp2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t temp_int = decode(block, blockIdx_B+2, Enc_slow::TEMP_BATHROOM, Enc_slow::LEN_TEMP);
-	return (float(temp_int))/10 -10; }
-float dTemp3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t temp_int = decode(block, blockIdx_B+2, Enc_slow::TEMP_DOOR, Enc_slow::LEN_TEMP);
-	return (float(temp_int))/10 -10; }
+uint16_t dTemp1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+	return decode(block, blockIdx_B+2, Enc_slow::TEMP_BED, Enc_slow::LEN_TEMP);}
+uint16_t dTemp2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+	return decode(block, blockIdx_B+2, Enc_slow::TEMP_BATHROOM, Enc_slow::LEN_TEMP);}
+uint16_t dTemp3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+	return decode(block, blockIdx_B+2, Enc_slow::TEMP_DOOR, Enc_slow::LEN_TEMP);}
 
-float dHum1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t hum_int = decode(block, blockIdx_B+2, Enc_slow::HUM_BED, Enc_slow::LEN_HUM);
-	return (float(hum_int))/10 -10; }//TODO REPLACE THESE CALC
-float dHum2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t hum_int = decode(block, blockIdx_B+2, Enc_slow::HUM_BATHROOM, Enc_slow::LEN_HUM);
-	return (float(hum_int))/10 -10; }//TODO REPLACE THESE CALC
-float dHum3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t hum_int = decode(block, blockIdx_B+2, Enc_slow::HUM_DOOR, Enc_slow::LEN_HUM);
-	return (float(hum_int))/10 -10; }//TODO REPLACE THESE CALC
+double tempToFloat(uint16_t temp_int){return temp_int/10. -10; }
 
-float dLight1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t lightValue = decode(block, blockIdx_B+2, Enc_slow::LIGHT_BED, Enc_slow::LEN_LIGHT);
-	return (float)lightValue;}
-float dLight2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t lightValue = decode(block, blockIdx_B+2, Enc_slow::LIGHT_DOOR, Enc_slow::LEN_LIGHT);
-	return (float)lightValue;}
-float dLight3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t lightValue = decode(block, blockIdx_B+2, Enc_slow::LIGHT_KITCHEN, Enc_slow::LEN_LIGHT);
-	return (float)lightValue;}
+uint16_t dHum1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+	return decode(block, blockIdx_B+2, Enc_slow::HUM_BED, Enc_slow::LEN_HUM); }
+uint16_t dHum2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+	return decode(block, blockIdx_B+2, Enc_slow::HUM_BATHROOM, Enc_slow::LEN_HUM); }
+uint16_t dHum3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+	return decode(block, blockIdx_B+2, Enc_slow::HUM_DOOR, Enc_slow::LEN_HUM); }
 
-float dCo2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	uint16_t co2Val = decode(block, blockIdx_B+2, Enc_slow::CO2, Enc_slow::LEN_CO2);
-	return (float)co2Val;}
+double humToFloat(uint16_t hum_int){return hum_int/10.; }
+
+uint16_t dLight1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+	return decode(block, blockIdx_B+2, Enc_slow::LIGHT_BED, Enc_slow::LEN_LIGHT); }
+uint16_t dLight2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+	return decode(block, blockIdx_B+2, Enc_slow::LIGHT_DOOR, Enc_slow::LEN_LIGHT); }
+uint16_t dLight3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+	return decode(block, blockIdx_B+2, Enc_slow::LIGHT_KITCHEN, Enc_slow::LEN_LIGHT); }
+
+uint16_t dCo2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+	return decode(block, blockIdx_B+2, Enc_slow::CO2, Enc_slow::LEN_CO2); }
+
+double toFloat(uint16_t intval){return (double)intval; }
 
 
 //TODO possible optimisation using template and no longer a function pointer
@@ -102,28 +98,28 @@ int SlowData::fetchSlowData(uint32_t startT, uint32_t stopT,
   int len;
   switch(sensor){
     case TEMP_BED:
-      len = Data::fetchData(startT, stopT, x, y, dTemp1);   
+      len = Data::fetchData(startT, stopT, x, y, dTemp1, tempToFloat);   
       break;
     case TEMP_BATHROOM:
-      len = Data::fetchData(startT, stopT, x, y, dTemp2);  
+      len = Data::fetchData(startT, stopT, x, y, dTemp2, tempToFloat);  
       break;
     case TEMP_DOORHIGH:
-      len = Data::fetchData(startT, stopT, x, y, dTemp3);  
+      len = Data::fetchData(startT, stopT, x, y, dTemp3, tempToFloat);  
       break;    
     case HUMIDITY_BED:
-      len = Data::fetchData(startT, stopT, x, y, dHum1);  
+      len = Data::fetchData(startT, stopT, x, y, dHum1, humToFloat);  
       break;    
     case HUMIDITY_BATHROOM:
-      len = Data::fetchData(startT, stopT, x, y, dHum2);  
+      len = Data::fetchData(startT, stopT, x, y, dHum2, humToFloat);  
       break;    
     case HUMIDITY_DOORHIGH:
-      len = Data::fetchData(startT, stopT, x, y, dHum3);  
+      len = Data::fetchData(startT, stopT, x, y, dHum3, humToFloat);  
       break;    
     case CO2PPM: 
-      len = Data::fetchData(startT, stopT, x, y, dCo2);  
+      len = Data::fetchData(startT, stopT, x, y, dCo2, toFloat);  
       break;
     case BRIGHTNESS_BED:
-      len = Data::fetchData(startT, stopT, x, y, dLight1);  
+      len = Data::fetchData(startT, stopT, x, y, dLight1, toFloat);  
       break; 
 		default:
 			std::cout<<"ERROR: INVALID CASE: "<<sensor<<"\n";
