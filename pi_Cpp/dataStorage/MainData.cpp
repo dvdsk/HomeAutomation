@@ -256,7 +256,8 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, double x[], uint16_t y[]
 }//done
 
 int Data::fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
-                    float (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE])) {
+                    uint16_t (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE]), 
+										double (*func2)(uint16_t integer_var) {
 
   int len = 0; //Length of y
   unsigned int startByte; //start position in the file
@@ -344,7 +345,7 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
 		}
 		/*clean up, (save current bin even if its not filled)*/
 		x[binNumber] = meanT(x_bin, binIdx_P+1);
-    y[binNumber] = meanB(y_bin, binIdx_P+1); 
+    y[binNumber] = func2(meanB(y_bin, binIdx_P+1) ); 
 		binIdx_P = 0;	
 	}
 
@@ -383,7 +384,7 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
 	}
 	/*clean up, (save current bin even if its not filled)*/
 	x[binNumber] = meanT(x_bin, binIdx_P+1);
-  y[binNumber] = meanB(y_bin, binIdx_P+1); 
+  y[binNumber] = func2( meanB(y_bin, binIdx_P+1)); 
 	binIdx_P = 0;	
 
   return len;
@@ -676,13 +677,6 @@ double Data::meanT(uint32_t* array, int len){
   Mean /= len;
   Mean += first;
   return (double)Mean;
-}
-
-double Data::meanF(float* array, int len){
-  double Mean = 0;
-  for(int i =0; i<len; i++){ Mean+=*(array+i); }
-  Mean /= len;
-  return Mean;
 }
 
 uint16_t Data::meanB(uint16_t* array, int len){
