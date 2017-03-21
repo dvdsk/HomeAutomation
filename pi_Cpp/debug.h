@@ -30,7 +30,7 @@ void debug(std::shared_ptr<PirData> pirData,	std::shared_ptr<SlowData> slowData,
 std::shared_ptr<MainState> mainState){
 
 	uint32_t now = this_unix_timestamp();
-	uint32_t secondsAgo = 60*60*2400;
+	uint32_t secondsAgo = 60*60*24*2;
 	
 	uint32_t stopT = now;
 	uint32_t startT = now-secondsAgo;

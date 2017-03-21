@@ -22,7 +22,6 @@ CommandLineInterface::CommandLineInterface(std::shared_ptr<PirData> pirData_,
 
 
 void CommandLineInterface::mainMenu(){
-	WINDOW *menu_win;
 	int highlight = 1;
 	int choice = 0;
 	int c;
@@ -171,7 +170,7 @@ plotables CommandLineInterface::decodeMenu(int menuChoice){
 	return toAdd;
 }
 
-bool CommandLineInterface::fillPlotVector(MENU* my_menu, int n_choices, std::vector<plotables>& toPlot){
+void CommandLineInterface::fillPlotVector(MENU* my_menu, int n_choices, std::vector<plotables>& toPlot){
 	ITEM **items;
 	items = menu_items(my_menu);	
 	for(int i=0; i<n_choices; i++){
@@ -310,6 +309,9 @@ void CommandLineInterface::graph_menu(){
 			               getdigit("minutes:")*60 +
 			               getdigit("seconds:");
 
+		mvprintw(LINES-5, 2, "%d", getdigit("minutes:"));//DEBUG
+		refresh();
+		while(1);
 		Graph graph(toPlot, now-secondsAgo, now, pirData, slowData);
 	}
 	/* Unpost and free all the memory taken up */
