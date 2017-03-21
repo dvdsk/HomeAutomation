@@ -1,7 +1,7 @@
 #ifndef SLOWDATA_H
 #define SLOWDATA_H
 #include <iostream>
-#include <cstring> //memcopy
+#include <cstring> //memcopy, memset
 #include <cstdint> //uint16_t
 #include <array>
 

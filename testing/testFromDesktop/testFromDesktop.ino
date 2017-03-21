@@ -13,13 +13,13 @@ uint16_t fastData[FASTDATA_SIZE];
 ////////////////////////////////////////////////////
 ////////////////////////////////////////////////////
 
-
+int i = 0;
   
 void updateSlow_Local(){
 	//co2.rqCO2();
 	//thSen.getTempHumid();
 	slowData[Idx::UPDATED] |= (1 << Idx::TEMPERATURE_BED) | (1<<Idx::HUMIDITY_BED);	
-	slowData[Idx::TEMPERATURE_BED] = 200;
+	slowData[Idx::TEMPERATURE_BED] = 200+i;
 	slowData[Idx::HUMIDITY_BED] = 201;
   //co2.readCO2();
 	slowData[Idx::CO2] = 1800;
@@ -149,6 +149,7 @@ void loop(){
   if (commandBuffer_Len >0) {
     switch(commandBuffer[0]){
       case 48: //acii 0
+				i++;
         updateSlow_Local();//requests the remote sensor values
         //and reads in the local sensors
         break;

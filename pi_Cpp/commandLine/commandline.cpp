@@ -309,9 +309,9 @@ void CommandLineInterface::graph_menu(){
 			               getdigit("minutes:")*60 +
 			               getdigit("seconds:");
 
-		mvprintw(LINES-5, 2, "%d", getdigit("minutes:"));//DEBUG
-		refresh();
-		while(1);
+//		mvprintw(LINES-5, 2, "%d", getdigit("minutes:"));//DEBUG
+//		refresh();
+//		while(1);
 		Graph graph(toPlot, now-secondsAgo, now, pirData, slowData);
 	}
 	/* Unpost and free all the memory taken up */

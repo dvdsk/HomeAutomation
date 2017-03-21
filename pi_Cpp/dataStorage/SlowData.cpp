@@ -37,7 +37,7 @@ void SlowData::preProcess_light(int lightValues[], const uint32_t Tstamp){
 }
 
 void SlowData::process(const uint8_t raw[Enc_slow::LEN_ENCODED], const uint32_t Tstamp){  
-	uint8_t rawP[Enc_slow::LEN_ENCODED+Enc_slow::LEN_ADD_ENCODED]; //package without tstamp
+	uint8_t raw_extended[Enc_slow::LEN_ENCODED+Enc_slow::LEN_ADD_ENCODED]; //package without tstamp
 	uint16_t light_Mean[3];
 
 	/*calculate the mean of all light data since the last slowdata package*/
@@ -50,12 +50,14 @@ void SlowData::process(const uint8_t raw[Enc_slow::LEN_ENCODED], const uint32_t 
 		std::memcpy(prevLight_Mean, light_Mean, 3);
   	std::memcpy(prevRaw, raw, Enc_slow::LEN_ENCODED);				
 		
-		memcpy(rawP, raw, Enc_slow::LEN_ENCODED+Enc_slow::LEN_ADD_ENCODED);
-		encode(rawP, light_Mean[lght::BED], 		Enc_slow::LIGHT_BED, 		 Enc_slow::LEN_LIGHT);
-		encode(rawP, light_Mean[lght::DOOR], 		Enc_slow::LIGHT_DOOR, 	 Enc_slow::LEN_LIGHT);
-		encode(rawP, light_Mean[lght::KITCHEN], Enc_slow::LIGHT_KITCHEN, Enc_slow::LEN_LIGHT);
+		memcpy(raw_extended, raw, Enc_slow::LEN_ENCODED);
+		memset(raw_extended+Enc_slow::LEN_ENCODED, 0, Enc_slow::LEN_ADD_ENCODED);		
+		
+		encode(raw_extended, light_Mean[lght::BED], Enc_slow::LIGHT_BED, Enc_slow::LEN_LIGHT);
+		encode(raw_extended, light_Mean[lght::DOOR], Enc_slow::LIGHT_DOOR, Enc_slow::LEN_LIGHT);
+		encode(raw_extended, light_Mean[lght::KITCHEN], Enc_slow::LIGHT_KITCHEN, Enc_slow::LEN_LIGHT);
 
-    Data::append(rawP, Tstamp); 
+    Data::append(raw_extended, Tstamp); 
   }
 }
 

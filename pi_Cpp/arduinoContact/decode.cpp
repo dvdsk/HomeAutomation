@@ -10,8 +10,8 @@ void requestSensorData(std::shared_ptr<Serial> arduino,
 	std::shared_ptr<std::atomic<bool>> notShuttingdown){
 	while(*notShuttingdown){
 		arduino->writeString("0");
-		//std::cout<<"requesting new data from arduino\n";
-		std::this_thread::sleep_for(std::chrono::seconds(5));
+		//std::this_thread::sleep_for(std::chrono::seconds(5));
+		std::this_thread::sleep_for(std::chrono::seconds(1));
 	}
 	std::cout<<"reqSensorDat shut down successfully\n";
 	return;

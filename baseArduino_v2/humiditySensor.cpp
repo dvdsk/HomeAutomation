@@ -239,7 +239,7 @@ void TempHumid::getTempHumid(){
 	tempC = readTemperatureC();
 	humid = readHumidity(tempC);
 
-	*(slowData+Idx::TEMPERATURE_BED) = (uint16_t)(tempC*10) +100;
+	*(slowData+Idx::TEMPERATURE_BED) = (uint16_t)((tempC*10) +100);
 	*(slowData+Idx::HUMIDITY_BED) = (uint16_t)(humid*10);
 
 

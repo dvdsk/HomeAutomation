@@ -1,9 +1,9 @@
 #ifndef COMPR_H 
 #define COMPR_H 
 
-#include <cstring> //memset
-#include <stdint.h>
-#include <iostream>
+//#include <cstring> //memset
+//#include <stdint.h>
+//#include <iostream>
 
 
 //TODO make constexpr as soon as supported by c++
