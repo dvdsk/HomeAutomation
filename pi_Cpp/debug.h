@@ -8,6 +8,7 @@
 #include <mutex>
 #include <memory>
 #include <atomic>
+#include <vector>
 
 #include "config.h"
 #include "arduinoContact/Serial.h"
@@ -30,24 +31,27 @@ void debug(std::shared_ptr<PirData> pirData,	std::shared_ptr<SlowData> slowData,
 std::shared_ptr<MainState> mainState){
 
 	uint32_t now = this_unix_timestamp();
-	uint32_t secondsAgo = 60*60*24*2;
+	uint32_t secondsAgo = 60*60*24*1;
 	
 	uint32_t stopT = now;
 	uint32_t startT = now-secondsAgo;
 	double x[1000];
 	double y[1000];	
 	plotables i = TEMP_BED;
+	std::vector<plotables> toPlot;
+	toPlot.push_back(TEMP_BED);
 
-	int len = slowData->fetchSlowData(startT, stopT, x, y, i);//todo
+	//int len = slowData->fetchSlowData(startT, stopT, x, y, i);//todo
+	Graph graph(toPlot, startT, stopT, pirData, slowData);
 
-	for(int i =0; i<len; i++){
-		std::cout<<std::fixed;		//turn off sientific notation
-		std::cout<<x[i]<<"\t"<<y[i]<<"\n";
-	}
+//	for(int i =0; i<len; i++){
+//		std::cout<<std::fixed;		//turn off sientific notation
+//		std::cout<<x[i]<<"\t"<<y[i]<<"\n";
+//	}
 
 	std::cout<<"conf: "<<Enc_slow::TEMP_BED<<"\n";
 	std::cout<<"test test\n";
-	std::cout<<"len: "<<len<<"\n\n";
+	//std::cout<<"len: "<<len<<"\n\n";
 
 }
 
