@@ -1,5 +1,4 @@
 #include "MainData.h"
-#include "../graph/MainGraph.h" //only needed for MAXPLOTRESOLUTION
 
 Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheSize)
   : Cache(packageSize, cacheSize), MainHeader(fileName)

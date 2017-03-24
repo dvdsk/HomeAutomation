@@ -1,9 +1,8 @@
 CXX = g++
 CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
-ROOTFLAGS = `root-config --cflags --glibs --libs`
 
 
-objects = main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o MainGraph.o mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o
+objects = main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
 all: pi
@@ -18,11 +17,11 @@ pi: $(objects)
 	-lmicrohttpd -lcurl -lboost_system -lboost_thread -lpthread -lmenu -lncurses
 
 main.o: main.cpp config.h arduinoContact/decode.h dataStorage/MainData.h dataStorage/PirData.h \
-        dataStorage/SlowData.h graph/MainGraph.h state/mainState.h telegramBot/telegramBot.h \
+        dataStorage/SlowData.h state/mainState.h telegramBot/telegramBot.h \
 				httpServer/mainServer.h arduinoContact/Serial.h commandLine/commandline.h debug.h
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c main.cpp
 
-commandline.o: commandLine/commandline.cpp commandLine/commandline.h graph/MainGraph.h \
+commandline.o: commandLine/commandline.cpp commandLine/commandline.h \
 							 config.h state/mainState.h
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c commandLine/commandline.cpp
 
@@ -45,9 +44,6 @@ decode.o: arduinoContact/decode.cpp arduinoContact/decode.h arduinoContact/Seria
 	$(CXX) $(CXXFLAGS) -c arduinoContact/decode.cpp		
 Serial.o: arduinoContact/Serial.cpp arduinoContact/Serial.h
 	$(CXX) $(CXXFLAGS) -c arduinoContact/Serial.cpp	
-
-MainGraph.o: graph/MainGraph.cpp graph/MainGraph.h
-	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c graph/MainGraph.cpp	
 
 mainState.o: state/mainState.cpp state/mainState.h
 	$(CXX) $(CXXFLAGS) -pthread -c state/mainState.cpp	

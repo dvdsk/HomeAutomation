@@ -15,7 +15,6 @@
 #include "arduinoContact/decode.h"
 #include "dataStorage/MainData.h"
 #include "dataStorage/PirData.h"
-#include "graph/MainGraph.h"
 #include "state/mainState.h"
 #include "telegramBot/telegramBot.h"
 #include "httpServer/mainServer.h"
@@ -41,19 +40,10 @@ std::shared_ptr<MainState> mainState){
 	std::vector<plotables> toPlot;
 	toPlot.push_back(TEMP_BED);
 
-	//int len = slowData->fetchSlowData(startT, stopT, x, y, i);//todo
-	Graph graph1(toPlot, startT, stopT, pirData, slowData);
 
 	char ch;
 	ch = getchar();
 
-	toPlot.push_back(HUMIDITY_BED);
-	Graph graph2(toPlot, startT, stopT, pirData, slowData);	
-
-	ch = getchar();
-
-	toPlot.push_back(CO2PPM);
-	Graph graph3(toPlot, startT, stopT, pirData, slowData);	
 
 	std::cout<<"conf: "<<Enc_slow::TEMP_BED<<"\n";
 	std::cout<<"test test\n";

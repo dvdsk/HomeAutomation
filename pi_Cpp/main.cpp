@@ -14,7 +14,6 @@
 #include "arduinoContact/decode.h"
 #include "dataStorage/MainData.h"
 #include "dataStorage/PirData.h"
-#include "graph/MainGraph.h"
 #include "state/mainState.h"
 #include "telegramBot/telegramBot.h"
 #include "httpServer/mainServer.h"

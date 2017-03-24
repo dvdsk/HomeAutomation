@@ -14,7 +14,6 @@
 #include "../dataStorage/PirData.h"
 #include "../dataStorage/SlowData.h"
 #include "../state/mainState.h"
-#include "../graph/MainGraph.h" 
 
 //need to link with : -lmenu -lncurses
 

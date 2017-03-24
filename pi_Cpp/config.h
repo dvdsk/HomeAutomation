@@ -8,6 +8,8 @@
 constexpr uint8_t FASTDATA_SIZE = 4;
 constexpr uint8_t SLOWDATA_SIZE = 7;
 
+constexpr uint16_t MAXPLOTRESOLUTION = 1000;
+
 enum Command {LIGHTS_ALLON, LIGHTS_ALLOFF, MS_SLEEPING, MOVIEMODE};
 
 namespace stateConf {

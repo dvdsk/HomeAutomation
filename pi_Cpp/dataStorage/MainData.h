@@ -17,6 +17,7 @@
 
 #include "MainHeader.h"
 #include "Cache.h"
+#include "../config.h"
 
 const static unsigned int MAXBLOCKSIZE = 512000; //512kb
 
