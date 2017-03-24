@@ -363,6 +363,7 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
 	      timeHigh = nextFullTS & 0b11111111111111110000000000000000;
 	      MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
 	    }
+			//std::cout<<"crash?";
 			if(binIdx_P == binSize_P){//save bin result to array if at bincapacity
 				binIdx_P = 0;
 				x[binNumber] = meanT(x_bin, binSize_P);
@@ -382,10 +383,12 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
 		orgIdx_B += packageSize_;
 		blockIdx_B += packageSize_;		
 	}
+
 	/*clean up, (save current bin even if its not filled)*/
 	x[binNumber] = meanT(x_bin, binIdx_P+1);
   y[binNumber] = func2( meanB(y_bin, binIdx_P+1)); 
 	binIdx_P = 0;	
+	std::cout<<"done?\n";
 
   return len;
 }//done

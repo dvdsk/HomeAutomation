@@ -42,12 +42,18 @@ std::shared_ptr<MainState> mainState){
 	toPlot.push_back(TEMP_BED);
 
 	//int len = slowData->fetchSlowData(startT, stopT, x, y, i);//todo
-	Graph graph(toPlot, startT, stopT, pirData, slowData);
+	Graph graph1(toPlot, startT, stopT, pirData, slowData);
 
-//	for(int i =0; i<len; i++){
-//		std::cout<<std::fixed;		//turn off sientific notation
-//		std::cout<<x[i]<<"\t"<<y[i]<<"\n";
-//	}
+	char ch;
+	ch = getchar();
+
+	toPlot.push_back(HUMIDITY_BED);
+	Graph graph2(toPlot, startT, stopT, pirData, slowData);	
+
+	ch = getchar();
+
+	toPlot.push_back(CO2PPM);
+	Graph graph3(toPlot, startT, stopT, pirData, slowData);	
 
 	std::cout<<"conf: "<<Enc_slow::TEMP_BED<<"\n";
 	std::cout<<"test test\n";

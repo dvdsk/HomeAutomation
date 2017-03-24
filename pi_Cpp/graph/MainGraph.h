@@ -38,7 +38,7 @@ public:
         std::shared_ptr<PirData> pirData, std::shared_ptr<SlowData> slowData);
 private:
   //local cache of time data
-  float y[MAXPLOTRESOLUTION];
+  float y[MAXPLOTRESOLUTION]; //TODO check this and move everything back to floats if possible
   double x[MAXPLOTRESOLUTION];
   double yT; 
   double yH; 
@@ -47,20 +47,43 @@ private:
              //yT then yH then yC then yB
   uint16_t len; //numb of datapoints to plot
   TCanvas* c1;
+
   TMultiGraph* mgT;
   TMultiGraph* mgH;
   TMultiGraph* mgC;
   TMultiGraph* mgB;
+
   TPad* padT; 
   TPad* padH;
   TPad* padC;
   TPad* padB;
+
   TPad* mpad;
   TLegend* leg;
+
   uint32_t startT, stopT;
   int yAxisesNumb;
+	float yAxis_CumLabelWith;
   double x0[2]; //used for plotting fake lines
-  
+
+	//NOT USING CAUSE CANT BE DONE FAST ENOUGH/INEFFICIENT, HARD CODING INSTEAD  
+//	/*find the maximum number of sig digets in the array*/
+//	void maxWith(float y[MAXPLOTRESOLUTION], double& y_with){
+//		//find max number		
+//		int max = 0;		
+//		for(int i=0; i<MAXPLOTRESOLUTION; i++){
+//			//find maximum int			
+//			if(y[i]>max){max = y[i];}
+//		}
+//		while something
+//		{
+//			float decimals = modf(y[i], NULL);
+//			ndecimals = 1*(decimals*10 > 1) +	1*(decimals*100 > 1) + 1*(decimals*1000 > 1);
+//			if(ndecimals>
+//		}
+//		return max;
+//	}
+	
   uint8_t mSensToPlot; //keep track of sensors to plot
   
   void initPlot();
@@ -76,7 +99,7 @@ private:
   TPad* setupPadsForPirPlot(std::string msensorLegend);
   
   void drawYAxis(TMultiGraph* mg, TPad* pad, double py1, double py2, 
-                 int nAxises, const char* axisTitle);
+                 float leftY, const char* axisTitle, int plot);
   void setMultiGroupXRange(TMultiGraph* mg, double y);
   
   void axisTimeFormatting(TMultiGraph* mg);

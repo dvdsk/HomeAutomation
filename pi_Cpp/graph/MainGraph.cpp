@@ -26,8 +26,9 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
   std::string msensorLegend;
 
   //plot all the non movement data and count the number of movementsensors to plot
-  for( auto &i : toPlot){
-    switch(i){
+  for(int i=0; i<toPlot.size(); i++){
+		std::cout<<"plot plot\n"; //FIXME THIS IS PRINTING WHY?!
+    switch(toPlot[i]){
       case MOVEMENTSENSOR0:
         mSensToPlot = mSensToPlot | 0b10000000;
         msensorLegend += setupPirLegendPart(msensorLegend);
@@ -65,33 +66,35 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
         {
           //onlyPir = false;
           axisesToDraw = axisesToDraw | 0b00000001;
-          len = slowData->fetchSlowData(startT, stopT, x, y, i);//todo
+          len = slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);//todo
           TGraph* gr1 = new TGraph(len,x,y);
           yT = y[0];
           leg->AddEntry(gr1,"temperature bed","l");
           mgT->Add(gr1);
+					std::cout<<"HIER1\n";
         }
         break;
       case TEMP_BATHROOM:
         {
           //onlyPir = false;
           axisesToDraw = axisesToDraw | 0b00000001;
-          len = slowData->fetchSlowData(startT, stopT, x, y, i);//todo
+          len = slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);//todo
           TGraph* gr2 = new TGraph(len,x,y);
           yT = y[0];
           leg->AddEntry(gr2,"temperature bathroom","l");
           mgT->Add(gr2);
+					std::cout<<"HIER2\n";
         }
         break;
       case TEMP_DOORHIGH:
         //onlyPir = false;
-        slowData->fetchSlowData(startT, stopT, x, y, i);
+        slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);
         break;
       case HUMIDITY_BED:
         {
           //onlyPir = false;
           axisesToDraw = axisesToDraw | 0b00000010;
-          len = slowData->fetchSlowData(startT, stopT, x, y, i);//todo
+          len = slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);//todo
           TGraph* gr4 = new TGraph(len,x,y);
           yH = y[0];
           leg->AddEntry(gr4,"Humidity bed","l");
@@ -100,18 +103,18 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
         break;
       case HUMIDITY_BATHROOM:
         //onlyPir = false;
-        slowData->fetchSlowData(startT, stopT, x, y, i);
+        slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);
         break;
       case HUMIDITY_DOORHIGH:
         //onlyPir = false;
-        slowData->fetchSlowData(startT, stopT, x, y, i);
+        slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);
         break;
       case CO2PPM:
         //onlyPir = false;
         {
           //onlyPir = false;
           axisesToDraw = axisesToDraw | 0b00000100;
-          len = slowData->fetchSlowData(startT, stopT, x, y, i);//todo
+          len = slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);//todo
           TGraph* gr7 = new TGraph(len,x,y);
           yC = y[0];
           leg->AddEntry(gr7,"Co2","l");
@@ -122,7 +125,7 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
         //onlyPir = false;
         {
           axisesToDraw = axisesToDraw | 0b00001000;
-          len = slowData->fetchSlowData(startT, stopT, x, y, i);//todo
+          len = slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);//todo
           TGraph* gr8 = new TGraph(len,x,y);
           yB = y[0];
           leg->AddEntry(gr8,"Brightness bed","l");
@@ -134,6 +137,7 @@ Graph::Graph(std::vector<plotables> toPlot, uint32_t startT_, uint32_t stopT_,
     }
   }
   
+	std::cout<<"done plot plot\n"; //FIXME HIER KOMEN WE NIET
   if(mSensToPlot > 0){
     
     len = pirData->fetchPirData(startT, stopT, x, y_bin);
@@ -324,7 +328,7 @@ void Graph::makeAxisInvisible(TMultiGraph* mg){
 }
 
 void Graph::drawYAxis(TMultiGraph* mg, TPad* pad, double py1, 
-                      double py2, int nAxises, const char* axisTitle){
+                      double py2, float leftY, const char* axisTitle, int plot){
   double xmin, ymin, xmax, ymax;
   double xpos;
 
@@ -334,16 +338,18 @@ void Graph::drawYAxis(TMultiGraph* mg, TPad* pad, double py1,
   
   //get the range of the axis to add
   pad->GetRangeAxis(xmin,ymin,xmax,ymax);
-  xpos = 0.9-(nAxises-1)*(AXISWITH-0.01) + (yAxisesNumb)*(AXISWITH);
+  //xpos = 0.9-(nAxises-1)*(AXISWITH-0.01) + (yAxisesNumb)*(AXISWITH); //OLD
+	xpos = leftY-0.1 + yAxis_CumLabelWith;
   std::cerr<<"xpos "<<xpos<<"\n"
            <<"py1: "<<py1<<" py2: "<<py2<<"\n";
   TGaxis* axis = new TGaxis(xpos,py1+0.1, 
                             xpos,py2-0.1,
                             ymin,ymax,510,"+L");
   yAxisesNumb++;
-  
+
   //setup axis visual paramaters
-  axis->SetLabelOffset(0.01);
+	if(plot == 1){std::cout<<"SETTING AXIS OFFSET\n"; axis->SetTitleOffset(1.3); }
+	else{axis->SetLabelOffset(0.01); }
   axis->SetLabelSize(0.03);
   axis->SetLineColor(kRed);
   axis->SetLabelFont(42);
@@ -401,7 +407,23 @@ void Graph::finishPlot(uint8_t axisesToDraw){
 
   //shrink all t epads to make space for extra axis
   nAxises = __builtin_popcount(axisesToDraw);
-  toShrink = (nAxises-1)*AXISWITH;
+
+	//determine shrinking on needed axis'es	
+  //toShrink = (nAxises-1)*AXISWITH;
+	if(nAxises>1){
+		uint8_t Shrinkfor = axisesToDraw;
+		if(Shrinkfor & 0b00000001){Shrinkfor-0b00000001;}
+		else if(Shrinkfor & 0b00000010){Shrinkfor-0b00000010;}
+		else if(Shrinkfor & 0b00000100){Shrinkfor-0b00000100;}
+		else if(Shrinkfor & 0b00001000){Shrinkfor-0b000001000;}
+
+		toShrink = (Shrinkfor & 0b00000001)*0.03 
+			       + (Shrinkfor & 0b00000010)*0.03 
+			       + (Shrinkfor & 0b00000100)*0.03 
+			       + (Shrinkfor & 0b00001000)*0.03;
+		//toShrink =0.1;
+	}
+
   std::cout<<"toShrink: "<<toShrink<<"\n";
   padT->GetPadPar(px1,py1,px2,py2);
   std::cout<<","<<px1<<","<<px2<<","<<py1<<","<<py2<<"\n";
@@ -410,23 +432,26 @@ void Graph::finishPlot(uint8_t axisesToDraw){
   padH->SetPad(px1,py1,px2-toShrink,py2);  
   padC->SetPad(px1,py1,px2-toShrink,py2);  
   padB->SetPad(px1,py1,px2-toShrink,py2);  
-  padT->GetPadPar(px1,py1,px2,py2);
-  std::cout<<","<<px1<<","<<px2<<","<<py1<<","<<py2<<"\n";
 
   //draw all the axis //TODO add location as variable and make some
   //formula to determine location from
   c1->cd();
-  if(axisesToDraw & 0b00000001){
-    drawYAxis(mgT, padT, py1, py2, nAxises, "Temperature (C)"); 
+	yAxis_CumLabelWith =  0 + (nAxises-1)*0.0151;  
+	
+	if(axisesToDraw & 0b00000001){
+    drawYAxis(mgT, padT, py1, py2, px2-toShrink, "Temperature (C)", 0); 
+		yAxis_CumLabelWith += 0.03;
   }
   if(axisesToDraw & 0b00000010){
-    drawYAxis(mgH, padH, py1, py2, nAxises, "Humidity (%)"); 
+    drawYAxis(mgH, padH, py1, py2, px2-toShrink, "Humidity (%)", 0); 
+		yAxis_CumLabelWith += 0.03;
   }
   if(axisesToDraw & 0b00000100){
-    drawYAxis(mgC, padC, py1, py2, nAxises, "CO2 concentration (ppm)"); 
+    drawYAxis(mgC, padC, py1, py2, px2-toShrink, "CO2 concentration (ppm)", 1); 
+		yAxis_CumLabelWith += 0.03;
   }
   if(axisesToDraw & 0b00001000){
-    drawYAxis(mgB, padB, py1, py2, nAxises, "Brightness (relative)"); 
+    drawYAxis(mgB, padB, py1, py2, px2-toShrink, "Brightness (relative)", 0); 
   }
   std::cout<<"PRINTING PLOT\n";
   c1->Print("test.pdf");
