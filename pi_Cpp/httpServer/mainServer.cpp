@@ -19,10 +19,11 @@ inline int authorised_connection(struct MHD_Connection* connection){
 	return fail;
 }
 
-inline void convert_arguments(void* cls, TelegramBot*& bot, MainState*& state){
+inline void convert_arguments(void* cls, TelegramBot*& bot, MainState*& state, WebGraph*& webGraph){
 	void** arrayOfPointers;
 	void* element1;
 	void* element2;
+	void* element3;
 
 	//convert arguments back (hope this optimises well),
 	//this gives us access to all the classes below with all threads
@@ -30,8 +31,10 @@ inline void convert_arguments(void* cls, TelegramBot*& bot, MainState*& state){
 	arrayOfPointers = (void**)cls;
 	element1 = (void*)*(arrayOfPointers+0);
 	element2 = (void*)*(arrayOfPointers+1);
+	element3 = (void*)*(arrayOfPointers+2);
 	bot = (TelegramBot*)element1;
 	state = (MainState*)element2;
+	webGraph = (WebGraph*)element3; 
 	return;																		 
 }
 
@@ -44,8 +47,9 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 
 	TelegramBot* bot;
 	MainState* state;
+	WebGraph* webGraph;
 
-	convert_arguments(cls, bot, state);
+	convert_arguments(cls, bot, state, webGraph);
  
 	fail = authorised_connection(connection); //check if other party authorised
   if (0 == strcmp(method, "GET")){
@@ -64,9 +68,16 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 			}
 		//continue with correct response if authentication is successfull
 		else{
-				const char *page = "<html><body>A secret.</body></html>";
+				const char* page = "<html><body>A secret.</body></html>";
 				
-				state->httpSwitcher(url); //can send commands to state
+				//if its a state switch command send it to state for processing
+				if(url[1] == '|'){state->httpSwitcher(url); }
+				
+				//else webserver request
+				else if(0 == strcmp(url, "/css/c3.css")){page = webGraph->C3css;}
+				else if(0 == strcmp(url, "/js/c3.js")){page = webGraph->C3js;}
+				else if(0 == strcmp(url, "/graph")){page = webGraph->mainPage();}
+
 				
 				response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
 									 MHD_RESPMEM_PERSISTENT);
@@ -144,7 +155,9 @@ char* load_file (const char *filename)
 
 int thread_Https_serv(std::shared_ptr<std::mutex> stop, 
 											std::shared_ptr<TelegramBot> bot,
-											std::shared_ptr<MainState> state){
+											std::shared_ptr<MainState> state,
+											std::shared_ptr<PirData> pirData,
+											std::shared_ptr<SlowData> slowData){
 												
   struct MHD_Daemon* daemon;
   char *key_pem;
@@ -160,11 +173,15 @@ int thread_Https_serv(std::shared_ptr<std::mutex> stop,
     return 1;
   }
 
+	//create a shared memory space for webpage functions
+		std::shared_ptr<WebGraph> webGraph = std::make_shared<WebGraph>(pirData, slowData);
+
+
 	//make an array of pointers used to pass through to the
 	//awnser to connection function (the default handler). This array
 	//is read only. The pointers better be in shared memory space for 
 	//the awnser function to be able to reach them
-	void* arrayOfPointers[2] = {bot.get(), state.get()};
+	void* arrayOfPointers[3] = {bot.get(), state.get(), webGraph.get()};
 
 
 

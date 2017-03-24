@@ -12,6 +12,7 @@
 
 #include "../state/mainState.h"
 #include "../telegramBot/telegramBot.h"
+#include "pages/webGraph.h"
 #include "../config.h"
 
 //following this tutorial:
@@ -31,8 +32,9 @@ inline int authorised_connection(struct MHD_Connection* connection);
 
 int thread_Https_serv(std::shared_ptr<std::mutex> stop, 
 											std::shared_ptr<TelegramBot> bot,
-											std::shared_ptr<MainState> state);
-
+											std::shared_ptr<MainState> state,
+											std::shared_ptr<PirData> pirData,
+											std::shared_ptr<SlowData> slowData);
 												 
 int answer_to_connection(void* cls,struct MHD_Connection* connection, const char* url,
 												 const char* method, const char* version, const char* upload_data,

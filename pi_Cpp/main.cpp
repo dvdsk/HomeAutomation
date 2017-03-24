@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
 	/*start the http server that serves the telegram bot and
 	  custom http protocol. NOTE: each connection spawns its 
 	  own thread.*/	
-	std::thread t1(thread_Https_serv, stopHttpServ, bot, state);
+	std::thread t1(thread_Https_serv, stopHttpServ, bot, state, pirData, slowData);
 	std::cout<<"Https-Server started\n";
 
 	/*start the thread that checks the output of the arduino 
@@ -81,11 +81,11 @@ int main(int argc, char* argv[])
 	
 	std::cout<<"cmd interface starting\n";
 	std::this_thread::sleep_for(std::chrono::seconds(1));
-	CommandLineInterface interface(pirData, slowData, state);
-	interface.mainMenu();
+//	CommandLineInterface interface(pirData, slowData, state);
+//	interface.mainMenu();
 
-
-
+	char ch;
+	ch = getchar();
 
 	//shutdown code
 	(*stopHttpServ).unlock();

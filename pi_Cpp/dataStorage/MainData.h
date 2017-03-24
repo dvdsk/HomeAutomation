@@ -41,13 +41,13 @@ public:
    * floats in. Binning of data happens if there are 2* or more data points then
    * the plotresolution. The data is plotted from the start time to and including
    * the end time*/
-  int fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
+  int fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 	              uint16_t (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE]), 
-	              double (*func2)(uint16_t integer_var));
+	              float (*func2)(uint16_t integer_var));
 
   /* variand of fetchData that does not return floats but uses uint16 type and
    * performs bitwise or operations instead of meaning */
-  int fetchBinData(uint32_t startT, uint32_t stopT, double x[], uint16_t y[],
+  int fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y[],
                    uint16_t (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE]));
 
   /* removes all lines between start and lengt, by inserting null data or

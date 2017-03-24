@@ -2,7 +2,7 @@ CXX = g++
 CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 
 
-objects = main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o
+objects = main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o webGraph.o
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
 all: pi
@@ -48,11 +48,14 @@ Serial.o: arduinoContact/Serial.cpp arduinoContact/Serial.h
 mainState.o: state/mainState.cpp state/mainState.h
 	$(CXX) $(CXXFLAGS) -pthread -c state/mainState.cpp	
 
-mainServer.o: httpServer/mainServer.cpp httpServer/mainServer.h
+mainServer.o: httpServer/mainServer.cpp httpServer/mainServer.h httpServer/pages/webGraph.h
 	$(CXX) $(CXXFLAGS) -lmicrohttpd -c httpServer/mainServer.cpp
 telegramBot.o: telegramBot/telegramBot.cpp telegramBot/telegramBot.h \
 	telegramBot/httpGetPostPut.h
 	$(CXX) $(CXXFLAGS) -c telegramBot/telegramBot.cpp
+
+webGraph.o: httpServer/pages/webGraph.cpp httpServer/pages/webGraph.h
+	$(CXX) $(CXXFLAGS) -c httpServer/pages/webGraph.cpp
 
 httpGetPostPut.o: telegramBot/httpGetPostPut.cpp telegramBot/httpGetPostPut.h
 	$(CXX) $(CXXFLAGS) -lcurl -c telegramBot/httpGetPostPut.cpp	

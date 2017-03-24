@@ -125,7 +125,7 @@ void Data::showLines(int start_P, int end_P){
 }
 
 
-int Data::fetchBinData(uint32_t startT, uint32_t stopT, double x[], uint16_t y[],
+int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y[],
                        uint16_t (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE])) {
 
   int len = 0; //Length of y
@@ -254,9 +254,9 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, double x[], uint16_t y[]
   return len;
 }//done
 
-int Data::fetchData(uint32_t startT, uint32_t stopT, double x[], double y[],
+int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
                     uint16_t (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE]), 
-										double (*func2)(uint16_t integer_var)) {
+										float (*func2)(uint16_t integer_var)) {
 
   int len = 0; //Length of y
   unsigned int startByte; //start position in the file

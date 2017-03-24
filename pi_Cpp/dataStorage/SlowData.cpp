@@ -70,7 +70,7 @@ uint16_t dTemp2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
 uint16_t dTemp3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
 	return decode(block, blockIdx_B+2, Enc_slow::TEMP_DOOR, Enc_slow::LEN_TEMP);}
 
-double tempToFloat(uint16_t integer_var){return integer_var/10. -10; }
+float tempToFloat(uint16_t integer_var){return integer_var/10. -10; }
 
 uint16_t dHum1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
 	return decode(block, blockIdx_B+2, Enc_slow::HUM_BED, Enc_slow::LEN_HUM); }
@@ -79,7 +79,7 @@ uint16_t dHum2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
 uint16_t dHum3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
 	return decode(block, blockIdx_B+2, Enc_slow::HUM_DOOR, Enc_slow::LEN_HUM); }
 
-double humToFloat(uint16_t integer_var){return integer_var/10.; }
+float humToFloat(uint16_t integer_var){return integer_var/10.; }
 
 uint16_t dLight1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
 	return decode(block, blockIdx_B+2, Enc_slow::LIGHT_BED, Enc_slow::LEN_LIGHT); }
@@ -91,12 +91,12 @@ uint16_t dLight3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
 uint16_t dCo2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
 	return decode(block, blockIdx_B+2, Enc_slow::CO2, Enc_slow::LEN_CO2); }
 
-double toFloat(uint16_t integer_var){return (double)integer_var; }
+float toFloat(uint16_t integer_var){return (float)integer_var; }
 
 
 //TODO possible optimisation using template and no longer a function pointer
 int SlowData::fetchSlowData(uint32_t startT, uint32_t stopT, 
-                            double x[], double y[], plotables sensor){
+                            uint32_t x[], float y[], plotables sensor){
   int len;
   switch(sensor){
     case TEMP_BED:

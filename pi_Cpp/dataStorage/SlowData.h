@@ -45,7 +45,7 @@ class SlowData : public Data
     void process(const uint8_t raw[9], const uint32_t Tstamp);
 
     int fetchSlowData(uint32_t startT, uint32_t stopT, 
-                      double x[], double y[], plotables sensor);
+                      uint32_t x[], float y[], plotables sensor);
 		void preProcess_light(int lightValues[], const uint32_t Tstamp);
 
   private:
