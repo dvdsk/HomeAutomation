@@ -76,8 +76,7 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 				//else webserver request
 				else if(0 == strcmp(url, "/css/c3.css")){page = webGraph->C3css;}
 				else if(0 == strcmp(url, "/js/c3.js")){page = webGraph->C3js;}
-				else if(0 == strcmp(url, "/graph")){page = webGraph->mainPage();}
-
+				else if(0 == strcmp(url, "/graph")){page = webGraph->mainPage(); std::cout<<page<<"\n";}
 				
 				response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
 									 MHD_RESPMEM_PERSISTENT);

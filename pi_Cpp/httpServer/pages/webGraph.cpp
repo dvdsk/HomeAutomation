@@ -1,31 +1,94 @@
 #include "webGraph.h"
 
 const char* WebGraph::mainPage(){
-	std::string page = 
-	"<html>\
-		<head>\
-		  <link rel=\"stylesheet\" type=\"text/css\" href=\"/css/c3.css\">\
-		</head>\
-			<body>\
-				<div id=\"chart\"></div>\
-				<script src=\"https://d3js.org/d3.v3.min.js\" charset=\"utf-8\"></script>\
-				<script src=\"/js/c3.js\"></script>\
-					<script>\
-						var chart = c3.generate({\
-								bindto: '#chart',\
-								data: {\
-									columns: ";
-	uint32_t now = this_unix_timestamp();
-	std::vector<plotables> toPlot;
-	toPlot.push_back(TEMP_BED);
-	page+= getData(toPlot, now-60*60, now);
-	page+="				}\
-						});\
-				</script>\
-			</body>\
-		</html>";
+	std::string page;
+	//page = "<html><head>HOI<\head><\html>";
+
+//	uint32_t now = this_unix_timestamp();
+//	std::vector<plotables> toPlot;
+//	toPlot.push_back(TEMP_BED);
+
+	//not windows-1252 = ANSI
+	page = "<html>\n\
+					 	<head>\n\
+							<meta charset=\"windows-1252\">\n\
+							<link rel='stylesheet' type='text/css' href='/css/c3.css'\n\
+						</head>\n\
+						<body>\n\
+							<div id='chart'></div>\n\
+\
+							<script src='https://d3js.org/d3.v3.min.js' charset='utf-8'></script>\n\
+							<script src='/js/c3.js'></script>\n\
+							<script>\n";
+
+//	page += u8"\n var columns = [['x', 1398450600000, 1399401000000, 1399228200000],['Views', 100, 784, 786], ['GMV', 134, 154, 135]]\n";
+
+//	//page += "var columns = "+getData(toPlot, now-60*60, now);
+
+//	page +="var chart = c3.generate({\n\
+//				    bindto: '#chart',\n\
+//				    data: {\n\
+//				      x : 'x',\n\
+//				      columns: columns\n\
+//				    },\n\
+//				    axis : {\n\
+//				      x : {\n\
+//				        type : 'timeseries',\n\
+//				        tick : {\n\
+//				          format : '%Y-%m-%d' // https://github.com/mbostock/d3/wiki/Time-Formatting#wiki-format\n\
+//				        }\n\
+//				      }\n\
+//				    }\n\
+//				  });\n\
+//				</script>\n\
+//			</body>\n\
+//		</html>\n";
+
+//	return (const char*)load_file("simple.html");
 	return page.c_str();
 }
+
+//const char* WebGraph::mainPage(){
+
+//	std::string page =
+//	"<html>\
+//		<head>\
+//		  <link rel=\"stylesheet\" type=\"text/css\" href=\"/css/c3.css\">\
+//		</head>\
+//			<body>\
+//				<div id=\"chart\"></div>\
+//				<script src=\"https://d3js.org/d3.v3.min.js\" charset=\"utf-8\"></script>\
+//				<script src=\"/js/c3.js\"></script>\
+//					<script>\
+//						var chart = c3.generate({\
+//								bindto: '#chart',\
+//								data: {\
+//									x: 'x',//\
+//									columns: ";
+////	uint32_t now = this_unix_timestamp();
+////	std::vector<plotables> toPlot;
+////	toPlot.push_back(TEMP_BED);
+////	page+= getData(toPlot, now-60*60, now);
+//	page += "			[\
+//								    ['x', 10, 200, 100, 400, 150, 250],\
+//								    ['data2', 50, 20, 10, 40, 15, 25]\
+//     						]";
+//	page += "},\
+//					 axis: {\
+//							 x: {\
+//									 type: 'timeseries',\
+//									 tick: {\
+//											format: '%s'\
+//									 }\
+//									}\
+//					 }\
+//						});\
+//				</script>\
+//			</body>\
+//		</html>";
+
+//	return page.c_str();
+//}
 
 std::string WebGraph::getData(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT){
 	
@@ -34,7 +97,7 @@ std::string WebGraph::getData(std::vector<plotables> toPlot, uint32_t startT, ui
 	int len;
 	bool gotx = false;
 
-	std::string data;
+	std::string data = "[";
 	data.reserve(toPlot.size()*MAXPLOTRESOLUTION);//allocate extra data
 
 	for(int i=0; i<toPlot.size(); i++){
@@ -42,8 +105,10 @@ std::string WebGraph::getData(std::vector<plotables> toPlot, uint32_t startT, ui
       case TEMP_BED:
         {										         
 					len = slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);//todo
-					if(!gotx){gotx = true; toHttpFormat_Time(data, x, len);}
+					if(!gotx){gotx = true; std::cout<<"HALLLO!\n"; toHttpFormat_Time(data, x, len);}
+					std::cout<<"BOE\n";					
 					toHttpFormat_Temp(data, "temperature bed", y, len); 
+					std::cout<<"HOI\n";		
         }
         break;
       case HUMIDITY_BED:
@@ -71,15 +136,19 @@ std::string WebGraph::getData(std::vector<plotables> toPlot, uint32_t startT, ui
         break;
     }
   }
+	data = data + "]";
+	return data;
 }
 
 //TODO rewrite using fast format to save time
 void WebGraph::toHttpFormat_Time(std::string &data, uint32_t x[], int len){	
 	data += "['x'";
+	std::cout<<"len: "<<len<<"\n";
 	for(int i=0; i<len; i++){
-		data+","+std::to_string(x[i]);
+		data = data+","+std::to_string(x[i]);
 	}
 	data+= "], ";
+	std::cout<<data<<"\n";
 }
 
 //TODO rewrite using fast format to save time
