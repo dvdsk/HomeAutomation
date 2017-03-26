@@ -68,7 +68,7 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 			}
 		//continue with correct response if authentication is successfull
 		else{
-				const char* page = "<html><body>A secret.</body></html>";
+				char* page = "<html><body>A secret.</body></html>";
 				
 				//if its a state switch command send it to state for processing
 				if(url[1] == '|'){state->httpSwitcher(url); }

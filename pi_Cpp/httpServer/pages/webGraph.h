@@ -18,7 +18,7 @@
 class WebGraph{
 	public:
 	WebGraph(std::shared_ptr<PirData> pirData, std::shared_ptr<SlowData> slowData);
-	const char* mainPage();
+	char* mainPage();
 
 	char* C3css;
 	char* C3js;

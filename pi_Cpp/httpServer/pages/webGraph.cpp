@@ -1,31 +1,21 @@
 #include "webGraph.h"
 
-const char* WebGraph::mainPage(){
-	std::string page;
-	//page = "<html><head>HOI<\head><\html>";
-
-//	uint32_t now = this_unix_timestamp();
-//	std::vector<plotables> toPlot;
-//	toPlot.push_back(TEMP_BED);
-
-	//not windows-1252 = ANSI
-	page = "<html>\n\
-					 	<head>\n\
-							<meta charset=\"windows-1252\">\n\
-							<link rel='stylesheet' type='text/css' href='/css/c3.css'\n\
-						</head>\n\
-						<body>\n\
-							<div id='chart'></div>\n\
-\
-							<script src='https://d3js.org/d3.v3.min.js' charset='utf-8'></script>\n\
-							<script src='/js/c3.js'></script>\n\
-							<script>\n";
-
-//	page += u8"\n var columns = [['x', 1398450600000, 1399401000000, 1399228200000],['Views', 100, 784, 786], ['GMV', 134, 154, 135]]\n";
-
-//	//page += "var columns = "+getData(toPlot, now-60*60, now);
-
-//	page +="var chart = c3.generate({\n\
+//char* WebGraph::mainPage(){
+//	int stringLength = 0;
+//	char page[1000];
+//	const char* header =
+//	u8"<html>\n\
+//	 	<head>HOIHOIHOI\n\
+//			<link rel='stylesheet' type='text/css' href='/css/c3.css'\n\
+//		</head>\n\
+//		<body>\n\
+//			<div id='chart'></div>\n\
+//\
+//			<script src='https://d3js.org/d3.v3.min.js' charset='utf-8'></script>\n\
+//			<script src='/js/c3.js'></script>\n\
+//			<script>\n";
+//	const char* footer = 
+//	u8"var chart = c3.generate({\n\
 //				    bindto: '#chart',\n\
 //				    data: {\n\
 //				      x : 'x',\n\
@@ -35,7 +25,7 @@ const char* WebGraph::mainPage(){
 //				      x : {\n\
 //				        type : 'timeseries',\n\
 //				        tick : {\n\
-//				          format : '%Y-%m-%d' // https://github.com/mbostock/d3/wiki/Time-Formatting#wiki-format\n\
+//				          format : '%Y-%m-%d'\n\
 //				        }\n\
 //				      }\n\
 //				    }\n\
@@ -43,9 +33,45 @@ const char* WebGraph::mainPage(){
 //				</script>\n\
 //			</body>\n\
 //		</html>\n";
+//	const char* testData = 
+//	u8"var columns = [['x', 1398450600000, 1399401000000, 1399228200000],['Views', 100, 784, 786], ['GMV', 134, 154, 135]]\n";
+//	
 
-//	return (const char*)load_file("simple.html");
-	return page.c_str();
+//	memcpy(page+stringLength, header, strlen(header));
+//	stringLength+=strlen(header);
+
+//	memcpy(page+stringLength, testData, strlen(testData));
+//	stringLength+=strlen(testData);
+
+//	memcpy(page+stringLength, footer, strlen(footer));
+//	stringLength+=strlen(footer);
+
+//	return page;
+//}
+
+char* WebGraph::mainPage(){
+	int stringLength = 0;
+	char page[1000];
+	const char* header =
+	"<html>	<head>";
+	const char* footer = 
+	"</body> </html>";
+
+	const char* testData = 
+	"Hello";
+	
+
+	memcpy(page+stringLength, header, strlen(header));
+	stringLength+=strlen(header);
+
+	memcpy(page+stringLength, testData, strlen(testData));
+	stringLength+=strlen(testData);
+
+	//+1 to get the null character that indicates the end of the string
+	memcpy(page+stringLength, footer, strlen(footer)+1);
+	stringLength+=strlen(footer)+1;
+
+	return page;
 }
 
 //const char* WebGraph::mainPage(){
