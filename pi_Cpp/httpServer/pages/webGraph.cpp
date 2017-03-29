@@ -49,72 +49,59 @@
 //	return page;
 //}
 
-char* WebGraph::mainPage(){
-	int stringLength = 0;
-	char page[1000];
-	const char* header =
-	"<html>	<head>";
-	const char* footer = 
-	"</body> </html>";
+//std::string WebGraph::mainPage(){
+//	std::string page;	
+//	page =
+//	"<html>	<head> Hello ";
+//	page += 
+//	"</body> </html>";
 
-	const char* testData = 
-	"Hello";
-	
+//	return page;
+//}
 
-	memcpy(page+stringLength, header, strlen(header));
-	stringLength+=strlen(header);
+std::string WebGraph::mainPage(){
 
-	memcpy(page+stringLength, testData, strlen(testData));
-	stringLength+=strlen(testData);
-
-	//+1 to get the null character that indicates the end of the string
-	memcpy(page+stringLength, footer, strlen(footer)+1);
-	stringLength+=strlen(footer)+1;
-
-	return page;
-}
-
-//const char* WebGraph::mainPage(){
-
-//	std::string page =
-//	"<html>\
-//		<head>\
-//		  <link rel=\"stylesheet\" type=\"text/css\" href=\"/css/c3.css\">\
-//		</head>\
-//			<body>\
-//				<div id=\"chart\"></div>\
-//				<script src=\"https://d3js.org/d3.v3.min.js\" charset=\"utf-8\"></script>\
-//				<script src=\"/js/c3.js\"></script>\
-//					<script>\
-//						var chart = c3.generate({\
-//								bindto: '#chart',\
-//								data: {\
-//									x: 'x',//\
-//									columns: ";
-////	uint32_t now = this_unix_timestamp();
-////	std::vector<plotables> toPlot;
-////	toPlot.push_back(TEMP_BED);
-////	page+= getData(toPlot, now-60*60, now);
+	std::string page =
+	"<html>\
+		<head>\
+		  <link rel=\"stylesheet\" type=\"text/css\" href=\"/css/c3.css\">\
+		</head>\
+			<body>\
+				<div id=\"chart\"></div>\
+				<script src=\"https://d3js.org/d3.v3.min.js\" charset=\"utf-8\"></script>\
+				<script src=\"/js/c3.js\"></script>\
+					<script>\
+						var chart = c3.generate({\
+								bindto: '#chart',\
+								data: {\
+									x: 'x',\
+									columns: ";
+	uint32_t now = this_unix_timestamp();
+	std::vector<plotables> toPlot;
+	toPlot.push_back(TEMP_BED);
+	page+= getData(toPlot, now-24*60*60, now);
 //	page += "			[\
 //								    ['x', 10, 200, 100, 400, 150, 250],\
 //								    ['data2', 50, 20, 10, 40, 15, 25]\
 //     						]";
-//	page += "},\
-//					 axis: {\
-//							 x: {\
-//									 type: 'timeseries',\
-//									 tick: {\
-//											format: '%s'\
-//									 }\
-//									}\
-//					 }\
-//						});\
-//				</script>\
-//			</body>\
-//		</html>";
+//	page += " [['x', 1398450600000, 1399401000000, 1399228200000], ['Views', 100, 784, 786]] ";
+//	// https://github.com/mbostock/d3/wiki/Time-Formatting#wiki-format
+	page += "},\
+					 axis: {\
+							 x: {\
+									 type: 'timeseries',\
+									 tick: {\
+											format: '%Y-%m-%d'\
+								 	 }\
+							}\
+			 			}\
+					});\
+				</script>\
+			</body>\
+		</html>";
 
-//	return page.c_str();
-//}
+	return page.c_str();
+}
 
 std::string WebGraph::getData(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT){
 	
@@ -162,7 +149,8 @@ std::string WebGraph::getData(std::vector<plotables> toPlot, uint32_t startT, ui
         break;
     }
   }
-	data = data + "]";
+	data[data.length()-2] = ' ';
+	data[data.length()-1] = ']';
 	return data;
 }
 
@@ -171,7 +159,7 @@ void WebGraph::toHttpFormat_Time(std::string &data, uint32_t x[], int len){
 	data += "['x'";
 	std::cout<<"len: "<<len<<"\n";
 	for(int i=0; i<len; i++){
-		data = data+","+std::to_string(x[i]);
+		data = data+","+std::to_string(x[i])+"000";
 	}
 	data+= "], ";
 	std::cout<<data<<"\n";

@@ -78,14 +78,25 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 				if(url[1] == '|'){state->httpSwitcher(url); }
 				
 				//else webserver request
-				else if(0 == strcmp(url, "/css/c3.css")){page = webGraph->C3css;}
-				else if(0 == strcmp(url, "/js/c3.js")){page = webGraph->C3js;}
-				else if(0 == strcmp(url, "/graph")){page = webGraph->mainPage(); std::cout<<page<<"\n";}
-				
-				//response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
-				//					 MHD_RESPMEM_PERSISTENT);
-				response = MHD_create_response_from_buffer(pageString.length(), (void *) pageString.c_str(), 
-									 MHD_RESPMEM_MUST_COPY);
+				else if(0 == strcmp(url, "/css/c3.css")){
+					page = webGraph->C3css;
+					response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
+				             MHD_RESPMEM_PERSISTENT);
+				}
+				else if(0 == strcmp(url, "/js/c3.js")){
+					page = webGraph->C3js;
+					response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
+									   MHD_RESPMEM_PERSISTENT);
+				}
+				else if(0 == strcmp(url, "/graph")){
+					pageString = webGraph->mainPage();
+					response = MHD_create_response_from_buffer(pageString.length(), 
+             	       (void *) pageString.c_str(), MHD_RESPMEM_MUST_COPY);
+				}
+				else{
+					response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
+									   MHD_RESPMEM_PERSISTENT);
+				}
 				ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
 			}
   }//else possible telegram webhook call
