@@ -84,8 +84,7 @@ int main(int argc, char* argv[])
 //	CommandLineInterface interface(pirData, slowData, state);
 //	interface.mainMenu();
 
-	char ch;
-	ch = getchar();
+	getchar();
 
 	//shutdown code
 	(*stopHttpServ).unlock();

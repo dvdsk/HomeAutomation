@@ -69,7 +69,8 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 			}
 		//continue with correct response if authentication is successfull
 		else{
-				char* page = "<html><body>A secret.</body></html>";
+				const char* unknown_page = "<html><body>A secret.</body></html>";
+				char* page;
 				std::string pageString = "<html><body>A ";
 				std::string pageString2 = "secret.</body></html>";
 				pageString += pageString2;
@@ -88,14 +89,35 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 					response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
 									   MHD_RESPMEM_PERSISTENT);
 				}
-				else if(0 == strcmp(url, "/graph")){
-					pageString = webGraph->mainPage();
+				else if(0 == strcmp(url, "/dygraph.css")){
+					page = webGraph->dyCss;
+					response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
+				             MHD_RESPMEM_PERSISTENT);
+				}
+				else if(0 == strcmp(url, "/dygraph.js")){
+					page = webGraph->dyjs;
+					response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
+									   MHD_RESPMEM_PERSISTENT);
+				}
+				
+				else if(0 == strcmp(url, "/graph1")){
+					pageString = webGraph->C3_mainPage();
+					response = MHD_create_response_from_buffer(pageString.length(), 
+             	       (void *) pageString.c_str(), MHD_RESPMEM_MUST_COPY);
+				}
+				else if(0 == strcmp(url, "/graph2")){
+					pageString = webGraph->dy_mainPage();
+					response = MHD_create_response_from_buffer(pageString.length(), 
+             	       (void *) pageString.c_str(), MHD_RESPMEM_MUST_COPY);
+				}
+				else if(0 == strcmp(url, "/graph3")){
+					pageString = webGraph->plotly_mainPage();
 					response = MHD_create_response_from_buffer(pageString.length(), 
              	       (void *) pageString.c_str(), MHD_RESPMEM_MUST_COPY);
 				}
 				else{
-					response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
-									   MHD_RESPMEM_PERSISTENT);
+					response = MHD_create_response_from_buffer(strlen (unknown_page), 
+					           (void *) unknown_page, MHD_RESPMEM_PERSISTENT);
 				}
 				ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
 			}

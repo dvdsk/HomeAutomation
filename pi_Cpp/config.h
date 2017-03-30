@@ -8,7 +8,7 @@
 constexpr uint8_t FASTDATA_SIZE = 4;
 constexpr uint8_t SLOWDATA_SIZE = 7;
 
-constexpr uint16_t MAXPLOTRESOLUTION = 2;
+constexpr uint16_t MAXPLOTRESOLUTION = 1000;
 
 enum Command {LIGHTS_ALLON, LIGHTS_ALLOFF, MS_SLEEPING, MOVIEMODE};
 
@@ -24,9 +24,9 @@ namespace headers {
 }
 
 namespace config {
-	constexpr int HTTPSERVER_PORT = 8443;
-	constexpr const char* HTTPSERVER_USER = "kleingeld";
-	constexpr const char* HTTPSERVER_PASS = "nRhRudGLWs35rHukzxrz"; //using random strings as passw
+	constexpr int HTTPSERVER_PORT = 8442;
+	constexpr const char* HTTPSERVER_USER = "bab";
+	constexpr const char* HTTPSERVER_PASS = "vid"; //using random strings as passw
 
 	constexpr uint16_t ARDUINO_BAUDRATE = 9600;
 
