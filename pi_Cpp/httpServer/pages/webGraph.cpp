@@ -11,7 +11,7 @@ std::string WebGraph::plotly_mainPage(){
 		</head>\
 \
 		<body>\
-			<div id=\"myDiv\" style=\"width: 480px; height: 400px;\"/div>\
+			<div id=\"myDiv\" style=\"width: 90vw; height: 90vh;\"/div>\
 			<script>\
 				var data = [{";
 
@@ -24,6 +24,15 @@ std::string WebGraph::plotly_mainPage(){
 					type: 'scatter'\
 				}];\
 				Plotly.newPlot('myDiv', data);\
+\
+				window.onresize = function reSize(){\
+					var update = {\
+						width: document.getElementById('myDiv').clientWidth,\
+						height: document.getElementById('myDiv').clientHeight\
+					};\
+					Plotly.relayout('myDiv', update);\
+				};\
+\
 			</script>\
 		</body>\
 	</html>";
@@ -145,7 +154,7 @@ std::string WebGraph::C3_mainPage(){
 			</body>\
 		</html>";
 
-	return page.c_str();
+	return page;
 }
 
 std::string WebGraph::dy_mainPage(){
@@ -162,8 +171,7 @@ std::string WebGraph::dy_mainPage(){
 <link rel=\"stylesheet\" src=\"dygraph.css\" />\
 </head>\
 <body>\
-<div id=\"graphdiv2\"\
-  style=\"width:500px; height:300px;\"></div>\
+<div id=\"graphdiv2\"></div>\
 <script type=\"text/javascript\">\
   g2 = new Dygraph(document.getElementById(\"graphdiv2\"),";
 
@@ -174,7 +182,7 @@ std::string WebGraph::dy_mainPage(){
 </body>\
 </html>";
 
-	return page.c_str();
+	return page;
 }
 
 std::string WebGraph::dy_getData(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT){
