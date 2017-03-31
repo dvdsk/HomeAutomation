@@ -415,21 +415,12 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
   
   MainHeader::findFullTS(Tstamp1, startSearch, stopSearch);
   if(stopSearch == -1){stopSearch = fileSize; } //handle case Tstamp1 > last full TS   
-
-  //std::cout<<"TS 1 startSearch: "<<startSearch<<" stopSearch: "<<stopSearch<<"\n";  
-  //if(startSearch == -1){
-    ////the searched timestamp is earier then the earliest we have in the file
-    //loc1 = 0; 
-  //}
-  //else{    
+ 
     firstInCachTime = MainHeader::fullTSJustBefore(fileSize - Cache::cacheSize_);
     firstInCachTime = (firstInCachTime & 0b11111111111111110000000000000000) 
                       | Cache::getFirstLowTime();
 
-    //check if the wanted timestamp could be in the cache
-    //std::cout<<"Tstamp1: "<<Tstamp1<<" Data::cacheOldestT_: "<<firstInCachTime<<"\n";
-    //if (Tstamp1 > firstInCachTime){TODO implement
-    if (false){//TODO placeholder
+    if (false){
       loc1 = findTimestamp_inCache(Tstamp1, startSearch, stopSearch, fileSize);
     }
     else{
@@ -437,7 +428,6 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
       loc1 = findTimestamp_inFile_lowerBound(time1Low, startSearch, stopSearch);
       db("loc1: "<<loc1<<"\n")
     }
-  //}
 
   MainHeader::findFullTS(Tstamp2, startSearch, stopSearch);
   if(stopSearch == -1){stopSearch = fileSize; } //handle case Tstamp2 > last full TS   
@@ -447,7 +437,6 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
     else{
       loc2 = findTimestamp_inFile_upperBound(Tstamp2, startSearch, stopSearch);
     }
-  //}
   std::cout<<"loc1: "<<loc1<<"\tloc2: "<<loc2<<"\n";
 }
 

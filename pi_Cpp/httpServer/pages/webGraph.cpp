@@ -40,57 +40,6 @@ std::string WebGraph::plotly_mainPage(){
 	return page;
 }
 
-//std::string WebGraph::plotly_getData(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT){
-//	
-//	float y[MAXPLOTRESOLUTION];
-//	uint32_t x[MAXPLOTRESOLUTION];
-//	int len;
-//	bool gotx = false;
-
-//	std::string data = "[";
-//	data.reserve(toPlot.size()*MAXPLOTRESOLUTION);//allocate extra data
-
-//	for(unsigned int i=0; i<toPlot.size(); i++){
-//		switch(toPlot[i]){
-//      case TEMP_BED:
-//        {										         
-//					len = slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);//todo
-//					if(!gotx){gotx = true; std::cout<<"HALLLO!\n"; C3_toHttpFormat_Time(data, x, len);}
-//					std::cout<<"BOE\n";					
-//					C3_toHttpFormat_Temp(data, "temperature bed", y, len); 
-//					std::cout<<"HOI\n";		
-//        }
-//        break;
-//      case HUMIDITY_BED:
-//        {
-//          len = slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);//todo
-//					if(!gotx){gotx = true; C3_toHttpFormat_Time(data, x, len);}
-//					C3_toHttpFormat_Temp(data, "Humidity bed", y, len); 
-//        }
-//        break;
-//      case CO2PPM:
-//        {
-//          len = slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);//todo
-//					if(!gotx){gotx = true; C3_toHttpFormat_Time(data, x, len);}
-//					C3_toHttpFormat_Temp(data, "Co2", y, len); 
-//        }
-//        break;
-//      case BRIGHTNESS_BED:
-//        {
-//          len = slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);//todo
-//					if(!gotx){gotx = true; C3_toHttpFormat_Time(data, x, len);}
-//					C3_toHttpFormat_Temp(data, "Brightness bed", y, len); 
-//        }
-//        break;    
-//      default:
-//        break;
-//    }
-//  }
-//	data[data.length()-2] = ' ';
-//	data[data.length()-1] = ']';
-//	return data;
-//}
-
 //TODO rewrite using fast format to save time
 void WebGraph::plotly_toHttpFormat_Time(std::string &data, uint32_t x[], int len){	
   time_t rawtime;
@@ -171,7 +120,7 @@ std::string WebGraph::dy_mainPage(){
 <link rel=\"stylesheet\" src=\"dygraph.css\" />\
 </head>\
 <body>\
-<div id=\"graphdiv2\"></div>\
+<div id=\"graphdiv2\" style=\"width: 90vw; height: 90vh;\"/div>\
 <script type=\"text/javascript\">\
   g2 = new Dygraph(document.getElementById(\"graphdiv2\"),";
 
@@ -265,10 +214,7 @@ std::string WebGraph::C3_getData(std::vector<plotables> toPlot, uint32_t startT,
       case TEMP_BED:
         {										         
 					len = slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);//todo
-					if(!gotx){gotx = true; std::cout<<"HALLLO!\n"; C3_toHttpFormat_Time(data, x, len);}
-					std::cout<<"BOE\n";					
-					C3_toHttpFormat_Temp(data, "temperature bed", y, len); 
-					std::cout<<"HOI\n";		
+					if(!gotx){gotx = true; C3_toHttpFormat_Time(data, x, len);}	
         }
         break;
       case HUMIDITY_BED:
@@ -304,12 +250,10 @@ std::string WebGraph::C3_getData(std::vector<plotables> toPlot, uint32_t startT,
 //TODO rewrite using fast format to save time
 void WebGraph::C3_toHttpFormat_Time(std::string &data, uint32_t x[], int len){	
 	data += "['x'";
-	std::cout<<"len: "<<len<<"\n";
 	for(int i=0; i<len; i++){
 		data = data+","+std::to_string(x[i])+"000";
 	}
 	data+= "], ";
-	std::cout<<data<<"\n";
 }
 
 //TODO rewrite using fast format to save time

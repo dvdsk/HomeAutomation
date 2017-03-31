@@ -107,9 +107,6 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 				}
 				else if(0 == strcmp(url, "/graph2")){
 					pageString = webGraph->dy_mainPage();
-					std::cout<<"HOI DEBUGGER\n";
-					std::cout<< pageString.c_str()<<"\n";
-					std::cout<< "pageString.length(): "<<pageString.length()<<"\n";
 					response = MHD_create_response_from_buffer(pageString.length(), 
              	       (void *) pageString.c_str(), MHD_RESPMEM_MUST_COPY);
 				}

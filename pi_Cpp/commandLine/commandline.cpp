@@ -25,9 +25,9 @@ void CommandLineInterface::mainMenu(){
 	int highlight = 1;
 	int choice = 0;
 	int c;
-	bool exit;
+	bool exit = false;
 
-	const char* choices[] = {"System Info",	"Sensor values",	"Graph Sensor Data",
+	const char* choices[] = {"System Info",	"Sensor values",
 		                       "Https Server", "Exit", };
 	
 	int n_choices = sizeof(choices) / sizeof(char *);
@@ -60,7 +60,7 @@ void CommandLineInterface::mainMenu(){
 				choice = highlight;
 				break;
 			case 'q':
-				choice = 5;//choice 5=exit
+				choice = 4;//choice 5=exit
 				break;
 			default:
 				mvprintw(24, 0, "Charcter pressed is = %3d Hopefully it can be printed as '%c'", c, c);
@@ -78,10 +78,9 @@ void CommandLineInterface::mainMenu(){
 			break;
 			case 3:
 			clear();			
-			graph_menu();
 			choice = 0;
 			break;
-			case 5:
+			case 4:
 			clear();	
 			exit=true;			
 			break;
@@ -115,77 +114,6 @@ void CommandLineInterface::print_mainMenu(int highlight, const char* choices[], 
 	refresh();
 }
 
-void CommandLineInterface::print_description(){
-	//do something with "current-item"
-
-}
-
-plotables CommandLineInterface::decodeMenu(int menuChoice){
-	plotables toAdd;
-	switch(menuChoice){
-		case 0:				
-			toAdd = TEMP_BED;
-			break;
-		case 1:				
-			toAdd = TEMP_BATHROOM;
-			break;
-		case 2:				
-			toAdd = TEMP_DOORHIGH;
-			break;
-		case 4:				
-			toAdd = HUMIDITY_BED;
-			break;
-		case 5:				
-			toAdd = HUMIDITY_BATHROOM;
-			break;
-		case 6:				
-			toAdd = HUMIDITY_DOORHIGH;
-			break;
-		case 8:				
-			toAdd = BRIGHTNESS_BED;
-			break;
-		case 9:				
-			toAdd = BRIGHTNESS_KITCHEN; //brightness window
-			break;
-		case 10:				
-			toAdd = BRIGHTNESS_DOORHIGH; //brightness window
-			break;
-		case 11:				
-			toAdd = BRIGHTNESS_BEYONDCURTAINS; //brightness window
-			break;
-		case 12:				
-			toAdd = MOVEMENTSENSOR0; //brightness window
-			break;
-		//all other movementsensors....
-		case 24:				
-			toAdd = CO2PPM; //brightness window
-			break;
-		case 23:				
-			toAdd = CO2PPM; //brightness window
-			break;
-		case 22:				
-			toAdd = CO2PPM; //brightness window
-			break;
-	}
-	return toAdd;
-}
-
-void CommandLineInterface::fillPlotVector(MENU* my_menu, int n_choices, std::vector<plotables>& toPlot){
-	ITEM **items;
-	items = menu_items(my_menu);	
-	for(int i=0; i<n_choices; i++){
-		if(item_value(items[i]) == 1){		
-			toPlot.push_back(decodeMenu(i));
-		}			
-	}
-}
-
-uint32_t CommandLineInterface::unix_timestamp() {
-  time_t t = std::time(0);
-  uint32_t now = static_cast<uint32_t> (t);
-  return now;
-}
-
 int getdigit(const char* unit){
 	timeout(-1);//no timeout	
 	char rawInput[4];
@@ -202,121 +130,6 @@ int getdigit(const char* unit){
 		return std::stoi((std::string)rawInput);
 	}
 	return 0;
-}
-
-//TODO check sidewards scrolling possibility
-void CommandLineInterface::graph_menu(){
-
-	std::vector<plotables> toPlot;
-	const char *choices[] = {
-		"Bed", 	"Bathroom", 	"Door", " ", 								//0-3
-		"Bed", 	"Bathroom", 	"Door", " ",								//4-7
-		"Bed", 	"Kitchen", 		"Door", 	"Window",					//8-11
-		"Bed left", 	"Bed right", 	"Heater", 	" ", 			//12-15
-		"Kitch. 1", 	"Kitch. 2",	"Kitch. 3", "Kitch. 4",	//16-19
-	 	"Bathroom left", 	"Bathroom right", " ", " ",			//20-23
-		"Co2", "Air Pressure", (char *)NULL,							//24-25
-	};
-
-	ITEM **my_items;
-	int c;				
-	MENU *my_menu;
-  int n_choices, i;
-	
-	/* Initialize curses */
-	initscr();
-	//start_color(); //also turns everything black....
-	cbreak();
-  noecho();
-	keypad(stdscr, TRUE);
-	init_pair(1, COLOR_RED, COLOR_BLACK);
-	init_pair(2, COLOR_CYAN, COLOR_BLACK);
-
-	/* Create items */
-  n_choices = ARRAY_SIZE(choices);
-  my_items = (ITEM **)calloc(n_choices, sizeof(ITEM *));
-  for(i = 0; i < n_choices; ++i)
-    my_items[i] = new_item(choices[i], choices[i]);
-
-	/* Crate menu */
-	my_menu = new_menu((ITEM **)my_items);
-
-	/* Set menu option not to show the description */
-	menu_opts_off(my_menu, O_SHOWDESC | O_ONEVALUE);
-     
-	/* Set main window and sub window */
-  set_menu_win(my_menu, stdscr);
-  set_menu_sub(my_menu, derwin(stdscr, 9, 54, 3, 18)); //height, with, start y, start x
-	set_menu_format(my_menu, 9, 4);//menu rows, collums
-	set_menu_mark(my_menu, "");
-
-	/* Print a border around the main window and print a title */
-  //box(my_menu_win, 0, 0);
-	
-	attron(COLOR_PAIR(2));
-	mvprintw(LINES - 2, 2, "Use Arrow Keys to navigate, Space to select and Enter to Continue or Exit");
-	attroff(COLOR_PAIR(2));
-	
-	//print text for window
-	mvprintw(1, 2, "Select values to plot:");
-	mvprintw(3, 2, "Temperature:");
-	mvprintw(4, 2, "Humidity:");
-	mvprintw(5, 2, "Brightness:");
-	mvprintw(6, 2, "Movement:");
-	mvprintw(9, 2, "Other sensors:");
-	refresh();
-
-	/* Post the menu */
-	post_menu(my_menu);
-	refresh();
-	
-	while((c = wgetch(stdscr)) != 10 && c !='q' ) { //10=KEY_ENTER
-  	switch(c) {
-			case KEY_DOWN:
-				menu_driver(my_menu, REQ_DOWN_ITEM);
-				break;
-			case KEY_UP:
-				menu_driver(my_menu, REQ_UP_ITEM);
-				break;
-			case KEY_LEFT:
-				menu_driver(my_menu, REQ_LEFT_ITEM);
-				break;
-			case KEY_RIGHT:
-				menu_driver(my_menu, REQ_RIGHT_ITEM);
-				break;
-			case KEY_NPAGE:
-				menu_driver(my_menu, REQ_SCR_DPAGE);
-				break;
-			case KEY_PPAGE:
-				menu_driver(my_menu, REQ_SCR_UPAGE);
-				break;
-			case 32: 	//KEY_SPACE
-				menu_driver(my_menu, REQ_TOGGLE_ITEM);
-				break;
-		}
-  	refresh();
-	}
-	//fill the toplot items vector
-	fillPlotVector(my_menu, n_choices, toPlot);
-	if(toPlot.size()>0){	
-		mvprintw(12, 2, "Enter the range from now to plot followed by ENTER:");
-		echo();	
-
-
-		uint32_t now = unix_timestamp();
-		int secondsAgo = getdigit("days:")*24*60*60 +
-		               	 getdigit("hours:")*60*60+
-			               getdigit("minutes:")*60 +
-			               getdigit("seconds:");
-
-	}
-	/* Unpost and free all the memory taken up */
-	clear();  
-	unpost_menu(my_menu);
-  free_menu(my_menu);
-  for(i = 0; i < n_choices; ++i)
-		free_item(my_items[i]);
-	endwin();
 }
 
 int CommandLineInterface::mean(int* array, int len){
@@ -380,7 +193,9 @@ void CommandLineInterface::sensor_values(){
 	mvprintw(7, COL4, "%d", 5);
 	
 	c = wgetch(stdscr);
-	}while(c == -1);
+	mvprintw(24, 0, "Charcter pressed is = %3d Hopefully it can be printed as '%c'", c, c);
+	refresh();
+	}while(c != 10 && c != 113);
 
 	clear();
 	//MENU TO SELECT DETAILED SENSOR VALUES

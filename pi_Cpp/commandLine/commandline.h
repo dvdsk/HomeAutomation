@@ -30,16 +30,10 @@ class CommandLineInterface{
 	std::shared_ptr<SlowData> slowData;
 	std::shared_ptr<MainState> mainState;
 
-	void graph_menu();
 	void sensor_values();
 
 	void print_mainMenu(int highlight, const char* choices[], int n_choices);
 	int mean(int* array, const int len);
-
-	void print_description();
-	plotables decodeMenu(int menuChoice);
-	void fillPlotVector(MENU* my_menu, int n_choices, std::vector<plotables>& toPlot);
-	uint32_t unix_timestamp();
 };
 
 
