@@ -111,7 +111,8 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
              	       (void *) pageString.c_str(), MHD_RESPMEM_MUST_COPY);
 				}
 				else if(0 == strcmp(url, "/graph3")){
-					pageString = webGraph->plotly_mainPage();
+					pageString = webGraph->plotly_mainPage();	
+					//std::cout<<pageString<<"\n";
 					response = MHD_create_response_from_buffer(pageString.length(), 
              	       (void *) pageString.c_str(), MHD_RESPMEM_MUST_COPY);
 				}

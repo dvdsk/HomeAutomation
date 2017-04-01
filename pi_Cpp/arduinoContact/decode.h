@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <atomic>
+#include <ctime>
 
 #include "../config.h"
 #include "../encodingScheme.h"
