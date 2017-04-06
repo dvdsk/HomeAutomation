@@ -20,12 +20,12 @@ namespace pin {
 	constexpr int TERM_DATA = 24; //PA2 (hard coded register banks)
 	constexpr int TERM_CLOCK = 22; //PA0 (hard coded register banks)
 
-	constexpr int LIGHT_BED = 0; //anolog in
+	constexpr int LIGHT_BED = 6; //anolog in
 	constexpr int PIR_BED_NORTH = 26; //PA4
 	constexpr int PIR_BED_SOUTH = 28; //PA6
 
-	constexpr int RADIO_CE = 7;
-	constexpr int RADIO_CS = 9;
+	constexpr int RADIO_CE = 48;
+	constexpr int RADIO_CS = 49;
 }
 
 namespace headers {

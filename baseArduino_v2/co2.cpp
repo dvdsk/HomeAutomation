@@ -40,7 +40,7 @@ void Co2::readCO2(){
   uint8_t responseLow;
   int ppm;
   
-  while (Serial1.available() > 8){
+  while (Serial1.available() > 8){ //TODO needs a fail condition
     if (!Serial1.read() == 0XFF){//check if reply from sensor in buffer
       Serial1.read();
     }
