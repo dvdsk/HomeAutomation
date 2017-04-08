@@ -79,16 +79,6 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 				if(url[1] == '|'){state->httpSwitcher(url); }
 				
 				//else webserver request
-				else if(0 == strcmp(url, "/css/c3.css")){
-					page = webGraph->C3css;
-					response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
-				             MHD_RESPMEM_PERSISTENT);
-				}
-				else if(0 == strcmp(url, "/js/c3.js")){
-					page = webGraph->C3js;
-					response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
-									   MHD_RESPMEM_PERSISTENT);
-				}
 				else if(0 == strcmp(url, "/dygraph.css")){
 					page = webGraph->dyCss;
 					response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
@@ -100,11 +90,6 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 									   MHD_RESPMEM_PERSISTENT);
 				}
 				
-				else if(0 == strcmp(url, "/graph1")){
-					pageString = webGraph->C3_mainPage();
-					response = MHD_create_response_from_buffer(pageString.length(), 
-             	       (void *) pageString.c_str(), MHD_RESPMEM_MUST_COPY);
-				}
 				else if(0 == strcmp(url, "/graph2")){
 					pageString = webGraph->dy_mainPage();
 					response = MHD_create_response_from_buffer(pageString.length(), 

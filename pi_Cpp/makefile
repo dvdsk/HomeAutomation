@@ -2,7 +2,7 @@ CXX = g++
 CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 
 
-objects = main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o webGraph.o
+objects = main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o webGraph.o plotly.o dygraphs.o
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
 all: pi
@@ -54,12 +54,18 @@ telegramBot.o: telegramBot/telegramBot.cpp telegramBot/telegramBot.h \
 	telegramBot/httpGetPostPut.h
 	$(CXX) $(CXXFLAGS) -c telegramBot/telegramBot.cpp
 
-webGraph.o: httpServer/pages/webGraph.cpp httpServer/pages/webGraph.h
+webGraph.o: httpServer/pages/webGraph.cpp httpServer/pages/webGraph.h \
+	httpServer/pages/dygraphs.h httpServer/pages/plotly.h
 	$(CXX) $(CXXFLAGS) -c httpServer/pages/webGraph.cpp
 
 httpGetPostPut.o: telegramBot/httpGetPostPut.cpp telegramBot/httpGetPostPut.h
 	$(CXX) $(CXXFLAGS) -lcurl -c telegramBot/httpGetPostPut.cpp	
 
+plotly.o: httpServer/pages/plotly.h httpServer/pages/plotly.cpp
+	$(CXX) $(CXXFLAGS) -c httpServer/pages/plotly.cpp
+
+dygraphs.o: httpServer/pages/dygraphs.h httpServer/pages/dygraphs.cpp
+	$(CXX) $(CXXFLAGS) -c httpServer/pages/dygraphs.cpp
 
 .PHONY : clean
 clean:
