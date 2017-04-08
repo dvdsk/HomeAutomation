@@ -44,7 +44,6 @@ void checkSensorData(std::shared_ptr<PirData> pirData,
       case headers::SLOW_UPDATE:
 				//std::cout<<"update slow\n";
 				Tstamp = unix_timestamp();
-				std::cout<<Tstamp<<"\n";
 				arduino->readMessage(data, Enc_slow::LEN_ENCODED);				
 				decodeSlowData(Tstamp, data, pirData, slowData, state);
 				break;        

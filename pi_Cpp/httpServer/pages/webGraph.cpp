@@ -17,16 +17,9 @@ std::string WebGraph::plotly_mainPage(){
 
 	uint32_t now = this_unix_timestamp();
 
-	std::cout<<"STARTING TO FETCH DATA\n";
-
 	int	len = slowData->fetchSlowData(now-24*3600, now, x, y, TEMP_BED);
 
-	std::cout<<"GOT DATAm len: "<<len<<"\n";
-
 	plotly_toHttpFormat_Time(page, x, len);
-
-	std::cout<<"processed X\n";
-
 	plotly_toHttpFormat_Temp(page, y, len);	
 
 	page += "\
@@ -54,19 +47,13 @@ void WebGraph::plotly_toHttpFormat_Time(std::string &data, uint32_t x[], int len
 	std::cout<<"STARTED FORMATTING\n";
   time_t rawtime;
   struct tm *timeinfo;
-	char buffer[30];//was 24
-	std::cout<<"test\n";
+	char buffer[24];//was 24
 	data += "x: [";
-	std::cout<<"entering loop\n";
 	for(int i=0; i<len; i++){
 		rawtime = (time_t)x[i];
-		std::cout<<"0\n";
 		timeinfo = localtime(&rawtime);
-		std::cout<<"1\n";
-		strftime (buffer,30,"\'%F %T\', ",timeinfo); //2013-10-04 22:23:00 =format
-		std::cout<<"2\n";
+		strftime (buffer,24,"\'%F %T\', ",timeinfo); //2013-10-04 22:23:00 =format
 		data+= buffer;
-		std::cout<<"3\n";
 	}
 	data[data.length()-2] = ']';
 	data[data.length()-1] = ',';

@@ -155,7 +155,7 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y
 	/*do a quick sanity check on the search results*/
 	if(stopByte < startByte){std::cout<<"ERROR STOPBYTE<STARTBYTE\n";}
 
-  std::cout<<"reading in data between: "<<startByte<<" and "<<stopByte<<" bytes\n";
+  //std::cout<<"reading in data between: "<<startByte<<" and "<<stopByte<<" bytes\n";
   initGetTime(startByte);
 
   //configure iterator
@@ -305,12 +305,6 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
   blockSize_B = std::min(MAXBLOCKSIZE - (MAXBLOCKSIZE%packageSize_), stopByte-startByte); 
 
   rest_B = (stopByte-startByte)%MAXBLOCKSIZE; //number of bytes that doesnt fit in the normal blocks
-
-  std::cout<<"\nreading in data between: "<<startByte<<" and "
-	         <<startByte+nBlocks*blockSize_B<<" bytes\n";
-
-	std::cout<<"numb of packages: "<<(stopByte-startByte)/packageSize_<<"\n";
-	std::cout<<"binSize_P: "<<binSize_P<<"\n";
   
 	int skippedP = 0; //TODO debug
 
@@ -334,7 +328,7 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 					binIdx_P = 0;
 
 					x[binNumber] = meanT(x_bin, binSize_P);
-		      y[binNumber] = func2(meanB(y_bin, binSize_P));
+		      y[binNumber] = func2(meanI(y_bin, binSize_P));
 					binNumber++;
 					len++;
 				}
@@ -353,7 +347,7 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 		}
 		/*clean up, (save current bin even if its not filled)*/
 		x[binNumber] = meanT(x_bin, binIdx_P);
-    y[binNumber] = func2(meanB(y_bin, binIdx_P) ); 
+    y[binNumber] = func2(meanI(y_bin, binIdx_P) ); 
 		binIdx_P = 0;	
 	}
 
@@ -361,12 +355,6 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
   fseek(fileP_, startByte+nBlocks*blockSize_B, SEEK_SET);
   fread(block, 1, rest_B, fileP_);
 
-	std::cout<<"len1: "<<len<<"\n";
-	std::cout<<"skipped1: "<<skippedP<<"\n";
-	std::cout<<"orgIdx_B: "<<orgIdx_B<<"\n";
-	std::cout<<"packageNumb1 "<<packageNumb<<"\n";
-  std::cout<<"\nreading in data between: "<<startByte+nBlocks*blockSize_B<<" and "
-	                                        <<startByte+nBlocks*blockSize_B+rest_B<<"\n";
 	unsigned int blockIdx_B =0;
 	while(blockIdx_B <= rest_B){				
 
@@ -381,7 +369,7 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 			if(binIdx_P == binSize_P){//save bin result to array if at bincapacity
 				binIdx_P = 0;
 				x[binNumber] = meanT(x_bin, binSize_P);
-	      y[binNumber] = func2(meanB(y_bin, binSize_P));
+	      y[binNumber] = func2(meanI(y_bin, binSize_P));
 				binNumber++;
 				len++;
 			}
@@ -401,12 +389,8 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 
 	/*clean up, (save current bin even if its not filled)*/
 	x[binNumber] = meanT(x_bin, binIdx_P);
-  y[binNumber] = func2( meanB(y_bin, binIdx_P)); 
+  y[binNumber] = func2( meanI(y_bin, binIdx_P)); 
 	binIdx_P = 0;	
-	std::cout<<"done?\n";
-	std::cout<<"skipped: "<<skippedP<<"\n";
-	std::cout<<"packageNumb "<<packageNumb<<"\n";
-	std::cout<<"last known timestamp: "<<x[binNumber]<<"\n";
 
   return len;
 }//done
@@ -449,8 +433,8 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
     }
 
   MainHeader::findFullTS(Tstamp2, startSearch, stopSearch);
-	std::cout<<"stopSearch: "<<stopSearch<<"\n";
-	std::cout<<"fileSize: "<<fileSize<<"\n";
+	//std::cout<<"stopSearch: "<<stopSearch<<"\n";
+	//std::cout<<"fileSize: "<<fileSize<<"\n";
   if(stopSearch == -1){stopSearch = fileSize; } //handle case Tstamp2 > last full TS   
     if (false){
       loc2 = findTimestamp_inCache(Tstamp2, startSearch, stopSearch, fileSize);
@@ -458,13 +442,13 @@ void Data::searchTstamps(uint32_t Tstamp1, uint32_t Tstamp2, unsigned int& loc1,
     else{
       loc2 = findTimestamp_inFile_upperBound(Tstamp2, startSearch, stopSearch);
     }
-  std::cout<<"loc1: "<<loc1<<"\tloc2: "<<loc2<<"\n";
+  //std::cout<<"loc1: "<<loc1<<"\tloc2: "<<loc2<<"\n";
 }
 
 int Data::findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSearch, unsigned int stopSearch){
   
-  std::cout<<"enterd lowerbound\n";
-  std::cout<<"startSearch: "<<startSearch<<", stopSearch: "<<stopSearch<<"\n";
+  //std::cout<<"enterd lowerbound\n";
+  //std::cout<<"startSearch: "<<startSearch<<", stopSearch: "<<stopSearch<<"\n";
   uint16_t timelow;
 
   unsigned int nBlocks;
@@ -534,8 +518,8 @@ int Data::findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSea
 
 int Data::findTimestamp_inFile_upperBound(uint32_t TS, unsigned int startSearch, unsigned int stopSearch){
 
-  std::cout<<"enterd upperbound\n";
-  std::cout<<"startSearch: "<<startSearch<<", stopSearch: "<<stopSearch<<"\n";
+  //std::cout<<"enterd upperbound\n";
+  //std::cout<<"startSearch: "<<startSearch<<", stopSearch: "<<stopSearch<<"\n";
 
   uint16_t timelow;
 	uint16_t TS_low;
@@ -579,8 +563,9 @@ int Data::findTimestamp_inFile_upperBound(uint32_t TS, unsigned int startSearch,
 
 	timeHigh = MainHeader::fullTSJustBefore(stopSearch) & 0b11111111111111110000000000000000; 
 	uint32_t last_fulltime = (uint32_t) timelow | timeHigh;
-	std::cout<<"fulltime: "<<last_fulltime<<"\n";
-	if(last_fulltime < TS){std::cout<<"returning stopSearch: "<<stopSearch<<"\n"; return stopSearch;}
+	//std::cout<<"fulltime: "<<last_fulltime<<"\n";
+	//if(last_fulltime < TS){std::cout<<"returning stopSearch: "<<stopSearch<<"\n"; return stopSearch;}
+	if(last_fulltime < TS){return stopSearch;}
 	TS_low = (uint16_t)TS;
 
   //iterate through the block in memory in bin groups
@@ -590,7 +575,7 @@ int Data::findTimestamp_inFile_upperBound(uint32_t TS, unsigned int startSearch,
     //std::cerr<<blockIdx_B<<" ";
     if(timelow <= TS_low){
       orgIdx_B = stopSearch-rest_B + blockIdx_B;
-      std::cout<<"fulltime here is: "<< +((uint32_t) timelow | timeHigh) <<"\n";
+      //std::cout<<"fulltime here is: "<< +((uint32_t) timelow | timeHigh) <<"\n";
       //std::cout<<"HEREERO1\n";
       //std::cout<<"orgIdx_B"<<orgIdx_B<<"\n";
       return orgIdx_B+packageSize_;
@@ -612,7 +597,7 @@ int Data::findTimestamp_inFile_upperBound(uint32_t TS, unsigned int startSearch,
       //std::cerr<<blockIdx_B<<" ";
       if(timelow <= TS_low){
         int orgIdx_B = startSearch+i*blockSize_B+ blockIdx_B;     
-        std::cout<<"fulltime here is: "<< +((uint32_t) timelow | timeHigh) <<"\n";
+        //std::cout<<"fulltime here is: "<< +((uint32_t) timelow | timeHigh) <<"\n";
         //std::cout<<"HEREERO2\n";
         //std::cout<<i<<", "<<blockSize_B<<", "<<blockIdx_B<<"\n";
         //std::cout<<"orgIdx_B"<<orgIdx_B<<"\n";
@@ -668,7 +653,7 @@ void Data::initGetTime(int startByte){
   timeHigh = MainHeader::fullTSJustBefore(startByte) & 0b11111111111111110000000000000000;
   prevTimePart[0] = 0;
   prevTimePart[1] = 0;
-  std::cerr<<"timeHigh :"<<timeHigh<<"startByte: "<<startByte<<"\n";
+  //std::cerr<<"timeHigh :"<<timeHigh<<"startByte: "<<startByte<<"\n";
 }
  
 uint32_t Data::getTime(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
@@ -696,6 +681,13 @@ uint16_t Data::meanB(uint16_t* array, int len){
   uint16_t Mean = 0;
   for(int i =0; i<len; i++){ Mean = Mean | *(array+i);}
   return Mean;
+}
+
+uint16_t Data::meanI(uint16_t* array, int len){
+  uint32_t Mean = 0;
+  for(int i =0; i<len; i++){ Mean += *(array+i);}
+	Mean /= len;
+  return (uint16_t)Mean;
 }
 
 //HELPER FUNCT

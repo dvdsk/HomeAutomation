@@ -114,6 +114,8 @@ private:
   
   /*calculate the mean of an array of uint32_t*/
   double meanT(uint32_t* array, int len);
+  /*calculate the mean, of an int*/
+  uint16_t meanI(uint16_t* array, int len);
   /*calculate the mean, (in this case the bitwise or product)*/
   uint16_t meanB(uint16_t* array, int len);
 };

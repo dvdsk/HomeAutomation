@@ -56,7 +56,7 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
   if (0 == strcmp(method, "GET")){
 		if (NULL == *con_cls) {*con_cls = connection; return MHD_YES;}
 		
-		printf ("New %s request for %s using version %s\n", method, url, version);
+		//printf ("New %s request for %s using version %s\n", method, url, version);
 		
 
 		
@@ -249,7 +249,6 @@ int thread_Https_serv(std::shared_ptr<std::mutex> stop,
 	
   //free memory if the server stops
   MHD_stop_daemon(daemon);
-	std::cout<<"HOI\n";
   free(key_pem);
   free(cert_pem);	
 	(*stop).unlock();	  
