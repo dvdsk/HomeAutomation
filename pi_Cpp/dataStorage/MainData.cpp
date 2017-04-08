@@ -220,7 +220,7 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y
   fread(block, 1, rest_B, fileP_);
 
 	unsigned int blockIdx_B =0;
-	while(blockIdx_B <= blockSize_B){				
+	while(blockIdx_B <= rest_B){			
 
 		if (checkIdx.useValue(packageNumb)){
 			
@@ -306,7 +306,9 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 
   rest_B = (stopByte-startByte)%MAXBLOCKSIZE; //number of bytes that doesnt fit in the normal blocks
 
-  std::cout<<"\nreading in data between: "<<startByte<<" and "<<stopByte<<" bytes\n";
+  std::cout<<"\nreading in data between: "<<startByte<<" and "
+	         <<startByte+nBlocks*blockSize_B<<" bytes\n";
+
 	std::cout<<"numb of packages: "<<(stopByte-startByte)/packageSize_<<"\n";
 	std::cout<<"binSize_P: "<<binSize_P<<"\n";
   
@@ -362,9 +364,11 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 	std::cout<<"len1: "<<len<<"\n";
 	std::cout<<"skipped1: "<<skippedP<<"\n";
 	std::cout<<"orgIdx_B: "<<orgIdx_B<<"\n";
-	std::cout<<"reading till: "<<startByte+nBlocks*blockSize_B+rest_B<<"\n";
+	std::cout<<"packageNumb1 "<<packageNumb<<"\n";
+  std::cout<<"\nreading in data between: "<<startByte+nBlocks*blockSize_B<<" and "
+	                                        <<startByte+nBlocks*blockSize_B+rest_B<<"\n";
 	unsigned int blockIdx_B =0;
-	while(blockIdx_B <= blockSize_B){				
+	while(blockIdx_B <= rest_B){				
 
 		if (checkIdx.useValue(packageNumb)){
 			
@@ -401,6 +405,7 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 	binIdx_P = 0;	
 	std::cout<<"done?\n";
 	std::cout<<"skipped: "<<skippedP<<"\n";
+	std::cout<<"packageNumb "<<packageNumb<<"\n";
 	std::cout<<"last known timestamp: "<<x[binNumber]<<"\n";
 
   return len;
@@ -653,7 +658,7 @@ bool Data::iterator::useValue(unsigned int i){
   //calculate if element 'i' should be used or not
   if((int)i == (counter*spacing)){ //need int comparison for spacing -1 hack to work
     counter++;
-    std::cout<<"ignored "<<counter-1<<" datapoints"<<"\t\tindex was: "<<i<<"\n";
+//    std::cout<<"ignored "<<counter-1<<" datapoints"<<"\t\tindex was: "<<i<<"\n";
     return false;
   }
   else{return true;}
