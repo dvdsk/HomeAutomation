@@ -19,7 +19,7 @@
 #include "Cache.h"
 #include "../config.h"
 
-const static unsigned int MAXBLOCKSIZE = 512000; //512kb
+const static unsigned int MAXBLOCKSIZE = 100000; //512kb //TODO DEBUG TEMP VALUE
 
 //keeps track of where data is located: file pointer, cacheSize, cache, 
 //file path, and the oldest item in cache. During searches this is used to prevent

@@ -310,6 +310,8 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 	std::cout<<"numb of packages: "<<(stopByte-startByte)/packageSize_<<"\n";
 	std::cout<<"binSize_P: "<<binSize_P<<"\n";
   
+	int skippedP = 0; //TODO debug
+
 	orgIdx_B = startByte;
 
   for (unsigned int i = 0; i < nBlocks; i++) {
@@ -339,7 +341,8 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
         x_bin[binIdx_P] = getTime(blockIdx_B, block);
         y_bin[binIdx_P] = func(blockIdx_B, block);						
 				binIdx_P++;
-			}		
+			}
+			else{skippedP++;}//TODO debug		
 
 			/*always update counters*/
 			packageNumb++;
@@ -356,6 +359,8 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
   fseek(fileP_, startByte+nBlocks*blockSize_B, SEEK_SET);
   fread(block, 1, rest_B, fileP_);
 
+	std::cout<<"len1: "<<len<<"\n";
+	std::cout<<"skipped1: "<<skippedP<<"\n";
 	std::cout<<"orgIdx_B: "<<orgIdx_B<<"\n";
 	std::cout<<"reading till: "<<startByte+nBlocks*blockSize_B+rest_B<<"\n";
 	unsigned int blockIdx_B =0;
@@ -381,7 +386,8 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
       x_bin[binIdx_P] = getTime(blockIdx_B, block);
       y_bin[binIdx_P] = func(blockIdx_B, block);						
 			binIdx_P++;
-		}		
+		}
+		else{skippedP++;}//TODO debug				
 
 		/*always update counters*/
 		packageNumb++;
@@ -394,6 +400,7 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
   y[binNumber] = func2( meanB(y_bin, binIdx_P)); 
 	binIdx_P = 0;	
 	std::cout<<"done?\n";
+	std::cout<<"skipped: "<<skippedP<<"\n";
 	std::cout<<"last known timestamp: "<<x[binNumber]<<"\n";
 
   return len;
@@ -562,8 +569,8 @@ int Data::findTimestamp_inFile_upperBound(uint32_t TS, unsigned int startSearch,
   fread(block, 1, rest_B, fileP_);
 
 	/*check if the wanted value even lies within the search range*/
-	timelow = (uint16_t)block[stopSearch-packageSize_+1] << 8 |
-            (uint16_t)block[stopSearch-packageSize_];	
+	timelow = (uint16_t)block[rest_B-packageSize_+1] << 8 |
+            (uint16_t)block[rest_B-packageSize_];	
 
 	timeHigh = MainHeader::fullTSJustBefore(stopSearch) & 0b11111111111111110000000000000000; 
 	uint32_t last_fulltime = (uint32_t) timelow | timeHigh;
@@ -644,9 +651,9 @@ Data::iterator::iterator(unsigned int startByte, unsigned int stopByte, unsigned
 
 bool Data::iterator::useValue(unsigned int i){
   //calculate if element 'i' should be used or not
-  if(i == (unsigned int)(counter*spacing)){
+  if((int)i == (counter*spacing)){ //need int comparison for spacing -1 hack to work
     counter++;
-    //std::cout<<"ignored "<<counter-1<<" datapoints"<<"\t\tindex was: "<<i<<"\n";
+    std::cout<<"ignored "<<counter-1<<" datapoints"<<"\t\tindex was: "<<i<<"\n";
     return false;
   }
   else{return true;}
@@ -667,7 +674,7 @@ uint32_t Data::getTime(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
             (uint16_t)block[blockIdx_B];
   //std::cout<<"timelow: "<<timelow<<"\ttimeHigh: "<<(timeHigh)<<"\n";
   fullTimeStamp = timeHigh | (uint32_t)timelow;
-  db("fullTimeStamp: "<<fullTimeStamp<<" \n")
+  //db("fullTimeStamp: "<<fullTimeStamp<<" \n")
   return fullTimeStamp;
 }
 
