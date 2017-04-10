@@ -2,7 +2,12 @@
 
 namespace plotly{
 
-	PlotData::PlotData(){
+	PlotData::PlotData(std::string* httpStr_){
+		httpStr = httpStr_;
+		nAxis = 0;
+		nLines = 1;
+		layout = "var layout = {";
+		traces = "var data = [";
 	}
 
 	//TODO rewrite using fast format to save time
@@ -31,19 +36,45 @@ namespace plotly{
 		data[data.length()-1] = ',';
 	}
 
-	void add_trace(std::string &data, PlotData &plotDat, uint32_t x[], float y[], int len){
+	void add_trace(PlotData &plotDat, uint32_t x[], float y[], int len, Axes axis, std::string title){
 		std::string name = "test";
 
-		data += "var trace1 = {";
-		plotDat.traces += "trace1";
+		
+		*plotDat.httpStr += "var trace"+std::to_string(plotDat.nLines)+" = {";
+		plotDat.traces += "trace"+std::to_string(plotDat.nLines)+",";
+		plotDat.nLines++;
 
-		addHttpFormated_Time(data, x, len);
-		addHttpFormated_float(data, y, len);
-		data += "name: '"+name+"',";
-		data += "yaxis: 'y1',";
-		data += "type: 'scatter'";
+		addHttpFormated_Time(*plotDat.httpStr, x, len);
+		addHttpFormated_float(*plotDat.httpStr, y, len);
+		*plotDat.httpStr += "name: '"+title+"',";
 
-		data += "};";
+		plotDat.nAxis++;
+		if(plotDat.nAxis==1)	
+			plotDat.layout += "yaxis: {";
+		else
+			plotDat.layout += "yaxis"+std::to_string(plotDat.nAxis)+": {";
+			*plotDat.httpStr += "yaxis: 'y"+std::to_string(plotDat.nAxis)+"',";
+
+		*plotDat.httpStr += "type: 'scatter'";
+		*plotDat.httpStr += "};";
+
+		switch(axis){
+			case TEMP:
+			plotDat.layout += "title: 'temperature (deg C)'"; //TODO use utf8 deg sign
+			break;
+			case HUMID:
+			plotDat.layout += "title: 'humidity (percent)'"; //TODO use utf8 precent sign			
+			break;
+		}
+		plotDat.layout += "},";
 	}
 
+	void setData(PlotData &plotDat){
+		plotDat.layout.pop_back();
+		*plotDat.httpStr += plotDat.layout+"};";
+	}
+	void setLayout(PlotData &plotDat){
+		plotDat.traces.pop_back();
+		*plotDat.httpStr += plotDat.traces+"];";
+	}
 }

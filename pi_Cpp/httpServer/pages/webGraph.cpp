@@ -1,12 +1,13 @@
 #include "webGraph.h"
 
-std::string WebGraph::plotly_mainPage(){
+std::string* WebGraph::plotly_mainPage(){
 	float y[MAXPLOTRESOLUTION];
 	uint32_t x[MAXPLOTRESOLUTION];
 
-	plotly::PlotData plotDat;
+	std::string* page = new std::string;
+	plotly::PlotData plotDat(page);
 
-	std::string page ="\
+	*page ="\
 	<html>\
 		<head>\
 		  <script src=\"https://cdn.plot.ly/plotly-latest.min.js\"></script>\
@@ -19,13 +20,18 @@ std::string WebGraph::plotly_mainPage(){
 
 	uint32_t now = this_unix_timestamp();
 
-	int	len = slowData->fetchSlowData(now-24*3600, now, x, y, TEMP_BED);
-	add_trace(page, plotDat, x, y, len);
+	int	len;
+	len = slowData->fetchSlowData(now-5*24*3600, now, x, y, TEMP_BED);
+	plotly::add_trace(plotDat, x, y, len, plotly::TEMP, "temperature bed");
 
-	page += "var data = ["+plotDat.traces+"];";
+	len = slowData->fetchSlowData(now-5*24*3600, now, x, y, HUMIDITY_BED);
+	plotly::add_trace(plotDat, x, y, len, plotly::HUMID, "humidity bed");
 
-	page += "\
-				Plotly.newPlot('myDiv', data);\
+	plotly::setData(plotDat);
+	plotly::setLayout(plotDat);
+
+	*page += "\
+				Plotly.newPlot('myDiv', data, layout);\
 \
 				window.onresize = function reSize(){\
 					var update = {\
@@ -62,7 +68,7 @@ std::string WebGraph::dy_mainPage(){
 <script type=\"text/javascript\">\
   g2 = new Dygraph(document.getElementById(\"graphdiv2\"),";
 
-	page+= dy_getData(toPlot, now-24*3600, now);
+	page+= dy_getData(toPlot, now-5*24*3600, now);
 
 	page+="\
 </script>\
