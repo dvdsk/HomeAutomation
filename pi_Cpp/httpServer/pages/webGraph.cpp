@@ -27,6 +27,12 @@ std::string* WebGraph::plotly_mainPage(){
 	len = slowData->fetchSlowData(now-5*24*3600, now, x, y, HUMIDITY_BED);
 	plotly::add_trace(plotDat, x, y, len, plotly::HUMID, "humidity bed");
 
+	len = slowData->fetchSlowData(now-5*24*3600, now, x, y, CO2PPM);
+	plotly::add_trace(plotDat, x, y, len, plotly::CO2, "co2");
+
+	len = slowData->fetchSlowData(now-5*24*3600, now, x, y, BRIGHTNESS_BED);
+	plotly::add_trace(plotDat, x, y, len, plotly::BRIGHTNESS, "brightness bed");
+
 	plotly::setData(plotDat);
 	plotly::setLayout(plotDat);
 

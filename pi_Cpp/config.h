@@ -24,9 +24,9 @@ namespace headers {
 }
 
 namespace config {
-	constexpr int HTTPSERVER_PORT = 8442;
-	constexpr const char* HTTPSERVER_USER = "bab";
-	constexpr const char* HTTPSERVER_PASS = "vid"; //using random strings as passw
+	constexpr int HTTPSERVER_PORT = 8444;
+	constexpr const char* HTTPSERVER_USER = "test";
+	constexpr const char* HTTPSERVER_PASS = "test"; //using random strings as passw
 
 	constexpr uint16_t ARDUINO_BAUDRATE = 9600;
 

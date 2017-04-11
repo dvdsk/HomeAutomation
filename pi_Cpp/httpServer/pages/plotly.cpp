@@ -46,17 +46,32 @@ namespace plotly{
 
 		addHttpFormated_Time(*plotDat.httpStr, x, len);
 		addHttpFormated_float(*plotDat.httpStr, y, len);
-		*plotDat.httpStr += "name: '"+title+"',";
+		*plotDat.httpStr += "mode: 'lines', name: '"+title+"',";
 
 		plotDat.nAxis++;
-		if(plotDat.nAxis==1)	
+		if(plotDat.nAxis==1)
 			plotDat.layout += "yaxis: {";
-		else
-			plotDat.layout += "yaxis"+std::to_string(plotDat.nAxis)+": {";
+		else{
+			plotDat.layout += "yaxis"+std::to_string(plotDat.nAxis)+": {overlaying: 'y',";
 			*plotDat.httpStr += "yaxis: 'y"+std::to_string(plotDat.nAxis)+"',";
+		}
 
 		*plotDat.httpStr += "type: 'scatter'";
 		*plotDat.httpStr += "};";
+
+		switch(plotDat.nAxis){
+			case 1:
+			break;
+			case 2:
+			plotDat.layout += "side: 'right',";
+			break;
+			case 3:
+			plotDat.layout += "side: 'right', position: 1,";
+			break;
+			case 4:
+			plotDat.layout += "side: 'left', position: 0.0,";
+			break;			
+		}
 
 		switch(axis){
 			case TEMP:
@@ -65,16 +80,36 @@ namespace plotly{
 			case HUMID:
 			plotDat.layout += "title: 'humidity (percent)'"; //TODO use utf8 precent sign			
 			break;
+			case CO2:
+			plotDat.layout += "title: 'co2 (ppm)'";
+			break;
+			case BRIGHTNESS:
+			plotDat.layout += "title: 'brightness (relative)'";
+			break;
 		}
 		plotDat.layout += "},";
 	}
 
 	void setData(PlotData &plotDat){
-		plotDat.layout.pop_back();
-		*plotDat.httpStr += plotDat.layout+"};";
-	}
-	void setLayout(PlotData &plotDat){
 		plotDat.traces.pop_back();
 		*plotDat.httpStr += plotDat.traces+"];";
+	}
+
+	void setLayout(PlotData &plotDat){
+		switch(plotDat.nAxis){
+			case 1:
+			plotDat.layout.pop_back();			
+			break;
+			case 2:
+			plotDat.layout.pop_back();			
+			break;
+			case 3:
+			plotDat.layout += "xaxis: {domain: [0.0, 0.9]}";
+			break;
+			case 4:
+			plotDat.layout += "xaxis: {domain: [0.1, 0.9]}";
+			break;
+		}
+		*plotDat.httpStr += plotDat.layout+"};";
 	}
 }

@@ -49,13 +49,13 @@ mainState.o: state/mainState.cpp state/mainState.h
 	$(CXX) $(CXXFLAGS) -pthread -c state/mainState.cpp	
 
 mainServer.o: httpServer/mainServer.cpp httpServer/mainServer.h httpServer/pages/webGraph.h
-	$(CXX) $(CXXFLAGS) -lmicrohttpd -c httpServer/mainServer.cpp
+	$(CXX) $(CXXFLAGS) -lmicrohttpd -c httpServer/mainServer.cpp config.h
 telegramBot.o: telegramBot/telegramBot.cpp telegramBot/telegramBot.h \
 	telegramBot/httpGetPostPut.h
 	$(CXX) $(CXXFLAGS) -c telegramBot/telegramBot.cpp
 
 webGraph.o: httpServer/pages/webGraph.cpp httpServer/pages/webGraph.h \
-	httpServer/pages/dygraphs.h httpServer/pages/plotly.h
+	httpServer/pages/dygraphs.h httpServer/pages/plotly.h config.h
 	$(CXX) $(CXXFLAGS) -c httpServer/pages/webGraph.cpp
 
 httpGetPostPut.o: telegramBot/httpGetPostPut.cpp telegramBot/httpGetPostPut.h
