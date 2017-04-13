@@ -395,6 +395,91 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
   return len;
 }//done
 
+int Data::fetchAllData(uint32_t startT, uint32_t stopT, unsigned int &startByte, 
+	                     unsigned int &stopByte, uint32_t x[], float y[],
+                    	 uint16_t (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE]), 
+											 float (*func2)(uint16_t integer_var)) {
+
+  int len = 0; //Length of y
+	unsigned int stopByte_local;  
+
+  unsigned int nBlocks;
+  unsigned int blockSize_B;
+  unsigned int rest_B;
+
+  unsigned int orgIdx_B;
+
+  unsigned int nextFullTSLoc;
+  uint32_t nextFullTS;
+  uint8_t block[MAXBLOCKSIZE];
+
+  //find where to start and stop reading in the file if these have not been given
+	if(startByte == 0 && stopByte ==0){
+		searchTstamps(startT, stopT, startByte, stopByte);
+		//std::cout<<"need to read in between: "<<startByte<<" - "<<stopByte<<"\n";
+		MainHeader::getNextFullTS(startByte, nextFullTSLoc, nextFullTS);
+		/*do a quick sanity check on the search results*/
+		if(stopByte < startByte){std::cout<<"ERROR STOPBYTE<STARTBYTE\n"; while(1);}
+	}
+
+	stopByte_local = std::min(startByte+(MAX_FETCHED_ELEMENTS-1)*packageSize_, stopByte);
+	
+  initGetTime(startByte);
+
+  //calculate how many blocks we need
+  nBlocks = (stopByte_local - startByte)/MAXBLOCKSIZE;
+  
+  //determine blocksize and rest in bytes
+  blockSize_B = std::min(MAXBLOCKSIZE - (MAXBLOCKSIZE%packageSize_), stopByte_local-startByte); 
+  rest_B = (stopByte_local-startByte)%MAXBLOCKSIZE; //number of bytes that doesnt fit in the normal blocks
+
+	orgIdx_B = startByte;
+  for (unsigned int i = 0; i < nBlocks; i++) {
+    fseek(fileP_, startByte+i*blockSize_B, SEEK_SET);
+    fread(block, 1, blockSize_B, fileP_); //read one block to memory
+
+		unsigned int blockIdx_B =0;
+		while(blockIdx_B < blockSize_B){						
+			/*before we process this value check if we should do anything to get rdy*/
+			if(orgIdx_B >= nextFullTSLoc){//update timehigh
+	      timeHigh = nextFullTS & 0b11111111111111110000000000000000;
+	      MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
+	    }
+			/*retrieve data and store for binning*/
+      x[len] = getTime(blockIdx_B, block);
+      y[len] = func2(func(blockIdx_B, block));
+			len++;						
+
+			/*always update counters*/
+			orgIdx_B += packageSize_;
+			blockIdx_B += packageSize_;		
+		}
+	}
+	/*read the remaining data into a smaller block*/
+  fseek(fileP_, startByte+nBlocks*blockSize_B, SEEK_SET);
+  fread(block, 1, rest_B, fileP_);
+
+	unsigned int blockIdx_B =0;	
+	while(blockIdx_B <= rest_B){				
+		/*before we process this value check if we should do anything to get rdy*/
+		if(orgIdx_B >= nextFullTSLoc){//update timehigh
+      timeHigh = nextFullTS & 0b11111111111111110000000000000000;
+      MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
+    }
+		/*retrieve data and store for binning*/
+    x[len] = getTime(blockIdx_B, block);
+    y[len] = func2(func(blockIdx_B, block));						
+		len++;
+
+		/*always update counters*/
+		orgIdx_B += packageSize_;
+		blockIdx_B += packageSize_;		
+	}
+
+	startByte = orgIdx_B;
+  return len;
+}//done
+
 void Data::remove(int lineNumber, int start, int length){//TODO
   }
 

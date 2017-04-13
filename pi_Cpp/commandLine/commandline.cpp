@@ -169,7 +169,7 @@ void CommandLineInterface::sensor_values(){
 	mvprintw(7, COL5, "");
 
 	timeout(1000);//timeout of 1 second for blocking calls
-	mvprintw(LINES - 2, 2, "Enter to Exit");
+	mvprintw(LINES - 2, 2, "Enter to Exit, F to export to txt");
 	
 	do{
 	mvprintw(3, COL2, "%.1f", ((float)mean(mainState->tempValues, 
@@ -195,6 +195,13 @@ void CommandLineInterface::sensor_values(){
 	c = wgetch(stdscr);
 	mvprintw(24, 0, "Charcter pressed is = %3d Hopefully it can be printed as '%c'", c, c);
 	refresh();
+
+	if(c == 'F'){	
+		slowData->exportAllSlowData(0, -1);
+		mvprintw(LINES-3, 0, "--> file exported succesfully to: 'SlowData.txt'");
+		refresh();
+	}
+	
 	}while(c != 10 && c != 113);
 
 	clear();

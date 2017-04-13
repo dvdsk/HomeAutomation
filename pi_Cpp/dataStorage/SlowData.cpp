@@ -130,3 +130,22 @@ int SlowData::fetchSlowData(uint32_t startT, uint32_t stopT,
   return len;
 }
 
+void SlowData::exportAllSlowData(uint32_t startT, uint32_t stopT){
+	unsigned int startByte = 0;
+	unsigned int stopByte = 0;
+	uint32_t x[MAX_FETCHED_ELEMENTS];
+	float y[MAX_FETCHED_ELEMENTS];
+	int len;
+
+	std::fstream fs;
+	fs.open ("SlowData.txt", std::fstream::out | std::fstream::trunc);
+
+	do{
+		len = Data::fetchAllData(startT, stopT, startByte, stopByte, x, y, dTemp1, tempToFloat);
+		for(int i=0; i<len; i++){
+			fs<<x[i]<<" "<<y[i]<<"\n";
+		}
+	}while(startByte<stopByte);
+
+	fs.close();
+}

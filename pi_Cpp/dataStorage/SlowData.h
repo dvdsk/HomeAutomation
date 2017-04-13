@@ -4,6 +4,7 @@
 #include <cstring> //memcopy, memset
 #include <cstdint> //uint16_t
 #include <array>
+#include <fstream>      // std::fstream
 
 #include "../config.h"
 #include "../encodingScheme.h"
@@ -44,8 +45,16 @@ class SlowData : public Data
       it off for reacting if something changed and store it in a file*/
     void process(const uint8_t raw[9], const uint32_t Tstamp);
 
+		/*fetches maxplotresolution evenly spaced data points between startT and stopT
+		  if there are more then maxplotresolution elements, performs binning and leaves
+		  out evenly spaced points*/
     int fetchSlowData(uint32_t startT, uint32_t stopT, 
                       uint32_t x[], float y[], plotables sensor);
+
+		/*fetches and writes data to a file called SlowData.txt, no binning nor letting out
+		  data points is performed*/
+		void exportAllSlowData(uint32_t startT, uint32_t stopT);
+
 		void preProcess_light(int lightValues[], const uint32_t Tstamp);
 
   private:

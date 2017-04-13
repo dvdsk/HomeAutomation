@@ -50,6 +50,15 @@ public:
   int fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y[],
                    uint16_t (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE]));
 
+	/* fetches max_fetched_elements without binning or letting anything out 
+	   and updates startByte to reflect the fetched elements. If start and stopbyte
+	   are not set it will find the suitable start and end locations given the startT
+	   and stopT*/
+	int fetchAllData(uint32_t startT, uint32_t stopT, unsigned int &startByte, 
+                   unsigned int &stopByte, uint32_t x[], float y[],
+                	 uint16_t (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE]), 
+									 float (*func2)(uint16_t integer_var));
+
   /* removes all lines between start and lengt, by inserting null data or
      in the case of a single line to be removed an extra timestamp package.
      Note in the file itself it is still clear that something has been removed
