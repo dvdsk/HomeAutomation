@@ -416,12 +416,12 @@ int Data::fetchAllData(uint32_t startT, uint32_t stopT, unsigned int &startByte,
   //find where to start and stop reading in the file if these have not been given
 	if(startByte == 0 && stopByte ==0){
 		searchTstamps(startT, stopT, startByte, stopByte);
-		//std::cout<<"need to read in between: "<<startByte<<" - "<<stopByte<<"\n";
-		MainHeader::getNextFullTS(startByte, nextFullTSLoc, nextFullTS);
+		std::cout<<"need to read in between: "<<startByte<<" - "<<stopByte<<"\n";
 		/*do a quick sanity check on the search results*/
 		if(stopByte < startByte){std::cout<<"ERROR STOPBYTE<STARTBYTE\n"; while(1);}
 	}
 
+	MainHeader::getNextFullTS(startByte, nextFullTSLoc, nextFullTS);
 	stopByte_local = std::min(startByte+(MAX_FETCHED_ELEMENTS-1)*packageSize_, stopByte);
 	
   initGetTime(startByte);
@@ -435,7 +435,8 @@ int Data::fetchAllData(uint32_t startT, uint32_t stopT, unsigned int &startByte,
 
 	orgIdx_B = startByte;
   for (unsigned int i = 0; i < nBlocks; i++) {
-    fseek(fileP_, startByte+i*blockSize_B, SEEK_SET);
+		std::cout<<"looping with blocks\n";    
+		fseek(fileP_, startByte+i*blockSize_B, SEEK_SET);
     fread(block, 1, blockSize_B, fileP_); //read one block to memory
 
 		unsigned int blockIdx_B =0;
@@ -443,6 +444,7 @@ int Data::fetchAllData(uint32_t startT, uint32_t stopT, unsigned int &startByte,
 			/*before we process this value check if we should do anything to get rdy*/
 			if(orgIdx_B >= nextFullTSLoc){//update timehigh
 	      timeHigh = nextFullTS & 0b11111111111111110000000000000000;
+				std::cout<<"updating fullTS\n";
 	      MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
 	    }
 			/*retrieve data and store for binning*/
@@ -464,6 +466,7 @@ int Data::fetchAllData(uint32_t startT, uint32_t stopT, unsigned int &startByte,
 		/*before we process this value check if we should do anything to get rdy*/
 		if(orgIdx_B >= nextFullTSLoc){//update timehigh
       timeHigh = nextFullTS & 0b11111111111111110000000000000000;
+			std::cout<<"updating fullTS2\n";
       MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
     }
 		/*retrieve data and store for binning*/
