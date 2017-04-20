@@ -182,7 +182,7 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y
     fread(block, 1, blockSize_B, fileP_); //read one block to memory
 
 		unsigned int blockIdx_B =0;
-		while(blockIdx_B <= blockSize_B){				
+		while(blockIdx_B < blockSize_B){				
 
 			if (checkIdx.useValue(packageNumb)){
 				
@@ -221,7 +221,7 @@ int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y
   fread(block, 1, rest_B, fileP_);
 
 	unsigned int blockIdx_B =0;
-	while(blockIdx_B <= rest_B){			
+	while(blockIdx_B < rest_B){			
 
 		if (checkIdx.useValue(packageNumb)){
 			
@@ -357,7 +357,7 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
   fread(block, 1, rest_B, fileP_);
 
 	unsigned int blockIdx_B =0;
-	while(blockIdx_B <= rest_B){				
+	while(blockIdx_B < rest_B){				
 
 		if (checkIdx.useValue(packageNumb)){
 			
@@ -463,7 +463,7 @@ int Data::fetchAllData(uint32_t startT, uint32_t stopT, unsigned int &startByte,
   fread(block, 1, rest_B, fileP_);
 
 	unsigned int blockIdx_B =0;	
-	while(blockIdx_B <= rest_B){				
+	while(blockIdx_B < rest_B){				
 		/*before we process this value check if we should do anything to get rdy*/
 		if(orgIdx_B >= nextFullTSLoc){//update timehigh
       timeHigh = nextFullTS & 0b11111111111111110000000000000000;
@@ -472,7 +472,7 @@ int Data::fetchAllData(uint32_t startT, uint32_t stopT, unsigned int &startByte,
     }
 		/*retrieve data and store for binning*/
 		for(int i = 0; i<packageSize_; i++)
-			std::cout<<block+blockIdx_B+i;
+			std::cout<<+*(block+blockIdx_B+i);
 		std::cout<<("\n");
     x[len] = getTime(blockIdx_B, block);
     y[len] = func2(func(blockIdx_B, block));						
