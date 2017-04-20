@@ -1,4 +1,5 @@
 #include "MainData.h"
+#include <bitset> //for debugging
 
 Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheSize)
   : Cache(packageSize, cacheSize), MainHeader(fileName)
@@ -470,6 +471,9 @@ int Data::fetchAllData(uint32_t startT, uint32_t stopT, unsigned int &startByte,
       MainHeader::getNextFullTS(orgIdx_B+packageSize_, nextFullTSLoc, nextFullTS);            
     }
 		/*retrieve data and store for binning*/
+		for(int i = 0; i<packageSize_; i++)
+			std::cout<<block+blockIdx_B+i;
+		std::cout<<("\n");
     x[len] = getTime(blockIdx_B, block);
     y[len] = func2(func(blockIdx_B, block));						
 		len++;
