@@ -142,13 +142,11 @@ void SlowData::exportAllSlowData(uint32_t startT, uint32_t stopT){
 
 	do{
 		len = Data::fetchAllData(startT, stopT, startByte, stopByte, x, y, dTemp1, tempToFloat);
-		std::cout<<"y[998]: "<<y[998]<<" len: "<<len<<"\n";
+		std::cout<<startByte<<", "<<stopByte<<", "<<x[len-1]<<", "<<y[len-1]<<"\n";		
 		for(int i=0; i<len; i++){
 			fs<<x[i]<<" "<<y[i]<<"\n";
 		}
 	}while(startByte<stopByte);
-	std::cout<<"x[len]: "<<x[len]<<"\n";
-	std::cout<<"startByte: "<<startByte<<"\n";
 
 	fs.close();
 }

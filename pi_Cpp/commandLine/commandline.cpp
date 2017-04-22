@@ -134,10 +134,9 @@ int getdigit(const char* unit){
 
 int CommandLineInterface::mean(int* array, int len){
 	int mean = 0;
-	len = 1;
-	for(int i=0; i<len; i++) {mean = *(array+0);}
+	for(int i=0; i<len; i++) {mean += *(array+0);}
 	
-	return mean;
+	return mean/len;
 }
 
 void CommandLineInterface::sensor_values(){

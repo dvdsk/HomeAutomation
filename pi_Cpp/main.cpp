@@ -83,8 +83,9 @@ int main(int argc, char* argv[])
 	std::this_thread::sleep_for(std::chrono::seconds(1));
 	//CommandLineInterface interface(pirData, slowData, state);
 	//interface.mainMenu();
-	slowData->exportAllSlowData(0, -1);
-	//getchar();
+
+	getchar();
+	slowData->exportAllSlowData(1492048892, -1);
 
 	//shutdown code
 	(*stopHttpServ).unlock();
