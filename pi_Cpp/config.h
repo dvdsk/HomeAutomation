@@ -29,6 +29,11 @@ namespace config {
 	constexpr const char* HTTPSERVER_USER = "bab";
 	constexpr const char* HTTPSERVER_PASS = "vid"; //using random strings as passw
 
+	constexpr const char* HUE_USER = "ZKK0CG0rOZY3nfhQsZbIkhH0y6P92EaaR-iBlBsk";
+	constexpr const char* HUE_IP = "http://192.168.1.11";
+  constexpr const char* HUE_URL = "http://192.168.1.11/api/ZKK0CG0rOZY3nfhQsZbIkhH0y6P92EaaR-iBlBsk";
+
+
 	constexpr uint16_t ARDUINO_BAUDRATE = 9600;
 
 	constexpr int ALERT_TEMP_ABOVE = 240; //in 0.1 Celcius, 24 deg
