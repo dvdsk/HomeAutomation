@@ -8,10 +8,7 @@
 #include "../config.h"
 
 
-/*change lamp on/off, brightness or color commands to change
-  are given from state menagement only, thus no internal callback is made
-	functions will confirm if the change occured and retry a number of times
-	if not */ 
+/*small wrapper around HttpGetPostPut for controlling the lamps */ 
 class Lamps : public HttpGetPostPut
 {
 	
@@ -20,21 +17,23 @@ class Lamps : public HttpGetPostPut
 		 get and parse the current lamp status*/
 	Lamps();
 
-	/* turn on all lamps*/
-	void allon();
-	/* turn off all lamps*/
-	void alloff();
+	/* turn on specific lamp or all lamps with zero transition time*/
+	void On(int n);
+	void on();
+	/* turn off specific lamp or all lamps with zero transition time*/
+	void Off(int n);
+	void off();
 
-	/* turn on a specific lamp*/
-	void turnOn(int lampNumb);
-
-	/* turn off a specific lamp*/
-	void turnOff(int lampNumb);
+	/* set full config for one or all lamps*/
+	void setState(int n, std::string json);
+	void setState(std::string json);
 
 	private:
 	/* need a mutex as we may never share the same handle in multiple threads */
 	std::mutex lamp_mutex;
-	
+
+	/* translates between lampNumb and lampId */
+	std::string toId(int lampNumb);
 };
 
 

@@ -8,32 +8,84 @@ Lamps::Lamps()
 	if(get("") == error){	std::cout<<"HUE CONFIG WRONG\n";}
 }
 
-void Lamps::turnOn(int lampNumb){
+void Lamps::Off(int n){
 	std::lock_guard<std::mutex> guard(lamp_mutex);
 	
-	put("/lights/1/state", "{\"on\": false}");
+	put("/lights/"+toId(n)+"/state", "{\"on\": false, \"transitiontime\": 0}");
+}
+
+void Lamps::off(){
+	std::lock_guard<std::mutex> guard(lamp_mutex);
+	
+	put("/lights/1/state", "{\"on\": false, \"transitiontime\": 0}");
+	put("/lights/2/state", "{\"on\": false, \"transitiontime\": 0}");
+	put("/lights/4/state", "{\"on\": false, \"transitiontime\": 0}");
+	put("/lights/5/state", "{\"on\": false, \"transitiontime\": 0}");
+	put("/lights/6/state", "{\"on\": false, \"transitiontime\": 0}");
+	put("/lights/7/state", "{\"on\": false, \"transitiontime\": 0}");
+}
+
+void Lamps::On(int n){
+	std::lock_guard<std::mutex> guard(lamp_mutex);
+	
+	put("/lights/"+toId(n)+"/state", "{\"on\": true, \"transitiontime\": 0}");
+}
+
+void Lamps::on(){
+	std::lock_guard<std::mutex> guard(lamp_mutex);
+	
+	put("/lights/1/state", "{\"on\": true, \"transitiontime\": 0}");
+	put("/lights/2/state", "{\"on\": true, \"transitiontime\": 0}");
+	put("/lights/4/state", "{\"on\": true, \"transitiontime\": 0}");
+	put("/lights/5/state", "{\"on\": true, \"transitiontime\": 0}");
+	put("/lights/6/state", "{\"on\": true, \"transitiontime\": 0}");
+	put("/lights/7/state", "{\"on\": true, \"transitiontime\": 0}");
+}
+
+void Lamps::setState(int n, std::string json){
+	std::lock_guard<std::mutex> guard(lamp_mutex);
+
+	put("/lights/"+toId(n)+"/state", json);
+}
+
+void Lamps::setState(std::string json){
+	std::lock_guard<std::mutex> guard(lamp_mutex);
+
+	put("/lights/1/state", json);
+	put("/lights/2/state", json);
+	put("/lights/4/state", json);
+	put("/lights/5/state", json);
+	put("/lights/6/state", json);
+	put("/lights/7/state", json);
 }
 
 
+//////PRIVATE FUNCT///////////////////////
 
-void Lamps::allon(){
-	std::lock_guard<std::mutex> guard(lamp_mutex);
-	
-	put("/lights/1/state", "{\"on\": true}");
-	put("/lights/2/state", "{\"on\": true}");
-	put("/lights/4/state", "{\"on\": true}");
-	put("/lights/5/state", "{\"on\": true}");
-	put("/lights/6/state", "{\"on\": true}");
-	put("/lights/7/state", "{\"on\": true}");
+//TODO add correct numbers
+inline std::string Lamps::toId(int lampNumb){
+	switch(lampNumb){
+		case lmp::DOOR:
+			return "1";
+		break;		
+		case lmp::KITCHEN:
+			return "2";
+		break;		
+		case lmp::CEILING:
+			return "3";
+		break;		
+		case lmp::BATHROOM:
+			return "4";
+		break;		
+		case lmp::RADIATOR:
+			return "5";
+		break;		
+		case lmp::BUREAU:
+			return "6";
+		break;		
+	}
+	std::cout<<"ERROR -> not a known lamp\n";
+	return "0";
 }
 
-void Lamps::alloff(){
-	std::lock_guard<std::mutex> guard(lamp_mutex);
-	
-	put("/lights/1/state", "{\"on\": false}");
-	put("/lights/2/state", "{\"on\": false}");
-	put("/lights/4/state", "{\"on\": false}");
-	put("/lights/5/state", "{\"on\": false}");
-	put("/lights/6/state", "{\"on\": false}");
-	put("/lights/7/state", "{\"on\": false}");
-}
+
