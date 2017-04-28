@@ -18,6 +18,9 @@ void error(const char *msg)
 }
 
 Mpd::Mpd(){
+	char buffer[256];
+	int n;
+
 	//create TCP internet socket
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
   if (sockfd < 0) 
@@ -46,119 +49,123 @@ Mpd::Mpd(){
 	if(strcmp(buffer, "OK MPD") > 6){std::cout<<"Connected to MPD succesfully\n";}
 }
 
-//void Mpd::pause(){
-//	const char* command = "pause 1\n";
-//	write(sockfd,command,strlen(command));
-
-//	bzero(buffer,256);
-//	n = read(sockfd,buffer,255);
-//  printf("%s",buffer);
-//}
-
-//void Mpd::resume(){
-//	const char* command = "pause 0\n";
-//	write(sockfd,command,strlen(command));
-
-//	bzero(buffer,256);
-//	n = read(sockfd,buffer,255);
-//  printf("%s",buffer);
-//}
-
-void Mpd::parseStatus(){
-	bool playing;
-	int volume;
-
-	const char* command = "status\n";
-	write(sockfd,command,strlen(command));	
-
-	bzero(buffer,256);
-	n = read(sockfd,buffer,255);
-
-	//parse the respons
-	std::string output(buffer);
-	volume = stoi(output.substr(8,2));
-	if(output.substr(110,4) == "stop"){playing = false;}
-	else{playing = true;}
+void thread_readLoop(std::shared_ptr<Mpd> mpd, 
+	                   std::shared_ptr<std::atomic<bool>> notShuttingdown)
+{
+	mpd->readLoop(notShuttingdown);
 }
 
-//const char* startIdle = "idle player mixer\n";
-//const char* stopIdle = "noidle\n";
-//write(sockfd,stopIdle,strlen(stopIdle));
-//write(sockfd,command,strlen(command));
-//write(sockfd,startIdle,strlen(startIdle));
+void Mpd::readLoop(std::shared_ptr<std::atomic<bool>> notShuttingdown){
 
-void statusLoop(int sockfd, std::shared_ptr<std::atomic<bool>> notShuttingdown){
-
-	char* buffer2[256];
-	char* buffer3[256];
+	char buffer[256];
 	uint8_t bufferSize;
 	uint8_t bufferSize_old;
 	uint8_t n;
+	std::string output;
+	const char* idle = "idle\n";
 
-	std::cout<<"PLEASE LOOK AT ME\n";
-	std::cout<<"buffer3[2]: "<<buffer3[1]<<"\n";
-	std::cout<<"PLEEEAAASE\n";
+	{	
+		std::lock_guard<std::mutex> guard(mpd_mutex);
+		write(sockfd,idle,strlen(idle));	
+	}
 
+	std::cout<<"mpd watcher started\n";
 	while(*notShuttingdown){//TODO replace with not shutdown
 		//read till ok		
 		bufferSize = 0;	
 		bufferSize_old =0;
-		bzero(buffer2,256);		
+		bzero(buffer,256);
+		bool notDone = true;
 
-		while(*notShuttingdown){//TODO replace with not shutdown
-			std::cout<<"alive2\n";
-			n = read(sockfd,buffer2,10);
+		while(*notShuttingdown && notDone){//TODO replace with not shutdown
+			n = read(sockfd,buffer+bufferSize,256);
 			bufferSize += n;		
 
-//			std::cout<<"buffer[10]: "<<+buffer2[10]<<"\n";
-//			std::cout<<"bufferSize: "<<+bufferSize<<"\n";
-			for(bufferSize_old; bufferSize_old<bufferSize-1; bufferSize_old++){
-//				std::cout<<+buffer2[bufferSize_old]<<"-"<<bufferSize_old+1<<"\n";
-				if(buffer2[bufferSize_old] == "O" && buffer2[bufferSize_old+1] == "K")
-					break;
-			}
+			for(bufferSize_old; bufferSize_old<bufferSize-1; bufferSize_old++)
+				if(buffer[bufferSize_old] == 'O' && buffer[bufferSize_old+1] == 'K')
+					notDone = false; 		
 		}
-		std::cout<<"PROCESSED STUFF\n";
-		printf("%s\n",buffer2);		
-		//cut the data into strings on completion codes ("OK")
-		//and process those strings 
+		output = buffer;
+
+		//check if notification from server
+		if(output.substr(0,8) == "changed:")
+			requestStatus();
+		//check if status message
+		else if(output.substr(0,7) == "volume:")
+			parseStatus(output);
+		else
+			printf("%s\n",buffer);		
 	}
 	std::cout<<"Mpd status loop shutting down\n";
 }
 
-void Mpd::idle(){
-	const char* command = "idle player mixer\n";
-	write(sockfd,command,strlen(command));
+inline void Mpd::requestStatus(){
+	const char* status = "status\n";
+	const char* idle = "idle\n";
 
-	bzero(buffer,256);
-	n = read(sockfd,buffer,255);
-  printf("%s\n",buffer);
-
-	PressEnterToContinue();
-
-	bzero(buffer,256);
-	n = read(sockfd,buffer,255);
-  printf("%s\n",buffer);
+	std::lock_guard<std::mutex> guard(mpd_mutex);
+	write(sockfd,status,strlen(status));	
+	write(sockfd,idle,strlen(idle));	
 }
+
+inline void Mpd::parseStatus(std::string const& output){
+	bool playing;
+	int volume;
+
+	//parse the respons
+	volume = stoi(output.substr(8,2));
+	if(output.substr(110,4) == "stop" || output.substr(110,4) == "paus"){playing = false;}
+	else{playing = true;}
+	std::cout<<output.substr(110,4)<<"\n";
+	std::cout<<"done parsing:\nvolume: "<<volume<<"\nplaying: "<<playing<<"\n";
+}
+
+void Mpd::sendCommand(std::string const& command){
+	const char* startIdle = "idle player mixer\n";
+	const char* stopIdle = "noidle\n";
+
+	std::lock_guard<std::mutex> guard(mpd_mutex);
+	write(sockfd,stopIdle,strlen(stopIdle));
+	write(sockfd,command.c_str(),strlen(command.c_str()));
+	write(sockfd,startIdle,strlen(startIdle));
+}
+
+void Mpd::sendCommandList(std::string &command){
+	const char* startIdle = "idle player mixer\n";
+	const char* stopIdle = "noidle\n";
+
+	command = "command_list_begin\n"+command+"command_list_end\n";
+
+	std::lock_guard<std::mutex> guard(mpd_mutex);
+	write(sockfd,stopIdle,strlen(stopIdle));
+	write(sockfd,command.c_str(),strlen(command.c_str() ) );
+	write(sockfd,startIdle,strlen(startIdle));
+}
+
+
 
 int main()
 {
 	std::shared_ptr<std::atomic<bool>> notShuttingdown = std::make_shared<std::atomic<bool>>();
 	*notShuttingdown = true;
 	
-	Mpd mpd;
-	//mpd.pause();
-	//mpd.resume();
+	std::shared_ptr<Mpd> music = std::make_shared<Mpd>();
 	
-	std::thread t1 (statusLoop, mpd.sockfd, notShuttingdown);
-	//statusLoop(mpd.sockfd, notShuttingdown);
+	std::thread t1 (thread_readLoop, music, notShuttingdown);
 
-//	std::cout<<"alive3\n";
-//	const char* command = "status\n";
+
+
+
+	PressEnterToContinue();
+
+	music->sendCommand("status\n");
+
+	PressEnterToContinue();
+//	std::cout<<"YO YO YO\n";
 //	write(mpd.sockfd,command,strlen(command));	
 
+
 	t1.join();
-//	void idle();
 	
   return 0;
 }

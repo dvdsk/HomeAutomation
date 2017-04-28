@@ -3,6 +3,7 @@
 
 #include <iostream> //cout
 #include <string.h> //strcmp
+#include <mutex>
 #include <memory> 
 #include <atomic>
 
@@ -19,22 +20,27 @@
 constexpr int portno = 6600;
 constexpr const char* hostname = "192.168.1.10";
 
-void statusLoop(int sockfd, std::shared_ptr<std::atomic<bool>> notShuttingdown);
+
 
 class Mpd{
 	public:
 		Mpd(); //connects to mpd
-		void pause();
-		void resume();
-		void idle();
-		void parseStatus();
+		void readLoop(std::shared_ptr<std::atomic<bool>> notShuttingdown);
+		void sendCommand(std::string const& command);
+		void sendCommandList(std::string &command);
 
-		int sockfd; //sockfd file discriptor
 	private:
-    int n; //byte counter
+		int sockfd;//sockfd file discriptor
     struct sockaddr_in serv_addr;
     struct hostent *server;
-    char buffer[256];
+		std::mutex mpd_mutex;
+
+		inline void requestStatus();
+		inline void parseStatus(std::string const& output);
 };
+
+void thread_readLoop(std::shared_ptr<Mpd> mpd, 
+	                   std::shared_ptr<std::atomic<bool>> notShuttingdown);
+
 
 #endif // MPD

@@ -68,7 +68,8 @@ struct MinorStates {
 class MainState;
 
 //function that starts the class member thread_watchForUpdates()
-void stateWatcher(std::shared_ptr<MainState> state, std::shared_ptr<std::atomic<bool>> notShuttingdown);
+void stateWatcher(std::shared_ptr<MainState> state, 
+	                std::shared_ptr<std::atomic<bool>> notShuttingdown);
 	 
 class MainState{
 		
