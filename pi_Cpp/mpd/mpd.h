@@ -24,6 +24,7 @@ class Mpd{
 		void pause();
 		void resume();
 		void idle();
+		void parseStatus();
 	private:
     int sockfd, n; //sockfd file discriptor, byte counter
     struct sockaddr_in serv_addr;

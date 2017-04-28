@@ -1,4 +1,13 @@
 #include "mpd.h"
+#include <stdio.h> //debugging
+
+void PressEnterToContinue()
+  {
+  int c;
+  printf( "Press ENTER to continue... " );
+  fflush( stdout );
+  do c = getchar(); while ((c != '\n') && (c != EOF));
+  }
 
 void error(const char *msg)
 {
@@ -53,9 +62,47 @@ void Mpd::resume(){
   printf("%s",buffer);
 }
 
+void Mpd::parseStatus(){
+	bool playing;
+	int volume;
+
+	const char* command = "status\n";
+	write(sockfd,command,strlen(command));	
+
+	bzero(buffer,256);
+	n = read(sockfd,buffer,255);
+
+	//parse the respons
+	std::string output(buffer);
+	volume = stoi(output.substr(8,2));
+	if(output.substr(110,4) == "stop"){playing = false;}
+	else{playing = true;}
+}
+
+void Mpd::loop(){
+	const char* startIdle = "idle player mixer\n";
+	const char* stopIdle = "noidle\n";
+
+	while(true){//replace with not shutdown
+		//read from socket with timeout
+		if(is there a command waiting?){
+			write(sockfd,stopIdle,strlen(stopIdle));
+			write(sockfd,command,strlen(command));
+			write(sockfd,startIdle,strlen(startIdle));		
+		}
+	}
+	
+}
+
 void Mpd::idle(){
 	const char* command = "idle player mixer\n";
 	write(sockfd,command,strlen(command));
+
+	bzero(buffer,256);
+	n = read(sockfd,buffer,255);
+  printf("%s\n",buffer);
+
+	PressEnterToContinue();
 
 	bzero(buffer,256);
 	n = read(sockfd,buffer,255);
@@ -67,7 +114,7 @@ int main()
 	Mpd mpd;
 	//mpd.pause();
 	//mpd.resume();
-	mpd.idle();
+	mpd.parseStatus();
 
   return 0;
 }
