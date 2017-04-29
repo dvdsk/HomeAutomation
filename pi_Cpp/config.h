@@ -62,6 +62,7 @@ namespace lght {//lightvalues
 	constexpr int BED = 0;
 	constexpr int KITCHEN = 1;
 	constexpr int DOOR = 2;
+	constexpr int LEN = 3;
 }
 
 namespace mov {//movement sensors
@@ -72,6 +73,7 @@ namespace mov {//movement sensors
 	constexpr int RADIATOR = 4;
 	constexpr int MIDDLEROOM = 5;
 	constexpr int BATHROOM = 6;
+	constexpr int LEN = 7;
 }
 
 namespace temp {//temp sensors
@@ -97,12 +99,14 @@ namespace lmp {//lamps
 	constexpr int BATHROOM = 3;
 	constexpr int RADIATOR = 4;
 	constexpr int BUREAU = 5;
+	constexpr int LEN = 6;
 }
 
 namespace plnt {//plants
 	constexpr const char* NAMES[]{"plantA", "plantB", "plantC"};
 	constexpr int ALERT_HUMIDITY_BELOW[]{1, 2, 3};
-	constexpr int NUMB_OF_PLANT_SENSORS = 3;
+	constexpr int NUMB_OF_PLANT_SENSORS = 3;//TODO check if needed
+	constexpr int LEN = 3;
 }
 
 
@@ -146,9 +150,6 @@ enum plotables{
 };
 
 namespace mainState {
-	constexpr int LEN_lightValues = 5;	
-	constexpr int LEN_tempValues = 5;	
-	constexpr int LEN_humidityValues = 5;		
 	constexpr int LEN_soilHumidityValues = 5;		
 	constexpr int LEN_movement = 5;	
 }

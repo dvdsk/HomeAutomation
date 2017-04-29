@@ -102,22 +102,22 @@ class MainState{
 
 		//sensorValues (needs to be accessible from decode)	
 		std::mutex sensorVal_mutex;
-		int lightValues[mainState::LEN_lightValues];
+		int lightValues[lght::LEN];
 		bool lightValues_updated; 		
-		int tempValues[mainState::LEN_tempValues];
+		int tempValues[temp::LEN];
 		bool tempValues_updated; 		
-		int humidityValues[mainState::LEN_humidityValues];
+		int humidityValues[hum::LEN];
 		bool humidityValues_updated; 		
-		int soilHumidityValues[mainState::LEN_soilHumidityValues];
+		int soilHumidityValues[plnt::LEN];
 		bool soilHumidity_updated; 		
-		uint32_t movement[mainState::LEN_movement];
+		uint32_t movement[mov::LEN];
 		int CO2ppm;
 		bool CO2ppm_updated;
 
 		std::mutex mpdState_mutex;
 		MpdState mpdState;
 
-		std::array<bool, 6> lampOn;
+		std::array<bool, lmp::LEN> lampOn;
 	
 	private:
 		std::mutex alarmProcedureStarted;

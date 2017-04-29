@@ -28,7 +28,7 @@ class CommandLineInterface{
 	private:
 	std::shared_ptr<PirData> pirData;
 	std::shared_ptr<SlowData> slowData;
-	std::shared_ptr<MainState> mainState;
+	std::shared_ptr<MainState> state;
 
 	void sensor_values();
 

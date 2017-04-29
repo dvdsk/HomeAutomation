@@ -16,7 +16,7 @@ CommandLineInterface::CommandLineInterface(std::shared_ptr<PirData> pirData_,
 
 	pirData = pirData_;
 	slowData = slowData_;
-	mainState =mainState_;
+	state =mainState_;
 }
 
 
@@ -171,12 +171,15 @@ void CommandLineInterface::sensor_values(){
 	mvprintw(LINES - 2, 2, "Enter to Exit, F to export to txt");
 	
 	do{
-	mvprintw(3, COL2, "%.1f", ((float)mean(mainState->tempValues, 
-	                            mainState::LEN_tempValues))/10-10 );
-	mvprintw(4, COL2, "%.1f", ((float)mean(mainState->humidityValues,
-	                            mainState::LEN_humidityValues))/10 );
-	mvprintw(5, COL2, "%d", mean(mainState->lightValues, mainState::LEN_lightValues));
-	mvprintw(6, COL2, "%d", mainState->CO2ppm);
+	{
+		std::lock_guard<std::mutex> guard(state->sensorVal_mutex);		
+		mvprintw(3, COL2, "%.1f", ((float)mean(state->tempValues, 
+			                          temp::LEN))/10-10 );
+		mvprintw(4, COL2, "%.1f", ((float)mean(state->humidityValues,
+			                          hum::LEN))/10 );
+		mvprintw(5, COL2, "%d", mean(state->lightValues, lght::LEN));
+		mvprintw(6, COL2, "%d", state->CO2ppm);
+	}
 	mvprintw(7, COL2, "%d", 5);
 
 	mvprintw(3, COL3, "%d", 5);
