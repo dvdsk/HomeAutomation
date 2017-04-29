@@ -1,6 +1,5 @@
 #include "mpd.h"
 #include <stdio.h> //debugging
-#include <thread> //debugging
 
 
 void PressEnterToContinue()
@@ -49,13 +48,14 @@ Mpd::Mpd(){
 	if(strcmp(buffer, "OK MPD") > 6){std::cout<<"Connected to MPD succesfully\n";}
 }
 
-void thread_readLoop(std::shared_ptr<Mpd> mpd, 
-	                   std::shared_ptr<std::atomic<bool>> notShuttingdown)
+void thread_Mpd_readLoop(std::shared_ptr<Mpd> mpd, std::shared_ptr<MainState> state,
+	   std::shared_ptr<std::atomic<bool>> notShuttingdown)
 {
-	mpd->readLoop(notShuttingdown);
+	mpd->readLoop(notShuttingdown, state);
 }
 
-void Mpd::readLoop(std::shared_ptr<std::atomic<bool>> notShuttingdown){
+void Mpd::readLoop(std::shared_ptr<std::atomic<bool>> notShuttingdown, 
+	   std::shared_ptr<MainState> state){
 
 	char buffer[256];
 	uint8_t bufferSize;
@@ -92,7 +92,7 @@ void Mpd::readLoop(std::shared_ptr<std::atomic<bool>> notShuttingdown){
 			requestStatus();
 		//check if status message
 		else if(output.substr(0,7) == "volume:")
-			parseStatus(output);
+			parseStatus(output, state);
 		else
 			printf("%s\n",buffer);		
 	}
@@ -108,16 +108,20 @@ inline void Mpd::requestStatus(){
 	write(sockfd,idle,strlen(idle));	
 }
 
-inline void Mpd::parseStatus(std::string const& output){
-	bool playing;
-	int volume;
+inline void Mpd::parseStatus(std::string const& output, std::shared_ptr<MainState> state){
 
 	//parse the respons
-	volume = stoi(output.substr(8,2));
-	if(output.substr(110,4) == "stop" || output.substr(110,4) == "paus"){playing = false;}
-	else{playing = true;}
-	std::cout<<output.substr(110,4)<<"\n";
-	std::cout<<"done parsing:\nvolume: "<<volume<<"\nplaying: "<<playing<<"\n";
+	std::lock_guard<std::mutex> guard(state->mpdState_mutex);
+	state->mpdState.volume = stoi(output.substr(8,2));
+
+	if(output.substr(110,4) == "stop")
+		state->mpdState.stopped = false;
+	else if(output.substr(110,4) == "paus")
+		state->mpdState.paused = false;
+	else
+		state->mpdState.playing = true;
+
+	state->signalUpdate();//always run update since there always is a change
 }
 
 void Mpd::sendCommand(std::string const& command){
@@ -144,28 +148,19 @@ void Mpd::sendCommandList(std::string &command){
 
 
 
-int main()
-{
-	std::shared_ptr<std::atomic<bool>> notShuttingdown = std::make_shared<std::atomic<bool>>();
-	*notShuttingdown = true;
-	
-	std::shared_ptr<Mpd> music = std::make_shared<Mpd>();
-	
-	std::thread t1 (thread_readLoop, music, notShuttingdown);
+//int main()
+//{
+//	std::shared_ptr<std::atomic<bool>> notShuttingdown = std::make_shared<std::atomic<bool>>();
+//	*notShuttingdown = true;
+//	
+//	std::shared_ptr<Mpd> music = std::make_shared<Mpd>();
+//	std::thread t1 (thread_readLoop, music, notShuttingdown);
 
+//	PressEnterToContinue();
+//	music->sendCommand("status\n");
+//	PressEnterToContinue();
 
-
-
-	PressEnterToContinue();
-
-	music->sendCommand("status\n");
-
-	PressEnterToContinue();
-//	std::cout<<"YO YO YO\n";
-//	write(mpd.sockfd,command,strlen(command));	
-
-
-	t1.join();
-	
-  return 0;
-}
+//	t1.join();
+//	
+//  return 0;
+//}

@@ -1,7 +1,8 @@
 #include "mainState.h"
 
-void stateWatcher(std::shared_ptr<MainState> state, std::shared_ptr<std::atomic<bool>> notShuttingdown){
-	state->thread_watchForUpdate(notShuttingdown);
+void thread_state_manager(std::shared_ptr<MainState> state, std::shared_ptr<Mpd> mpd,
+     std::shared_ptr<std::atomic<bool>> notShuttingdown){
+	state->watchForUpdate(mpd, notShuttingdown);
 	std::cout<<"State menagement shut down gracefully\n";
 	return;
 }
@@ -33,7 +34,7 @@ void MainState::parseCommand(Command toParse){
 		
 		case MS_SLEEPING:
 		majorState = SLEEPING;
-		runUpdate();
+		signalUpdate();
 		break;
 		
 		case MOVIEMODE:
@@ -44,7 +45,7 @@ void MainState::parseCommand(Command toParse){
 }
 
 MainState::MainState(){
-
+	//TODO do something to figure these out
 	is_ready = false;
 	majorState = DEFAULT;
 	
@@ -66,7 +67,9 @@ MainState::MainState(){
 	
 }
 
-void MainState::thread_watchForUpdate(std::shared_ptr<std::atomic<bool>> notShuttingdown){
+void MainState::watchForUpdate(std::shared_ptr<Mpd> mpd, 
+	   std::shared_ptr<std::atomic<bool>> notShuttingdown){
+
 	std::unique_lock<std::mutex> lk(m);
 	
 	while(*notShuttingdown){
@@ -157,7 +160,7 @@ void MainState::check_Plants(){
 			warningText += std::string(plnt::NAMES[i]);
 			warningText += "'s humidity ";
 			warningText += std::to_string(percentBelow);
-			warningText += "below the minimum\n";
+			warningText += "% below the minimum\n";
 			sendAlert = true;
 	}
 	if(sendAlert){
@@ -247,35 +250,35 @@ void MainState::environmental_alarm(){
 	
 	//check temperature values TODO adjust TEMP_ABOVE to account for
 	//outside weather from weather forecast	
-	for(unsigned int i=0; i<mainState::LEN_tempValues; i++){
+	for(unsigned int i=0; i<temp::LEN; i++){
 		if(tempValues[i] > config::ALERT_TEMP_ABOVE){
 			if(tempValues[i] > config::ALARM_TEMP_ABOVE){
 				alarm = true;
-				alarmString += "temperature "+std::string(hum::NAMES[i]) 
+				alarmString += "temperature "+std::string(temp::NAMES[i]) 
 			  + "at "+std::to_string(tempValues[i]/10)+"°C\n";
 			}
 			else{
 			  alert = true;
-			  alertString += "temperature "+std::string(hum::NAMES[i]) 
+			  alertString += "temperature "+std::string(temp::NAMES[i]) 
 			  + "at "+std::to_string(tempValues[i]/10)+"°C\n";
 			}
 		}
 		if(tempValues[i] > config::ALERT_TEMP_BELOW){
 			if(tempValues[i] > config::ALARM_TEMP_BELOW){
 				alarm = true;
-				alarmString += "temperature "+std::string(hum::NAMES[i]) 
+				alarmString += "temperature "+std::string(temp::NAMES[i]) 
 			  + "at "+std::to_string(tempValues[i]/10)+"°C\n";
 			}
 			else{
 			  alert = true;
-			  alertString += "temperature "+std::string(hum::NAMES[i]) 
+			  alertString += "temperature "+std::string(temp::NAMES[i]) 
 			  + "at "+std::to_string(tempValues[i]/10)+"°C\n";
 			}
 		}		
 	}
 	//check humidity with seperate bathroom handeling to account for 
 	//increased humidity due to showering
-	for(unsigned int i=0; i< mainState::LEN_humidityValues; i++){
+	for(unsigned int i=0; i< hum::LEN; i++){
 		if(i == hum::BATHROOM && !recent(mov::BATHROOM, config::DT_HUMIDALARM_SHOWER)){
 			if(humidityValues[i] > config::ALERT_HUMIDITY_ABOVE){
 				if(humidityValues[i] > config::ALARM_HUMIDITY_ABOVE){
@@ -313,6 +316,7 @@ void MainState::environmental_alarm(){
 				}
 				else{
 					alert = true;
+					std::cout<<"i: "<<i<<"\n";
 					alertString	+= "humidity "+std::string(hum::NAMES[i]) 
 					+ "at "+std::to_string(humidityValues[i]/10)+"%\n";		
 				}
@@ -478,7 +482,7 @@ unsigned int threshold){
 	return recent;
 }
 
-void MainState::runUpdate(){
+void MainState::signalUpdate(){
 	std::cout<<"signal to update\n";
 	
 	std::unique_lock<std::mutex> lk(m);

@@ -17,15 +17,17 @@
 #include <netinet/in.h>
 #include <netdb.h> 
 
+#include "../state/mainState.h"
+
 constexpr int portno = 6600;
 constexpr const char* hostname = "192.168.1.10";
-
-
 
 class Mpd{
 	public:
 		Mpd(); //connects to mpd
-		void readLoop(std::shared_ptr<std::atomic<bool>> notShuttingdown);
+		void readLoop(std::shared_ptr<std::atomic<bool>> notShuttingdown, 
+		     std::shared_ptr<MainState> state);
+
 		void sendCommand(std::string const& command);
 		void sendCommandList(std::string &command);
 
@@ -36,11 +38,11 @@ class Mpd{
 		std::mutex mpd_mutex;
 
 		inline void requestStatus();
-		inline void parseStatus(std::string const& output);
+		inline void parseStatus(std::string const& output, std::shared_ptr<MainState> state);
 };
 
-void thread_readLoop(std::shared_ptr<Mpd> mpd, 
-	                   std::shared_ptr<std::atomic<bool>> notShuttingdown);
+void thread_Mpd_readLoop(std::shared_ptr<Mpd> mpd, std::shared_ptr<MainState> state,
+	                       std::shared_ptr<std::atomic<bool>> notShuttingdown);
 
 
 #endif // MPD

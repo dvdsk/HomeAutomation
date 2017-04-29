@@ -73,14 +73,14 @@ void decodeFastData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 	}
 
 	//process light values
-	state->lightValues[lght::BED] = 		decode(data, Enc_fast::LIGHT_BED, Enc_fast::LEN_LIGHT);
-	state->lightValues[lght::KITCHEN] = decode(data, Enc_fast::LIGHT_KITCHEN, Enc_fast::LEN_LIGHT);
-	state->lightValues[lght::DOOR] = 		decode(data, Enc_fast::LIGHT_DOOR, Enc_fast::LEN_LIGHT);
-	state->lightValues_updated = true;
-
-//	std::cout<<"\t"<<state->lightValues[lght::BED]<<"\n";
-//	std::cout<<"\t"<<state->lightValues[lght::KITCHEN]<<"\n";
-//	std::cout<<"\t"<<state->lightValues[lght::DOOR]<<"\n";
+	{
+		std::lock_guard<std::mutex> guard(state->sensorVal_mutex);
+		state->lightValues[lght::BED] = 		decode(data, Enc_fast::LIGHT_BED, Enc_fast::LEN_LIGHT);
+		state->lightValues[lght::KITCHEN] = decode(data, Enc_fast::LIGHT_KITCHEN, Enc_fast::LEN_LIGHT);
+		state->lightValues[lght::DOOR] = 		decode(data, Enc_fast::LIGHT_DOOR, Enc_fast::LEN_LIGHT);
+		state->lightValues_updated = true;
+	}
+	state->signalUpdate();//TODO check if values differ enough to warrent an update
 
 	//store
 	pirData->process(data, Tstamp);
@@ -92,7 +92,8 @@ void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 										std::shared_ptr<PirData> pirData, 
 										std::shared_ptr<SlowData> slowData, 
 										std::shared_ptr<MainState> state){
-
+	{
+	std::lock_guard<std::mutex> guard(state->sensorVal_mutex);
 	//decode temp, humidity, co2 and store in state
 	state->tempValues[temp::BED] = 			decode(data, Enc_slow::TEMP_BED, Enc_slow::LEN_TEMP);
 	state->tempValues[temp::BATHROOM] = decode(data, Enc_slow::TEMP_BATHROOM, Enc_slow::LEN_TEMP);
@@ -105,15 +106,8 @@ void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 	state->humidityValues_updated = true;
 
 	state->CO2ppm = decode(data, Enc_slow::CO2, Enc_slow::LEN_CO2);
-	
-//	std::cout<<"\t"<<state->tempValues[temp::BED]<<"\n";
-//	std::cout<<"\t"<<state->tempValues[temp::BATHROOM]<<"\n";
-//	std::cout<<"\t"<<state->tempValues[temp::DOOR]<<"\n";
-//	std::cout<<"\t"<<state->humidityValues[hum::BED]<<"\n";
-//	std::cout<<"\t"<<state->humidityValues[hum::BATHROOM]<<"\n";
-//	std::cout<<"\t"<<state->humidityValues[hum::DOOR]<<"\n";
-//	std::cout<<"\t"<<state->CO2ppm<<"\n";
-
+	}	
+	state->signalUpdate();//TODO check if values differ enough to warrent an update
 
 	//store
 	slowData->process(data,Tstamp);

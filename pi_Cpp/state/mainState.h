@@ -49,12 +49,14 @@
 #include <iostream> //cout
 
 #include "../config.h"
+class Mpd;
+//#include "../mpd/mpd.h"
 
 //here stop is a special state  that triggers shutdown for the thread
 //watchforupdates function.
 enum MajorStates {AWAY, DEFAULT, ALMOSTSLEEPING, SLEEPING, MINIMAL};
 
-struct MinorStates {
+struct MinorStates{
 	bool alarmDisarm;
 	bool authorisedClose;
 	bool listenToAudioBook;
@@ -65,11 +67,18 @@ struct MinorStates {
   bool movieMode;
 };
 
+struct MpdState{
+	bool playing;
+	bool paused;
+	bool stopped;
+	uint8_t volume;
+};
+
 class MainState;
 
 //function that starts the class member thread_watchForUpdates()
-void stateWatcher(std::shared_ptr<MainState> state, 
-	                std::shared_ptr<std::atomic<bool>> notShuttingdown);
+void thread_state_manager(std::shared_ptr<MainState> state, std::shared_ptr<Mpd> mpd,
+     std::shared_ptr<std::atomic<bool>> notShuttingdown);
 	 
 class MainState{
 		
@@ -86,12 +95,13 @@ class MainState{
 		void parseCommand(Command toParse);
 		
 		//is waken and then executes pre_scan();
-		void thread_watchForUpdate(std::shared_ptr<std::atomic<bool>> notShuttingdown);
+		void watchForUpdate(std::shared_ptr<Mpd> mpd, 
+		     std::shared_ptr<std::atomic<bool>> notShuttingdown);
 		//signals the above function to run an update
-		void runUpdate();
-		void shutdown();
+		void signalUpdate();
 
 		//sensorValues (needs to be accessible from decode)	
+		std::mutex sensorVal_mutex;
 		int lightValues[mainState::LEN_lightValues];
 		bool lightValues_updated; 		
 		int tempValues[mainState::LEN_tempValues];
@@ -103,6 +113,11 @@ class MainState{
 		uint32_t movement[mainState::LEN_movement];
 		int CO2ppm;
 		bool CO2ppm_updated;
+
+		std::mutex mpdState_mutex;
+		MpdState mpdState;
+
+		std::array<bool, 6> lampOn;
 	
 	private:
 		std::mutex alarmProcedureStarted;
@@ -119,7 +134,6 @@ class MainState{
 		MinorStates minorState;
 		MajorStates majorState;		
 		MajorStates lastState;
-		std::array<bool, 6> lampOn;
 		uint32_t timeMinimalStarted;
 		
 		//4 mutually exclusive paths for checking which conditions should

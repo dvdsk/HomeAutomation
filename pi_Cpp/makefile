@@ -2,7 +2,7 @@ CXX = g++
 CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 
 
-objects = main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o webGraph.o
+objects = main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o webGraph.o mpd.o
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
 all: pi
@@ -59,7 +59,8 @@ webGraph.o: httpServer/pages/webGraph.cpp httpServer/pages/webGraph.h
 
 httpGetPostPut.o: telegramBot/httpGetPostPut.cpp telegramBot/httpGetPostPut.h
 	$(CXX) $(CXXFLAGS) -lcurl -c telegramBot/httpGetPostPut.cpp	
-
+mpd.o: mpd/mpd.cpp mpd/mpd.h
+	$(CXX) $(CXXFLAGS) -c mpd/mpd.cpp		
 
 .PHONY : clean
 clean:

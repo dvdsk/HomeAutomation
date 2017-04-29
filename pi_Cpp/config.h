@@ -79,6 +79,7 @@ namespace temp {//temp sensors
 	constexpr int BED = 0;
 	constexpr int BATHROOM = 1;
 	constexpr int DOOR = 2;
+	constexpr int LEN = 3;
 }
 
 namespace hum {//humidity sensors
@@ -86,6 +87,7 @@ namespace hum {//humidity sensors
 	constexpr int BED = 0;
 	constexpr int BATHROOM = 1;
 	constexpr int DOOR = 2;
+	constexpr int LEN = 3;
 }
 
 namespace lmp {//lamps
