@@ -61,6 +61,8 @@ namespace Idx {
 	constexpr int TEMPERATURE_BATHROOM = 6;		//2 bytes
 	constexpr int HUMIDITY_BATHROOM = 7;			//2 bytes
 
+	constexpr int PRESSURE = 8;								//2 bytes
+
 	//fast package
 	constexpr int PIRS = 0;										//1 byte
 	constexpr int PIRS_UPDATED = 1;						//1 byte
@@ -79,7 +81,8 @@ constexpr uint8_t FASTDATA_SIZE = 5;
 constexpr uint8_t SLOWDATA_SIZE = 8;
 constexpr uint16_t SLOWDATA_COMPLETE = 0 | (1 << Idx::TEMPERATURE_BED) 
 																				 | (1 << Idx::HUMIDITY_BED)
-																				 | (1 << Idx::CO2);
+																				 | (1 << Idx::CO2)
+																				 | (1 << Idx::PRESSURE);
 
 
 #endif

@@ -13,7 +13,6 @@
 
 #include <Wire.h>
 #include <SPI.h>
-#include <Adafruit_Sensor.h>
 #include <Adafruit_BMP280.h>
 
 #define BMP_SCK 13
@@ -36,18 +35,25 @@ void setup() {
 }
 
 void loop() {
-    Serial.print(F("Temperature = "));
-    Serial.print(bmp.readTemperature());
-    Serial.println(" *C");
-    
-    Serial.print(F("Pressure = "));
-    Serial.print(bmp.readPressure());
-    Serial.println(" Pa");
+	//Serial.print(F("Temperature = "));
+	//Serial.print(bmp.readTemperature());
+	//Serial.println(" *C");
 
-    Serial.print(F("Approx altitude = "));
-    Serial.print(bmp.readAltitude(1003.5)); // this should be adjusted to your local forcase
-    Serial.println(" m");
-    
-    Serial.println();
-    delay(2000);
+	Serial.print(F("Pressure = "));
+	Serial.print(bmp.readPressure());
+	Serial.println(" Pa");
+
+	//Serial.print(F("Approx altitude = "));
+	//Serial.print(bmp.readAltitude(1003.5)); // this should be adjusted to your local forcase
+	//Serial.println(" m");
+
+	//unsigned long time1 = millis();
+	//bmp.readPressure();
+	//unsigned long time2 = millis();
+
+	//Serial.println("millisec: ");
+	//Serial.println(time2-time1);
+
+	//Serial.println();
+	delay(2000);
 }

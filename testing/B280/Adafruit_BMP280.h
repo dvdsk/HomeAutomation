@@ -22,8 +22,6 @@
  #include "WProgram.h"
 #endif
 
-#include <Adafruit_Sensor.h>
-
 #ifdef __AVR_ATtiny85__
  #include "TinyWireM.h"
  #define Wire TinyWireM
@@ -35,7 +33,7 @@
     I2C ADDRESS/BITS/SETTINGS
     -----------------------------------------------------------------------*/
     #define BMP280_ADDRESS                (0x77) //org 
-		//#define BMP280_ADDRESS                (0x76) //with SDO on ground
+	//#define BMP280_ADDRESS                (0x76) //with SDO on ground
     #define BMP280_CHIPID                 (0x58)
 /*=========================================================================*/
 

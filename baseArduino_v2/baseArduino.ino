@@ -4,6 +4,7 @@
 #include "printf.h"
 
 #include "co2.h"
+#include "pressure.h"
 #include "localSensors.h"
 #include "remoteNodes.h"
 #include "humiditySensor.h"
@@ -31,6 +32,7 @@ RemoteNodes radio;
 LocalSensors local;
 TempHumid thSen;
 Co2 co2;
+Adafruit_BMP280 pressure;
 
 RemoteNodes* radioPtr = &radio;
 LocalSensors* localPtr = &local;
@@ -48,6 +50,7 @@ void updateSlow_Local(){
 	co2.rqCO2();
 	thSen.getTempHumid();
   co2.readCO2();
+	pressure.readPressure();
 }
 
 inline bool slowDataComplete(){	return (slowData[Idx::UPDATED] == SLOWDATA_COMPLETE);}
@@ -142,6 +145,11 @@ void setup(){
 	sendFastDataPtr = &sendFastData;
 	thSen.setup(radioPtr, localPtr, sendFastDataPtr, slowData);
 	co2.setup(slowData);
+
+  if (!pressure.setup(slowData)){  
+    Serial.println(F("Could not find a valid BMP280 sensor, check wiring!"));
+    while (1);
+  }
 
 	slowData[Idx::UPDATED] = 0;
 
