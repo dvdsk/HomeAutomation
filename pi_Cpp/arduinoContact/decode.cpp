@@ -107,7 +107,7 @@ void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 
 	state->CO2ppm = decode(data, Enc_slow::CO2, Enc_slow::LEN_CO2);
 	}	
-	state->signalUpdate();//TODO check if values differ enough to warrent an update
+	state->signalUpdate();
 
 	//store
 	slowData->process(data,Tstamp);
