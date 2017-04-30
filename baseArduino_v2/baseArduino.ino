@@ -50,7 +50,12 @@ void updateSlow_Local(){
   co2.readCO2();
 }
 
+#ifdef DEBUG
+inline bool slowDataComplete(){	return true;}
+#endif
+#ifndef DEBUG
 inline bool slowDataComplete(){	return (slowData[Idx::UPDATED] == SLOWDATA_COMPLETE);}
+#endif
 
 void sendFastData(){
   //used to send the data to the raspberry pi 

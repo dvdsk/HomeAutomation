@@ -77,10 +77,15 @@ constexpr byte REQUESTCO2[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; /
 
 constexpr uint8_t FASTDATA_SIZE = 5;
 constexpr uint8_t SLOWDATA_SIZE = 8;
+
+#ifdef DEBUG
+constexpr uint16_t SLOWDATA_COMPLETE = 0;
+#endif
+#ifndef DEBUG
 constexpr uint16_t SLOWDATA_COMPLETE = 0 | (1 << Idx::TEMPERATURE_BED) 
 																				 | (1 << Idx::HUMIDITY_BED)
 																				 | (1 << Idx::CO2);
-
+#endif
 
 #endif
 
