@@ -126,6 +126,30 @@ void sendSlowData(){
 	encode(toSend, slowData[Idx::CO2],
 		Enc_slow::CO2, Enc_slow::LEN_CO2);
 
+	slowData[Idx::PRESSURE] = 127; //max value before things go wrong (7 bits)
+
+	encode(toSend, slowData[Idx::PRESSURE],
+		Enc_slow::PRESSURE, Enc_slow::LEN_PRESSURE);
+
+/*	encode(toSend, 11,*/
+/*		Enc_slow::PRESSURE, Enc_slow::LEN_PRESSURE);*/
+
+	Serial.print("pressure: ");
+	Serial.print(decode(toSend, Enc_slow::PRESSURE, Enc_slow::LEN_PRESSURE));
+	Serial.print(", pressure-org: ");
+	Serial.print(slowData[Idx::PRESSURE]);
+
+	Serial.print(", CO2: ");
+	Serial.print(decode(toSend, Enc_slow::CO2, Enc_slow::LEN_CO2));
+	Serial.print(", CO2-org: ");
+	Serial.print(slowData[Idx::CO2]);
+
+	Serial.print(", LEN_ENCODED: ");
+	Serial.print(Enc_slow::LEN_ENCODED);
+
+	Serial.print(", PRESSURE: ");
+	Serial.print(Enc_slow::PRESSURE);
+	Serial.println(" ");
 
 	Serial.write(toSend, Enc_slow::LEN_ENCODED);
 	#endif

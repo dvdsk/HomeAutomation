@@ -80,14 +80,17 @@ inline uint16_t decode(uint8_t encoded[], const int package_offset_bits,
 }
 
 //int main(){
-//	
 //	uint16_t test;
 //	uint8_t encoded[10] = {0,0,0,0,0,0,0,0,0,0};
-//	for(uint16_t i=100; i<320; i++){
+
+//	uint16_t max = -1;
+//	std::cout<<"max: "<<max<<"\n";
+//	for(uint16_t i=uint16_t(max-20); i<max; i++){
 //		memset(encoded, 0, 10);
-//		encode(encoded, i, 0, 9);					
-//		if(i-decode(encoded, 0, 0, 9)){std::cout<<"ERROR\n";}
-//		//std::cout<<"decoded value:"<<decode(encoded, 0, 0, 9)<<"\n";
+//		encode(encoded, i, 0, 16);					
+//		if(i-decode(encoded, 0, 0, 16)!= 0){std::cout<<"ERROR\n";}
+
+//		std::cout<<"decoded value:"<<decode(encoded, 0, 0, 16)<<"\n";
 //	}
 //}
 #endif

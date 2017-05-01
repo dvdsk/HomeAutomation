@@ -113,6 +113,8 @@ class MainState{
 		uint32_t movement[mov::LEN];
 		int CO2ppm;
 		bool CO2ppm_updated;
+		int Pressure;
+		bool Pressure_updated;
 
 		std::mutex mpdState_mutex;
 		MpdState mpdState;

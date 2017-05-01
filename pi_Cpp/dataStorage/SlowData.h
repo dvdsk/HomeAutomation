@@ -36,6 +36,7 @@ We save in the same format as the bitstream
 
 */
 
+
 //data specific functions and variables, inherits AllData
 class SlowData : public Data
 {

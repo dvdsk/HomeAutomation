@@ -6,10 +6,13 @@
 
 //length in bytes
 constexpr uint8_t FASTDATA_SIZE = 4;
-constexpr uint8_t SLOWDATA_SIZE = 7;
+constexpr uint8_t SLOWDATA_SIZE = 12;
 
 constexpr uint16_t MAXPLOTRESOLUTION = 1000;
 constexpr uint16_t MAX_FETCHED_ELEMENTS = 1000;
+
+//note also change this in config of decoder class (USED FOR DECODING/ENCODING AIRPRESSURE)
+constexpr uint32_t MINIMUM_MEASURABLE_PRESSURE = 93600; //Pa
 
 enum Command {LIGHTS_ALLON, LIGHTS_ALLOFF, MS_SLEEPING, MOVIEMODE};
 
@@ -142,6 +145,7 @@ enum plotables{
   HUMIDITY_DOORHIGH,
 
   CO2PPM,
+	PRESSURE,
 
   BRIGHTNESS_BED,
   BRIGHTNESS_BEYONDCURTAINS,

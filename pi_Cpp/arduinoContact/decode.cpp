@@ -105,7 +105,14 @@ void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 	state->humidityValues[hum::DOOR] =     decode(data, Enc_slow::HUM_DOOR, Enc_slow::LEN_HUM);
 	state->humidityValues_updated = true;
 
-	state->CO2ppm = decode(data, Enc_slow::CO2, Enc_slow::LEN_CO2);
+	state->CO2ppm = 	decode(data, Enc_slow::CO2, Enc_slow::LEN_CO2);
+	state->Pressure = decode(data, Enc_slow::PRESSURE, Enc_slow::LEN_PRESSURE);
+
+	std::cout<<"data1: "<<Enc_slow::CO2<<", "<<Enc_slow::LEN_CO2;
+	std::cout<<", data2: "<<Enc_slow::PRESSURE<<", "<<Enc_slow::LEN_PRESSURE;
+	std::cout<<", data3: "<<+SLOWDATA_SIZE;
+	std::cout<<", data4: "<<Enc_slow::LEN_ENCODED<<", ";
+	std::cout<<"Pressure: "<<state->Pressure<<"\n";
 	}	
 	state->signalUpdate();
 

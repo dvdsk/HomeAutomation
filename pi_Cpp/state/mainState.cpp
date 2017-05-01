@@ -74,7 +74,7 @@ void MainState::watchForUpdate(std::shared_ptr<Mpd> mpd,
 	
 	while(*notShuttingdown){
 		cv.wait(lk);
-		std::cout<<"running update\n";		
+		//std::cout<<"running update\n";		
 
 		currentTime = (uint32_t)time(nullptr);
 		
@@ -164,7 +164,7 @@ void MainState::check_Plants(){
 			sendAlert = true;
 	}
 	if(sendAlert){
-		std::cout<<"sending telegram message: \n"<<warningText;
+		//std::cout<<"sending telegram message: \n"<<warningText;
 		//send a telegram message		
 	}
 	return;
@@ -316,7 +316,6 @@ void MainState::environmental_alarm(){
 				}
 				else{
 					alert = true;
-					std::cout<<"i: "<<i<<"\n";
 					alertString	+= "humidity "+std::string(hum::NAMES[i]) 
 					+ "at "+std::to_string(humidityValues[i]/10)+"%\n";		
 				}
@@ -347,8 +346,8 @@ void MainState::environmental_alarm(){
 		}		
 	}
 	
-	if(alarm){std::cout<<alarmString; }
-	if(alert){std::cout<<alertString; }
+	if(alarm){}//std::cout<<alarmString; }
+	if(alert){}//std::cout<<alertString; }
 	
 	return;
 }
@@ -358,53 +357,53 @@ void MainState::environmental_alarm(){
 //functions
 void MainState::def_lampcheck_Door(){	
 	if(lightValues[lght::DOOR] < 300	&& !lampOn[lmp::DOOR]){				
-		std::cout<<"turning lamp at door on\n"; //add function turn lamps off
+		//std::cout<<"turning lamp at door on\n"; //add function turn lamps off
 	}
 	else if(lightValues[lght::DOOR] > 300+50	&& lampOn[lmp::DOOR]){
-		std::cout<<"turning lamp at door off\n"; //add function turn lamps off	
+		//std::cout<<"turning lamp at door off\n"; //add function turn lamps off	
 	}
 }
 
 void MainState::def_lampCheck_Kitchen(){	
 	if(lightValues[lght::KITCHEN] < 300	&& !lampOn[lmp::KITCHEN] 
 	&& recent(movement[mov::KITCHEN], config::KTCHN_TIMEOUT)){
-		std::cout<<"turning kitchen lamp on\n"; 		//function turn lamps off
+		//std::cout<<"turning kitchen lamp on\n"; 		//function turn lamps off
 	}
 	else if(lightValues[lght::KITCHEN] > 300+50	&& lampOn[lmp::KITCHEN] 
 	&& !recent(movement[mov::KITCHEN], config::KTCHN_TIMEOUT)){
-		std::cout<<"turning lamp at kitchen off\n"; 		//function turn lamps off	
+		//std::cout<<"turning lamp at kitchen off\n"; 		//function turn lamps off	
 	}
 }
 
 void MainState::def_lampCheck_CeilingAndRadiator(){
 	if(lightValues[lght::BED] < 300 
 	&& (!lampOn[lmp::CEILING] || !lampOn[lmp::RADIATOR])){
-		std::cout<<"turning heater ceiling lamps on\n"; 		//function turn lamps off
+		//std::cout<<"turning heater ceiling lamps on\n"; 		//function turn lamps off
 	}
 	else if(lightValues[lght::BED] < 300+50 
 	&& (lampOn[lmp::CEILING] || lampOn[lmp::RADIATOR])){
-		std::cout<<"turning heater ceiling lamp off\n"; 		//function turn lamps off	
+		//std::cout<<"turning heater ceiling lamp off\n"; 		//function turn lamps off	
 	}
 }
 
 void MainState::def_lampCheck_Bureau(){
 	if(lightValues[lght::BED] < 300 && !lampOn[lmp::RADIATOR]){
-		std::cout<<"turning bureau lamp on\n"; 		//function turn lamps off
+		//std::cout<<"turning bureau lamp on\n"; 		//function turn lamps off
 	}
 	else if(lightValues[lght::BED] < 300+50 
 	&& (lampOn[lmp::CEILING] || lampOn[lmp::RADIATOR])){
-		std::cout<<"turning lamp at bureau off\n"; 		//function turn lamps off	
+		//std::cout<<"turning lamp at bureau off\n"; 		//function turn lamps off	
 	}	
 }
 
 void MainState::lampCheck_Bathroom(){
 	if(recent(movement[mov::BATHROOM], config::WCPIR_TIMEOUT) 
 	&& !lampOn[lmp::BATHROOM]){
-		std::cout<<"turning bathroom lamp on\n"; 		//function turn lamps off
+		//std::cout<<"turning bathroom lamp on\n"; 		//function turn lamps off
 	}
 	else if(lampOn[lmp::BATHROOM] 
 	&& !recent(movement[mov::BATHROOM], config::WCPIR_TIMEOUT)){
-		std::cout<<"turning bathroom lamp off\n"; 		//function turn lamps off	
+		//std::cout<<"turning bathroom lamp off\n"; 		//function turn lamps off	
 	}	
 }
 
@@ -483,7 +482,7 @@ unsigned int threshold){
 }
 
 void MainState::signalUpdate(){
-	std::cout<<"signal to update\n";
+	//std::cout<<"signal to update\n";
 	
 	std::unique_lock<std::mutex> lk(m);
 	is_ready = true;

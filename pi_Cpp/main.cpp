@@ -88,10 +88,12 @@ int main(int argc, char* argv[])
 	
 	std::cout<<"cmd interface starting\n";
 	std::this_thread::sleep_for(std::chrono::seconds(1));
+
+	getchar();
+
 	CommandLineInterface interface(pirData, slowData, state);
 	interface.mainMenu();
 
-	getchar();
 //	slowData->exportAllSlowData(1492048892, -1);
 
 	//shutdown code

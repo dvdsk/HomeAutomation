@@ -17,10 +17,19 @@ namespace Enc_slow {
 	constexpr int HUM_BATHROOM = HUM_BED+LEN_HUM;		
 	constexpr int HUM_DOOR = HUM_BATHROOM+LEN_HUM;		
 
+//	constexpr int LEN_CO2 = 13;
+//	constexpr int CO2 = HUM_DOOR+LEN_HUM;						 
+
+//	constexpr int LEN_PRESSURE = 16;
+//	constexpr int PRESSURE = CO2+LEN_CO2;
+
+	constexpr int LEN_PRESSURE = 16;
+	constexpr int PRESSURE = HUM_DOOR+LEN_HUM;						 
+
 	constexpr int LEN_CO2 = 13;
-	constexpr int CO2 = HUM_DOOR+LEN_HUM;						 
+	constexpr int CO2 = PRESSURE+LEN_PRESSURE;
 	
-	constexpr int LEN_ENCODED = roundUp(CO2+LEN_CO2,8); //in bytes
+	constexpr int LEN_ENCODED = roundUp(PRESSURE+LEN_PRESSURE,8); //in bytes
 }
 
 namespace Enc_fast {

@@ -1,5 +1,5 @@
-#ifndef commandline
-#define commandline
+#ifndef COMMANDLINE
+#define COMMANDLINE
 
 #include <curses.h> //http://tldp.org/HOWTO/NCURSES-Programming-HOWTO/keys.html
 #include <menu.h>

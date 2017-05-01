@@ -93,6 +93,10 @@ uint16_t dCo2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
 
 float toFloat(uint16_t integer_var){return (float)integer_var; }
 
+uint16_t dPressure(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
+	return decode(block, blockIdx_B+2, Enc_slow::PRESSURE, Enc_slow::LEN_PRESSURE); }
+
+float pressureToFloat(uint16_t integer_var){return integer_var/5+MINIMUM_MEASURABLE_PRESSURE; }
 
 //TODO possible optimisation using template and no longer a function pointer
 int SlowData::fetchSlowData(uint32_t startT, uint32_t stopT, 
@@ -120,6 +124,9 @@ int SlowData::fetchSlowData(uint32_t startT, uint32_t stopT,
     case CO2PPM: 
       len = Data::fetchData(startT, stopT, x, y, dCo2, toFloat);  
       break;
+    case PRESSURE:
+      len = Data::fetchData(startT, stopT, x, y, dPressure, pressureToFloat);  
+      break; 
     case BRIGHTNESS_BED:
       len = Data::fetchData(startT, stopT, x, y, dLight1, toFloat);  
       break; 

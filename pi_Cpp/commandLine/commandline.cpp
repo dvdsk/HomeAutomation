@@ -164,8 +164,8 @@ void CommandLineInterface::sensor_values(){
 	mvprintw(3, COL5, "(deg Celcius)");
 	mvprintw(4, COL5, "(%)");
 	mvprintw(5, COL5, "(-)");
-	mvprintw(6, COL5, "(ppm):");
-	mvprintw(7, COL5, "");
+	mvprintw(6, COL5, "(ppm)");
+	mvprintw(7, COL5, "(Pa)");
 
 	timeout(1000);//timeout of 1 second for blocking calls
 	mvprintw(LINES - 2, 2, "Enter to Exit, F to export to txt");
@@ -179,6 +179,8 @@ void CommandLineInterface::sensor_values(){
 			                          hum::LEN))/10 );
 		mvprintw(5, COL2, "%d", mean(state->lightValues, lght::LEN));
 		mvprintw(6, COL2, "%d", state->CO2ppm);
+		mvprintw(7, COL2, "%.1f", (state->Pressure/5.0+MINIMUM_MEASURABLE_PRESSURE));
+		mvprintw(8, COL2, "%.1f", (state->Pressure));
 	}
 	mvprintw(7, COL2, "%d", 5);
 

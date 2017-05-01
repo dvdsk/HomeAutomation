@@ -1,6 +1,9 @@
 #ifndef CONFIG
 #define CONFIG
 
+//note also change this in config of decoder class (USED FOR DECODING/ENCODING AIRPRESSURE)
+constexpr uint32_t MINIMUM_MEASURABLE_PRESSURE = 93600; //Pa
+
 //the "union" construct is useful, in which you can refer to the 
 //same memory space in two different ways
 typedef union
@@ -78,7 +81,7 @@ constexpr byte REQUESTCO2[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; /
 
 
 constexpr uint8_t FASTDATA_SIZE = 5;
-constexpr uint8_t SLOWDATA_SIZE = 8;
+constexpr uint8_t SLOWDATA_SIZE = 9;
 constexpr uint16_t SLOWDATA_COMPLETE = 0 | (1 << Idx::TEMPERATURE_BED) 
 																				 | (1 << Idx::HUMIDITY_BED)
 																				 | (1 << Idx::CO2)
