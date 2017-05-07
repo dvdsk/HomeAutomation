@@ -18,10 +18,10 @@ class Lamps : public HttpGetPostPut
 	Lamps();
 
 	/* turn on specific lamp or all lamps with zero transition time*/
-	void On(int n);
+	void on(int n);
 	void on();
 	/* turn off specific lamp or all lamps with zero transition time*/
-	void Off(int n);
+	void off(int n);
 	void off();
 
 	/* set full config for one or all lamps*/
@@ -32,8 +32,16 @@ class Lamps : public HttpGetPostPut
 	/* need a mutex as we may never share the same handle in multiple threads */
 	std::mutex lamp_mutex;
 
+	void saveState(int n);
+	void saveState();
+
+	int lampBri[7];
+	float lampX[7];
+	float lampY[7];
+
 	/* translates between lampNumb and lampId */
 	std::string toId(int lampNumb);
+	int toIntId(int lampNumb);
 };
 
 

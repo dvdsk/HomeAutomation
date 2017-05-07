@@ -25,10 +25,22 @@ void checkSensorData(std::shared_ptr<PirData> pirData,
   uint32_t Tstamp;
 	uint8_t data[SLOWDATA_SIZE]; 
   uint8_t x; 
+	std::shared_ptr<Serial> arduino;
 
-	std::shared_ptr<Serial> arduino = std::make_shared<Serial>("/dev/ttyUSB0",
-																		config::ARDUINO_BAUDRATE);
-	
+	try{
+		arduino = std::make_shared<Serial>("/dev/ttyUSB0", config::ARDUINO_BAUDRATE);
+	}catch (boost::system::system_error const& e) {
+		std::cout<<"\tCould not open serial connection on ttyUSB0,\n\t...trying ttyUSB1\n";
+
+		try{
+			arduino = std::make_shared<Serial>("/dev/ttyUSB1", config::ARDUINO_BAUDRATE);
+		}catch (boost::system::system_error const& e) {
+			std::cout<<"\tCould not open serial connection on ttyUSB1\n";
+			std::cout<<"\t!!!Abborting sensor readout!!!\n";
+			return;
+		}		
+	}	
+
 	//spawn thread that sends request for 'slow data'
 	std::thread t4(requestSensorData, arduino, notShuttingdown);
 

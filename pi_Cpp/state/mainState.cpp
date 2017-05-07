@@ -10,36 +10,45 @@ void thread_state_manager(std::shared_ptr<MainState> state, std::shared_ptr<Mpd>
 //decode url to a command to change a state or pass to a function
 void MainState::httpSwitcher(const char* raw_url){
 	std::string url = raw_url;
-	if(url == "lamps/evening"){
+	if(url == "/|lamps/evening"){
 		if(majorState != MINIMAL){majorState = MINIMAL; signalUpdate(); }
-		setState("{\"bri\":220, \"ct\":200, \"transitiontime\":10}");
+		setState("{\"bri\":254, \"ct\":320, \"transitiontime\":10}");
 	}
-	if(url == "lamps/night"){
+	if(url == "/|lamps/night"){
 		if(majorState != MINIMAL){majorState = MINIMAL; signalUpdate(); }
-		setState("{\"bri\":120, \"ct\":153, \"transitiontime\":10}");
+		setState("{\"bri\":220, \"ct\":500, \"transitiontime\":10}");
 	}
-	if(url == "lamps/bedlight"){
+	if(url == "/|lamps/bedlight"){
 		if(majorState != MINIMAL){majorState = MINIMAL; signalUpdate(); }
-		setState("{\"bri\":1, \"ct\":153, \"transitiontime\":10}");
+		setState("{\"bri\":1, \"ct\":500, \"transitiontime\":10}");
 	}
-	if(url == "lamps/normal"){
+	if(url == "/|lamps/normal"){
 		if(majorState != MINIMAL){majorState = MINIMAL; signalUpdate(); }
-		setState("{\"bri\":254, \"ct\":300, \"transitiontime\":10}");
+		setState("{\"bri\":254, \"ct\":220, \"transitiontime\":10}");
+	}
+	if(url == "/|lamps/alloff"){
+		if(majorState != MINIMAL){majorState = MINIMAL; signalUpdate(); }
+		Lamps::off(1);
+	}
+	if(url == "/|lamps/allon"){
+		if(majorState != MINIMAL){majorState = MINIMAL; signalUpdate(); }
+		Lamps::on(1);
 	}
 
-	if(url == "state/away"){
+
+	if(url == "/|state/away"){
 		if(majorState != AWAY){majorState = AWAY; signalUpdate(); }
 	}
-	if(url == "state/default"){
+	if(url == "/|state/default"){
 		if(majorState != DEFAULT){majorState = DEFAULT; signalUpdate(); }
 	}
-	if(url == "state/almostsleeping"){
+	if(url == "/|state/almostsleeping"){
 		if(majorState != ALMOSTSLEEPING){majorState = ALMOSTSLEEPING; signalUpdate(); }
 	}
-	if(url == "state/sleeping"){
+	if(url == "/|state/sleeping"){
 		if(majorState != SLEEPING){majorState = SLEEPING; signalUpdate(); }
 	}
-	if(url == "state/minimal"){
+	if(url == "/|state/minimal"){
 		if(majorState != MINIMAL){majorState = MINIMAL; signalUpdate(); }
 	}
 	return;

@@ -69,6 +69,7 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 			}
 		//continue with correct response if authentication is successfull
 		else{
+				const char* orderRecieved = "<html><body>Order processed.</body></html>";
 				const char* unknown_page = "<html><body>A secret.</body></html>";
 				char* page;
 				std::string pageString = "<html><body>A ";
@@ -76,7 +77,9 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 				pageString += pageString2;
 				
 				//if its a state switch command send it to state for processing
-				if(url[1] == '|'){state->httpSwitcher(url); }
+				if(url[1] == '|'){state->httpSwitcher(url);
+					response = MHD_create_response_from_buffer(strlen (unknown_page), 
+					           (void *) orderRecieved, MHD_RESPMEM_PERSISTENT); }
 				
 				//else webserver request
 				else if(0 == strcmp(url, "/css/c3.css")){
