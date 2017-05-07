@@ -103,8 +103,10 @@ void sendSlowData(){
 	Serial.print("\n");	
 	#endif
 	#ifndef DEBUG
-	uint8_t toSend[Enc_slow::LEN_ENCODED];
-	memset(toSend, 0, Enc_slow::LEN_ENCODED);
+	//+1 prevents seg fault in compression algoritme
+	//space is not actually used
+	uint8_t toSend[Enc_slow::LEN_ENCODED+1];
+	memset(toSend, 0, Enc_slow::LEN_ENCODED+1);
 	slowData[Idx::UPDATED] = 0;  
 
   Serial.write(headers::SLOW_UPDATE);

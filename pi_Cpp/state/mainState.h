@@ -49,12 +49,18 @@
 #include <iostream> //cout
 
 #include "../config.h"
+#include "../lamps/lamps.h"
 class Mpd;
 //#include "../mpd/mpd.h"
 
 //here stop is a special state  that triggers shutdown for the thread
 //watchforupdates function.
-enum MajorStates {AWAY, DEFAULT, ALMOSTSLEEPING, SLEEPING, MINIMAL};
+enum MajorStates {
+	AWAY, 					//env_alarm+plnts_alarm+intruder_alarm
+	DEFAULT,				//env_alarm+plnts_alarm+lamps_cb+lampcheck(Kitchen, Door, Bureau, Bathroom) 
+	ALMOSTSLEEPING, //env_alarm+plnts_alarm
+	SLEEPING, 			//env_alarm+plnts_alarm+night_intruder_alarm
+	MINIMAL};				//env_alarm+plnts_alarm+lampcheck(Bathroom)
 
 struct MinorStates{
 	bool alarmDisarm;
@@ -80,7 +86,8 @@ class MainState;
 void thread_state_manager(std::shared_ptr<MainState> state, std::shared_ptr<Mpd> mpd,
      std::shared_ptr<std::atomic<bool>> notShuttingdown);
 	 
-class MainState{
+class MainState : Lamps
+{
 		
 	public:
 		//creates shared objects
@@ -178,12 +185,6 @@ class MainState{
 		
 		//sleeping functions in sleeping.cpp
 		void night_alarm();
-		
-		
-		//functions that change states
-		 //turn lamps on
-		 
-		 //turn lamps off
 		 
 		 //movie mode
 		 

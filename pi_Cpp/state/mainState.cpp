@@ -9,14 +9,38 @@ void thread_state_manager(std::shared_ptr<MainState> state, std::shared_ptr<Mpd>
 
 //decode url to a command to change a state or pass to a function
 void MainState::httpSwitcher(const char* raw_url){
-
-	if(0 == strcmp(raw_url, "/lamps")){
-		std::cout<<"lamps call has been made\n";
-		parseCommand(LIGHTS_ALLOFF);
+	std::string url = raw_url;
+	if(url == "lamps/evening"){
+		if(majorState != MINIMAL){majorState = MINIMAL; signalUpdate(); }
+		setState("{\"bri\":220, \"ct\":200, \"transitiontime\":10}");
 	}
-	if(0 == strcmp(raw_url, "/sleep")){
-		std::cout<<"sleep call has been made\n";
-		majorState = SLEEPING;
+	if(url == "lamps/night"){
+		if(majorState != MINIMAL){majorState = MINIMAL; signalUpdate(); }
+		setState("{\"bri\":120, \"ct\":153, \"transitiontime\":10}");
+	}
+	if(url == "lamps/bedlight"){
+		if(majorState != MINIMAL){majorState = MINIMAL; signalUpdate(); }
+		setState("{\"bri\":1, \"ct\":153, \"transitiontime\":10}");
+	}
+	if(url == "lamps/normal"){
+		if(majorState != MINIMAL){majorState = MINIMAL; signalUpdate(); }
+		setState("{\"bri\":254, \"ct\":300, \"transitiontime\":10}");
+	}
+
+	if(url == "state/away"){
+		if(majorState != AWAY){majorState = AWAY; signalUpdate(); }
+	}
+	if(url == "state/default"){
+		if(majorState != DEFAULT){majorState = DEFAULT; signalUpdate(); }
+	}
+	if(url == "state/almostsleeping"){
+		if(majorState != ALMOSTSLEEPING){majorState = ALMOSTSLEEPING; signalUpdate(); }
+	}
+	if(url == "state/sleeping"){
+		if(majorState != SLEEPING){majorState = SLEEPING; signalUpdate(); }
+	}
+	if(url == "state/minimal"){
+		if(majorState != MINIMAL){majorState = MINIMAL; signalUpdate(); }
 	}
 	return;
 }
@@ -44,7 +68,8 @@ void MainState::parseCommand(Command toParse){
 	}
 }
 
-MainState::MainState(){
+MainState::MainState()
+	: Lamps(){
 	//TODO do something to figure these out
 	is_ready = false;
 	majorState = DEFAULT;
@@ -235,7 +260,7 @@ void MainState::update_default(){
 	}
 	else{def_lampCheck_Kitchen(); }
 	lampCheck_Bathroom();
-	
+	//TODO make update_Lamps();
 	environmental_alarm();
 	check_Plants();
 	transitions_default();
@@ -434,9 +459,8 @@ void MainState::transitions_almostSleeping(){
 //for example always started after sleeping. Check if the user 
 //wants to sleep (not yet alarm time.) 
 void MainState::update_almostSleeping(){
-	
+	//TODO make this update_Lamps();
 	lampCheck_Bathroom();
-	
 	transitions_almostSleeping();
 }
 
@@ -447,7 +471,8 @@ void MainState::init_minimal(MajorStates fromState){
 }
 
 void MainState::update_minimal(){
-	
+
+	lampCheck_Bathroom();
 	environmental_alarm();
 	check_Plants();
 	transitions_minimal();
