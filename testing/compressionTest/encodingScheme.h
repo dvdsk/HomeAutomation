@@ -29,7 +29,8 @@ namespace Enc_slow {
 	constexpr int LEN_CO2 = 13;
 	constexpr int CO2 = PRESSURE+LEN_PRESSURE;
 	
-	constexpr int LEN_ENCODED = roundUp(PRESSURE+LEN_PRESSURE,8); //in bytes
+	//constexpr int LEN_ENCODED = roundUp(PRESSURE+LEN_PRESSURE,8); //in bytes
+	constexpr int LEN_ENCODED = roundUp(CO2+LEN_CO2,8); //in bytes
 }
 
 namespace Enc_fast {

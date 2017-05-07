@@ -7,12 +7,26 @@
 
 
 //TODO make constexpr as soon as supported by c++
-inline uint8_t mask(const int bit_offset, const int length_bits){
+inline uint8_t mask1(const int bit_offset, const int length_bits){
 
 	uint8_t unused_bits;
 	uint8_t maski;
-	//=total bits - (needed bits - (bits in first byte))
+	//=total bits - (needed bits - (bits in first byte))	
 	unused_bits = 8-(length_bits - (8-bit_offset));
+	if(unused_bits>8){unused_bits=0;}
+	maski = (~0);
+	maski = maski >> unused_bits;
+
+	return maski;
+}
+
+//TODO make constexpr as soon as supported by c++
+inline uint8_t mask2(const int bit_offset, const int length_bits){
+
+	uint8_t unused_bits;
+	uint8_t maski;
+	//=total bits - (needed bits - (bits in first and second byte))
+	unused_bits = 8-(length_bits - (8-bit_offset +8));
 	maski = (~0);
 	maski = maski >> unused_bits;
 
@@ -24,9 +38,17 @@ inline void encode2(uint8_t encoded[], uint16_t toEncode, const int byte_offset,
 									 const int bit_offset, const int length_bits){
 
 	std::cout<<"bit_offset: "<<bit_offset<<"\n";
+	std::cout<<"length_bits: "<<length_bits<<"\n";
+
+	//std::cout<<"bit_offset: "<<bit_offset<<"\n";
+	//TODO check if masks actually needed here (shouldnt as we shift in 0's right?)
 	encoded[byte_offset] 		|= uint8_t(toEncode << bit_offset);
-	encoded[byte_offset+1] 	|= uint8_t(toEncode >> (8-bit_offset)) & mask(bit_offset, length_bits);
-	//TODO NEED TO ADD SHIT FOR length > 16-bit offset case 
+	encoded[byte_offset+1] 	|= uint8_t(toEncode >> (8-bit_offset)) & mask1(bit_offset, length_bits);
+	encoded[byte_offset+2] 	|= uint8_t(toEncode >> (16-bit_offset)) & mask2(bit_offset, length_bits);
+
+	uint16_t debug;
+	debug = uint8_t(toEncode >> (8-bit_offset)) & mask1(bit_offset, length_bits);
+	std::cout<<"edebug1: "<<debug<<"\n";
 }
 
 //with in memory offset
@@ -56,7 +78,18 @@ inline uint16_t decode2(uint8_t encoded[], int byte_offset,
 	uint16_t decoded;
 	//std::cout<<"bit_offset: "<<bit_offset<<"\n";
 	decoded = ((uint16_t)encoded[byte_offset] >> bit_offset ) |
-						((uint16_t)(encoded[byte_offset+1] & mask(bit_offset, length_bits)) << (8-bit_offset) );
+	  ((uint16_t)(encoded[byte_offset+1] & mask1(bit_offset, length_bits)) << (8-bit_offset) );
+	  ((uint16_t)(encoded[byte_offset+2] & mask2(bit_offset, length_bits)) << (16-bit_offset) );
+
+
+	uint16_t debug;
+	
+	debug = (uint16_t)(encoded[byte_offset+2]);// & mask2(bit_offset, length_bits)) << (16-bit_offset);
+	std::cout<<"\ndebug2: "<<+debug<<"\n";
+	debug = (uint16_t)(encoded[byte_offset+1]);// & mask2(bit_offset, length_bits)) << (16-bit_offset);
+	std::cout<<"\ndebug1: "<<+debug<<"\n";
+	debug = (uint16_t)(encoded[byte_offset+0]);// & mask2(bit_offset, length_bits)) << (16-bit_offset);
+	std::cout<<"\ndebug0: "<<+debug<<"\n";
 
 	return decoded;
 }
