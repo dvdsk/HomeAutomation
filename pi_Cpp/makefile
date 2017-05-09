@@ -1,70 +1,71 @@
+MAKEFLAGS+="-j -l $(shell grep -c ^processor /proc/cpuinfo) "
+
 CXX = g++
 CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 
-
-objects = main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o webGraph.o mpd.o lamps.o
+ODIR = .BUILD
+OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o webGraph.o mpd.o lamps.o)
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
 all: pi
 debug: CXXFLAGS += -DDEBUG -g
 debug: pi
-test: CXXFLAGS += -DTEST
-test: pi
 
-
-pi: $(objects)
-	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o pi $(objects) \
+pi: $(OBJS)
+	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o pi $(OBJS) \
 	-lmicrohttpd -lcurl -lboost_system -lboost_thread -lpthread -lmenu -lncurses
 
-main.o: main.cpp config.h arduinoContact/decode.h dataStorage/MainData.h dataStorage/PirData.h \
-        dataStorage/SlowData.h state/mainState.h telegramBot/telegramBot.h \
-				httpServer/mainServer.h arduinoContact/Serial.h commandLine/commandline.h debug.h
-	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c main.cpp
+$(ODIR)/main.o: main.cpp config.h arduinoContact/decode.h \
+	dataStorage/MainData.h dataStorage/PirData.h dataStorage/SlowData.h \
+	state/mainState.h telegramBot/telegramBot.h \
+	httpServer/mainServer.h arduinoContact/Serial.h commandLine/commandline.h debug.h
+	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o$@ -c main.cpp
 
-commandline.o: commandLine/commandline.cpp commandLine/commandline.h \
-							 config.h state/mainState.h
-	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c commandLine/commandline.cpp
+$(ODIR)/commandline.o: commandLine/commandline.cpp commandLine/commandline.h \
+	config.h state/mainState.h
+	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o$@ -c commandLine/commandline.cpp
 
-Cache.o: dataStorage/Cache.cpp dataStorage/Cache.h
-	$(CXX) $(CXXFLAGS) -c dataStorage/Cache.cpp
-MainHeader.o: dataStorage/MainHeader.cpp dataStorage/MainHeader.h
-	$(CXX) $(CXXFLAGS) -c dataStorage/MainHeader.cpp	
-MainData.o: dataStorage/MainData.cpp dataStorage/MainData.h dataStorage/Cache.h \
-            dataStorage/MainHeader.h
-	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c dataStorage/MainData.cpp
+$(ODIR)/Cache.o: dataStorage/Cache.cpp dataStorage/Cache.h
+	$(CXX) $(CXXFLAGS) -o$@ -c dataStorage/Cache.cpp
+$(ODIR)/MainHeader.o: dataStorage/MainHeader.cpp dataStorage/MainHeader.h
+	$(CXX) $(CXXFLAGS) -o$@ -c dataStorage/MainHeader.cpp	
+$(ODIR)/MainData.o: dataStorage/MainData.cpp dataStorage/MainData.h dataStorage/Cache.h \
+  dataStorage/MainHeader.h
+	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o$@ -c dataStorage/MainData.cpp
 
-PirData.o: dataStorage/PirData.cpp dataStorage/PirData.h dataStorage/MainData.h
-	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c dataStorage/PirData.cpp
-SlowData.o: dataStorage/SlowData.cpp dataStorage/SlowData.h dataStorage/MainData.h \
-						compression.h compression.h encodingScheme.h
-	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -c dataStorage/SlowData.cpp
+$(ODIR)/PirData.o: dataStorage/PirData.cpp dataStorage/PirData.h dataStorage/MainData.h
+	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o$@ -c dataStorage/PirData.cpp
+$(ODIR)/SlowData.o: dataStorage/SlowData.cpp dataStorage/SlowData.h dataStorage/MainData.h \
+	compression.h compression.h encodingScheme.h
+	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o$@ -c dataStorage/SlowData.cpp
 
-decode.o: arduinoContact/decode.cpp arduinoContact/decode.h arduinoContact/Serial.h \
-					compression.h encodingScheme.h
-	$(CXX) $(CXXFLAGS) -c arduinoContact/decode.cpp		
-Serial.o: arduinoContact/Serial.cpp arduinoContact/Serial.h
-	$(CXX) $(CXXFLAGS) -c arduinoContact/Serial.cpp	
+$(ODIR)/decode.o: arduinoContact/decode.cpp arduinoContact/decode.h arduinoContact/Serial.h \
+	compression.h encodingScheme.h
+	$(CXX) $(CXXFLAGS) -o$@ -c arduinoContact/decode.cpp		
+$(ODIR)/Serial.o: arduinoContact/Serial.cpp arduinoContact/Serial.h
+	$(CXX) $(CXXFLAGS) -o$@ -c arduinoContact/Serial.cpp	
 
-mainState.o: state/mainState.cpp state/mainState.h lamps/lamps.h
-	$(CXX) $(CXXFLAGS) -pthread -c state/mainState.cpp	
+$(ODIR)/mainState.o: state/mainState.cpp state/mainState.h lamps/lamps.h
+	$(CXX) $(CXXFLAGS) -pthread -o$@ -c state/mainState.cpp	
 
-mainServer.o: httpServer/mainServer.cpp httpServer/mainServer.h httpServer/pages/webGraph.h
-	$(CXX) $(CXXFLAGS) -lmicrohttpd -c httpServer/mainServer.cpp
-telegramBot.o: telegramBot/telegramBot.cpp telegramBot/telegramBot.h \
+$(ODIR)/mainServer.o: httpServer/mainServer.cpp httpServer/mainServer.h \
+	httpServer/pages/webGraph.h
+	$(CXX) $(CXXFLAGS) -lmicrohttpd -o$@ -c httpServer/mainServer.cpp
+$(ODIR)/telegramBot.o: telegramBot/telegramBot.cpp telegramBot/telegramBot.h \
 	telegramBot/httpGetPostPut.h
-	$(CXX) $(CXXFLAGS) -c telegramBot/telegramBot.cpp
+	$(CXX) $(CXXFLAGS) -o$@ -c telegramBot/telegramBot.cpp
 
-webGraph.o: httpServer/pages/webGraph.cpp httpServer/pages/webGraph.h
-	$(CXX) $(CXXFLAGS) -c httpServer/pages/webGraph.cpp
+$(ODIR)/webGraph.o: httpServer/pages/webGraph.cpp httpServer/pages/webGraph.h
+	$(CXX) $(CXXFLAGS) -o$@ -c httpServer/pages/webGraph.cpp
 
-httpGetPostPut.o: lamps/httpGetPostPut.cpp lamps/httpGetPostPut.h
-	$(CXX) $(CXXFLAGS) -lcurl -c lamps/httpGetPostPut.cpp	
-mpd.o: mpd/mpd.cpp mpd/mpd.h
-	$(CXX) $(CXXFLAGS) -c mpd/mpd.cpp		
+$(ODIR)/httpGetPostPut.o: lamps/httpGetPostPut.cpp lamps/httpGetPostPut.h
+	$(CXX) $(CXXFLAGS) -lcurl -o$@ -c lamps/httpGetPostPut.cpp	
+$(ODIR)/mpd.o: mpd/mpd.cpp mpd/mpd.h
+	$(CXX) $(CXXFLAGS) -o$@ -c mpd/mpd.cpp		
 
-lamps.o: lamps/httpGetPostPut.h lamps/lamps.cpp lamps/lamps.h
-	$(CXX) $(CXXFLAGS) -c lamps/lamps.cpp
+$(ODIR)/lamps.o: lamps/httpGetPostPut.h lamps/lamps.cpp lamps/lamps.h
+	$(CXX) $(CXXFLAGS) -o$@ -c lamps/lamps.cpp
 
 .PHONY : clean
 clean:
-	rm pi $(objects)
+	rm pi $(OBJS)
