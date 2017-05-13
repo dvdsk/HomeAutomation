@@ -15,6 +15,7 @@
 #include "dataStorage/MainData.h"
 #include "dataStorage/PirData.h"
 #include "state/mainState.h"
+#include "state/stateManagement.cpp"
 #include "telegramBot/telegramBot.h"
 #include "httpServer/mainServer.h"
 #include "commandLine/commandline.h"
@@ -46,8 +47,14 @@ int main(int argc, char* argv[])
 	std::shared_ptr<std::atomic<bool>> notShuttingdown = std::make_shared<std::atomic<bool>>();
 
 	std::shared_ptr<TelegramBot> bot = std::make_shared<TelegramBot>();
-	std::shared_ptr<Mpd> mpd = std::make_shared<Mpd>();
-	std::shared_ptr<MainState> state = std::make_shared<MainState>();
+
+	//expriment not using shared pointers (possible speedup)
+	SignalState* signalState = new SignalState;
+	SensorState* sensorState = new SensorState;
+	HttpState* httpState = new HttpState;
+	MpdState* mpdState = new MpdState;
+
+	std::shared_ptr<Mpd> mpd = std::make_shared<Mpd>(mpdState, signalState);
 
 	std::shared_ptr<PirData> pirData = std::make_shared<PirData>("pirs", cache1, CACHESIZE_pir);
 	std::shared_ptr<SlowData> slowData = std::make_shared<SlowData>("slowData", cache2, CACHESIZE_slowData);
@@ -61,17 +68,17 @@ int main(int argc, char* argv[])
 	/*start the http server that serves the telegram bot and
 	  custom http protocol. NOTE: each connection spawns its 
 	  own thread.*/	
-	std::thread t1(thread_Https_serv, stopHttpServ, bot, state, pirData, slowData);
+	std::thread t1(thread_Https_serv, stopHttpServ, bot, httpState, signalState, pirData, slowData);
 	std::cout<<"Https-Server started\n";
 
 	/*start thread to recieve updates if mpd status changes*/
-	std::thread t2(thread_Mpd_readLoop, mpd, state, notShuttingdown);
+	std::thread t2(thread_Mpd_readLoop, mpd, notShuttingdown);
 	std::cout<<"Mpd-Server started\n";
 
 	/*start the thread that checks the output of the arduino 
 	  it is responsible for setting the enviremental variables
 	  the statewatcher responds too*/
-	std::thread t3(checkSensorData, pirData, slowData, state, notShuttingdown);//change name to thread_
+	std::thread t3(thread_checkSensorData, pirData, slowData, sensorState, signalState, notShuttingdown);
 	std::cout<<"Sensor readout started\n";
 
 	/*sleep to give checkSensorData time to aquire some data
@@ -81,7 +88,8 @@ int main(int argc, char* argv[])
 
 	/*start the thread that is notified of state changes 
 	  and re-evalutes the system on such as change. */
-	std::thread t4(thread_state_manager, state, mpd, notShuttingdown);
+	std::thread t4(thread_state_management, notShuttingdown, signalState, 
+	  sensorState, mpdState, mpd);
  	std::cout<<"State management started\n"; 
 
   signal(SIGINT, interruptHandler);  
@@ -91,15 +99,16 @@ int main(int argc, char* argv[])
 
 	getchar();
 
-	CommandLineInterface interface(pirData, slowData, state);
-	interface.mainMenu();
+//	TODO update commandlineinterface for new State system.
+//	CommandLineInterface interface(pirData, slowData, state);
+//	interface.mainMenu();
 
 //	slowData->exportAllSlowData(1492048892, -1);
 
 	//shutdown code
 	(*stopHttpServ).unlock();
 	(*notShuttingdown) = false;
-	state->signalUpdate();//(disadvantage) needs to run check to shutdown
+	signalState->runUpdate();//(disadvantage) needs to run check to shutdown
 
 	t1.join();
 	t2.join();

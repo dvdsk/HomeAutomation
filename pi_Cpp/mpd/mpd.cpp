@@ -16,9 +16,12 @@ void error(const char *msg)
     exit(0);
 }
 
-Mpd::Mpd(){
+Mpd::Mpd(MpdState* mpdState_, SignalState* signalState_){
 	char buffer[256];
 	int n;
+	mpdState = mpdState_;
+	signalState = signalState_;
+
 
 	//create TCP internet socket
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -48,14 +51,13 @@ Mpd::Mpd(){
 	if(strcmp(buffer, "OK MPD") > 6){std::cout<<"Connected to MPD succesfully\n";}
 }
 
-void thread_Mpd_readLoop(std::shared_ptr<Mpd> mpd, std::shared_ptr<MainState> state,
+void thread_Mpd_readLoop(std::shared_ptr<Mpd> mpd,
 	   std::shared_ptr<std::atomic<bool>> notShuttingdown)
 {
-	mpd->readLoop(notShuttingdown, state);
+	mpd->readLoop(notShuttingdown);
 }
 
-void Mpd::readLoop(std::shared_ptr<std::atomic<bool>> notShuttingdown, 
-	   std::shared_ptr<MainState> state){
+void Mpd::readLoop(std::shared_ptr<std::atomic<bool>> notShuttingdown){
 
 	char buffer[256];
 	uint8_t bufferSize;
@@ -92,7 +94,7 @@ void Mpd::readLoop(std::shared_ptr<std::atomic<bool>> notShuttingdown,
 			requestStatus();
 		//check if status message
 		else if(output.substr(0,7) == "volume:")
-			parseStatus(output, state);
+			parseStatus(output);
 		else
 			printf("%s\n",buffer);		
 	}
@@ -108,20 +110,20 @@ inline void Mpd::requestStatus(){
 	write(sockfd,idle,strlen(idle));	
 }
 
-inline void Mpd::parseStatus(std::string const& output, std::shared_ptr<MainState> state){
+inline void Mpd::parseStatus(std::string const& output){
 
 	//parse the respons
-	std::lock_guard<std::mutex> guard(state->mpdState_mutex);
-	state->mpdState.volume = stoi(output.substr(8,2));
+	std::lock_guard<std::mutex> guard(mpdState->m);
+	mpdState->volume = stoi(output.substr(8,2));
 
 	if(output.substr(110,4) == "stop")
-		state->mpdState.stopped = false;
+		mpdState->stopped = false;
 	else if(output.substr(110,4) == "paus")
-		state->mpdState.paused = false;
+		mpdState->paused = false;
 	else
-		state->mpdState.playing = true;
+		mpdState->playing = true;
 
-	state->signalUpdate();//always run update since there always is a change
+	signalState->runUpdate();//always run update since there always is a change
 }
 
 void Mpd::sendCommand(std::string const& command){

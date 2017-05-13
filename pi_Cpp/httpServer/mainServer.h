@@ -26,13 +26,15 @@ long get_file_size (const char *filename);
 //FIXME was static and not used wanted to get rid of warning
 char* load_file (const char *filename);
 
-inline void convert_arguments(void* cls, TelegramBot*& bot, MainState*& state);
+inline void convert_arguments(void* cls, TelegramBot*& bot, HttpState*& httpState, 
+	SignalState* signalState, WebGraph*& webGraph);
 
 inline int authorised_connection(struct MHD_Connection* connection);
 
 int thread_Https_serv(std::shared_ptr<std::mutex> stop, 
 											std::shared_ptr<TelegramBot> bot,
-											std::shared_ptr<MainState> state,
+											HttpState* httpState,
+											SignalState* signalState,
 											std::shared_ptr<PirData> pirData,
 											std::shared_ptr<SlowData> slowData);
 												 

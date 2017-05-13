@@ -20,11 +20,13 @@ inline int authorised_connection(struct MHD_Connection* connection){
 	return fail;
 }
 
-inline void convert_arguments(void* cls, TelegramBot*& bot, MainState*& state, WebGraph*& webGraph){
+inline void convert_arguments(void* cls, TelegramBot*& bot, HttpState*& httpState, 
+	SignalState* signalState, WebGraph*& webGraph){
 	void** arrayOfPointers;
 	void* element1;
 	void* element2;
 	void* element3;
+	void* element4;
 
 	//convert arguments back (hope this optimises well),
 	//this gives us access to all the classes below with all threads
@@ -33,9 +35,11 @@ inline void convert_arguments(void* cls, TelegramBot*& bot, MainState*& state, W
 	element1 = (void*)*(arrayOfPointers+0);
 	element2 = (void*)*(arrayOfPointers+1);
 	element3 = (void*)*(arrayOfPointers+2);
+	element4 = (void*)*(arrayOfPointers+3);
 	bot = (TelegramBot*)element1;
-	state = (MainState*)element2;
-	webGraph = (WebGraph*)element3; 
+	httpState = (HttpState*)element2;
+	signalState = (SignalState*)element3;
+	webGraph = (WebGraph*)element4; 
 	return;																		 
 }
 
@@ -47,10 +51,11 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
   struct MHD_Response *response;	
 
 	TelegramBot* bot;
-	MainState* state;
+	HttpState* httpState;
+	SignalState* signalState;
 	WebGraph* webGraph;
 
-	convert_arguments(cls, bot, state, webGraph);
+	convert_arguments(cls, bot, httpState, signalState, webGraph);
  
 	fail = authorised_connection(connection); //check if other party authorised
   if (0 == strcmp(method, "GET")){
@@ -77,7 +82,13 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 				pageString += pageString2;
 				
 				//if its a state switch command send it to state for processing
-				if(url[1] == '|'){state->httpSwitcher(url);
+				if(url[1] == '|'){
+					{					
+					std::lock_guard<std::mutex> guard(httpState->m);
+					httpState->url = url;
+					httpState->updated = true;
+					}
+					signalState->runUpdate();
 					response = MHD_create_response_from_buffer(strlen (unknown_page), 
 					           (void *) orderRecieved, MHD_RESPMEM_PERSISTENT); }
 				
@@ -197,7 +208,8 @@ char* load_file (const char *filename)
 
 int thread_Https_serv(std::shared_ptr<std::mutex> stop, 
 											std::shared_ptr<TelegramBot> bot,
-											std::shared_ptr<MainState> state,
+											HttpState* httpState,
+											SignalState* signalState,
 											std::shared_ptr<PirData> pirData,
 											std::shared_ptr<SlowData> slowData){
 												
@@ -223,7 +235,7 @@ int thread_Https_serv(std::shared_ptr<std::mutex> stop,
 	//awnser to connection function (the default handler). This array
 	//is read only. The pointers better be in shared memory space for 
 	//the awnser function to be able to reach them
-	void* arrayOfPointers[3] = {bot.get(), state.get(), webGraph.get()};
+	void* arrayOfPointers[4] = {bot.get(), httpState, signalState, webGraph.get()};
 
 
 

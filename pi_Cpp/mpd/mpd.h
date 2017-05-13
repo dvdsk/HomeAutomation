@@ -24,24 +24,27 @@ constexpr const char* hostname = "192.168.1.10";
 
 class Mpd{
 	public:
-		Mpd(); //connects to mpd
-		void readLoop(std::shared_ptr<std::atomic<bool>> notShuttingdown, 
-		     std::shared_ptr<MainState> state);
+		Mpd(MpdState* mpdState_, SignalState* signalState_); //connects to mpd
+
+		void readLoop(std::shared_ptr<std::atomic<bool>> notShuttingdown);
 
 		void sendCommand(std::string const& command);
 		void sendCommandList(std::string &command);
 
 	private:
+		MpdState* mpdState;
+		SignalState* signalState;
+
 		int sockfd;//sockfd file discriptor
     struct sockaddr_in serv_addr;
     struct hostent *server;
 		std::mutex mpd_mutex;
 
 		inline void requestStatus();
-		inline void parseStatus(std::string const& output, std::shared_ptr<MainState> state);
+		inline void parseStatus(std::string const& output);
 };
 
-void thread_Mpd_readLoop(std::shared_ptr<Mpd> mpd, std::shared_ptr<MainState> state,
+void thread_Mpd_readLoop(std::shared_ptr<Mpd> mpd,
 	                       std::shared_ptr<std::atomic<bool>> notShuttingdown);
 
 

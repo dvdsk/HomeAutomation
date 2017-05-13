@@ -17,10 +17,11 @@ void requestSensorData(std::shared_ptr<Serial> arduino,
 	return;
 }
 
-void checkSensorData(std::shared_ptr<PirData> pirData, 
-										 std::shared_ptr<SlowData> slowData, 
-										 std::shared_ptr<MainState> state,
-										 std::shared_ptr<std::atomic<bool>> notShuttingdown){
+void thread_checkSensorData(std::shared_ptr<PirData> pirData, 
+	  std::shared_ptr<SlowData> slowData, 
+	  SensorState* sensorState,
+	  SignalState* signalState,
+	  std::shared_ptr<std::atomic<bool>> notShuttingdown){
   
   uint32_t Tstamp;
 	uint8_t data[SLOWDATA_SIZE]; 
@@ -51,13 +52,13 @@ void checkSensorData(std::shared_ptr<PirData> pirData,
 				//std::cout<<"update fast\n";
 				Tstamp = unix_timestamp();
 				arduino->readMessage(data, Enc_fast::LEN_ENCODED);			
-				decodeFastData(Tstamp, data, pirData, slowData, state);           
+				decodeFastData(Tstamp, data, pirData, slowData, sensorState, signalState);           
         break;             
       case headers::SLOW_UPDATE:
 				//std::cout<<"update slow\n";
 				Tstamp = unix_timestamp();
 				arduino->readMessage(data, Enc_slow::LEN_ENCODED);				
-				decodeSlowData(Tstamp, data, pirData, slowData, state);
+				decodeSlowData(Tstamp, data, pirData, slowData, sensorState, signalState);
 				break;        
       default:
         //std::cout << "error no code matched, header: " << +x <<"\n";   
@@ -71,7 +72,8 @@ void checkSensorData(std::shared_ptr<PirData> pirData,
 void decodeFastData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 										std::shared_ptr<PirData> pirData, 
 										std::shared_ptr<SlowData> slowData, 
-										std::shared_ptr<MainState> state){
+										SensorState* sensorState,
+	                  SignalState* signalState){
 	uint8_t temp;
 	//process movement values
 	//if the there has been movement recently the value temp will be one this indicates that
@@ -79,54 +81,55 @@ void decodeFastData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 	//with temp, as temp is either 1 or 0.
 	for (int i = 0; i<8; i++){
 		temp = (data[0] & (1<<i)) & (data[2] & (1<<i));
-		state->movement[i] = !temp * state->movement[i] + temp*Tstamp;
+		sensorState->movement[i] = !temp * sensorState->movement[i] + temp*Tstamp;
 		temp = (data[1] & (1<<i)) & (data[3] & (1<<i));
-		state->movement[i+8] = !temp * state->movement[i+8] + temp*Tstamp;
+		sensorState->movement[i+8] = !temp * sensorState->movement[i+8] + temp*Tstamp;
 	}
 
 	//process light values
 	{
-		std::lock_guard<std::mutex> guard(state->sensorVal_mutex);
-		state->lightValues[lght::BED] = 		decode(data, Enc_fast::LIGHT_BED, Enc_fast::LEN_LIGHT);
-		state->lightValues[lght::KITCHEN] = decode(data, Enc_fast::LIGHT_KITCHEN, Enc_fast::LEN_LIGHT);
-		state->lightValues[lght::DOOR] = 		decode(data, Enc_fast::LIGHT_DOOR, Enc_fast::LEN_LIGHT);
-		state->lightValues_updated = true;
+		std::lock_guard<std::mutex> guard(sensorState->m);
+		sensorState->lightValues[lght::BED] = 		decode(data, Enc_fast::LIGHT_BED, Enc_fast::LEN_LIGHT);
+		sensorState->lightValues[lght::KITCHEN] = decode(data, Enc_fast::LIGHT_KITCHEN, Enc_fast::LEN_LIGHT);
+		sensorState->lightValues[lght::DOOR] = 		decode(data, Enc_fast::LIGHT_DOOR, Enc_fast::LEN_LIGHT);
+		sensorState->lightValues_updated = true;
 	}
-	state->signalUpdate();//TODO check if values differ enough to warrent an update
+	signalState->runUpdate();//TODO check if values differ enough to warrent an update
 
 	//store
 	pirData->process(data, Tstamp);
-	slowData->preProcess_light(state->lightValues, Tstamp);
+	slowData->preProcess_light(sensorState->lightValues, Tstamp);//FIXME outside of guard
 }
 
 
 void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 										std::shared_ptr<PirData> pirData, 
 										std::shared_ptr<SlowData> slowData, 
-										std::shared_ptr<MainState> state){
+										SensorState* sensorState,
+	                  SignalState* signalState){
 	{
-	std::lock_guard<std::mutex> guard(state->sensorVal_mutex);
+	std::lock_guard<std::mutex> guard(sensorState->m);
 	//decode temp, humidity, co2 and store in state
-	state->tempValues[temp::BED] = 			decode(data, Enc_slow::TEMP_BED, Enc_slow::LEN_TEMP);
-	state->tempValues[temp::BATHROOM] = decode(data, Enc_slow::TEMP_BATHROOM, Enc_slow::LEN_TEMP);
-	state->tempValues[temp::DOOR] = 		decode(data, Enc_slow::TEMP_DOOR, Enc_slow::LEN_TEMP);
-	state->tempValues_updated = true;
+	sensorState->tempValues[temp::BED] = 			decode(data, Enc_slow::TEMP_BED, Enc_slow::LEN_TEMP);
+	sensorState->tempValues[temp::BATHROOM] = decode(data, Enc_slow::TEMP_BATHROOM, Enc_slow::LEN_TEMP);
+	sensorState->tempValues[temp::DOOR] = 		decode(data, Enc_slow::TEMP_DOOR, Enc_slow::LEN_TEMP);
+	sensorState->tempValues_updated = true;
 
-	state->humidityValues[hum::BED] =      decode(data, Enc_slow::HUM_BED, Enc_slow::LEN_HUM);
-	state->humidityValues[hum::BATHROOM] = decode(data, Enc_slow::HUM_BATHROOM, Enc_slow::LEN_HUM);
-	state->humidityValues[hum::DOOR] =     decode(data, Enc_slow::HUM_DOOR, Enc_slow::LEN_HUM);
-	state->humidityValues_updated = true;
+	sensorState->humidityValues[hum::BED] =      decode(data, Enc_slow::HUM_BED, Enc_slow::LEN_HUM);
+	sensorState->humidityValues[hum::BATHROOM] = decode(data, Enc_slow::HUM_BATHROOM, Enc_slow::LEN_HUM);
+	sensorState->humidityValues[hum::DOOR] =     decode(data, Enc_slow::HUM_DOOR, Enc_slow::LEN_HUM);
+	sensorState->humidityValues_updated = true;
 
-	state->CO2ppm = 	decode(data, Enc_slow::CO2, Enc_slow::LEN_CO2);
-	state->Pressure = decode(data, Enc_slow::PRESSURE, Enc_slow::LEN_PRESSURE);
+	sensorState->CO2ppm = 	decode(data, Enc_slow::CO2, Enc_slow::LEN_CO2);
+	sensorState->Pressure = decode(data, Enc_slow::PRESSURE, Enc_slow::LEN_PRESSURE);
 
-	std::cout<<"data1: "<<Enc_slow::CO2<<", "<<Enc_slow::LEN_CO2;
-	std::cout<<", data2: "<<Enc_slow::PRESSURE<<", "<<Enc_slow::LEN_PRESSURE;
-	std::cout<<", data3: "<<+SLOWDATA_SIZE;
-	std::cout<<", data4: "<<Enc_slow::LEN_ENCODED<<", ";
-	std::cout<<"Pressure: "<<state->Pressure<<"\n";
+//	std::cout<<"data1: "<<Enc_slow::CO2<<", "<<Enc_slow::LEN_CO2;
+//	std::cout<<", data2: "<<Enc_slow::PRESSURE<<", "<<Enc_slow::LEN_PRESSURE;
+//	std::cout<<", data3: "<<+SLOWDATA_SIZE;
+//	std::cout<<", data4: "<<Enc_slow::LEN_ENCODED<<", ";
+//	std::cout<<"Pressure: "<<state->Pressure<<"\n";
 	}	
-	state->signalUpdate();
+	signalState->runUpdate();
 
 	//store
 	slowData->process(data,Tstamp);

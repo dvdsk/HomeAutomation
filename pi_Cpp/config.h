@@ -28,8 +28,8 @@ namespace headers {
 }
 
 namespace wakeup {
-	constexpr int total_duration;
-	constexpr int lampsOnly_duration;
+	constexpr int total_duration = 15*60;    //seconds;
+	constexpr int lampsOnly_duration = 5*60; //seconds;
 }
 
 namespace config {

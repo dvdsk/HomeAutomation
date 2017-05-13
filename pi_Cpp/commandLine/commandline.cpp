@@ -12,11 +12,11 @@ int startx = 0;
 int starty = 0;
 
 CommandLineInterface::CommandLineInterface(std::shared_ptr<PirData> pirData_,
-	std::shared_ptr<SlowData> slowData_, std::shared_ptr<MainState> mainState_){
+	std::shared_ptr<SlowData> slowData_, SensorState* sensorState_){
 
 	pirData = pirData_;
 	slowData = slowData_;
-	state =mainState_;
+	sensorState = sensorState_;
 }
 
 
@@ -172,15 +172,15 @@ void CommandLineInterface::sensor_values(){
 	
 	do{
 	{
-		std::lock_guard<std::mutex> guard(state->sensorVal_mutex);		
-		mvprintw(3, COL2, "%.1f", ((float)mean(state->tempValues, 
+		std::lock_guard<std::mutex> guard(sensorState->m);		
+		mvprintw(3, COL2, "%.1f", ((float)mean(sensorState->tempValues, 
 			                          temp::LEN))/10-10 );
-		mvprintw(4, COL2, "%.1f", ((float)mean(state->humidityValues,
+		mvprintw(4, COL2, "%.1f", ((float)mean(sensorState->humidityValues,
 			                          hum::LEN))/10 );
-		mvprintw(5, COL2, "%d", mean(state->lightValues, lght::LEN));
-		mvprintw(6, COL2, "%d", state->CO2ppm);
-		mvprintw(7, COL2, "%.1f", (state->Pressure/5.0+MINIMUM_MEASURABLE_PRESSURE));
-		mvprintw(8, COL2, "%.1f", (state->Pressure));
+		mvprintw(5, COL2, "%d", mean(sensorState->lightValues, lght::LEN));
+		mvprintw(6, COL2, "%d", sensorState->CO2ppm);
+		mvprintw(7, COL2, "%.1f", (sensorState->Pressure/5.0+MINIMUM_MEASURABLE_PRESSURE));
+		mvprintw(8, COL2, "%.1f", (sensorState->Pressure));
 	}
 	mvprintw(7, COL2, "%d", 5);
 
