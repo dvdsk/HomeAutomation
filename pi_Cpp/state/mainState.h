@@ -60,7 +60,9 @@ enum MajorStates {
 	DEFAULT,				//env_alarm+plnts_alarm+lamps_cb+lampcheck(Kitchen, Door, Bureau, Bathroom) 
 	ALMOSTSLEEPING, //env_alarm+plnts_alarm
 	SLEEPING, 			//env_alarm+plnts_alarm+night_intruder_alarm
-	MINIMAL};				//env_alarm+plnts_alarm+lampcheck(Bathroom)
+	MINIMAL,			  //env_alarm+plnts_alarm+lampcheck(Bathroom)
+	WAKEUP					//env_alarm+plnts_alarm+lampcheck(Bathroom)
+};
 
 struct MinorStates{
 	bool alarmDisarm;
@@ -143,7 +145,7 @@ class MainState : Lamps
 		MinorStates minorState;
 		MajorStates majorState;		
 		MajorStates lastState;
-		uint32_t timeMinimalStarted;
+		uint32_t timeStateStarted;
 		
 		//4 mutually exclusive paths for checking which conditions should
 		//be checked by the updating functions
@@ -152,13 +154,15 @@ class MainState : Lamps
 		void update_default();
 		void update_almostSleeping();
 		void update_minimal();
+		void update_wakeup();
 		
 		//functions that should be ran when changed into this state
 		void init_away();
 		void init_sleeping();
 		void init_default();
-		void init_almostSleeping(MajorStates fromState);
-		void init_minimal(MajorStates fromState);
+		void init_almostSleeping();
+		void init_minimal();
+		void init_wakeup();
 		
 		//state mutually exclusive state transition functions, they are
 		//ran on every check.
@@ -167,6 +171,7 @@ class MainState : Lamps
 		void transitions_default();
 		void transitions_almostSleeping();
 		void transitions_minimal();
+		void transitions_wakeup();
 
 		//away functions in away.cpp
 		void away_intruder_alarm();

@@ -27,6 +27,11 @@ namespace headers {
 	constexpr uint8_t SLOW_UPDATE = 26;
 }
 
+namespace wakeup {
+	constexpr int total_duration;
+	constexpr int lampsOnly_duration;
+}
+
 namespace config {
 	constexpr int HTTPSERVER_PORT = 8442;
 	constexpr const char* HTTPSERVER_USER = "bab";
@@ -35,7 +40,6 @@ namespace config {
 	constexpr const char* HUE_USER = "ZKK0CG0rOZY3nfhQsZbIkhH0y6P92EaaR-iBlBsk";
 	constexpr const char* HUE_IP = "http://192.168.1.11";
   constexpr const char* HUE_URL = "http://192.168.1.11/api/ZKK0CG0rOZY3nfhQsZbIkhH0y6P92EaaR-iBlBsk";
-
 
 	constexpr uint16_t ARDUINO_BAUDRATE = 9600;
 

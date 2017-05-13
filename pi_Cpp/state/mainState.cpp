@@ -128,6 +128,9 @@ void MainState::watchForUpdate(std::shared_ptr<Mpd> mpd,
 			case MINIMAL:
 			update_minimal();
 			break;
+			case WAKEUP:
+			update_wakeup();
+			break;
 		}
 	}
 	return;
@@ -137,7 +140,7 @@ void MainState::watchForUpdate(std::shared_ptr<Mpd> mpd,
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void MainState::init_away(){
-	
+	lastState = majorState;
 	majorState = AWAY;
 	
 	//turn all lamps off
@@ -249,8 +252,8 @@ void MainState::transitions_sleeping(){
 
 
 void MainState::init_default(){
+	lastState = majorState;
 	majorState = DEFAULT;
-	
 }
 
 void MainState::transitions_default(){
@@ -444,7 +447,9 @@ void MainState::lampCheck_Bathroom(){
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-void MainState::init_almostSleeping(MajorStates fromState){
+void MainState::init_almostSleeping(){
+	lastState = majorState;
+	majorState = ALMOSTSLEEPING;
 	
 	if(fromState == SLEEPING){
 		//toilet or fridge/water sleep break thus:		
@@ -474,9 +479,10 @@ void MainState::update_almostSleeping(){
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
-void MainState::init_minimal(MajorStates fromState){
+void MainState::init_minimal(){
 	lastState = majorState;
-	timeMinimalStarted = currentTime;
+	majorState = MINIMAL; 
+	timeStateStarted = currentTime;
 }
 
 void MainState::update_minimal(){
@@ -488,7 +494,34 @@ void MainState::update_minimal(){
 }
 
 void MainState::transitions_minimal(){
-	if(timeMinimalStarted - currentTime < stateConf::MAXMINIMALDURATION){
+	if(currentTime - timeStateStarted < stateConf::MAXMINIMALDURATION){
+	majorState = lastState;
+	lastState = MINIMAL;	
+	}
+	return;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////
+void MainState::init_wakup(){
+	lastState = majorState;
+	majorState = WAKEUP;
+
+	timeStateStarted = currentTime;
+}
+
+void MainState::update_wakup(){
+
+	if(currentTime-timeStateStarted>wakeup::lampsOnly_duration)
+		wakeup_startMusic();
+
+	lampCheck_Bathroom();
+	environmental_alarm();
+	check_Plants();
+	transitions_wakup();
+}
+
+void MainState::transitions_minimal(){
+	if(currentTime - timeStateStarted < stateConf::MAXMINIMALDURATION){
 	majorState = lastState;
 	lastState = MINIMAL;	
 	}
