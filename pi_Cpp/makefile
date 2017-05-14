@@ -4,7 +4,7 @@ CXX = g++
 CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 
 ODIR = .BUILD
-OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o webGraph.o mpd.o lamps.o)
+OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o webGraph.o mpd.o lamps.o default.o)
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
 all: pi
@@ -47,6 +47,9 @@ $(ODIR)/Serial.o: arduinoContact/Serial.cpp arduinoContact/Serial.h
 
 $(ODIR)/mainState.o: state/mainState.cpp state/mainState.h lamps/lamps.h
 	$(CXX) $(CXXFLAGS) -pthread -o$@ -c state/mainState.cpp	
+
+$(ODIR)/default.o: state/majorStates/default.cpp state/majorStates/default.h state/mainState.cpp state/mainState.h
+	$(CXX) $(CXXFLAGS) -o$@ -c state/majorStates/default.cpp	 
 
 $(ODIR)/mainServer.o: httpServer/mainServer.cpp httpServer/mainServer.h \
 	httpServer/pages/webGraph.h

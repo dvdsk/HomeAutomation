@@ -22,7 +22,7 @@ class Mpd;
 //watchforupdates function.
 enum MajorStates {
 	AWAY, 					//env_alarm+plnts_alarm+intruder_alarm
-	DEFAULT,				//env_alarm+plnts_alarm+lamps_cb+lampcheck(Kitchen, Door, Bureau, Bathroom) 
+	DEFAULT_S,				//env_alarm+plnts_alarm+lamps_cb+lampcheck(Kitchen, Door, Bureau, Bathroom) 
 	ALMOSTSLEEPING, //env_alarm+plnts_alarm
 	SLEEPING, 			//env_alarm+plnts_alarm+night_intruder_alarm
 	MINIMAL,			  //env_alarm+plnts_alarm+lampcheck(Bathroom)
@@ -114,9 +114,9 @@ class State
 			data = stateData_;
 		}
 	
-	virtual bool stillValid();
-	virtual void updateOnSensors();
-	virtual ~State();
+	virtual bool stillValid() =0;
+	virtual void updateOnSensors() =0;
+	virtual ~State() = default;
 
 	protected:
 		StateData* data;

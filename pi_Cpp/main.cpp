@@ -88,8 +88,9 @@ int main(int argc, char* argv[])
 
 	/*start the thread that is notified of state changes 
 	  and re-evalutes the system on such as change. */
+	Mpd* mpd2 = mpd.get(); //TODO remove smart pointers	
 	std::thread t4(thread_state_management, notShuttingdown, signalState, 
-	  sensorState, mpdState, mpd);
+	  sensorState, mpdState, mpd2);
  	std::cout<<"State management started\n"; 
 
   signal(SIGINT, interruptHandler);  
