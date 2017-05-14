@@ -4,7 +4,7 @@ CXX = g++
 CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 
 ODIR = .BUILD
-OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o webGraph.o mpd.o lamps.o default.o)
+OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o webGraph.o mpd.o lamps.o default.o SleepInterrupt.o GoingToSleep.o Minimal.o)
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
 all: pi
@@ -17,7 +17,7 @@ pi: $(OBJS)
 
 $(ODIR)/main.o: main.cpp config.h arduinoContact/decode.h \
 	dataStorage/MainData.h dataStorage/PirData.h dataStorage/SlowData.h \
-	state/mainState.h telegramBot/telegramBot.h \
+	state/mainState.h telegramBot/telegramBot.h state/stateManagement.cpp\
 	httpServer/mainServer.h arduinoContact/Serial.h commandLine/commandline.h debug.h
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o$@ -c main.cpp
 
@@ -46,10 +46,16 @@ $(ODIR)/Serial.o: arduinoContact/Serial.cpp arduinoContact/Serial.h
 	$(CXX) $(CXXFLAGS) -o$@ -c arduinoContact/Serial.cpp	
 
 $(ODIR)/mainState.o: state/mainState.cpp state/mainState.h lamps/lamps.h
-	$(CXX) $(CXXFLAGS) -pthread -o$@ -c state/mainState.cpp	
+	$(CXX) $(CXXFLAGS) -o$@ -c state/mainState.cpp	
 
 $(ODIR)/default.o: state/majorStates/default.cpp state/majorStates/default.h state/mainState.cpp state/mainState.h
 	$(CXX) $(CXXFLAGS) -o$@ -c state/majorStates/default.cpp	 
+$(ODIR)/SleepInterrupt.o: state/majorStates/SleepInterrupt.cpp state/majorStates/SleepInterrupt.h state/mainState.cpp state/mainState.h
+	$(CXX) $(CXXFLAGS) -o$@ -c state/majorStates/SleepInterrupt.cpp	
+$(ODIR)/GoingToSleep.o: state/majorStates/GoingToSleep.cpp state/majorStates/GoingToSleep.h state/mainState.cpp state/mainState.h
+	$(CXX) $(CXXFLAGS) -o$@ -c state/majorStates/GoingToSleep.cpp	
+$(ODIR)/Minimal.o: state/majorStates/Minimal.cpp state/majorStates/Minimal.h state/mainState.cpp state/mainState.h
+	$(CXX) $(CXXFLAGS) -o$@ -c state/majorStates/Minimal.cpp	
 
 $(ODIR)/mainServer.o: httpServer/mainServer.cpp httpServer/mainServer.h \
 	httpServer/pages/webGraph.h

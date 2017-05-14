@@ -27,7 +27,7 @@ long get_file_size (const char *filename);
 char* load_file (const char *filename);
 
 inline void convert_arguments(void* cls, TelegramBot*& bot, HttpState*& httpState, 
-	SignalState* signalState, WebGraph*& webGraph);
+	SignalState*& signalState, WebGraph*& webGraph);
 
 inline int authorised_connection(struct MHD_Connection* connection);
 

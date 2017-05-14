@@ -132,7 +132,7 @@ int getdigit(const char* unit){
 	return 0;
 }
 
-int CommandLineInterface::mean(int* array, int len){
+int CommandLineInterface::mean(std::atomic<int>* array, int len){
 	int mean = 0;
 	for(int i=0; i<len; i++) {mean += *(array+0);}
 	
@@ -171,17 +171,15 @@ void CommandLineInterface::sensor_values(){
 	mvprintw(LINES - 2, 2, "Enter to Exit, F to export to txt");
 	
 	do{
-	{
-		std::lock_guard<std::mutex> guard(sensorState->m);		
-		mvprintw(3, COL2, "%.1f", ((float)mean(sensorState->tempValues, 
-			                          temp::LEN))/10-10 );
-		mvprintw(4, COL2, "%.1f", ((float)mean(sensorState->humidityValues,
-			                          hum::LEN))/10 );
-		mvprintw(5, COL2, "%d", mean(sensorState->lightValues, lght::LEN));
-		mvprintw(6, COL2, "%d", sensorState->CO2ppm);
-		mvprintw(7, COL2, "%.1f", (sensorState->Pressure/5.0+MINIMUM_MEASURABLE_PRESSURE));
-		mvprintw(8, COL2, "%.1f", (sensorState->Pressure));
-	}
+	mvprintw(3, COL2, "%.1f", ((float)mean(sensorState->tempValues, 
+		                          temp::LEN))/10-10 );
+	mvprintw(4, COL2, "%.1f", ((float)mean(sensorState->humidityValues,
+		                          hum::LEN))/10 );
+	mvprintw(5, COL2, "%d", mean(sensorState->lightValues, lght::LEN));
+
+	mvprintw(6, COL2, "%d", sensorState->CO2ppm.load());
+	mvprintw(7, COL2, "%.1f", (sensorState->Pressure.load()/5.0+MINIMUM_MEASURABLE_PRESSURE));
+	mvprintw(8, COL2, "%.1f", (sensorState->Pressure.load()));
 	mvprintw(7, COL2, "%d", 5);
 
 	mvprintw(3, COL3, "%d", 5);

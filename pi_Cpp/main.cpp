@@ -15,7 +15,8 @@
 #include "dataStorage/MainData.h"
 #include "dataStorage/PirData.h"
 #include "state/mainState.h"
-#include "state/stateManagement.cpp"
+#include "state/stateManagement.cpp" //<<<
+
 #include "telegramBot/telegramBot.h"
 #include "httpServer/mainServer.h"
 #include "commandLine/commandline.h"
@@ -90,13 +91,22 @@ int main(int argc, char* argv[])
 	  and re-evalutes the system on such as change. */
 	Mpd* mpd2 = mpd.get(); //TODO remove smart pointers	
 	std::thread t4(thread_state_management, notShuttingdown, signalState, 
-	  sensorState, mpdState, mpd2);
+	  sensorState, mpdState, mpd2, httpState);
  	std::cout<<"State management started\n"; 
 
   signal(SIGINT, interruptHandler);  
 	
 	std::cout<<"cmd interface starting\n";
 	std::this_thread::sleep_for(std::chrono::seconds(1));
+
+	getchar();
+	signalState->runUpdate();
+
+	getchar();
+	signalState->runUpdate();
+
+	getchar();
+	signalState->runUpdate();
 
 	getchar();
 

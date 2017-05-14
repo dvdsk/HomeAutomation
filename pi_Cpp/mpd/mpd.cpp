@@ -113,7 +113,6 @@ inline void Mpd::requestStatus(){
 inline void Mpd::parseStatus(std::string const& output){
 
 	//parse the respons
-	std::lock_guard<std::mutex> guard(mpdState->m);
 	mpdState->volume = stoi(output.substr(8,2));
 
 	if(output.substr(110,4) == "stop")

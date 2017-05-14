@@ -87,13 +87,10 @@ void decodeFastData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 	}
 
 	//process light values
-	{
-		std::lock_guard<std::mutex> guard(sensorState->m);
-		sensorState->lightValues[lght::BED] = 		decode(data, Enc_fast::LIGHT_BED, Enc_fast::LEN_LIGHT);
-		sensorState->lightValues[lght::KITCHEN] = decode(data, Enc_fast::LIGHT_KITCHEN, Enc_fast::LEN_LIGHT);
-		sensorState->lightValues[lght::DOOR] = 		decode(data, Enc_fast::LIGHT_DOOR, Enc_fast::LEN_LIGHT);
-		sensorState->lightValues_updated = true;
-	}
+	sensorState->lightValues[lght::BED] = 		decode(data, Enc_fast::LIGHT_BED, Enc_fast::LEN_LIGHT);
+	sensorState->lightValues[lght::KITCHEN] = decode(data, Enc_fast::LIGHT_KITCHEN, Enc_fast::LEN_LIGHT);
+	sensorState->lightValues[lght::DOOR] = 		decode(data, Enc_fast::LIGHT_DOOR, Enc_fast::LEN_LIGHT);
+	sensorState->lightValues_updated = true;
 	signalState->runUpdate();//TODO check if values differ enough to warrent an update
 
 	//store
@@ -107,8 +104,7 @@ void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 										std::shared_ptr<SlowData> slowData, 
 										SensorState* sensorState,
 	                  SignalState* signalState){
-	{
-	std::lock_guard<std::mutex> guard(sensorState->m);
+	
 	//decode temp, humidity, co2 and store in state
 	sensorState->tempValues[temp::BED] = 			decode(data, Enc_slow::TEMP_BED, Enc_slow::LEN_TEMP);
 	sensorState->tempValues[temp::BATHROOM] = decode(data, Enc_slow::TEMP_BATHROOM, Enc_slow::LEN_TEMP);
@@ -128,7 +124,7 @@ void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 //	std::cout<<", data3: "<<+SLOWDATA_SIZE;
 //	std::cout<<", data4: "<<Enc_slow::LEN_ENCODED<<", ";
 //	std::cout<<"Pressure: "<<state->Pressure<<"\n";
-	}	
+
 	signalState->runUpdate();
 
 	//store

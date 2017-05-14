@@ -28,7 +28,7 @@ bool SlowData::newData(const uint8_t raw[Enc_slow::LEN_ENCODED], uint16_t light_
 	return false;
 }
 
-void SlowData::preProcess_light(int lightValues[], const uint32_t Tstamp){  
+void SlowData::preProcess_light(std::atomic<int> lightValues[], const uint32_t Tstamp){  
 	//add all the light values for averaging later
 	light_Sum[lght::BED] 			+= lightValues[lght::BED]; 
 	light_Sum[lght::KITCHEN] 	+= lightValues[lght::KITCHEN]; 

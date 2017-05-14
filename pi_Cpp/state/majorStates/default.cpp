@@ -1,8 +1,8 @@
 #include "default.h"
 
 Default::Default(StateData &stateData)
-	: State(&stateData)
-{
+	: State(&stateData){
+	stateName = DEFAULT_S;	
 	std::cout<<"Ran default state constructor"<<"\n";
 }
 

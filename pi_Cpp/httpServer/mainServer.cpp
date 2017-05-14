@@ -21,7 +21,7 @@ inline int authorised_connection(struct MHD_Connection* connection){
 }
 
 inline void convert_arguments(void* cls, TelegramBot*& bot, HttpState*& httpState, 
-	SignalState* signalState, WebGraph*& webGraph){
+	SignalState*& signalState, WebGraph*& webGraph){
 	void** arrayOfPointers;
 	void* element1;
 	void* element2;
@@ -74,7 +74,7 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 			}
 		//continue with correct response if authentication is successfull
 		else{
-				const char* orderRecieved = "<html><body>Order processed.</body></html>";
+				const char* orderRecieved = "<html><body>Order recieved.</body></html>";
 				const char* unknown_page = "<html><body>A secret.</body></html>";
 				char* page;
 				std::string pageString = "<html><body>A ";
@@ -82,15 +82,16 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 				pageString += pageString2;
 				
 				//if its a state switch command send it to state for processing
-				if(url[1] == '|'){
-					{					
-					std::lock_guard<std::mutex> guard(httpState->m);
+				if(url[1] == '|'){		
+	
+					httpState->m.lock();//lock to indicate new value in url
 					httpState->url = url;
-					httpState->updated = true;
-					}
+					httpState->updated = true;//is atomic
 					signalState->runUpdate();
+
 					response = MHD_create_response_from_buffer(strlen (unknown_page), 
-					           (void *) orderRecieved, MHD_RESPMEM_PERSISTENT); }
+					           (void *) orderRecieved, MHD_RESPMEM_PERSISTENT); 
+				}
 				
 				//else webserver request
 				else if(0 == strcmp(url, "/css/c3.css")){

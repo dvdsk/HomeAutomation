@@ -9,6 +9,7 @@
 #include <sstream>
 #include <cstdlib>//for calloc
 #include <memory>
+#include <atomic>
 
 #include "../config.h"
 #include "../dataStorage/PirData.h"
@@ -33,7 +34,7 @@ class CommandLineInterface{
 	void sensor_values();
 
 	void print_mainMenu(int highlight, const char* choices[], int n_choices);
-	int mean(int* array, const int len);
+	int mean(std::atomic<int>* array, int len);
 };
 
 

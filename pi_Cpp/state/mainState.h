@@ -22,55 +22,53 @@ class Mpd;
 //watchforupdates function.
 enum MajorStates {
 	AWAY, 					//env_alarm+plnts_alarm+intruder_alarm
-	DEFAULT_S,				//env_alarm+plnts_alarm+lamps_cb+lampcheck(Kitchen, Door, Bureau, Bathroom) 
-	ALMOSTSLEEPING, //env_alarm+plnts_alarm
-	SLEEPING, 			//env_alarm+plnts_alarm+night_intruder_alarm
-	MINIMAL,			  //env_alarm+plnts_alarm+lampcheck(Bathroom)
+	DEFAULT_S,			//env_alarm+plnts_alarm+lamps_cb+lampcheck(Kitchen, Door, Bureau, Bathroom) 
+	GOINGTOSLEEP_S, 	//env_alarm+plnts_alarm
+	SLEEPINTERRUPT_S,	//env_alarm+plnts_alarm
+	SLEEPING, 				//env_alarm+plnts_alarm+night_intruder_alarm
+	MINIMAL_S,			  //env_alarm+plnts_alarm+lampcheck(Bathroom)
 	WAKEUP					//env_alarm+plnts_alarm+lampcheck(Bathroom)
 };
 
 struct MinorStates{
-	bool alarmDisarm;
-	bool authorisedClose;
-	bool listenToAudioBook;
-	bool wakingUp;
-  bool inBathroom;
-  bool showering;
-  bool inKitchenArea;
-  bool movieMode;
+	std::atomic<bool> alarmDisarm;
+	std::atomic<bool> authorisedClose;
+	std::atomic<bool> listenToAudioBook;
+	std::atomic<bool> wakingUp;
+  std::atomic<bool> inBathroom;
+  std::atomic<bool> showering;
+  std::atomic<bool> inKitchenArea;
+  std::atomic<bool> movieMode;
 };
 
 struct MpdState{
-	std::mutex m;
-
-	bool playing;
-	bool paused;
-	bool stopped;
-	uint8_t volume;
+	std::atomic<bool> playing;
+	std::atomic<bool> paused;
+	std::atomic<bool> stopped;
+	std::atomic<std::int8_t> volume;
 };
 
 struct HttpState{
+	HttpState(){updated=false;}
 	std::mutex m;
 	std::string url;
-	bool updated;
+	std::atomic<bool> updated;
 };
 
 struct SensorState{
-	std::mutex m;
-
-	int lightValues[lght::LEN];
-	bool lightValues_updated; 		
-	int tempValues[temp::LEN];
-	bool tempValues_updated; 		
-	int humidityValues[hum::LEN];
-	bool humidityValues_updated; 		
-	int soilHumidityValues[plnt::LEN];
-	bool soilHumidity_updated; 		
-	uint32_t movement[mov::LEN];
-	int CO2ppm;
-	bool CO2ppm_updated;
-	int Pressure;
-	bool Pressure_updated;
+	std::atomic<int> lightValues[lght::LEN];
+	std::atomic<bool> lightValues_updated; 		
+	std::atomic<int> tempValues[temp::LEN];
+	std::atomic<bool> tempValues_updated; 		
+	std::atomic<int> humidityValues[hum::LEN];
+	std::atomic<bool> humidityValues_updated; 		
+	std::atomic<int> soilHumidityValues[plnt::LEN];
+	std::atomic<bool> soilHumidity_updated; 		
+	std::atomic<std::int32_t> movement[mov::LEN];
+	std::atomic<int> CO2ppm;
+	std::atomic<bool> CO2ppm_updated;
+	std::atomic<int> Pressure;
+	std::atomic<bool> Pressure_updated;
 };
 
 struct SignalState{
@@ -78,64 +76,72 @@ struct SignalState{
 	std::condition_variable cv;
 
 	void runUpdate(){
+		std::cout<<"done\n";
 		std::unique_lock<std::mutex> lk(m);
 		cv.notify_one();
 	}
 };
 
 
-class StateData : Lamps
+class StateData : public Lamps
 {
 	public:
-		StateData(SensorState* sensorState_, MpdState* mpdState_, Mpd* mpd_)
+		StateData(SensorState* sensorState_, MpdState* mpdState_, Mpd* mpd_, HttpState* httpState_)
 		: Lamps(){
 			sensorState = sensorState_;
 			mpdState = mpdState_;
 			mpd = mpd_;
+			httpState = httpState_;
+
+			httpState->updated = false;
 		}
 
 		SensorState* sensorState;
 		MpdState* mpdState;
 		Mpd* mpd; //needed to call mpd functions
+		HttpState* httpState;
 
 		uint32_t currentTime;
 		uint32_t timeStateStarted;
 		
 		//stateBookKeeping
-		MajorStates newState;		
-		MajorStates lastState;
+		std::atomic<MajorStates> newState;		
+		std::atomic<MajorStates> lastState;
 		MinorStates minorState;
 };
 
 class State
 {	
 	public:
-		State(StateData* stateData_){
-			data = stateData_;
-		}
+	State(StateData* stateData_){
+		data = stateData_;
+	}
 	
 	virtual bool stillValid() =0;
 	virtual void updateOnSensors() =0;
 	virtual ~State() = default;
+	void updateOnHttp();
+
+	MajorStates stateName;
 
 	protected:
-		StateData* data;
+	StateData* data;
 
-		//away functions in away.cpp
-		void away_intruder_alarm();
-		void check_Plants();
+	//away functions in away.cpp
+	void away_intruder_alarm();
+	void check_Plants();
 
-		//default functions in default.cpp
-		void def_lampcheck_Door();
-		void def_lampCheck_Kitchen();
-		void def_lampCheck_CeilingAndRadiator();
-		void def_lampCheck_Bureau();
-		void lampCheck_Bathroom(); //used in other major states too
-		void environmental_alarm();
-		 
-		//general support functions that need access to this class
-		inline bool recent(uint32_t time, unsigned int threshold);
-		inline bool anyRecent(uint32_t times[], unsigned int threshold);
+	//default functions in default.cpp
+	void def_lampcheck_Door();
+	void def_lampCheck_Kitchen();
+	void def_lampCheck_CeilingAndRadiator();
+	void def_lampCheck_Bureau();
+	void lampCheck_Bathroom(); //used in other major states too
+	void environmental_alarm();
+	 
+	//general support functions that need access to this class
+	inline bool recent(uint32_t time, unsigned int threshold);
+	inline bool anyRecent(uint32_t times[], unsigned int threshold);
 };
 	
 //general support functions
