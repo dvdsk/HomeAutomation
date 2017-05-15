@@ -11,6 +11,7 @@
 #include <array>
 #include <string.h> //strcmp
 #include <iostream> //cout
+#include <stdlib.h> //syscall to 'at'
 
 #include "../config.h"
 #include "../lamps/lamps.h"
@@ -120,7 +121,7 @@ class State
 	virtual bool stillValid() =0;
 	virtual void updateOnSensors() =0;
 	virtual ~State() = default;
-	void updateOnHttp();
+	bool updateOnHttp();
 
 	MajorStates stateName;
 
@@ -145,6 +146,7 @@ class State
 };
 	
 //general support functions
+inline void setAlarm(int nMinutes);
 inline void sleep(int seconds);
 inline std::string toTime(uint32_t seconds);
 inline bool setting_up_values_done();

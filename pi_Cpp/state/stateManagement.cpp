@@ -42,17 +42,22 @@ void thread_state_management(std::shared_ptr<std::atomic<bool>> notShuttingdown,
 		std::cout<<"running update\n";		
 
 		stateData.currentTime = (uint32_t)time(nullptr);
-		if(currentState->stillValid()){
+		if(currentState->stillValid())
 			currentState->updateOnSensors();
-			if(httpState->updated){
-				currentState->updateOnHttp();
-				delete currentState;
-				startNewState(currentState, stateData);				
-			}
-		}
 		else{
 			delete currentState;
 			startNewState(currentState, stateData);
+		}
+
+		std::cout<<"hiii0\n";
+		if(httpState->updated){
+			std::cout<<"hiii1\n";
+			if(currentState->updateOnHttp()){
+				//updateOnHttp returns true if new state needs to be started
+				std::cout<<"hiii2\n";
+				delete currentState;
+				startNewState(currentState, stateData);
+			}				
 		}
 	}
 }

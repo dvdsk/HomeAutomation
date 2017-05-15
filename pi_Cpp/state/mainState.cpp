@@ -1,8 +1,9 @@
 #include "mainState.h"
 
-void State::updateOnHttp(){
+bool State::updateOnHttp(){
 	std::string url;
 	data->httpState->updated = false;
+	bool updateState = true;
 
 	url = data->httpState->url;
 	data->httpState->m.unlock();//unlock to indicate url has been read
@@ -11,46 +12,62 @@ void State::updateOnHttp(){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		data->setState("{\"bri\":254, \"ct\":320, \"transitiontime\":10}");
 	}
-	if(url == "/|lamps/night"){
+	else if(url == "/|lamps/night"){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		data->setState("{\"bri\":220, \"ct\":500, \"transitiontime\":10}");
 	}
-	if(url == "/|lamps/bedlight"){
+	else if(url == "/|lamps/bedlight"){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		data->setState("{\"bri\":1, \"ct\":500, \"transitiontime\":10}");
 	}
-	if(url == "/|lamps/normal"){
+	else if(url == "/|lamps/normal"){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		data->setState("{\"bri\":254, \"ct\":220, \"transitiontime\":10}");
 	}
-	if(url == "/|lamps/alloff"){
+	else if(url == "/|lamps/alloff"){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		data->Lamps::off(1);
 	}
-	if(url == "/|lamps/allon"){
+	else if(url == "/|lamps/allon"){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		data->Lamps::on(1);
 	}
 
 
-	if(url == "/|state/away"){
+	else if(url == "/|state/away"){
 		if(stateName != AWAY){data->newState = AWAY;}
 	}
-	if(url == "/|state/default"){
+	else if(url == "/|state/default"){
 		if(stateName != DEFAULT_S){data->newState = DEFAULT_S;}
 	}
-	if(url == "/|state/goingToSleep"){
+	else if(url == "/|state/goingToSleep"){
 		if(stateName != GOINGTOSLEEP_S){data->newState = GOINGTOSLEEP_S;}
 	}
-	if(url == "/|state/sleeping"){
+	else if(url == "/|state/sleeping"){
 		if(stateName != SLEEPING){data->newState = SLEEPING;}
 	}
-	if(url == "/|state/minimal"){
+	else if(url == "/|state/minimal"){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
-	}		
+	}
+	//if string /|set/alarm in url
+	else if(url.size()>11 && url.substr(0, 11) == "/|set/alarm"){
+		int nMinutes = std::stoi(url.substr(11, url.size()-11));
+		setAlarm(nMinutes);
+		updateState=false;
+	}
+	else
+		updateState=false;
+
+	return updateState;		
 }
 
 ////////////////////////GENERAL FUNCT///////////////////////////////////////
+inline void setAlarm(int nMinutes){
+	std::string syscall = "at now "+std::to_string(nMinutes)+
+	                      " minutes <<< \"curl 192.168.1.10:8080/Scene/evening\"";
+	system(syscall.c_str() );
+}
+
 inline void sleep(int seconds){
 	std::this_thread::sleep_for(std::chrono::seconds(seconds));
 }
