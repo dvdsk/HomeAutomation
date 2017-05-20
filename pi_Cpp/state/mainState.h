@@ -28,7 +28,7 @@ enum MajorStates {
 	SLEEPINTERRUPT_S,	//env_alarm+plnts_alarm
 	SLEEPING, 				//env_alarm+plnts_alarm+night_intruder_alarm
 	MINIMAL_S,			  //env_alarm+plnts_alarm+lampcheck(Bathroom)
-	WAKEUP					//env_alarm+plnts_alarm+lampcheck(Bathroom)
+	WAKEUP_S					//env_alarm+plnts_alarm+lampcheck(Bathroom)
 };
 
 struct MinorStates{

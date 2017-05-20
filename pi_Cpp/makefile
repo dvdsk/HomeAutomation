@@ -4,7 +4,7 @@ CXX = g++
 CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 
 ODIR = .BUILD
-OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o webGraph.o mpd.o lamps.o default.o SleepInterrupt.o GoingToSleep.o Minimal.o)
+OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o webGraph.o mpd.o lamps.o default.o SleepInterrupt.o GoingToSleep.o Minimal.o Wakeup.o)
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
 all: pi
@@ -56,6 +56,8 @@ $(ODIR)/GoingToSleep.o: state/majorStates/GoingToSleep.cpp state/majorStates/Goi
 	$(CXX) $(CXXFLAGS) -o$@ -c state/majorStates/GoingToSleep.cpp	
 $(ODIR)/Minimal.o: state/majorStates/Minimal.cpp state/majorStates/Minimal.h state/mainState.cpp state/mainState.h
 	$(CXX) $(CXXFLAGS) -o$@ -c state/majorStates/Minimal.cpp	
+$(ODIR)/Wakeup.o: state/majorStates/Wakeup.cpp state/majorStates/Wakeup.h state/mainState.cpp state/mainState.h
+	$(CXX) $(CXXFLAGS) -o$@ -c state/majorStates/Wakeup.cpp	
 
 $(ODIR)/mainServer.o: httpServer/mainServer.cpp httpServer/mainServer.h \
 	httpServer/pages/webGraph.h

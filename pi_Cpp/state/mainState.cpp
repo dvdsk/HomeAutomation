@@ -36,21 +36,31 @@ bool State::updateOnHttp(){
 
 	else if(url == "/|state/away"){
 		if(stateName != AWAY){data->newState = AWAY;}
+		else{updateState=false;}		
 	}
 	else if(url == "/|state/default"){
 		if(stateName != DEFAULT_S){data->newState = DEFAULT_S;}
+		else{updateState=false;}		
 	}
 	else if(url == "/|state/goingToSleep"){
 		if(stateName != GOINGTOSLEEP_S){data->newState = GOINGTOSLEEP_S;}
+		else{updateState=false;}		
 	}
 	else if(url == "/|state/sleeping"){
 		if(stateName != SLEEPING){data->newState = SLEEPING;}
+		else{updateState=false;}		
 	}
 	else if(url == "/|state/minimal"){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
+		else{updateState=false;}		
+	}
+	else if(url == "/|state/wakeup"){
+		if(stateName != WAKEUP_S){data->newState = WAKEUP_S;}
+		else{updateState=false;}		
 	}
 	//if string /|set/alarm in url
 	else if(url.size()>11 && url.substr(0, 11) == "/|set/alarm"){
+		std::cout<<"HI\n";
 		int nMinutes = std::stoi(url.substr(11, url.size()-11));
 		setAlarm(nMinutes);
 		updateState=false;
@@ -63,8 +73,9 @@ bool State::updateOnHttp(){
 
 ////////////////////////GENERAL FUNCT///////////////////////////////////////
 inline void setAlarm(int nMinutes){
-	std::string syscall = "at now "+std::to_string(nMinutes)+
+	std::string syscall = "at now +"+std::to_string(nMinutes)+
 	                      " minutes <<< \"curl 192.168.1.10:8080/Scene/evening\"";
+	std::cout<<syscall<<"\n";
 	system(syscall.c_str() );
 }
 

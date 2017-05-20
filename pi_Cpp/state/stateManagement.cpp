@@ -3,6 +3,7 @@
 #include "majorStates/GoingToSleep.h"
 #include "majorStates/SleepInterrupt.h"
 #include "majorStates/Minimal.h"
+#include "majorStates/Wakeup.h"
 
 inline void startNewState(State* currentState, StateData &stateData){
 	switch(stateData.newState){
@@ -23,8 +24,8 @@ inline void startNewState(State* currentState, StateData &stateData){
 		case MINIMAL_S:
 		currentState = new Minimal(stateData);
 		break;
-		case WAKEUP:
-		//currentState = new Wakeup();
+		case WAKEUP_S:
+		currentState = new Wakeup(stateData);
 		break;
 	}
 }
@@ -42,12 +43,12 @@ void thread_state_management(std::shared_ptr<std::atomic<bool>> notShuttingdown,
 		std::cout<<"running update\n";		
 
 		stateData.currentTime = (uint32_t)time(nullptr);
-		if(currentState->stillValid())
-			currentState->updateOnSensors();
-		else{
-			delete currentState;
-			startNewState(currentState, stateData);
-		}
+//		if(currentState->stillValid()) //TODO FIXME 
+//			currentState->updateOnSensors();
+//		else{
+//			delete currentState;
+//			startNewState(currentState, stateData);
+//		}
 
 		std::cout<<"hiii0\n";
 		if(httpState->updated){
