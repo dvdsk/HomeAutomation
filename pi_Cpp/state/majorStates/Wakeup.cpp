@@ -4,10 +4,21 @@ WakeUp::WakeUp(StateData &stateData)
 	: State(&stateData)
 {
 	stateName = WAKEUP_S;
+
+#ifndef NOTHREAD
+	m_thread = new std::thread(threadFunction);
+#endif	
+
 	std::cout<<"Ran Wakeup state constructor"<<"\n";
+	std::cout<<"stateName: "<<stateName<<"\n";
 }
 
 WakeUp::~WakeUp(){
+	
+#ifndef NOTHREAD	
+	m_thread->join();
+#endif	
+
 	std::cout<<"cleaned up the Wakeup state"<<"\n";
 }
 

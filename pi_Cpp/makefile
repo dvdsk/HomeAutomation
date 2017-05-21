@@ -10,6 +10,9 @@ OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowDat
 all: pi
 debug: CXXFLAGS += -DDEBUG -g
 debug: pi
+nothread: CXXFLAGS += -DNOTHREAD
+nothread: pi
+
 
 pi: $(OBJS)
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o pi $(OBJS) \

@@ -3,6 +3,11 @@
 
 #include "../mainState.h"
 
+static void threadFunction() {
+	std::cout<<"helloa how are you?\n";
+	return;
+}
+
 class WakeUp : public State
 {
 
@@ -14,6 +19,9 @@ class WakeUp : public State
 	
 	private:
 
+#ifndef NOTHREAD
+	std::thread* m_thread;
+#endif	
 };
 
 #endif
