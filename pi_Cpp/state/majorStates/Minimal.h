@@ -1,5 +1,5 @@
-#ifndef MINIMAL
-#define MINIMAL
+#ifndef MINIMAL_G
+#define MINIMAL_G
 
 #include "../mainState.h"
 

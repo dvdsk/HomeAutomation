@@ -25,7 +25,7 @@ inline void startNewState(State* currentState, StateData &stateData){
 		currentState = new Minimal(stateData);
 		break;
 		case WAKEUP_S:
-		currentState = new Wakeup(stateData);
+		currentState = new WakeUp(stateData);
 		break;
 	}
 }
