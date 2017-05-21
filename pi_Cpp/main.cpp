@@ -53,6 +53,7 @@ int main(int argc, char* argv[])
 	SignalState* signalState = new SignalState;
 	SensorState* sensorState = new SensorState;
 	HttpState* httpState = new HttpState;
+	ComputerState* computerState = new ComputerState;
 	MpdState* mpdState = new MpdState;
 
 	std::shared_ptr<Mpd> mpd = std::make_shared<Mpd>(mpdState, signalState);
@@ -91,7 +92,7 @@ int main(int argc, char* argv[])
 	  and re-evalutes the system on such as change. */
 	Mpd* mpd2 = mpd.get(); //TODO remove smart pointers	
 	std::thread t4(thread_state_management, notShuttingdown, signalState, 
-	  sensorState, mpdState, mpd2, httpState);
+	  sensorState, mpdState, mpd2, httpState, computerState);
  	std::cout<<"State management started\n"; 
 
   signal(SIGINT, interruptHandler);  

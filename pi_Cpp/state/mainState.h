@@ -42,6 +42,12 @@ struct MinorStates{
   std::atomic<bool> movieMode;
 };
 
+struct ComputerState{
+	std::atomic<bool> windows;
+	std::atomic<bool> linux;
+	std::atomic<bool> off;
+};
+
 struct MpdState{
 	std::atomic<bool> playing;
 	std::atomic<bool> paused;
@@ -87,18 +93,21 @@ struct SignalState{
 class StateData : public Lamps
 {
 	public:
-		StateData(SensorState* sensorState_, MpdState* mpdState_, Mpd* mpd_, HttpState* httpState_)
+		StateData(SensorState* sensorState_, MpdState* mpdState_, Mpd* mpd_, 
+		          HttpState* httpState_, ComputerState* computerState_)
 		: Lamps(){
 			sensorState = sensorState_;
 			mpdState = mpdState_;
 			mpd = mpd_;
 			httpState = httpState_;
+			computerState = computerState_;
 
 			httpState->updated = false;
 		}
 
 		SensorState* sensorState;
 		MpdState* mpdState;
+		ComputerState* computerState;
 		Mpd* mpd; //needed to call mpd functions
 		HttpState* httpState;
 

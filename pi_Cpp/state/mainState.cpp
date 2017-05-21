@@ -51,13 +51,16 @@ bool State::updateOnHttp(){
 		else{updateState=false;}		
 	}
 	else if(url == "/|state/minimal"){
-		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
+		std::cout<<"MINIMAL_S: "<<MINIMAL_S<<"\n";
+		std::cout<<"stateName: "<<stateName<<"\n";
+		if(stateName != MINIMAL_S){data->newState = MINIMAL_S; std::cout<<"swithing!!!\n";}
 		else{updateState=false;}		
 	}
 	else if(url == "/|state/wakeup"){
 		if(stateName != WAKEUP_S){data->newState = WAKEUP_S;}
 		else{updateState=false;}		
 	}
+
 	//if string /|set/alarm in url
 	else if(url.size()>11 && url.substr(0, 11) == "/|set/alarm"){
 		std::cout<<"HI\n";
@@ -65,9 +68,16 @@ bool State::updateOnHttp(){
 		setAlarm(nMinutes);
 		updateState=false;
 	}
+	else if(url == "/|minorState/windows"){
+		data->computerState->windows = true; updateState=false; }
+	else if(url == "/|minorState/linux"){
+		data->computerState->windows = true; updateState=false; }
+	else if(url == "/|minorState/off"){
+		data->computerState->windows = true; updateState=false; }
 	else
 		updateState=false;
 
+	std::cout<<"updateState is returning: "<<updateState<<"\n";
 	return updateState;		
 }
 

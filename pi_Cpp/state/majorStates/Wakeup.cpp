@@ -6,18 +6,19 @@ Wakeup::Wakeup(StateData &stateData)
 	: State(&stateData){
 	stateName = WAKEUP_S;	
 
-	//notShuttingDown = true;
-	//lampThread = std::thread(&Wakeup::lampManagment, this, this);
+  //m_thread = new std::thread(threadFunction,this);
 
 	std::cout<<"Ran Wakeup state constructor"<<"\n";
+	std::cout<<"StateName: "<<stateName<<"\n";
+	std::cout<<"Wakeup_s: "<<WAKEUP_S<<"\n";
 }
 
 Wakeup::~Wakeup(){
 
-	//std::cout<<"shutting down wakeup state\n";
+	std::cout<<"shutting down wakeup state\n";
 	//notShuttingDown = false;
-	//lampThread.join();
-
+	//m_thread->join();
+	//try {stop();} catch(std::system_error){std::cout<<"caught error";}
 	std::cout<<"cleaned up the Wakeup state"<<"\n";
 }
 
