@@ -1,7 +1,7 @@
 #include "Minimal.h"
 
-Minimal::Minimal(StateData &stateData)
-	: State(&stateData)
+Minimal::Minimal(StateData* stateData)
+	: State(stateData)
 {
 	stateName = MINIMAL_S;
 	std::cout<<"Ran Minimal state constructor"<<"\n";

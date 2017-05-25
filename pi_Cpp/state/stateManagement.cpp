@@ -1,32 +1,32 @@
 #include "mainState.h"
 #include "majorStates/default.h"
-#include "majorStates/GoingToSleep.h"
-#include "majorStates/SleepInterrupt.h"
+//#include "majorStates/GoingToSleep.h"
+//#include "majorStates/SleepInterrupt.h"
 #include "majorStates/Minimal.h"
-#include "majorStates/Wakeup.h"
+//#include "majorStates/Wakeup.h"
 
 inline void startNewState(State* currentState, StateData &stateData){
 	switch(stateData.newState){
-		case AWAY:
-		//currentState = new Default();
-		break;			
-		case SLEEPING:
-		break;
+//		case AWAY:
+//		//currentState = new Default();
+//		break;			
+//		case SLEEPING:
+//		break;
 		case DEFAULT_S:
-		currentState = new Default(stateData);
+		currentState = new Default(&stateData);
 		break;
-		case GOINGTOSLEEP_S:
-		currentState = new GoingToSleep(stateData);
-		break;
-		case SLEEPINTERRUPT_S:
-		currentState = new SleepInterrupt(stateData);
-		break;
+//		case GOINGTOSLEEP_S:
+//		currentState = new GoingToSleep(&stateData);
+//		break;
+//		case SLEEPINTERRUPT_S:
+//		currentState = new SleepInterrupt(&stateData);
+//		break;
 		case MINIMAL_S:
-		currentState = new Minimal(stateData);
+		currentState = new Minimal(&stateData);
 		break;
-		case WAKEUP_S:
-		currentState = new WakeUp(stateData);
-		break;
+//		case WAKEUP_S:
+//		currentState = new WakeUp(&stateData);
+//		break;
 	}
 }
 
@@ -35,7 +35,9 @@ void thread_state_management(std::shared_ptr<std::atomic<bool>> notShuttingdown,
 	Mpd* mpd, HttpState* httpState, ComputerState* computerState){
 
 	StateData stateData(sensorState, mpdState, mpd, httpState, computerState);
-	State* currentState = new Default(stateData);
+	State* currentState = new Default(&stateData);
+
+	computerState->off = true;
 	
 	std::unique_lock<std::mutex> lk(signalState->m);
 	while(*notShuttingdown){
@@ -61,4 +63,5 @@ void thread_state_management(std::shared_ptr<std::atomic<bool>> notShuttingdown,
 			}				
 		}
 	}
+	delete currentState;
 }

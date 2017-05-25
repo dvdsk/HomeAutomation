@@ -57,9 +57,11 @@ struct MpdState{
 
 struct HttpState{
 	HttpState(){updated=false;}
+	~HttpState(){std::cout<<"HttpState HAS BEEN DESTORYED\n";}
 	std::mutex m;
 	std::string url;
-	std::atomic<bool> updated;
+	//FIXME std::atomic<bool> updated;
+	bool updated;
 };
 
 struct SensorState{
@@ -101,9 +103,11 @@ class StateData : public Lamps
 			mpd = mpd_;
 			httpState = httpState_;
 			computerState = computerState_;
-
-			httpState->updated = false;
 		}
+		~StateData(){
+			std::cout<<"STATEDATA HAS BEEN DELETED\n";
+		}
+
 
 		SensorState* sensorState;
 		MpdState* mpdState;
@@ -132,7 +136,7 @@ class State
 	virtual ~State() = default;
 	bool updateOnHttp();
 
-	MajorStates stateName;
+	std::atomic<MajorStates> stateName;//FIXME (atomic needed??)
 
 	protected:
 	StateData* data;

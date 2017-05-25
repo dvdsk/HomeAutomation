@@ -3,24 +3,27 @@
 
 #include "../mainState.h"
 
-static void threadFunction() {
-	std::cout<<"helloa how are you?\n";
-	return;
-}
+
 
 class WakeUp : public State
 {
 
 	public:
-		WakeUp(StateData &stateData);
+		WakeUp(StateData* stateData);
 		~WakeUp();
 		bool stillValid();
 		void updateOnSensors();
 	
 	private:
-
 #ifndef NOTHREAD
-	std::thread* m_thread;
+		std::atomic<bool> stop;
+		static void* threadFunction(WakeUp* arg) {
+			while(!arg->stop){}
+			std::cout<<"by\n";
+			return 0;
+		}
+	
+		std::thread* m_thread;
 #endif	
 };
 

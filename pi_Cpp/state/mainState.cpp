@@ -2,6 +2,7 @@
 
 bool State::updateOnHttp(){
 	std::string url;
+
 	data->httpState->updated = false;
 	bool updateState = true;
 
@@ -34,32 +35,32 @@ bool State::updateOnHttp(){
 	}
 
 
-	else if(url == "/|state/away"){
-		if(stateName != AWAY){data->newState = AWAY;}
-		else{updateState=false;}		
-	}
+//	else if(url == "/|state/away"){
+//		if(stateName != AWAY){data->newState = AWAY;}
+//		else{updateState=false;}		
+//	}
 	else if(url == "/|state/default"){
 		if(stateName != DEFAULT_S){data->newState = DEFAULT_S;}
 		else{updateState=false;}		
 	}
-	else if(url == "/|state/goingToSleep"){
-		if(stateName != GOINGTOSLEEP_S){data->newState = GOINGTOSLEEP_S;}
-		else{updateState=false;}		
-	}
-	else if(url == "/|state/sleeping"){
-		if(stateName != SLEEPING){data->newState = SLEEPING;}
-		else{updateState=false;}		
-	}
+//	else if(url == "/|state/goingToSleep"){
+//		if(stateName != GOINGTOSLEEP_S){data->newState = GOINGTOSLEEP_S;}
+//		else{updateState=false;}		
+//	}
+//	else if(url == "/|state/sleeping"){
+//		if(stateName != SLEEPING){data->newState = SLEEPING;}
+//		else{updateState=false;}		
+//	}
 	else if(url == "/|state/minimal"){
 		std::cout<<"MINIMAL_S: "<<MINIMAL_S<<"\n";
 		std::cout<<"stateName: "<<stateName<<"\n";
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S; std::cout<<"swithing!!!\n";}
 		else{updateState=false;}		
 	}
-	else if(url == "/|state/wakeup"){
-		if(stateName != WAKEUP_S){data->newState = WAKEUP_S;}
-		else{updateState=false;}		
-	}
+//	else if(url == "/|state/wakeup"){
+//		if(stateName != WAKEUP_S){data->newState = WAKEUP_S;}
+//		else{updateState=false;}		
+//	}
 
 	//if string /|set/alarm in url
 	else if(url.size()>11 && url.substr(0, 11) == "/|set/alarm"){

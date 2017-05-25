@@ -1,7 +1,7 @@
 #include "GoingToSleep.h"
 
-GoingToSleep::GoingToSleep(StateData &stateData)
-	: State(&stateData)
+GoingToSleep::GoingToSleep(StateData* stateData)
+	: State(stateData)
 {
 	stateName = GOINGTOSLEEP_S;	
 	std::cout<<"Ran GoingToSleep state constructor"<<"\n";

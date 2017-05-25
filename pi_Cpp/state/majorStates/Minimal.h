@@ -7,7 +7,7 @@ class Minimal : public State
 {
 
 	public:
-		Minimal(StateData &stateData);
+		Minimal(StateData* stateData);
 		~Minimal();
 		bool stillValid();
 		void updateOnSensors();

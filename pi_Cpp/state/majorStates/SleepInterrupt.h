@@ -7,7 +7,7 @@ class SleepInterrupt : public State
 {
 
 	public:
-		SleepInterrupt(StateData &stateData);
+		SleepInterrupt(StateData* stateData);
 		~SleepInterrupt();
 		bool stillValid();
 		void updateOnSensors();

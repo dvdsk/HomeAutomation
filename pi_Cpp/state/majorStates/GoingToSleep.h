@@ -7,7 +7,7 @@ class GoingToSleep : public State
 {
 
 	public:
-		GoingToSleep(StateData &stateData);
+		GoingToSleep(StateData* stateData);
 		~GoingToSleep();
 		bool stillValid();
 		void updateOnSensors();

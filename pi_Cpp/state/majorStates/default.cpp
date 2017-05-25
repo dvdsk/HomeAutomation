@@ -1,12 +1,13 @@
 #include "default.h"
 
-Default::Default(StateData &stateData)
-	: State(&stateData){
+Default::Default(StateData* stateData)
+	: State(stateData){
 	stateName = DEFAULT_S;	
 	std::cout<<"Ran default state constructor"<<"\n";
 }
 
 Default::~Default(){
+	//FIXME This frees memory needed by stateData???? why???
 	std::cout<<"cleaned up the default state"<<"\n";
 }
 

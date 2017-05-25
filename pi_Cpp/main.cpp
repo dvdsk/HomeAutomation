@@ -66,7 +66,6 @@ int main(int argc, char* argv[])
 	file1 = pirData->getFileP();
   file2 = slowData->getFileP();
 
-	#ifndef TEST
 	/*start the http server that serves the telegram bot and
 	  custom http protocol. NOTE: each connection spawns its 
 	  own thread.*/	
@@ -126,11 +125,12 @@ int main(int argc, char* argv[])
 	t2.join();
 	t3.join();
 	t4.join();
-	#endif
 
-	#ifdef TEST
-	debug(pirData,	slowData, state);
-	#endif
+	delete signalState;
+	delete sensorState;
+	delete httpState;
+	delete computerState;
+	delete mpdState;
   
 	return 0;
 }
