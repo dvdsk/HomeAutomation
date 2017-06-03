@@ -9,7 +9,7 @@ class WakeUp : public State
 {
 
 	public:
-		WakeUp(StateData* stateData);
+		WakeUp(StateData* stateData, int* testInt);
 		~WakeUp();
 		bool stillValid();
 		void updateOnSensors();

@@ -3,7 +3,7 @@
 //#include "majorStates/GoingToSleep.h"
 //#include "majorStates/SleepInterrupt.h"
 #include "majorStates/Minimal.h"
-//#include "majorStates/Wakeup.h"
+#include "majorStates/Wakeup.h"
 
 inline void startNewState(State* currentState, StateData* stateData, int* testInt){
 	switch(stateData->newState){
@@ -24,9 +24,9 @@ inline void startNewState(State* currentState, StateData* stateData, int* testIn
 		case MINIMAL_S:
 		currentState = new Minimal(stateData, testInt);
 		break;
-//		case WAKEUP_S:
-//		currentState = new WakeUp(&stateData);
-//		break;
+		case WAKEUP_S:
+		currentState = new WakeUp(stateData, testInt);
+		break;
 	}
 }
 

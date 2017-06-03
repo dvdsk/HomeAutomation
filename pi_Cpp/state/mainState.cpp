@@ -57,10 +57,10 @@ bool State::updateOnHttp(){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S; std::cout<<"swithing!!!\n";}
 		else{updateState=false;}		
 	}
-//	else if(url == "/|state/wakeup"){
-//		if(stateName != WAKEUP_S){data->newState = WAKEUP_S;}
-//		else{updateState=false;}		
-//	}
+	else if(url == "/|state/wakeup"){
+		if(stateName != WAKEUP_S){data->newState = WAKEUP_S;}
+		else{updateState=false;}		
+	}
 
 	//if string /|set/alarm in url
 	else if(url.size()>11 && url.substr(0, 11) == "/|set/alarm"){

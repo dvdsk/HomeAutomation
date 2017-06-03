@@ -1,6 +1,6 @@
 #include "Wakeup.h"
 
-WakeUp::WakeUp(StateData* stateData)
+WakeUp::WakeUp(StateData* stateData, int* testInt)
 	: State(stateData)
 {
 	stateName = WAKEUP_S;
