@@ -13,7 +13,7 @@ inline void startNewState(State* currentState, StateData* stateData, int* testIn
 //		case SLEEPING:
 //		break;
 		case DEFAULT_S:
-		currentState = new Default(stateData);
+		currentState = new Default(stateData, testInt);
 		break;
 //		case GOINGTOSLEEP_S:
 //		currentState = new GoingToSleep(&stateData);
@@ -22,7 +22,7 @@ inline void startNewState(State* currentState, StateData* stateData, int* testIn
 //		currentState = new SleepInterrupt(&stateData);
 //		break;
 		case MINIMAL_S:
-		currentState = new Minimal(stateData);
+		currentState = new Minimal(stateData, testInt);
 		break;
 //		case WAKEUP_S:
 //		currentState = new WakeUp(&stateData);

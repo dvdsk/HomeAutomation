@@ -1,6 +1,6 @@
 #include "Minimal.h"
 
-Minimal::Minimal(StateData* stateData)
+Minimal::Minimal(StateData* stateData, int* testInt)
 	: State(stateData)
 {
 	stateName = MINIMAL_S;

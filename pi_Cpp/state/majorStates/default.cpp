@@ -1,6 +1,6 @@
 #include "default.h"
 
-Default::Default(StateData* stateData)
+Default::Default(StateData* stateData, int* testInt)
 	: State(stateData){
 	stateName = DEFAULT_S;	
 	std::cout<<"Ran default state constructor"<<"\n";
