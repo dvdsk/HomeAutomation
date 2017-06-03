@@ -108,7 +108,6 @@ class StateData : public Lamps
 			std::cout<<"STATEDATA HAS BEEN DELETED\n";
 		}
 
-
 		SensorState* sensorState;
 		MpdState* mpdState;
 		ComputerState* computerState;

@@ -5,15 +5,15 @@
 #include "majorStates/Minimal.h"
 //#include "majorStates/Wakeup.h"
 
-inline void startNewState(State* currentState, StateData &stateData){
-	switch(stateData.newState){
+inline void startNewState(State* currentState, StateData* stateData, int* testInt){
+	switch(stateData->newState){
 //		case AWAY:
 //		//currentState = new Default();
 //		break;			
 //		case SLEEPING:
 //		break;
 		case DEFAULT_S:
-		currentState = new Default(&stateData);
+		currentState = new Default(stateData);
 		break;
 //		case GOINGTOSLEEP_S:
 //		currentState = new GoingToSleep(&stateData);
@@ -22,7 +22,7 @@ inline void startNewState(State* currentState, StateData &stateData){
 //		currentState = new SleepInterrupt(&stateData);
 //		break;
 		case MINIMAL_S:
-		currentState = new Minimal(&stateData);
+		currentState = new Minimal(stateData);
 		break;
 //		case WAKEUP_S:
 //		currentState = new WakeUp(&stateData);
@@ -34,9 +34,14 @@ void thread_state_management(std::shared_ptr<std::atomic<bool>> notShuttingdown,
 	SignalState* signalState, SensorState* sensorState, MpdState* mpdState, 
 	Mpd* mpd, HttpState* httpState, ComputerState* computerState){
 
-	StateData stateData(sensorState, mpdState, mpd, httpState, computerState);
-	State* currentState = new Default(&stateData);
+	//StateData stateData(sensorState, mpdState, mpd, httpState, computerState);
+	StateData* stateData = new StateData(sensorState, mpdState, mpd, httpState, computerState);
 
+	int* testInt = new int;
+	*testInt = 42;
+
+	State* currentState = new Default(stateData, testInt);
+ 
 	computerState->off = true;
 	
 	std::unique_lock<std::mutex> lk(signalState->m);
@@ -44,7 +49,7 @@ void thread_state_management(std::shared_ptr<std::atomic<bool>> notShuttingdown,
 		signalState->cv.wait(lk);//wait for new sensor data or forced update.
 		std::cout<<"running update\n";		
 
-		stateData.currentTime = (uint32_t)time(nullptr);
+		stateData->currentTime = (uint32_t)time(nullptr);
 //		if(currentState->stillValid()) //TODO FIXME 
 //			currentState->updateOnSensors();
 //		else{
@@ -59,9 +64,10 @@ void thread_state_management(std::shared_ptr<std::atomic<bool>> notShuttingdown,
 				//updateOnHttp returns true if new state needs to be started
 				std::cout<<"hiii2\n";
 				delete currentState;
-				startNewState(currentState, stateData);
+				startNewState(currentState, stateData, testInt);
 			}				
 		}
 	}
 	delete currentState;
+	delete stateData;
 }
