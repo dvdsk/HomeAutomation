@@ -7,7 +7,6 @@ Default::Default(StateData* stateData, int* testInt)
 }
 
 Default::~Default(){
-	//FIXME This frees memory needed by stateData???? why???
 	std::cout<<"cleaned up the default state"<<"\n";
 }
 
