@@ -1,11 +1,9 @@
 #include "Minimal.h"
 
-Minimal::Minimal(StateData* stateData, int* testInt)
+Minimal::Minimal(StateData* stateData)
 	: State(stateData)
 {
 	stateName = MINIMAL_S;
-	std::cout<<"testInt V: "<<*testInt<<" Addr: "<<testInt<<"\n";
-	std::cout<<"stateData testInt: "<<(stateData->testInt)<<"\n";
 	std::cout<<"Ran Minimal state constructor"<<"\n";
 }
 

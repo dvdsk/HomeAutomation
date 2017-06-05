@@ -1,12 +1,10 @@
 #include "mainState.h"
 
 bool State::updateOnHttp(){
-	std::string url;
-
 	data->httpState->updated = false;
 	bool updateState = true;
 
-	url = data->httpState->url;
+	std::string url = data->httpState->url;
 	data->httpState->m.unlock();//unlock to indicate url has been read
 
 	if(url == "/|lamps/evening"){
@@ -52,9 +50,7 @@ bool State::updateOnHttp(){
 //		else{updateState=false;}		
 //	}
 	else if(url == "/|state/minimal"){
-		std::cout<<"MINIMAL_S: "<<MINIMAL_S<<"\n";
-		std::cout<<"stateName: "<<stateName<<"\n";
-		if(stateName != MINIMAL_S){data->newState = MINIMAL_S; std::cout<<"swithing!!!\n";}
+		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		else{updateState=false;}		
 	}
 	else if(url == "/|state/wakeup"){

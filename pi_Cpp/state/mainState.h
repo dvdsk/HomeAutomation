@@ -60,8 +60,7 @@ struct HttpState{
 	~HttpState(){std::cout<<"HttpState HAS BEEN DESTORYED\n";}
 	std::mutex m;
 	std::string url;
-	//FIXME std::atomic<bool> updated;
-	bool updated;
+	std::atomic<bool> updated;
 };
 
 struct SensorState{

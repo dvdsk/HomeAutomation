@@ -5,7 +5,7 @@
 #include "majorStates/Minimal.h"
 #include "majorStates/Wakeup.h"
 
-inline void startNewState(State* &currentState, StateData* stateData, int* testInt){
+inline void startNewState(State* &currentState, StateData* stateData){
 	switch(stateData->newState){
 //		case AWAY:
 //		//currentState = new Default();
@@ -13,7 +13,7 @@ inline void startNewState(State* &currentState, StateData* stateData, int* testI
 //		case SLEEPING:
 //		break;
 		case DEFAULT_S:
-		currentState = new Default(stateData, testInt);
+		currentState = new Default(stateData);
 		break;
 //		case GOINGTOSLEEP_S:
 //		currentState = new GoingToSleep(&stateData);
@@ -22,10 +22,10 @@ inline void startNewState(State* &currentState, StateData* stateData, int* testI
 //		currentState = new SleepInterrupt(&stateData);
 //		break;
 		case MINIMAL_S:
-		currentState = new Minimal(stateData, testInt);
+		currentState = new Minimal(stateData);
 		break;
 		case WAKEUP_S:
-		currentState = new WakeUp(stateData, testInt);
+		currentState = new WakeUp(stateData);
 		break;
 	}
 }
@@ -36,14 +36,9 @@ void thread_state_management(std::shared_ptr<std::atomic<bool>> notShuttingdown,
 
 	//StateData stateData(sensorState, mpdState, mpd, httpState, computerState);
 	StateData* stateData = new StateData(sensorState, mpdState, mpd, httpState, computerState);
-
-	int* testInt = new int;
-	*testInt = 42;
-
-	State* currentState = new Default(stateData, testInt);
- 
-	computerState->off = true;
+	State* currentState = new Default(stateData);
 	
+
 	std::unique_lock<std::mutex> lk(signalState->m);
 	while(*notShuttingdown){
 		signalState->cv.wait(lk);//wait for new sensor data or forced update.
@@ -56,15 +51,11 @@ void thread_state_management(std::shared_ptr<std::atomic<bool>> notShuttingdown,
 //			delete currentState;
 //			startNewState(currentState, stateData);
 //		}
-
-		std::cout<<"hiii0\n";
 		if(httpState->updated){
-			std::cout<<"hiii1\n";
 			if(currentState->updateOnHttp()){
 				//updateOnHttp returns true if new state needs to be started
-				std::cout<<"hiii2\n";
 				delete currentState;
-				startNewState(currentState, stateData, testInt);
+				startNewState(currentState, stateData);
 			}				
 		}
 	}

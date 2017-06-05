@@ -7,7 +7,7 @@ class Default : public State
 {
 
 	public:
-		Default(StateData* stateData, int* testInt);
+		Default(StateData* stateData);
 		~Default();
 		bool stillValid();
 		void updateOnSensors();
