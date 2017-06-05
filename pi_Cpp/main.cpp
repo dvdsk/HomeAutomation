@@ -99,14 +99,6 @@ int main(int argc, char* argv[])
 	std::cout<<"cmd interface starting\n";
 	std::this_thread::sleep_for(std::chrono::seconds(1));
 
-	getchar();
-	signalState->runUpdate();
-
-	getchar();
-	signalState->runUpdate();
-
-	getchar();
-	signalState->runUpdate();
 
 	getchar();
 

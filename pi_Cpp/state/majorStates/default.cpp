@@ -3,6 +3,10 @@
 Default::Default(StateData* stateData, int* testInt)
 	: State(stateData){
 	stateName = DEFAULT_S;	
+
+	std::cout<<"testInt V: "<<*testInt<<" Addr: "<<testInt<<"\n";
+	std::cout<<"stateData testInt: "<<(stateData->testInt)<<"\n";
+
 	std::cout<<"Ran default state constructor"<<"\n";
 }
 
