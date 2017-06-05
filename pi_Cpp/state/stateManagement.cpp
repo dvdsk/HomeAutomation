@@ -5,7 +5,7 @@
 #include "majorStates/Minimal.h"
 #include "majorStates/Wakeup.h"
 
-inline void startNewState(State* currentState, StateData* stateData, int* testInt){
+inline void startNewState(State* &currentState, StateData* stateData, int* testInt){
 	switch(stateData->newState){
 //		case AWAY:
 //		//currentState = new Default();

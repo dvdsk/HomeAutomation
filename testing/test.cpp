@@ -82,13 +82,17 @@ class Minimal : public State
 		int a;
 };
 
-inline void startNewState(State* currentState, StateData* stateData){
-	switch(stateData->newState){
+
+
+
+
+void startNewState(State* &currentState, StateData* data){
+	switch(data->newState){
 		case DEFAULT_S:
-		currentState = new Default(stateData);
+		currentState = new Default(data);
 		break;
 		case MINIMAL_S:
-		currentState = new Minimal(stateData);
+		currentState = new Minimal(data);
 		break;
 	}
 }
@@ -103,23 +107,37 @@ int main(){
 	httpState->url = "/|state/minimal";
 	if(currentChild->updateOnHttp()){
 		delete currentChild;
+
+//		//>>>>>>>>>> WORKING CODE <<<<<<<<<<
+//		switch(data->newState){
+//			case DEFAULT_S:
+//				currentChild = new Default(data);
+//				break;
+//			case MINIMAL_S:
+//				currentChild = new Minimal(data);
+//				break;
+//		}		
+
+//		>>>>>>>>>>SAME CODE IN FUNCT (CRASHES) <<<<<<<<<<<<<
 		startNewState(currentChild, data); 
+
 	}
 	httpState->url = "/|state/default";
 	if(currentChild->updateOnHttp()){
 		delete currentChild;
-		startNewState(currentChild, data);  
+		currentChild = new Default(data);
+		//startNewState(currentChild, data);  
 	}
-	httpState->url = "/|state/minimal";
-	if(currentChild->updateOnHttp()){
-		delete currentChild;
-		startNewState(currentChild, data); 
-	}
-	httpState->url = "/|state/default";
-	if(currentChild->updateOnHttp()){
-		delete currentChild;
-		startNewState(currentChild, data); 
-	}
+//	httpState->url = "/|state/minimal";
+//	if(currentChild->updateOnHttp()){
+//		delete currentChild;
+//		startNewState(currentChild, data); 
+//	}
+//	httpState->url = "/|state/default";
+//	if(currentChild->updateOnHttp()){
+//		delete currentChild;
+//		startNewState(currentChild, data); 
+//	}
 
 	delete currentChild;
 	delete data;
