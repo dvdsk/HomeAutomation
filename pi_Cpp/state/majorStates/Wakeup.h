@@ -2,6 +2,7 @@
 #define WAKEUP_G
 
 #include "../mainState.h"
+#include <chrono>
 
 
 
@@ -13,13 +14,12 @@ class WakeUp : public State
 		~WakeUp();
 		bool stillValid();
 		void updateOnSensors();
+
+		std::atomic<bool> stop;
 	
 	private:
-		std::atomic<bool> stop;
-		static void* threadFunction(WakeUp* arg) {
-			std::cout<<"by\n";
-			return 0;
-		}
+
+//		static void* threadFunction(WakeUp* arg);
 
 	
 		std::thread* m_thread;
