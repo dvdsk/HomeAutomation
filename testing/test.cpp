@@ -4,82 +4,126 @@
 #include <iostream>
 #include <thread>
 #include <atomic>
+#include <mutex>
 
-class dataClass{
-	public:
-		dataClass(){dataInt = 42;}
-		int dataInt;	
+enum MajorStates {
+	DEFAULT_S,			
+	MINIMAL_S
 };
 
+struct HttpState{
+	HttpState(){updated=false;}
+	~HttpState(){std::cout<<"HttpState HAS BEEN DESTORYED\n";}
+	std::mutex m;
+	std::string url;
+	bool updated;
+};
 
-class Parant {
+class StateData{
 	public:
-		Parant(dataClass* data_){
-			data= data_;
-		}
-		virtual ~Parant() = default;
-		bool update(){
-			if(data->dataInt < 42)
-				return true;
-			else{
-				data->dataInt--; 
-				return false;}
-		}
+		StateData(HttpState* httpState_){httpState = httpState_; dataInt = 42;}
+		int dataInt;	
+		HttpState* httpState;
+		std::atomic<MajorStates> newState;
+};
 
-	private:
-		int a;
-		int get() {return a;}
+class State {
+	public:
+		State(StateData* data_){
+			data = data_;
+		}
+		virtual ~State() = default;
+		std::atomic<MajorStates> stateName;
+
+		bool updateOnHttp(){
+			data->httpState->updated = false;
+			bool updateState = true;
+
+			std::string url = data->httpState->url;
+			data->httpState->m.unlock();//unlock to indicate url has been read
+
+			if(url == "/|state/default"){
+				if(stateName != DEFAULT_S){data->newState = DEFAULT_S;}
+				else{updateState=false;}		
+			}
+			else if(url == "/|state/minimal"){
+				if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
+				else{updateState=false;}		
+			}
+			else
+				updateState=false;
+
+			std::cout<<"updateState is returning: "<<updateState<<"\n";
+			return updateState;		
+		}
 
 	protected:
-		dataClass* data;
+		StateData* data;
 };
 
 
 
-class Child_A : public Parant
+class Default : public State
 {
 	public:
-		Child_A(dataClass* data_) : Parant(data_){std::cout<<"created child_A\n";	}
-		~Child_A(){std::cout<<"removed child_A\n";}
+		Default(StateData* data_) : State(data_){stateName = DEFAULT_S; std::cout<<"created Default\n";	}
+		~Default(){std::cout<<"removed Default\n";}
 		
 	private:
 		int a;
 };
 
-class Child_B : public Parant
+class Minimal : public State
 {
 	public:
-		Child_B(dataClass* data_) : Parant(data_){std::cout<<"created child_B\n"; }
-		~Child_B(){std::cout<<"removed child_B\n";}
+		Minimal(StateData* data_) : State(data_){stateName = MINIMAL_S; std::cout<<"created Minimal\n"; }
+		~Minimal(){std::cout<<"removed Minimal\n";}
 	private:
 		int a;
 };
 
+inline void startNewState(State* currentState, StateData* stateData){
+	switch(stateData->newState){
+		case DEFAULT_S:
+		currentState = new Default(stateData);
+		break;
+		case MINIMAL_S:
+		currentState = new Minimal(stateData);
+		break;
+	}
+}
+
 int main(){
-	Parant* currentChild;
+	State* currentChild;
+	HttpState* httpState = new HttpState;
 
-	dataClass* data = new dataClass;
-	currentChild = new Child_A(data); 
+	StateData* data = new StateData(httpState);
+	currentChild = new Default(data); 
 
-	if(currentChild->update()){
+	httpState->url = "/|state/minimal";
+	if(currentChild->updateOnHttp()){
 		delete currentChild;
-		currentChild = new Child_B(data); 
+		startNewState(currentChild, data); 
 	}
-	if(currentChild->update()){
+	httpState->url = "/|state/default";
+	if(currentChild->updateOnHttp()){
 		delete currentChild;
-		currentChild = new Child_A(data); 
+		startNewState(currentChild, data);  
 	}
-	if(currentChild->update()){
+	httpState->url = "/|state/minimal";
+	if(currentChild->updateOnHttp()){
 		delete currentChild;
-		currentChild = new Child_B(data); 
+		startNewState(currentChild, data); 
 	}
-	if(currentChild->update()){
+	httpState->url = "/|state/default";
+	if(currentChild->updateOnHttp()){
 		delete currentChild;
-		currentChild = new Child_B(data); 
+		startNewState(currentChild, data); 
 	}
 
 	delete currentChild;
 	delete data;
+	delete httpState;
 }
 
 
@@ -97,26 +141,26 @@ int main(){
 
 
 //		int get() {return a;}
-//		static void* threadFunction(Child_A* arg) {
+//		static void* threadFunction(Default* arg) {
 //			while(!arg->stop){}
 //			std::cout<<"by\n";
 //			return 0;}
 
 //	public:
-//		Child_A(){stop = false; id = new std::thread(threadFunction, this);	}
-//		~Child_A() {stop = true; id->join();}
+//		Default(){stop = false; id = new std::thread(threadFunction, this);	}
+//		~Default() {stop = true; id->join();}
 
 //};
 
 
 //int main(int argc, char** argv) {
-//	Parant* currentState = new Child_A();
+//	Parant* currentState = new Default();
 //	delete currentState;
 //	std::cout<<"deleted currentState 1\n";
-//	currentState = new Child_A();
+//	currentState = new Default();
 //	delete currentState;
 //	std::cout<<"deleted currentState 2\n";
-//	currentState = new Child_A();
+//	currentState = new Default();
 //	delete currentState;
 //	std::cout<<"deleted currentState 3\n";
 //}
