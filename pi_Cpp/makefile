@@ -4,7 +4,8 @@ CXX = g++
 CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 
 ODIR = .BUILD
-OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o webGraph.o mpd.o lamps.o default.o SleepInterrupt.o GoingToSleep.o Minimal.o Wakeup.o)
+OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o webGraph.o plotly.o dygraphs.o mpd.o lamps.o default.o SleepInterrupt.o GoingToSleep.o Minimal.o Wakeup.o)
+
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
 all: pi
@@ -18,6 +19,7 @@ pi: $(OBJS)
 	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -o pi $(OBJS) \
 	-lmicrohttpd -lcurl -lboost_system -lboost_thread -lpthread -lmenu -lncurses
 
+<<<<<<< HEAD
 $(ODIR)/main.o: main.cpp config.h arduinoContact/decode.h \
 	dataStorage/MainData.h dataStorage/PirData.h dataStorage/SlowData.h \
 	state/mainState.h telegramBot/telegramBot.h state/stateManagement.cpp\
@@ -69,16 +71,26 @@ $(ODIR)/telegramBot.o: telegramBot/telegramBot.cpp telegramBot/telegramBot.h \
 	telegramBot/httpGetPostPut.h
 	$(CXX) $(CXXFLAGS) -o$@ -c telegramBot/telegramBot.cpp
 
-$(ODIR)/webGraph.o: httpServer/pages/webGraph.cpp httpServer/pages/webGraph.h
-	$(CXX) $(CXXFLAGS) -o$@ -c httpServer/pages/webGraph.cpp
+$(ODIR)/webGraph.o: httpServer/pages/webGraph.cpp httpServer/pages/webGraph.h \
+	httpServer/pages/dygraphs.h httpServer/pages/plotly.h config.h
+	$(CXX) $(CXXFLAGS) -c httpServer/pages/webGraph.cpp
+
 
 $(ODIR)/httpGetPostPut.o: lamps/httpGetPostPut.cpp lamps/httpGetPostPut.h
 	$(CXX) $(CXXFLAGS) -lcurl -o$@ -c lamps/httpGetPostPut.cpp	
 $(ODIR)/mpd.o: mpd/mpd.cpp mpd/mpd.h
 	$(CXX) $(CXXFLAGS) -o$@ -c mpd/mpd.cpp		
 
+
 $(ODIR)/lamps.o: lamps/httpGetPostPut.h lamps/lamps.cpp lamps/lamps.h
 	$(CXX) $(CXXFLAGS) -o$@ -c lamps/lamps.cpp
+
+$(ODIR)/plotly.o: httpServer/pages/plotly.h httpServer/pages/plotly.cpp
+	$(CXX) $(CXXFLAGS) -c httpServer/pages/plotly.cpp
+
+$(ODIR)/dygraphs.o: httpServer/pages/dygraphs.h httpServer/pages/dygraphs.cpp
+	$(CXX) $(CXXFLAGS) -c httpServer/pages/dygraphs.cpp
+
 
 .PHONY : clean
 clean:

@@ -1,10 +1,13 @@
 #include "webGraph.h"
 
-std::string WebGraph::plotly_mainPage(){
+std::string* WebGraph::plotly_mainPage(){
 	float y[MAXPLOTRESOLUTION];
 	uint32_t x[MAXPLOTRESOLUTION];
 
-	std::string page ="\
+	std::string* page = new std::string;
+	plotly::PlotData plotDat(page);
+
+	*page ="\
 	<html>\
 		<head>\
 		  <script src=\"https://cdn.plot.ly/plotly-latest.min.js\"></script>\
@@ -12,20 +15,29 @@ std::string WebGraph::plotly_mainPage(){
 \
 		<body>\
 			<div id=\"myDiv\" style=\"width: 90vw; height: 90vh;\"/div>\
-			<script>\
-				var data = [{";
+			<script>";
+
 
 	uint32_t now = this_unix_timestamp();
 
-	int	len = slowData->fetchSlowData(now-24*3600, now, x, y, TEMP_BED);
+	int	len;
+	len = slowData->fetchSlowData(now-5*24*3600, now, x, y, TEMP_BED);
+	plotly::add_trace(plotDat, x, y, len, plotly::TEMP, "temperature bed");
 
-	plotly_toHttpFormat_Time(page, x, len);
-	plotly_toHttpFormat_Temp(page, y, len);	
+	len = slowData->fetchSlowData(now-5*24*3600, now, x, y, HUMIDITY_BED);
+	plotly::add_trace(plotDat, x, y, len, plotly::HUMID, "humidity bed");
 
-	page += "\
-					type: 'scatter'\
-				}];\
-				Plotly.newPlot('myDiv', data);\
+	len = slowData->fetchSlowData(now-5*24*3600, now, x, y, CO2PPM);
+	plotly::add_trace(plotDat, x, y, len, plotly::CO2, "co2");
+
+	len = slowData->fetchSlowData(now-5*24*3600, now, x, y, BRIGHTNESS_BED);
+	plotly::add_trace(plotDat, x, y, len, plotly::BRIGHTNESS, "brightness bed");
+
+	plotly::setData(plotDat);
+	plotly::setLayout(plotDat);
+
+	*page += "\
+				Plotly.newPlot('myDiv', data, layout);\
 \
 				window.onresize = function reSize(){\
 					var update = {\
@@ -42,72 +54,7 @@ std::string WebGraph::plotly_mainPage(){
 	return page;
 }
 
-//TODO rewrite using fast format to save time
-void WebGraph::plotly_toHttpFormat_Time(std::string &data, uint32_t x[], int len){	
-	std::cout<<"STARTED FORMATTING\n";
-  time_t rawtime;
-  struct tm *timeinfo;
-	char buffer[24];//was 24
-	data += "x: [";
-	for(int i=0; i<len; i++){
-		rawtime = (time_t)x[i];
-		timeinfo = localtime(&rawtime);
-		strftime (buffer,24,"\'%F %T\', ",timeinfo); //2013-10-04 22:23:00 =format
-		data+= buffer;
-	}
-	data[data.length()-2] = ']';
-	data[data.length()-1] = ',';
-}
 
-//TODO rewrite using fast format to save time
-void WebGraph::plotly_toHttpFormat_Temp(std::string &data, float y[], int len){	
-	data += "y: [";
-	for(int i=0; i<len; i++){
-		data += std::to_string(y[i])+", ";
-	}
-	data[data.length()-2] = ']';
-	data[data.length()-1] = ',';
-}
-
-
-std::string WebGraph::C3_mainPage(){
-
-	std::string page =
-	"<html>\
-		<head>\
-		  <link rel=\"stylesheet\" type=\"text/css\" href=\"/css/c3.css\">\
-		</head>\
-			<body>\
-				<div id=\"chart\"></div>\
-				<script src=\"https://d3js.org/d3.v3.min.js\" charset=\"utf-8\"></script>\
-				<script src=\"/js/c3.js\"></script>\
-					<script>\
-						var chart = c3.generate({\
-								bindto: '#chart',\
-								data: {\
-									x: 'x',\
-									columns: ";
-	uint32_t now = this_unix_timestamp();
-	std::vector<plotables> toPlot;
-	toPlot.push_back(TEMP_BED);
-	page+= C3_getData(toPlot, now-24*3600, now);
-	// https://github.com/mbostock/d3/wiki/Time-Formatting#wiki-format
-	page += "},\
-					 axis: {\
-							 x: {\
-									 type: 'timeseries',\
-									 tick: {\
-											format: '%Y-%m-%d'\
-								 	 }\
-							}\
-			 			}\
-					});\
-				</script>\
-			</body>\
-		</html>";
-
-	return page;
-}
 
 std::string WebGraph::dy_mainPage(){
 
@@ -127,7 +74,7 @@ std::string WebGraph::dy_mainPage(){
 <script type=\"text/javascript\">\
   g2 = new Dygraph(document.getElementById(\"graphdiv2\"),";
 
-	page+= dy_getData(toPlot, now-24*3600, now);
+	page+= dy_getData(toPlot, now-5*24*3600, now);
 
 	page+="\
 </script>\
@@ -202,75 +149,8 @@ std::string WebGraph::dy_getData(std::vector<plotables> toPlot, uint32_t startT,
 	return data;
 }
 
-std::string WebGraph::C3_getData(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT){
-	
-	float y[MAXPLOTRESOLUTION];
-	uint32_t x[MAXPLOTRESOLUTION];
-	int len;
-	bool gotx = false;
-
-	std::string data = "[";
-	data.reserve(toPlot.size()*MAXPLOTRESOLUTION);//allocate extra data
-
-	for(unsigned int i=0; i<toPlot.size(); i++){
-		switch(toPlot[i]){
-      case TEMP_BED:
-        {										         
-					len = slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);//todo
-					if(!gotx){gotx = true; C3_toHttpFormat_Time(data, x, len);}	
-        }
-        break;
-      case HUMIDITY_BED:
-        {
-          len = slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);//todo
-					if(!gotx){gotx = true; C3_toHttpFormat_Time(data, x, len);}
-					C3_toHttpFormat_Temp(data, "Humidity bed", y, len); 
-        }
-        break;
-      case CO2PPM:
-        {
-          len = slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);//todo
-					if(!gotx){gotx = true; C3_toHttpFormat_Time(data, x, len);}
-					C3_toHttpFormat_Temp(data, "Co2", y, len); 
-        }
-        break;
-      case BRIGHTNESS_BED:
-        {
-          len = slowData->fetchSlowData(startT, stopT, x, y, toPlot[i]);//todo
-					if(!gotx){gotx = true; C3_toHttpFormat_Time(data, x, len);}
-					C3_toHttpFormat_Temp(data, "Brightness bed", y, len); 
-        }
-        break;    
-      default:
-        break;
-    }
-  }
-	data[data.length()-2] = ' ';
-	data[data.length()-1] = ']';
-	return data;
-}
-
-//TODO rewrite using fast format to save time
-void WebGraph::C3_toHttpFormat_Time(std::string &data, uint32_t x[], int len){	
-	data += "['x'";
-	for(int i=0; i<len; i++){
-		data = data+","+std::to_string(x[i])+"000";
-	}
-	data+= "], ";
-}
-
-//TODO rewrite using fast format to save time
-void WebGraph::C3_toHttpFormat_Temp(std::string &data, const char* legend_name, float y[], int len){	
-	data = data+ "['"+legend_name+"'";
-	for(int i=0; i<len; i++){
-		data = data+","+std::to_string(y[i]);
-	}
-	data+= "], ";
-}
 
 WebGraph::WebGraph(std::shared_ptr<PirData> pirData_, std::shared_ptr<SlowData> slowData_){
-	C3css = load_file("sources/c3.css");
-	C3js = load_file("sources/c3.js");
 	dyCss = load_file("sources/dygraph.css");
 	dyjs = load_file("sources/dygraph.min.js");
 
@@ -278,9 +158,9 @@ WebGraph::WebGraph(std::shared_ptr<PirData> pirData_, std::shared_ptr<SlowData> 
 	slowData = slowData_;
 
   //check if key could be read
-  if ((C3css == NULL) || (C3js == NULL))
+  if ((dyCss == NULL) || (dyjs == NULL))
   {
-    printf ("The C3css/C3js files should be in sources/c3.css and sources/c3.js\n");
+    printf ("The dyCss/dyjs files should be in sources/dygraph.css and sources/dygraph.min.js\n");
   }
 }
 
