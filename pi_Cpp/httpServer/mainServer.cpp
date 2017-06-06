@@ -211,8 +211,8 @@ int thread_Https_serv(std::shared_ptr<std::mutex> stop,
 											std::shared_ptr<TelegramBot> bot,
 											HttpState* httpState,
 											SignalState* signalState,
-											std::shared_ptr<PirData> pirData,
-											std::shared_ptr<SlowData> slowData){
+											PirData* pirData,
+											SlowData* slowData){
 												
   struct MHD_Daemon* daemon;
   char *key_pem;

@@ -45,7 +45,7 @@ void interruptHandler(int s){
 int main(int argc, char* argv[])
 {
 	std::shared_ptr<std::mutex> stopHttpServ = std::make_shared<std::mutex>();
-	std::shared_ptr<std::atomic<bool>> notShuttingdown = std::make_shared<std::atomic<bool>>();
+	std::atomic<bool>* notShuttingdown = new std::atomic<bool>();
 
 	std::shared_ptr<TelegramBot> bot = std::make_shared<TelegramBot>();
 
@@ -56,10 +56,10 @@ int main(int argc, char* argv[])
 	ComputerState* computerState = new ComputerState;
 	MpdState* mpdState = new MpdState;
 
-	std::shared_ptr<Mpd> mpd = std::make_shared<Mpd>(mpdState, signalState);
+	Mpd* mpd = new Mpd(mpdState, signalState);
 
-	std::shared_ptr<PirData> pirData = std::make_shared<PirData>("pirs", cache1, CACHESIZE_pir);
-	std::shared_ptr<SlowData> slowData = std::make_shared<SlowData>("slowData", cache2, CACHESIZE_slowData);
+	PirData* pirData = new PirData("pirs", cache1, CACHESIZE_pir);
+	SlowData* slowData = new SlowData("slowData", cache2, CACHESIZE_slowData);
 
 	(*stopHttpServ).lock();
 	(*notShuttingdown) = true;
@@ -89,9 +89,8 @@ int main(int argc, char* argv[])
 
 	/*start the thread that is notified of state changes 
 	  and re-evalutes the system on such as change. */
-	Mpd* mpd2 = mpd.get(); //TODO remove smart pointers	
 	std::thread t4(thread_state_management, notShuttingdown, signalState, 
-	  sensorState, mpdState, mpd2, httpState, computerState);
+	  sensorState, mpdState, mpd, httpState, computerState);
  	std::cout<<"State management started\n"; 
 
   signal(SIGINT, interruptHandler);  
@@ -123,6 +122,7 @@ int main(int argc, char* argv[])
 	delete httpState;
 	delete computerState;
 	delete mpdState;
+	delete mpd;
   
 	return 0;
 }

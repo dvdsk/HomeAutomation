@@ -30,7 +30,7 @@ inline void startNewState(State* &currentState, StateData* stateData){
 	}
 }
 
-void thread_state_management(std::shared_ptr<std::atomic<bool>> notShuttingdown,
+void thread_state_management(std::atomic<bool>* notShuttingdown,
 	SignalState* signalState, SensorState* sensorState, MpdState* mpdState, 
 	Mpd* mpd, HttpState* httpState, ComputerState* computerState){
 

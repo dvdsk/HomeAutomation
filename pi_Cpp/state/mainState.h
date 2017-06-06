@@ -133,12 +133,12 @@ class State
 	virtual bool stillValid() =0;
 	virtual void updateOnSensors() =0;
 	virtual ~State() = default;
-	bool updateOnHttp();
+	bool updateOnHttp();	
 
 	std::atomic<MajorStates> stateName;//FIXME (atomic needed??)
+	StateData* data;
 
 	protected:
-	StateData* data;
 
 	//away functions in away.cpp
 	void away_intruder_alarm();

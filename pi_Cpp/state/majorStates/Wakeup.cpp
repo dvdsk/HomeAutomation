@@ -10,44 +10,45 @@ static void* threadFunction(WakeUp* currentState){
 	int time = 0;
 	int bri, ct, vol;
 
-	WakeUp* lamps = currentState;
+	StateData* lamps = currentState->data;
 	Mpd* mpd = currentState->data->mpd;
 	MpdState* mpdState = currentState->data->mpdState;
 
-	//wait for 20 seconds or till the cv is notified and stop is set to true
+	mpd->QueueFromPLs("calm", 3*60, 5*60);
+	mpd->QueueFromPLs("energetic", 10*60, 11*60);
+
 	while(!currentState->stop.load()){
 		cv.wait_for(lk, 200*100ms, [currentState](){return currentState->stop.load();});
-		
 
 		bri = (int)(BRI_PER_SEC*time);
 		ct = (int)(CT_MIN+CT_PER_SEC*time);
 		//Do something with lamps
-		lamps->setState(lmp::BUREAU, "{\"bri\": "+bri+", \"ct\": "+ct+", \"transitiontime\": 0}")
-		lamps->setState(lmp::RADIATOR, "{\"bri\": "+bri+", \"ct\": "+ct+", \"transitiontime\": 0}")
+		lamps->setState(lmp::BUREAU, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
+		lamps->setState(lmp::RADIATOR, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
 
 		if(bri>20)
 			if(time>20/BRI_PER_SEC+5)
-				lamps->setState(lmp::DOOR, "{\"bri\": "+(bri+5*BRI_PER_SEC)+", \"ct\": "+ct+", \"transitiontime\": 50}")
+				lamps->setState(lmp::DOOR, "{\"bri\": "+std::to_string(bri+5*BRI_PER_SEC)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 50}");
 			else
-				lamps->setState(lmp::DOOR, "{\"bri\": "+bri+", \"ct\": "+ct+", \"transitiontime\": 0}")
+				lamps->setState(lmp::DOOR, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
 
 		if(bri>100)
 			if(time>100/BRI_PER_SEC+5){
-				lamps->setState(lmp::KITCHEN, "{\"bri\": "+bri+(bri+5*BRI_PER_SEC)", \"ct\": "+ct+", \"transitiontime\": 50}")
-				lamps->setState(lmp::CEILING, "{\"bri\": "+bri+(bri+5*BRI_PER_SEC)", \"ct\": "+ct+", \"transitiontime\": 50}")
+				lamps->setState(lmp::KITCHEN, "{\"bri\": "+std::to_string(bri+5*BRI_PER_SEC)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 50}");
+				lamps->setState(lmp::CEILING, "{\"bri\": "+std::to_string(bri+5*BRI_PER_SEC)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 50}");
 			}
 			else{
-				lamps->setState(lmp::KITCHEN, "{\"bri\": "+bri+", \"ct\": "+ct+", \"transitiontime\": 0}")
-				lamps->setState(lmp::CEILING, "{\"bri\": "+bri+", \"ct\": "+ct+", \"transitiontime\": 0}")
+				lamps->setState(lmp::KITCHEN, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
+				lamps->setState(lmp::CEILING, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
 			}
 
 		if(time>WAKEUP_MUSIC_ON)
-			if(!mpdState->playing){
-				mpd->createPLFromPLs();
-				mpd->sendCommandList("setvol "+VOL_MIN+" play 0");
+			if(mpdState->playback == PLAYING){
+				std::string cList = "setvol "+std::to_string(VOL_MIN)+"\nplay 0";
+				mpd->sendCommandList(cList);
 			}
 			else
-				mpd->sendCommand("setvol "+(time*VOL_PER_SEC+VOL_MIN));	
+				mpd->sendCommand("setvol "+std::to_string(time*VOL_PER_SEC+VOL_MIN));	
 	}
 
 	std::cout<<"done with wakeup\n";

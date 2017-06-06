@@ -6,8 +6,8 @@ uint32_t unix_timestamp() {
   return now;
 }
 
-void requestSensorData(std::shared_ptr<Serial> arduino, 
-	std::shared_ptr<std::atomic<bool>> notShuttingdown){
+void requestSensorData(Serial* arduino, 
+	std::atomic<bool>* notShuttingdown){
 	while(*notShuttingdown){
 		arduino->writeString("0");
 		std::this_thread::sleep_for(std::chrono::seconds(5));
@@ -17,24 +17,24 @@ void requestSensorData(std::shared_ptr<Serial> arduino,
 	return;
 }
 
-void thread_checkSensorData(std::shared_ptr<PirData> pirData, 
-	  std::shared_ptr<SlowData> slowData, 
+void thread_checkSensorData(PirData* pirData, 
+	  SlowData* slowData, 
 	  SensorState* sensorState,
 	  SignalState* signalState,
-	  std::shared_ptr<std::atomic<bool>> notShuttingdown){
+	  std::atomic<bool>* notShuttingdown){
   
   uint32_t Tstamp;
 	uint8_t data[SLOWDATA_SIZE]; 
   uint8_t x; 
-	std::shared_ptr<Serial> arduino;
+	Serial* arduino;
 
 	try{
-		arduino = std::make_shared<Serial>("/dev/ttyUSB0", config::ARDUINO_BAUDRATE);
+		arduino = new Serial("/dev/ttyUSB0", config::ARDUINO_BAUDRATE);
 	}catch (boost::system::system_error const& e) {
 		std::cout<<"\tCould not open serial connection on ttyUSB0,\n\t...trying ttyUSB1\n";
 
 		try{
-			arduino = std::make_shared<Serial>("/dev/ttyUSB1", config::ARDUINO_BAUDRATE);
+			arduino = new Serial("/dev/ttyUSB1", config::ARDUINO_BAUDRATE);
 		}catch (boost::system::system_error const& e) {
 			std::cout<<"\tCould not open serial connection on ttyUSB1\n";
 			std::cout<<"\t!!!Abborting sensor readout!!!\n";
@@ -66,12 +66,13 @@ void thread_checkSensorData(std::shared_ptr<PirData> pirData,
     }
   }
 	if(!t4.joinable()){ t4.join();}
+	delete arduino;
 	std::cout<<"Sensor readout shut down gracefully";
 }
 
 void decodeFastData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
-										std::shared_ptr<PirData> pirData, 
-										std::shared_ptr<SlowData> slowData, 
+										PirData* pirData, 
+										SlowData* slowData, 
 										SensorState* sensorState,
 	                  SignalState* signalState){
 	uint8_t temp;
@@ -100,8 +101,8 @@ void decodeFastData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 
 
 void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
-										std::shared_ptr<PirData> pirData, 
-										std::shared_ptr<SlowData> slowData, 
+										PirData* pirData, 
+										SlowData* slowData, 
 										SensorState* sensorState,
 	                  SignalState* signalState){
 	

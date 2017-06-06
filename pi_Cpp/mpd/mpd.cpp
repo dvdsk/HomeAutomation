@@ -54,6 +54,14 @@ Mpd::Mpd(MpdState* mpdState_, SignalState* signalState_){
 	if(strcmp(buffer, "OK MPD") > 6){std::cout<<"Connected to MPD succesfully\n";}
 }
 
+Mpd::~Mpd(){
+	const char* stopIdle = "noidle\n";
+
+	//request data
+	std::lock_guard<std::mutex> guard(mpd_mutex);
+	write(sockfd,stopIdle,strlen(stopIdle));
+}
+
 void thread_Mpd_readLoop(Mpd* mpd,
 	   std::atomic<bool>* notShuttingdown)
 {
@@ -82,27 +90,20 @@ void Mpd::readLoop(std::atomic<bool>* notShuttingdown){
 		//read till ok		
 		bool done = false;
 
-		while(*notShuttingdown && !done){//TODO replace with not shutdown
-			//std::cout<<"reading\n";			
+		while(*notShuttingdown && !done){//TODO replace with not shutdown		
 			n = read(sockfd, buffer, BUFFERSIZE);
 			buffer2.append(buffer, n);		
 			bzero(buffer,n);
 
-			if(size_t loc = buffer2.find("OK\n") != std::string::npos){
-				//std::cout<<buffer2<<"\n";
-				//std::cout<<"DONE JEEEEEEEJ ******************************\n";				
-				//std::cout<<buffer2.size()-loc<<"\n";				
+			if(size_t loc = buffer2.find("OK\n") != std::string::npos){		
 				if(buffer2.size() - loc <= 2){
 					output = buffer2.substr(0, loc+1);
 					buffer2.erase(0, loc+1);
-					//std::cout<<"erasing\n";
 					}					
 				else{
 					output = std::move(buffer2);
-					//std::cout<<"moving\n";
 					buffer2.clear();
 				}
-				//std::cout<<"OUTPUT: "<<output<<"\n";
 				done = true;
 				break;
 			}
@@ -199,7 +200,7 @@ std::string Mpd::getInfo(std::string const& command){
 	return info;
 }
 
-void Mpd::createPLFromPLs(std::string const &name, std::string const &source, 
+void Mpd::QueueFromPLs(std::string const &source, 
 	const int tMin, const int tMax){
 
 	std::vector<int> runTimes;
@@ -225,57 +226,48 @@ void Mpd::createPLFromPLs(std::string const &name, std::string const &source,
 
 	//make a random list of songs and send that to the MPD
 	std::minstd_rand generator(std::time(0)); 
-	auto Rmax = generator.max();
-	auto Rmin = generator.min();
-	std::cout<<Rmax<<", "<<Rmin<<"\n";
 
-	std::cout<<"len: "<<len<<"\n";
-	std::cout<<"size: "<<filePaths.size()<<"\n";
+	while(time<tMin && len != 0){
+		r = (int) (generator()%(len-1+1) +0);
 
-	if(len!=0)
-		do{
-			r = (int) (generator()%(len-0+1) +0);
-			//r = 1;
-			std::cout<<"r: "<<r<<"\n";
-			std::string toAdd;
-			if(time+runTimes[r]<tMax){
-				toAdd+"add\""+filePaths[r]+"\" ";
-				time+=runTimes[r];
-			}
-			filePaths[r] = filePaths[len-1];
-			runTimes[r] = runTimes[len-1];
-			len--;
-		}while(time<tMin || len != 0);
+		if(time+runTimes[r]<tMax){
+			toAdd+="add \""+filePaths[r]+"\"\n";
+			time+=runTimes[r];
+		}
+		filePaths[r] = filePaths[len-1];
+		runTimes[r] = runTimes[len-1];
+		len--;
+	};
 
 	sendCommandList(toAdd);
 }
 
 
-int main()
-{
-	std::atomic<bool>* notShuttingdown = new std::atomic<bool>();
-	*notShuttingdown = true;
-	MpdState* mpdState = new MpdState;
-	SignalState* signalState = new SignalState;	
+//int main()
+//{
+//	std::atomic<bool>* notShuttingdown = new std::atomic<bool>();
+//	*notShuttingdown = true;
+//	MpdState* mpdState = new MpdState;
+//	SignalState* signalState = new SignalState;	
 
 
-	Mpd* mpd = new Mpd(mpdState, signalState);
-	std::thread t1 (thread_Mpd_readLoop, mpd, notShuttingdown);
+//	Mpd* mpd = new Mpd(mpdState, signalState);
+//	std::thread t1 (thread_Mpd_readLoop, mpd, notShuttingdown);
 
-	PressEnterToContinue();
-
-//	
-////	mpd->sendCommand("add \"ACDC/01 Highway To Hell.ogg\" \n");
-////	mpd->sendCommand("add \"ACDC/01 Highway To Hell.ogg\" \n");
-////	mpd->sendCommand("add \"ACDC/01 Highway To Hell.ogg\" \n");
-////	mpd->sendCommand("add \"ACDC/01 Highway To Hell.ogg\" \n");
 //	PressEnterToContinue();
-	mpd->createPLFromPLs("temp", "energetic", 300, 400);
 
-	PressEnterToContinue();
+////	
+//////	mpd->sendCommand("add \"ACDC/01 Highway To Hell.ogg\" \n");
+//////	mpd->sendCommand("add \"ACDC/01 Highway To Hell.ogg\" \n");
+//////	mpd->sendCommand("add \"ACDC/01 Highway To Hell.ogg\" \n");
+//////	mpd->sendCommand("add \"ACDC/01 Highway To Hell.ogg\" \n");
+////	PressEnterToContinue();
+//	mpd->createPLFromPLs("temp", "energetic", 900, 800);
 
-	*notShuttingdown = false;
-	t1.join();
-	
-  return 0;
-}
+//	PressEnterToContinue();
+
+//	*notShuttingdown = false;
+//	t1.join();
+//	
+//  return 0;
+//}

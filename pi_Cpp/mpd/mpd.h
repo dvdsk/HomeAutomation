@@ -28,6 +28,7 @@ constexpr const char* hostname = "192.168.1.10";
 class Mpd{
 	public:
 		Mpd(MpdState* mpdState_, SignalState* signalState_); //connects to mpd
+		~Mpd();
 
 		void readLoop(std::atomic<bool>* notShuttingdown);
 
@@ -36,7 +37,7 @@ class Mpd{
 
 		/* adds songs from the source playlist to the current playlist / queue 
 		   a minimum and maximum runtime can be passed along */ 
-		void createPLFromPLs(std::string const &name, std::string const &source,
+		void QueueFromPLs(std::string const &source,
 		const int tMin, const int tMax);
 
 	private:
