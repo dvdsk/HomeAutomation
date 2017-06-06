@@ -65,6 +65,19 @@ namespace config {
 																						//drop in the bathroom
 }
 
+//wakeup config
+constexpr int WAKEUP_MUSIC_ON = 5*60; 	//sec
+constexpr int WAKEUP_DURATION = 10*60; 	//sec
+constexpr int BRI_MAX = 254;
+constexpr float BRI_PER_SEC = 254/WAKEUP_DURATION;
+constexpr int CT_MIN = 153;
+constexpr int CT_MAX = 500;
+constexpr float CT_PER_SEC = (CT_MAX-CT_MIN)/WAKEUP_DURATION;
+constexpr int VOL_MIN = 10; //%
+constexpr int VOL_MAX = 50; //%
+constexpr float VOL_PER_SEC = 2*(VOL_MAX-VOL_MIN)/(WAKEUP_DURATION);
+
+
 namespace lght {//lightvalues
 	constexpr int BED = 0;
 	constexpr int KITCHEN = 1;

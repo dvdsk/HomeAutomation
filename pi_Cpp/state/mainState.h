@@ -48,10 +48,9 @@ struct ComputerState{
 	std::atomic<bool> off;
 };
 
+enum Playback {PLAYING, PAUSED, STOPPED};
 struct MpdState{
-	std::atomic<bool> playing;
-	std::atomic<bool> paused;
-	std::atomic<bool> stopped;
+	std::atomic<Playback> playback;
 	std::atomic<std::int8_t> volume;
 };
 

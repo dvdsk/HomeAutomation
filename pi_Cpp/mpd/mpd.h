@@ -6,6 +6,9 @@
 #include <mutex>
 #include <memory> 
 #include <atomic>
+#include <vector>
+#include <random>
+#include <ctime> 
 
 //needed for sockets
 #include <stdio.h>
@@ -26,10 +29,15 @@ class Mpd{
 	public:
 		Mpd(MpdState* mpdState_, SignalState* signalState_); //connects to mpd
 
-		void readLoop(std::shared_ptr<std::atomic<bool>> notShuttingdown);
+		void readLoop(std::atomic<bool>* notShuttingdown);
 
-		void sendCommand(std::string const& command);
+		void sendCommand(std::string const &command);
 		void sendCommandList(std::string &command);
+
+		/* adds songs from the source playlist to the current playlist / queue 
+		   a minimum and maximum runtime can be passed along */ 
+		void createPLFromPLs(std::string const &name, std::string const &source,
+		const int tMin, const int tMax);
 
 	private:
 		MpdState* mpdState;
@@ -40,12 +48,18 @@ class Mpd{
     struct hostent *server;
 		std::mutex mpd_mutex;
 
+		std::mutex cv_m;
+		std::condition_variable cv;
+		bool dataRdy;
+		std::atomic<bool> dataReqested;
+		std::string rqData; //needs to be locked with mpd_mutex
+
+		std::string getInfo(std::string const& command);
 		inline void requestStatus();
 		inline void parseStatus(std::string const& output);
 };
 
-void thread_Mpd_readLoop(std::shared_ptr<Mpd> mpd,
-	                       std::shared_ptr<std::atomic<bool>> notShuttingdown);
+void thread_Mpd_readLoop(Mpd* mpd, std::atomic<bool>* notShuttingdown);
 
 
 #endif // MPD
