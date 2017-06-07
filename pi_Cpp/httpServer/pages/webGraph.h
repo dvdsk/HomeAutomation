@@ -20,7 +20,7 @@
 
 class WebGraph{
 	public:
-	WebGraph(std::shared_ptr<PirData> pirData, std::shared_ptr<SlowData> slowData);
+	WebGraph(PirData* pirData, SlowData* slowData);
 	std::string dy_mainPage(); //uses dygraphs 
 	std::string* plotly_mainPage();
 
@@ -35,8 +35,8 @@ class WebGraph{
 
 	std::string dy_getData(std::vector<plotables> toPlot, uint32_t startT, uint32_t stopT);
 
-	std::shared_ptr<PirData> pirData;
-	std::shared_ptr<SlowData> slowData;
+	PirData* pirData;
+	SlowData* slowData;
 };
 
 

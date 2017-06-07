@@ -8,7 +8,7 @@ std::mutex cv_m;
 static void* threadFunction(WakeUp* currentState){				
   std::unique_lock<std::mutex> lk(cv_m);	
 	int time = 0;
-	int bri, ct, vol;
+	int bri, ct;
 
 	StateData* lamps = currentState->data;
 	Mpd* mpd = currentState->data->mpd;
@@ -18,7 +18,7 @@ static void* threadFunction(WakeUp* currentState){
 	mpd->QueueFromPLs("energetic", 10*60, 11*60);
 
 	while(!currentState->stop.load()){
-		cv.wait_for(lk, 200*100ms, [currentState](){return currentState->stop.load();});
+		cv.wait_for(lk, 5*1s, [currentState](){return currentState->stop.load();});
 
 		bri = (int)(BRI_PER_SEC*time);
 		ct = (int)(CT_MIN+CT_PER_SEC*time);

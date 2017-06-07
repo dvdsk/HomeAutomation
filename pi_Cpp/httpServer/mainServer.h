@@ -35,8 +35,8 @@ int thread_Https_serv(std::shared_ptr<std::mutex> stop,
 											std::shared_ptr<TelegramBot> bot,
 											HttpState* httpState,
 											SignalState* signalState,
-											std::shared_ptr<PirData> pirData,
-											std::shared_ptr<SlowData> slowData);
+											PirData* pirData,
+											SlowData* slowData);
 												 
 int answer_to_connection(void* cls,struct MHD_Connection* connection, const char* url,
 												 const char* method, const char* version, const char* upload_data,

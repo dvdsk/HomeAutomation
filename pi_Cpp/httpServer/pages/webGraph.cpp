@@ -150,7 +150,7 @@ std::string WebGraph::dy_getData(std::vector<plotables> toPlot, uint32_t startT,
 }
 
 
-WebGraph::WebGraph(std::shared_ptr<PirData> pirData_, std::shared_ptr<SlowData> slowData_){
+WebGraph::WebGraph(PirData* pirData_, SlowData* slowData_){
 	dyCss = load_file("sources/dygraph.css");
 	dyjs = load_file("sources/dygraph.min.js");
 

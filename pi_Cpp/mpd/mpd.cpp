@@ -69,7 +69,7 @@ void thread_Mpd_readLoop(Mpd* mpd,
 }
 
 void Mpd::readLoop(std::atomic<bool>* notShuttingdown){
-
+	
 	constexpr int BUFFERSIZE = 100;
 	char buffer[BUFFERSIZE];
 	bzero(buffer,BUFFERSIZE);
@@ -86,44 +86,47 @@ void Mpd::readLoop(std::atomic<bool>* notShuttingdown){
 	}
 
 	std::cout<<"mpd watcher started\n";
-	while(*notShuttingdown){//TODO replace with not shutdown
-		//read till ok		
-		bool done = false;
+	while(*notShuttingdown){//TODO replace with not shutdown		
+		n = read(sockfd, buffer, BUFFERSIZE);
+		buffer2.append(buffer, n);		
+		bzero(buffer,n);
 
-		while(*notShuttingdown && !done){//TODO replace with not shutdown		
-			n = read(sockfd, buffer, BUFFERSIZE);
-			buffer2.append(buffer, n);		
-			bzero(buffer,n);
+		size_t loc = buffer2.find("OK\n");
+		if(loc != std::string::npos){	
+			std::cout<<"HELLLOOAAA\n";	
+			//if only buffer message not at the end of the message start 
+			//cutting out possible messages 
+			do{
+				processMessage(buffer2.substr(0, loc));
+				buffer2.erase(0, loc+3);
+				std::cout<<"buffer now: "<<buffer2<<"\n";
+			}while(loc = buffer2.find("OK\n") < buffer2.size()-3);
+			
+		}//no OK-> continue reading
 
-			if(size_t loc = buffer2.find("OK\n") != std::string::npos){		
-				if(buffer2.size() - loc <= 2){
-					output = buffer2.substr(0, loc+1);
-					buffer2.erase(0, loc+1);
-					}					
-				else{
-					output = std::move(buffer2);
-					buffer2.clear();
-				}
-				done = true;
-				break;
-			}
-		}
-		//std::cout<<"OUTPUT: "<<output<<"\n";
-
-		//check if notification from server
-		if(output.substr(0,8) == "changed:")
-			requestStatus();
-		//check if status message
-		else if(output.substr(0,7) == "volume:")
-			parseStatus(output);
-		else if(output.size() > 3 && dataReqested){
-			dataRdy = true;
-			rqData = output;
-			cv.notify_all();			
-		}
-		else std::cout<<"\033[1;31mOUTPUT: "<<output<<"\033[0m\n";	
 	}
 	std::cout<<"Mpd status loop shutting down\n";
+}
+
+//TODO check const etc
+void Mpd::processMessage(std::string output){
+
+	//check if notification from server
+	if(output == "OK"){std::cout<<"OUTPUT_TEST\n"; }
+	else if(output.substr(0,8) == "changed:")
+		requestStatus();
+	//check if status message
+	else if(output.substr(0,7) == "volume:")
+		parseStatus(output);
+	else if(output.size() > 3 && output.find("file:") == 1){//dataReqested
+		dataReqested = false;
+		dataRdy = true;
+		rqData = output;
+		cv.notify_all();	
+	}
+	else debugPrint("\033[1;31mOUTPUT: "+output+" DATARQ:"+std::to_string(dataReqested)+"\033[0m\n\n");
+	std::cout<<output<<"<<<<<<<<\n";
+
 }
 
 inline void Mpd::requestStatus(){
@@ -138,7 +141,7 @@ inline void Mpd::requestStatus(){
 }
 
 inline void Mpd::parseStatus(std::string const& output){
-
+	std::cout<<"parsed shizzle !!!!!!\n";
 	//parse the respons
 	mpdState->volume = stoi(output.substr(8,2));
 
@@ -183,8 +186,9 @@ std::string Mpd::getInfo(std::string const& command){
 	std::string info;
 
 	//request data
-	dataReqested = true;
 	std::lock_guard<std::mutex> guard(mpd_mutex);
+	dataReqested = true;
+
 	write(sockfd,stopIdle,strlen(stopIdle));
 	write(sockfd,command.c_str(),strlen(command.c_str()));
 	write(sockfd,startIdle,strlen(startIdle));
@@ -193,7 +197,6 @@ std::string Mpd::getInfo(std::string const& command){
 	//no need for lock around data as access is controlled by cv and 
 	//mpd_mutex already.
 	cv.wait(lk, [this](){return dataRdy;});
-	dataReqested = false;
 	dataRdy = false;
 	info = rqData;
 
@@ -210,16 +213,18 @@ void Mpd::QueueFromPLs(std::string const &source,
 
 	//request and organise needed song data
 	std::string info = getInfo("listplaylistinfo "+source+"\n");
-	std::cout<<info<<"\n\n\n";
+	//debugPrint("info: "+info+" endInfo\n");
 
 	while(1 ){ 
 		start = info.find("file:", stop);
 		if(start == std::string::npos){break;}
 		stop = info.find("\n", start);
 		filePaths.push_back( info.substr(start+6, stop-(start+6)));
+		//std::cout<<info.substr(start+6, stop-(start+6))<<"\n";
 
 		start = info.find("Time:", stop);
 		stop = info.find("\n", start);
+		debugPrint("SUBSTR**:"+info.substr(start+6, stop-(start+6))+"\n");
 		runTimes.push_back( std::stoul( info.substr(start+6, stop-(start+6))));
 		len++;
 	}
@@ -243,31 +248,27 @@ void Mpd::QueueFromPLs(std::string const &source,
 }
 
 
-//int main()
-//{
-//	std::atomic<bool>* notShuttingdown = new std::atomic<bool>();
-//	*notShuttingdown = true;
-//	MpdState* mpdState = new MpdState;
-//	SignalState* signalState = new SignalState;	
+int main()
+{
+	std::atomic<bool>* notShuttingdown = new std::atomic<bool>();
+	*notShuttingdown = true;
+	MpdState* mpdState = new MpdState;
+	SignalState* signalState = new SignalState;	
 
 
-//	Mpd* mpd = new Mpd(mpdState, signalState);
-//	std::thread t1 (thread_Mpd_readLoop, mpd, notShuttingdown);
+	Mpd* mpd = new Mpd(mpdState, signalState);
+	std::thread t1 (thread_Mpd_readLoop, mpd, notShuttingdown);
 
-//	PressEnterToContinue();
+	PressEnterToContinue();
 
-////	
-//////	mpd->sendCommand("add \"ACDC/01 Highway To Hell.ogg\" \n");
-//////	mpd->sendCommand("add \"ACDC/01 Highway To Hell.ogg\" \n");
-//////	mpd->sendCommand("add \"ACDC/01 Highway To Hell.ogg\" \n");
-//////	mpd->sendCommand("add \"ACDC/01 Highway To Hell.ogg\" \n");
-////	PressEnterToContinue();
-//	mpd->createPLFromPLs("temp", "energetic", 900, 800);
+	//mpd->QueueFromPLs("calm", 3*60, 5*60);
+	//PressEnterToContinue();
+	//mpd->QueueFromPLs("energetic", 10*60, 11*60);
 
-//	PressEnterToContinue();
+	PressEnterToContinue();
 
-//	*notShuttingdown = false;
-//	t1.join();
-//	
-//  return 0;
-//}
+	*notShuttingdown = false;
+	t1.join();
+	
+  return 0;
+}

@@ -41,6 +41,15 @@ class Mpd{
 		const int tMin, const int tMax);
 
 	private:
+
+		std::mutex debug_mutex;
+		void debugPrint(std::string toprint){
+			std::lock_guard<std::mutex> guard(debug_mutex);
+			std::cout<<toprint;
+		}
+			
+		void processMessage(std::string output);
+
 		MpdState* mpdState;
 		SignalState* signalState;
 
@@ -52,6 +61,7 @@ class Mpd{
 		std::mutex cv_m;
 		std::condition_variable cv;
 		bool dataRdy;
+		bool dataRead;
 		std::atomic<bool> dataReqested;
 		std::string rqData; //needs to be locked with mpd_mutex
 
