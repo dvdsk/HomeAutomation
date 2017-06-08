@@ -94,9 +94,10 @@ void Mpd::readLoop(std::atomic<bool>* notShuttingdown){
 
 		
 		while((loc = buffer2.find("OK\n") ) != std::string::npos){
-			processMessage(buffer2.substr(0, loc));
+			if(loc > 0){ //cheap way to check if not only an "OK\n"
+				processMessage(buffer2.substr(0, loc));
+			}
 			buffer2.erase(0, loc+3);
-			//std::cout<<"buffer now: "<<buffer2<<"\n";
 		}
 	}
 	std::cout<<"Mpd status loop shutting down\n";
@@ -111,14 +112,14 @@ void Mpd::processMessage(std::string output){
 	//check if status message
 	else if(output.substr(0,7) == "volume:")
 		parseStatus(output);
-	else if(output.size() > 3 && (output.find("file:") == 0) ){//dataReqested
+	else if(dataReqested ){//dataReqested
 		dataReqested = false;
 		dataRdy = true;
 		rqData = output;
 		cv.notify_all();	
 	}
-	else debugPrint("\033[1;31mOUTPUT: "+output+" DATARQ:"+std::to_string(dataReqested)+"\033[0m\n\n");
-	//std::cout<<"output: "<<output<<"<<<<<<<<\n";
+	else debugPrint("\033[1;31mOUTPUT: "+output+" DATARQ:"+
+	     std::to_string(dataReqested)+"\033[0m\n\n");
 
 }
 
