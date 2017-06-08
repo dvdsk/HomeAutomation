@@ -14,9 +14,6 @@ static void* threadFunction(WakeUp* currentState){
 	Mpd* mpd = currentState->data->mpd;
 	MpdState* mpdState = currentState->data->mpdState;
 
-	mpd->QueueFromPLs("calm", 3*60, 5*60);
-	mpd->QueueFromPLs("energetic", 10*60, 11*60);
-
 	while(!currentState->stop.load()){
 		cv.wait_for(lk, 5*1s, [currentState](){return currentState->stop.load();});
 
@@ -62,6 +59,10 @@ WakeUp::WakeUp(StateData* stateData)
 
 	stop = false;
 	m_thread = new std::thread(threadFunction, this);
+
+	//TODO save current playlist, clear playlist
+	mpd->QueueFromPLs("calm", 3*60, 5*60);
+	mpd->QueueFromPLs("energetic", 10*60, 11*60);
 
 	std::cout<<"Ran Wakeup state constructor\n";
 	std::cout<<"stateName: "<<stateName<<"\n";

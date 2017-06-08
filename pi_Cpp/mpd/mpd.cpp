@@ -241,6 +241,12 @@ void Mpd::QueueFromPLs(std::string const &source,
 	sendCommandList(toAdd);
 }
 
+void Mpd::saveAndClearCP(){
+	std::string info = getInfo("playlistinfo\n");
+	std::cout<<"info: "<<info<<"\"\n";
+	//save current playlist
+
+}
 
 int main()
 {

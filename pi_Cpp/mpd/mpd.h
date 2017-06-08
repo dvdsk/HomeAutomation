@@ -40,6 +40,9 @@ class Mpd{
 		void QueueFromPLs(std::string const &source,
 		const int tMin, const int tMax);
 
+		/* stores the current playlist to "oldPL" then clears the current playlist*/
+		void saveAndClearCP();
+
 	private:
 
 		std::mutex debug_mutex;
