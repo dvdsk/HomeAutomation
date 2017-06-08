@@ -71,6 +71,7 @@ void thread_Mpd_readLoop(Mpd* mpd,
 void Mpd::readLoop(std::atomic<bool>* notShuttingdown){
 	
 	constexpr int BUFFERSIZE = 100;
+	size_t loc;
 	char buffer[BUFFERSIZE];
 	bzero(buffer,BUFFERSIZE);
 
@@ -91,19 +92,12 @@ void Mpd::readLoop(std::atomic<bool>* notShuttingdown){
 		buffer2.append(buffer, n);		
 		bzero(buffer,n);
 
-		size_t loc = buffer2.find("OK\n");
-		if(loc != std::string::npos){	
-			std::cout<<"HELLLOOAAA\n";	
-			//if only buffer message not at the end of the message start 
-			//cutting out possible messages 
-			do{
-				processMessage(buffer2.substr(0, loc));
-				buffer2.erase(0, loc+3);
-				std::cout<<"buffer now: "<<buffer2<<"\n";
-			}while(loc = buffer2.find("OK\n") < buffer2.size()-3);
-			
-		}//no OK-> continue reading
-
+		
+		while((loc = buffer2.find("OK\n") ) != std::string::npos){
+			processMessage(buffer2.substr(0, loc));
+			buffer2.erase(0, loc+3);
+			//std::cout<<"buffer now: "<<buffer2<<"\n";
+		}
 	}
 	std::cout<<"Mpd status loop shutting down\n";
 }
@@ -112,20 +106,19 @@ void Mpd::readLoop(std::atomic<bool>* notShuttingdown){
 void Mpd::processMessage(std::string output){
 
 	//check if notification from server
-	if(output == "OK"){std::cout<<"OUTPUT_TEST\n"; }
-	else if(output.substr(0,8) == "changed:")
+	if(output.substr(0,8) == "changed:")
 		requestStatus();
 	//check if status message
 	else if(output.substr(0,7) == "volume:")
 		parseStatus(output);
-	else if(output.size() > 3 && output.find("file:") == 1){//dataReqested
+	else if(output.size() > 3 && (output.find("file:") == 0) ){//dataReqested
 		dataReqested = false;
 		dataRdy = true;
 		rqData = output;
 		cv.notify_all();	
 	}
 	else debugPrint("\033[1;31mOUTPUT: "+output+" DATARQ:"+std::to_string(dataReqested)+"\033[0m\n\n");
-	std::cout<<output<<"<<<<<<<<\n";
+	//std::cout<<"output: "<<output<<"<<<<<<<<\n";
 
 }
 
@@ -141,7 +134,7 @@ inline void Mpd::requestStatus(){
 }
 
 inline void Mpd::parseStatus(std::string const& output){
-	std::cout<<"parsed shizzle !!!!!!\n";
+	//std::cout<<"parsed shizzle !!!!!!\n";
 	//parse the respons
 	mpdState->volume = stoi(output.substr(8,2));
 
@@ -261,9 +254,9 @@ int main()
 
 	PressEnterToContinue();
 
-	//mpd->QueueFromPLs("calm", 3*60, 5*60);
+	mpd->QueueFromPLs("calm", 3*60, 5*60);
 	//PressEnterToContinue();
-	//mpd->QueueFromPLs("energetic", 10*60, 11*60);
+	mpd->QueueFromPLs("energetic", 10*60, 11*60);
 
 	PressEnterToContinue();
 
