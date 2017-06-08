@@ -52,6 +52,7 @@ enum Playback {PLAYING, PAUSED, STOPPED};
 struct MpdState{
 	std::atomic<Playback> playback;
 	std::atomic<std::int8_t> volume;
+	std::atomic<int> playlistlength;
 };
 
 struct HttpState{

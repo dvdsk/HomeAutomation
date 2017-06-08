@@ -30,7 +30,7 @@ class Mpd{
 		Mpd(MpdState* mpdState_, SignalState* signalState_); //connects to mpd
 		~Mpd();
 
-		void readLoop(std::atomic<bool>* notShuttingdown);
+		void readLoop();
 
 		void sendCommand(std::string const &command);
 		void sendCommandList(std::string &command);
@@ -61,19 +61,23 @@ class Mpd{
     struct hostent *server;
 		std::mutex mpd_mutex;
 
+		//needed for data requst
 		std::mutex cv_m;
 		std::condition_variable cv;
 		bool dataRdy;
-		bool dataRead;
 		std::atomic<bool> dataReqested;
 		std::string rqData; //needs to be locked with mpd_mutex
+
+		//needed for threading
+		std::thread* m_thread;
+		std::atomic<bool> stop;		
 
 		std::string getInfo(std::string const& command);
 		inline void requestStatus();
 		inline void parseStatus(std::string const& output);
 };
 
-void thread_Mpd_readLoop(Mpd* mpd, std::atomic<bool>* notShuttingdown);
+static void thread_Mpd_readLoop(Mpd* mpd);
 
 
 #endif // MPD
