@@ -1,6 +1,6 @@
 MAKEFLAGS+="-j -l $(shell grep -c ^processor /proc/cpuinfo) "
 
-CXX = g++
+CXX = g++-6
 CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 
 ODIR = .BUILD
@@ -17,7 +17,8 @@ nothread: pi
 
 pi: $(OBJS)
 	$(CXX) $(CXXFLAGS) -o pi $(OBJS) \
-	-lmicrohttpd -lcurl -lboost_system -lboost_thread -lpthread -lmenu -lncurses
+	-lmicrohttpd -lcurl  -lpthread -lmenu -lncurses \
+	-lboost_system -lboost_thread
 
 $(ODIR)/main.o: main.cpp config.h arduinoContact/decode.h \
 	dataStorage/MainData.h dataStorage/PirData.h dataStorage/SlowData.h \

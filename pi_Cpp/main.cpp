@@ -22,6 +22,8 @@
 #include "commandLine/commandline.h"
 #include "mpd/mpd.h"
 
+#include "smallFunct/sunSetRise.h"
+
 #include "debug.h"
 
 const std::string PATHPIR = "pirs.binDat";
@@ -35,6 +37,49 @@ uint8_t cache2[CACHESIZE_slowData];
 FILE* file1; //needed as global for interrupt handling
 FILE* file2;
 
+////////////////////////////////////////////////////////////////////
+std::shared_ptr<std::mutex> stopHttpServ = std::make_shared<std::mutex>();
+std::atomic<bool>* notShuttingdown = new std::atomic<bool>();
+std::condition_variable cv_updataSlow;
+std::mutex cv_updataSlow_m;
+
+std::shared_ptr<TelegramBot> bot = std::make_shared<TelegramBot>();
+
+//expriment not using shared pointers (possible speedup)
+SignalState* signalState = new SignalState;
+
+SensorState* sensorState = new SensorState;
+MpdState* mpdState = new MpdState;
+Mpd* mpd = new Mpd(mpdState, signalState);
+HttpState* httpState = new HttpState;
+ComputerState* computerState = new ComputerState;
+
+StateData* stateData = new StateData(sensorState, mpdState, mpd, httpState, computerState);
+
+PirData* pirDat = new PirData("pirs", cache1, CACHESIZE_pir);
+SlowData* slowDat = new SlowData("slowData", cache2, CACHESIZE_slowData);
+
+
+
+void updateVSlow_thread(StateData* stateData){
+  std::unique_lock<std::mutex> lk(cv_updataSlow_m);	
+	constexpr double LLONGITUDE = 4.497010, LLATITUDE = 52.160114;
+	double sunRise, sunSet;
+	time_t t = time(NULL);
+
+	while(*notShuttingdown){
+
+		tm* timePtr = localtime(&t);
+		sun_rise_set(timePtr->tm_year, timePtr->tm_mon, timePtr->tm_mday, 
+		LLONGITUDE, LLATITUDE, &sunRise, &sunSet);
+
+		stateData->sunSet = sunSet;
+		stateData->sunRise = sunRise;		
+
+		cv_updataSlow.wait_for(lk, std::chrono::hours(5), [notShuttingdown](){return notShuttingdown->load();});
+	}
+}
+
 void interruptHandler(int s){
   fflush(file1);
   fflush(file2);
@@ -44,42 +89,25 @@ void interruptHandler(int s){
 
 int main(int argc, char* argv[])
 {
-	std::shared_ptr<std::mutex> stopHttpServ = std::make_shared<std::mutex>();
-	std::atomic<bool>* notShuttingdown = new std::atomic<bool>();
-
-	std::shared_ptr<TelegramBot> bot = std::make_shared<TelegramBot>();
-
-	//expriment not using shared pointers (possible speedup)
-	SignalState* signalState = new SignalState;
-	SensorState* sensorState = new SensorState;
-	HttpState* httpState = new HttpState;
-	ComputerState* computerState = new ComputerState;
-	MpdState* mpdState = new MpdState;
-
-	Mpd* mpd = new Mpd(mpdState, signalState);
-
-	PirData* pirData = new PirData("pirs", cache1, CACHESIZE_pir);
-	SlowData* slowData = new SlowData("slowData", cache2, CACHESIZE_slowData);
 
 	(*stopHttpServ).lock();
 	(*notShuttingdown) = true;
-	file1 = pirData->getFileP();
-  file2 = slowData->getFileP();
+	file1 = pirDat->getFileP();
+  file2 = slowDat->getFileP();
 
 	/*start the http server that serves the telegram bot and
 	  custom http protocol. NOTE: each connection spawns its 
 	  own thread.*/	
-	std::thread t1(thread_Https_serv, stopHttpServ, bot, httpState, signalState, pirData, slowData);
+	std::thread t1(thread_Https_serv, stopHttpServ, bot, httpState, signalState, pirDat, slowDat);
 	std::cout<<"Https-Server started\n";
 
-	/*start thread to recieve updates if mpd status changes*/
-	std::thread t2(thread_Mpd_readLoop, mpd, notShuttingdown);
-	std::cout<<"Mpd-Server started\n";
+	std::thread t2(updateVSlow_thread, stateData);
+	std::cout<<"Slow updating started\n";
 
 	/*start the thread that checks the output of the arduino 
 	  it is responsible for setting the enviremental variables
 	  the statewatcher responds too*/
-	std::thread t3(thread_checkSensorData, pirData, slowData, sensorState, signalState, notShuttingdown);
+	std::thread t3(thread_checkSensorData, pirDat, slowDat, sensorState, signalState, notShuttingdown);
 	std::cout<<"Sensor readout started\n";
 
 	/*sleep to give checkSensorData time to aquire some data
@@ -89,8 +117,7 @@ int main(int argc, char* argv[])
 
 	/*start the thread that is notified of state changes 
 	  and re-evalutes the system on such as change. */
-	std::thread t4(thread_state_management, notShuttingdown, signalState, 
-	  sensorState, mpdState, mpd, httpState, computerState);
+	std::thread t4(thread_state_management, notShuttingdown,stateData, signalState);
  	std::cout<<"State management started\n"; 
 
   signal(SIGINT, interruptHandler);  
@@ -101,7 +128,7 @@ int main(int argc, char* argv[])
 	getchar();
 
 //	TODO update commandlineinterface for new State system.
-//	CommandLineInterface interface(pirData, slowData, state);
+//	CommandLineInterface interface(pirDat, slowDat, state);
 //	interface.mainMenu();
 
 	getchar();
@@ -110,9 +137,9 @@ int main(int argc, char* argv[])
 	(*stopHttpServ).unlock();
 	(*notShuttingdown) = false;
 	signalState->runUpdate();//(disadvantage) needs to run check to shutdown
+	cv_updataSlow.notify_all();
 
 	t1.join();
-	t2.join();
 	t3.join();
 	t4.join();
 

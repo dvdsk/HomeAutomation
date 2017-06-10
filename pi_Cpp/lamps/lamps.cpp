@@ -104,23 +104,23 @@ void Lamps::setState(std::string json){
 //TODO add correct numbers
 inline std::string Lamps::toId(int lampNumb){
 	switch(lampNumb){
-		case lmp::DOOR:
-			return "1";
-		break;		
-		case lmp::KITCHEN:
-			return "2";
-		break;		
-		case lmp::CEILING:
-			return "3";
-		break;		
-		case lmp::BATHROOM:
-			return "4";
-		break;		
-		case lmp::RADIATOR:
+		case lmp::DOOR: //done
 			return "5";
 		break;		
-		case lmp::BUREAU:
+		case lmp::KITCHEN:
+			return "7";
+		break;		
+		case lmp::CEILING: //done
+			return "4";
+		break;		
+		case lmp::BATHROOM: //done
+			return "1";
+		break;		
+		case lmp::RADIATOR: //done
 			return "6";
+		break;		
+		case lmp::BUREAU: //done
+			return "2";
 		break;		
 	}
 	std::cout<<"ERROR -> not a known lamp\n";
@@ -131,22 +131,22 @@ inline std::string Lamps::toId(int lampNumb){
 inline int Lamps::toIntId(int lampNumb){
 	switch(lampNumb){
 		case lmp::DOOR:
-			return 1;
-		break;		
-		case lmp::KITCHEN:
-			return 2;
-		break;		
-		case lmp::CEILING:
-			return 3;
-		break;		
-		case lmp::BATHROOM:
-			return 4;
-		break;		
-		case lmp::RADIATOR:
 			return 5;
 		break;		
-		case lmp::BUREAU:
+		case lmp::KITCHEN:
+			return 7;
+		break;		
+		case lmp::CEILING:
+			return 4;
+		break;		
+		case lmp::BATHROOM:
+			return 1;
+		break;		
+		case lmp::RADIATOR:
 			return 6;
+		break;		
+		case lmp::BUREAU:
+			return 2;
 		break;		
 	}
 	std::cout<<"ERROR -> not a known lamp\n";

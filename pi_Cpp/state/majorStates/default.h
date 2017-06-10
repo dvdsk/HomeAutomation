@@ -11,9 +11,11 @@ class Default : public State
 		~Default();
 		bool stillValid();
 		void updateOnSensors();
+
+		std::atomic<bool> stop;
 	
 	private:
-		
+		std::thread* m_thread;		
 
 
 };

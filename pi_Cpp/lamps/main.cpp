@@ -2,5 +2,6 @@
 #include "lamps.h"
 
 int main(){
-	Lamps test;
+	Lamps lamps;
+	lamps.setState(lmp::KITCHEN, "{\"on\": true, \"bri\": 200, \"transitiontime\": 0}");
 }

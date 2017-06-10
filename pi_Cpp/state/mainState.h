@@ -102,7 +102,6 @@ class StateData : public Lamps
 			mpd = mpd_;
 			httpState = httpState_;
 			computerState = computerState_;
-			testInt = 42;
 		}
 		~StateData(){
 			std::cout<<"STATEDATA HAS BEEN DELETED\n";
@@ -114,7 +113,8 @@ class StateData : public Lamps
 		Mpd* mpd; //needed to call mpd functions
 		HttpState* httpState;
 
-		int testInt;
+		uint32_t sunSet;
+		uint32_t sunRise;
 		uint32_t currentTime;
 		uint32_t timeStateStarted;
 		

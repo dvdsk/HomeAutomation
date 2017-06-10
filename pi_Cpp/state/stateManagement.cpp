@@ -31,13 +31,9 @@ inline void startNewState(State* &currentState, StateData* stateData){
 }
 
 void thread_state_management(std::atomic<bool>* notShuttingdown,
-	SignalState* signalState, SensorState* sensorState, MpdState* mpdState, 
-	Mpd* mpd, HttpState* httpState, ComputerState* computerState){
+	   StateData* stateData, SignalState* signalState){
 
-	//StateData stateData(sensorState, mpdState, mpd, httpState, computerState);
-	StateData* stateData = new StateData(sensorState, mpdState, mpd, httpState, computerState);
 	State* currentState = new Default(stateData);
-	
 
 	std::unique_lock<std::mutex> lk(signalState->m);
 	while(*notShuttingdown){
@@ -51,7 +47,7 @@ void thread_state_management(std::atomic<bool>* notShuttingdown,
 //			delete currentState;
 //			startNewState(currentState, stateData);
 //		}
-		if(httpState->updated){
+		if(stateData->httpState->updated){
 			if(currentState->updateOnHttp()){
 				//updateOnHttp returns true if new state needs to be started
 				delete currentState;

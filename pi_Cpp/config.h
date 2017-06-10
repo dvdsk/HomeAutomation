@@ -66,8 +66,7 @@ namespace config {
 }
 
 //wakeup config
-constexpr int WAKEUP_MUSIC_ON = 5*60; 	//sec
-constexpr int WAKEUP_DURATION = 10*60; 	//sec
+constexpr int WAKEUP_DURATION = 1*60; 	//sec
 constexpr int BRI_MAX = 254;
 constexpr float BRI_PER_SEC = 254/WAKEUP_DURATION;
 constexpr int CT_MIN = 153;

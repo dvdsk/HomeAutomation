@@ -56,7 +56,6 @@ Mpd::Mpd(MpdState* mpdState_, SignalState* signalState_){
 	//start mpd Read loop
 	stop = false;
 	m_thread = new std::thread(thread_Mpd_readLoop, this);
-
 }
 
 Mpd::~Mpd(){
@@ -146,10 +145,10 @@ inline void Mpd::parseStatus(std::string const& output){
 	mpdState->volume = stoi(output.substr(8,3));
 	mpdState->playlistlength = stoi(output.substr(output.find("playlistlength:")+15, 4));
 
-	if(output.substr(110,4) == "stop"){
+	if(output.substr(111,4) == "stop"){
 		mpdState->playback = STOPPED;
 	}
-	else if(output.substr(110,4) == "paus"){
+	else if(output.substr(111,4) == "paus"){
 		mpdState->playback = PAUSED;
 	}
 	else{
@@ -220,7 +219,6 @@ void Mpd::QueueFromPLs(std::string const &source,
 		if(start == std::string::npos){break;}
 		stop = info.find("\n", start);
 		filePaths.push_back( info.substr(start+6, stop-(start+6)));
-		//std::cout<<info.substr(start+6, stop-(start+6))<<"\n";
 
 		start = info.find("Time:", stop);
 		stop = info.find("\n", start);
@@ -251,9 +249,7 @@ void Mpd::saveAndClearCP(){
 	std::string commands;
 	int start, stop=0;
 
-	std::cout<<"pl length: "<<mpdState->playlistlength<<"\n";
 	if(mpdState->playlistlength != 0){
-		std::cout<<"gotinfo\n";
 		std::string info = getInfo("playlistinfo\n");
 
 		while(1){ 
@@ -269,30 +265,30 @@ void Mpd::saveAndClearCP(){
 		commands+="playlistadd oldPL \""+path+"\"\n";}
 	commands+="clear\n";
 
-	std::cout<<"commands: "<<commands<<"\n";
 	sendCommandList(commands);
 }
 
-int main()
-{
-	MpdState* mpdState = new MpdState;
-	SignalState* signalState = new SignalState;	
+//int main()
+//{
+//	MpdState* mpdState = new MpdState;
+//	SignalState* signalState = new SignalState;	
 
 
-	Mpd* mpd = new Mpd(mpdState, signalState);
+//	Mpd* mpd = new Mpd(mpdState, signalState);
 
-	PressEnterToContinue();
+//	PressEnterToContinue();
 
-	//mpd->sendCommand("playlistclear oldPL\n");	
-	mpd->saveAndClearCP();
-	//mpd->QueueFromPLs("calm", 3*60, 5*60);
-	//PressEnterToContinue();
-	//mpd->QueueFromPLs("energetic", 10*60, 11*60);
+//	//mpd->sendCommand("playlistclear oldPL\n");	
+//	mpd->QueueFromPLs("energetic", 10*60, 11*60);
+//	mpd->saveAndClearCP();
+//	mpd->QueueFromPLs("calm", 3*60, 5*60);
+//	//PressEnterToContinue();
 
-	PressEnterToContinue();
 
-	//*notShuttingdown = false;
-	//t1.join();
-	
-  return 0;
-}
+//	PressEnterToContinue();
+
+//	//*notShuttingdown = false;
+//	//t1.join();
+//	
+//  return 0;
+//}
