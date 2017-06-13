@@ -113,8 +113,9 @@ class StateData : public Lamps
 		Mpd* mpd; //needed to call mpd functions
 		HttpState* httpState;
 
-		uint32_t sunSet;
-		uint32_t sunRise;
+		uint32_t tWarm;
+		uint32_t tCool;
+
 		uint32_t currentTime;
 		uint32_t timeStateStarted;
 		

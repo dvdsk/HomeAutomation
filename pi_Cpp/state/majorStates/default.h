@@ -2,6 +2,7 @@
 #define DEFAULT
 
 #include "../mainState.h"
+#include <time.h>
 
 class Default : public State
 {
@@ -19,5 +20,7 @@ class Default : public State
 
 
 };
+
+time_t day_seconds();
 
 #endif

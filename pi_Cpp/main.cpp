@@ -3,6 +3,7 @@
 #include <signal.h>
 #include <boost/exception/diagnostic_information.hpp> //for debugging
 
+#include <time.h>
 #include <chrono>
 #include <thread>
 #include <mutex>
@@ -25,6 +26,8 @@
 #include "smallFunct/sunSetRise.h"
 
 #include "debug.h"
+
+#include <stdio.h>//TODO DEBUG
 
 const std::string PATHPIR = "pirs.binDat";
 const int CACHESIZE_pir      = pirData::PACKAGESIZE*2;
@@ -65,18 +68,20 @@ void updateVSlow_thread(StateData* stateData){
   std::unique_lock<std::mutex> lk(cv_updataSlow_m);	
 	constexpr double LLONGITUDE = 4.497010, LLATITUDE = 52.160114;
 	double sunRise, sunSet;
-	time_t t = time(NULL);
 
 	while(*notShuttingdown){
 
-		tm* timePtr = localtime(&t);
-		sun_rise_set(timePtr->tm_year, timePtr->tm_mon, timePtr->tm_mday, 
+		time_t theTime = time(NULL);
+		struct tm *aTime = localtime(&theTime);
+
+		sun_rise_set(aTime->tm_year+1900, aTime->tm_mon+1, aTime->tm_mday, 
 		LLONGITUDE, LLATITUDE, &sunRise, &sunSet);
 
-		stateData->sunSet = sunSet;
-		stateData->sunRise = sunRise;		
+		stateData->tWarm = 3600*(sunSet-1); 	//time since midnight in sec UTC
+		stateData->tCool = 3600*(sunRise-1);	//time since midnight in sec UTC	
 
-		cv_updataSlow.wait_for(lk, std::chrono::hours(5), [notShuttingdown](){return notShuttingdown->load();});
+		cv_updataSlow.wait_for(lk, std::chrono::hours(24), 
+		[notShuttingdown](){return !notShuttingdown->load();});
 	}
 }
 

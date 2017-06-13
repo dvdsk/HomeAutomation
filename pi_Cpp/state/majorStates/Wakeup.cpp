@@ -25,7 +25,7 @@ static void* threadFunction(WakeUp* currentState){
 
 	while(!currentState->stop.load() && time < WAKEUP_DURATION){
 		bri = (int)(BRI_PER_SEC*time);
-		ct = (int)(CT_MAX-CT_PER_SEC*time);
+		ct = (int)(CT_MIN+CT_PER_SEC*time);
 		//Do something with lamps
 		lamps->setState(lmp::BUREAU, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
 		lamps->setState(lmp::RADIATOR, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
