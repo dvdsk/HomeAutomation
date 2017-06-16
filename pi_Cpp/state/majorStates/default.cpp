@@ -26,14 +26,14 @@ static void lightColor_thread(Default* currentState){
 	constexpr int BRI_NIGHT = 100;
 
 	constexpr int FADE_TO_DAY = 1*3600;
-	constexpr int CT_DAY = CT_MIN+ 100;
+	constexpr int CT_DAY = CT_MIN+ 110;
 	constexpr int BRI_DAY = BRI_MAX;
 
 	while(!currentState->stop.load()){
 		std::cout<<"updating light color\n";
 
-		//time = day_seconds();
-		time = (uint32_t)(20.2*3600);//day_seconds();
+		time = day_seconds();
+		//time = (uint32_t)(20.2*3600); DEBUG
 
 		int bri;
 		int ct;
