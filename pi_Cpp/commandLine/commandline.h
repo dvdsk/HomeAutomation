@@ -21,14 +21,14 @@
 class CommandLineInterface{
 
 	public:
-	CommandLineInterface(std::shared_ptr<PirData> pirData_,
-	                     std::shared_ptr<SlowData> slowData_,
+	CommandLineInterface(PirData* pirData_,
+	                     SlowData* slowData_,
 											 SensorState* sensorState_);
 	void mainMenu();
 
 	private:
-	std::shared_ptr<PirData> pirData;
-	std::shared_ptr<SlowData> slowData;
+	PirData* pirData;
+	SlowData* slowData;
 	SensorState* sensorState;
 
 	void sensor_values();

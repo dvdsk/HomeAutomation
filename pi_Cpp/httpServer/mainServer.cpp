@@ -193,7 +193,7 @@ char* load_file (const char *filename)
 
 
 int thread_Https_serv(std::shared_ptr<std::mutex> stop, 
-											std::shared_ptr<TelegramBot> bot,
+											TelegramBot* bot,
 											HttpState* httpState,
 											SignalState* signalState,
 											PirData* pirData,
@@ -221,7 +221,7 @@ int thread_Https_serv(std::shared_ptr<std::mutex> stop,
 	//awnser to connection function (the default handler). This array
 	//is read only. The pointers better be in shared memory space for 
 	//the awnser function to be able to reach them
-	void* arrayOfPointers[4] = {bot.get(), httpState, signalState, webGraph.get()};
+	void* arrayOfPointers[4] = {bot, httpState, signalState, webGraph.get()};
 
 
 

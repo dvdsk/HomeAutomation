@@ -68,3 +68,8 @@ int main(){
 
 }
 
+int main(){
+
+	for(int compLen =0; compLen
+	
+}

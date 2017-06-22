@@ -46,7 +46,7 @@ std::atomic<bool>* notShuttingdown = new std::atomic<bool>();
 std::condition_variable cv_updataSlow;
 std::mutex cv_updataSlow_m;
 
-std::shared_ptr<TelegramBot> bot = std::make_shared<TelegramBot>();
+TelegramBot* bot = new TelegramBot();
 
 //expriment not using shared pointers (possible speedup)
 SignalState* signalState = new SignalState;
@@ -122,7 +122,7 @@ int main(int argc, char* argv[])
 
 	/*start the thread that is notified of state changes 
 	  and re-evalutes the system on such as change. */
-	std::thread t4(thread_state_management, notShuttingdown,stateData, signalState);
+	//std::thread t4(thread_state_management, notShuttingdown,stateData, signalState);
  	std::cout<<"State management started\n"; 
 
   signal(SIGINT, interruptHandler);  
@@ -133,7 +133,7 @@ int main(int argc, char* argv[])
 	getchar();
 
 //	TODO update commandlineinterface for new State system.
-//	CommandLineInterface interface(pirDat, slowDat, state);
+//	CommandLineInterface interface(pirDat, slowDat, sensorState);
 //	interface.mainMenu();
 
 	getchar();
@@ -146,7 +146,7 @@ int main(int argc, char* argv[])
 
 	t1.join();
 	t3.join();
-	t4.join();
+	//t4.join();
 
 	delete signalState;
 	delete sensorState;

@@ -30,7 +30,6 @@ static void lightColor_thread(Default* currentState){
 	constexpr int BRI_DAY = BRI_MAX;
 
 	while(!currentState->stop.load()){
-		std::cout<<"updating light color\n";
 
 		time = day_seconds();
 		//time = (uint32_t)(20.2*3600); DEBUG
@@ -40,14 +39,12 @@ static void lightColor_thread(Default* currentState){
 
 		if((time > *tWarm) && (time < *tWarm+FADE_TO_EVENING)){ 			//eveningFade
 			//fade from CT_DAY to CT_EVENING in FADE_TO_EVENING seconds
-			std::cout<<"eveningfade\n";
 			ct = fade(CT_DAY, *tWarm, time, (CT_DAY-CT_EVENING)/FADE_TO_EVENING);
 			bri = BRI_EVENING;
 		}
 		else if((time > *tWarm+FADE_TO_EVENING) 
 		&& (time < *tWarm+FADE_TO_EVENING+FADE_TO_NIGHT)){						//nightFade
 			//fade from CT_EVENING to CT_NIGHT in FADE_TO_NIGHT seconds
-			std::cout<<"nightFade\n";
 			ct = fade(CT_EVENING, *tWarm+FADE_TO_NIGHT, time, 
 					 (CT_EVENING-CT_NIGHT)/FADE_TO_NIGHT);
 
@@ -55,7 +52,6 @@ static void lightColor_thread(Default* currentState){
 					 (BRI_EVENING-BRI_NIGHT)/FADE_TO_NIGHT);
 		}
 		else if((time > *tCool) && (time < *tCool+FADE_TO_DAY)){			//dayFade
-			std::cout<<"dayFade\n";
 			//fade from CT_NIGHT to CT_DAY in FADE_TO_NIGHT seconds
 			ct = fade(CT_NIGHT, *tCool, time, 
 					 (CT_NIGHT-CT_DAY)/FADE_TO_DAY);
@@ -64,13 +60,11 @@ static void lightColor_thread(Default* currentState){
 					 (BRI_NIGHT-BRI_DAY)/FADE_TO_DAY);
 		}
 		else if((time >= *tCool+FADE_TO_DAY) && (time <= *tWarm)){		//day
-			std::cout<<"day\n";
 			//set day value
 			ct = CT_DAY;
 			bri = BRI_DAY;
 		}
-		else{
-			std::cout<<"night\n";																				//night
+		else{																													//night
 			//set night value
 			ct = CT_NIGHT;
 			bri = BRI_NIGHT;
@@ -103,12 +97,12 @@ Default::~Default(){
 }
 
 bool Default::stillValid(){
-	std::cout<<"decided its still the right state"<<"\n";
+	//std::cout<<"decided its still the right state"<<"\n";
 	return true;
 }
 
 void Default::updateOnSensors(){
-	std::cout<<"updated based on sensor values and stuff"<<"\n";
+	//std::cout<<"updated based on sensor values and stuff"<<"\n";
 }
 
 time_t day_seconds(){

@@ -84,7 +84,7 @@ struct SignalState{
 	std::condition_variable cv;
 
 	void runUpdate(){
-		std::cout<<"done\n";
+		//std::cout<<"done\n";
 		std::unique_lock<std::mutex> lk(m);
 		cv.notify_one();
 	}

@@ -10,19 +10,18 @@
 
 #include "httpGetPostPut.h"
 
-class TelegramBot : public HttpGetPostPut
+class TelegramBot// : public HttpGetPostPut
 {
 	public:
 		TelegramBot();// need to pass state to this so we can access its functions
 									// such as parse command
 		void processMessage();
 		void setWebHook();
-		void test();	
 	private:
 		bool authorised();
 		
 	
-		std::shared_ptr<bool> testv;
+		bool testv;
 		
 };
 

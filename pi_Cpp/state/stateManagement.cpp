@@ -37,16 +37,15 @@ void thread_state_management(std::atomic<bool>* notShuttingdown,
 
 	std::unique_lock<std::mutex> lk(signalState->m);
 	while(*notShuttingdown){
-		signalState->cv.wait(lk);//wait for new sensor data or forced update.
-		std::cout<<"running update\n";		
+		signalState->cv.wait(lk);//wait for new sensor data or forced update.	
 
 		stateData->currentTime = (uint32_t)time(nullptr);
-//		if(currentState->stillValid()) //TODO FIXME 
-//			currentState->updateOnSensors();
-//		else{
-//			delete currentState;
-//			startNewState(currentState, stateData);
-//		}
+		if(currentState->stillValid()) //TODO FIXME 
+			currentState->updateOnSensors();
+		else{
+			delete currentState;
+			startNewState(currentState, stateData);
+		}
 		if(stateData->httpState->updated){
 			if(currentState->updateOnHttp()){
 				//updateOnHttp returns true if new state needs to be started

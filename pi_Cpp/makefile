@@ -1,6 +1,7 @@
 MAKEFLAGS+="-j -l $(shell grep -c ^processor /proc/cpuinfo) "
 
-CXX = g++-6
+#CXX = g++-6
+CXX = g++
 CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 
 ODIR = .BUILD

@@ -124,7 +124,7 @@ void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
 //	std::cout<<", data2: "<<Enc_slow::PRESSURE<<", "<<Enc_slow::LEN_PRESSURE;
 //	std::cout<<", data3: "<<+SLOWDATA_SIZE;
 //	std::cout<<", data4: "<<Enc_slow::LEN_ENCODED<<", ";
-//	std::cout<<"Pressure: "<<state->Pressure<<"\n";
+	std::cout<<"CO2ppm: "<<sensorState->CO2ppm<<"\n";
 
 	signalState->runUpdate();
 

@@ -11,8 +11,8 @@
 int startx = 0;
 int starty = 0;
 
-CommandLineInterface::CommandLineInterface(std::shared_ptr<PirData> pirData_,
-	std::shared_ptr<SlowData> slowData_, SensorState* sensorState_){
+CommandLineInterface::CommandLineInterface(PirData* pirData_,
+	SlowData* slowData_, SensorState* sensorState_){
 
 	pirData = pirData_;
 	slowData = slowData_;

@@ -32,7 +32,7 @@ inline void convert_arguments(void* cls, TelegramBot*& bot, HttpState*& httpStat
 inline int authorised_connection(struct MHD_Connection* connection);
 
 int thread_Https_serv(std::shared_ptr<std::mutex> stop, 
-											std::shared_ptr<TelegramBot> bot,
+											TelegramBot* bot,
 											HttpState* httpState,
 											SignalState* signalState,
 											PirData* pirData,

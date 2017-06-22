@@ -13,25 +13,17 @@ std::string baseBotUrl = "https://api.telegram.org/bot";
 std::string baseBotAPIUrl = baseBotUrl+BotToken;
 
 
-TelegramBot::TelegramBot()
-:HttpGetPostPut(baseBotAPIUrl){
-	testv = std::make_shared<bool>();
-	*testv = false;
-}
+//TelegramBot::TelegramBot()
+//:HttpGetPostPut(baseBotAPIUrl){
+//}
 
-void TelegramBot::test(){
-	*testv = true;
-	std::cout<<"pointer in test: "<<*testv<<"\n";
-	
+TelegramBot::TelegramBot(){
 }
 
 void TelegramBot::processMessage(){
-	
-	std::cout<<"pointer in process: "<<*testv<<"\n";
 }
 
 void TelegramBot::setWebHook(){
-	std::cout<<post("/setWebhook","things");
-	
+	//std::cout<<post("/setWebhook","things");
 	
 }
