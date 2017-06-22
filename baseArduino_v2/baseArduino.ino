@@ -124,12 +124,16 @@ void sendSlowData(){
 		Enc_slow::HUM_DOOR, Enc_slow::LEN_HUM);	
 	encode(toSend, slowData[Idx::HUMIDITY_BATHROOM],		
 		Enc_slow::HUM_BATHROOM, Enc_slow::LEN_HUM);
-
+	
 	encode(toSend, slowData[Idx::CO2],
 		Enc_slow::CO2, Enc_slow::LEN_CO2);
 
 	encode(toSend, slowData[Idx::PRESSURE],
 		Enc_slow::PRESSURE, Enc_slow::LEN_PRESSURE);
+
+/*	Serial.print("\ndecoded CO2: ");*/
+/*	Serial.println(decode(toSend, Enc_slow::CO2, Enc_slow::LEN_CO2));*/
+/*	Serial.println(" ");*/
 
 	Serial.write(toSend, Enc_slow::LEN_ENCODED);
 	#endif

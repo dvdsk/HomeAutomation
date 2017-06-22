@@ -133,8 +133,8 @@ int main(int argc, char* argv[])
 	getchar();
 
 //	TODO update commandlineinterface for new State system.
-//	CommandLineInterface interface(pirDat, slowDat, sensorState);
-//	interface.mainMenu();
+	CommandLineInterface interface(pirDat, slowDat, sensorState);
+	interface.mainMenu();
 
 	getchar();
 
