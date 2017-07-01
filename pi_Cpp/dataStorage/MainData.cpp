@@ -11,6 +11,15 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
   fileName_ = "data/"+fileName+".binDat";
   packageSize_ = packageSize;
   
+	//get the file size
+  stat(fileName_.c_str(), &filestatus);//sys call for file info
+  fileSize = filestatus.st_size;
+
+	//trim the file if an incomplete write has happend
+	if(fileSize%packageSize !=0){
+		truncate(fileName_.c_str(), fileSize - fileSize%packageSize);
+	}
+
 	//open a new file in binairy reading and appending mode. All writing operations
 	//are performed at the end of the file. Internal pointer can be moved anywhere
 	//for reading. Writing ops move it back to the end of the file  
@@ -20,9 +29,6 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
   //copy the last data in the file to the cache. if there is space left in the
   //cache because the beginning of the file was reached it is filled with Null 
   //data (null timestamp)
-
-  stat(fileName_.c_str(), &filestatus);//sys call for file info
-  fileSize = filestatus.st_size;
 
   if (fileSize >= cacheSize){
     //set the file pointer to cachesize from the end of the file then

@@ -200,14 +200,13 @@ int thread_Https_serv(std::shared_ptr<std::mutex> stop,
 											SlowData* slowData){
 												
   struct MHD_Daemon* daemon;
-  char *key_pem;
-  char *cert_pem;
-  
-  key_pem = load_file("server.key");
-  cert_pem = load_file("server.pem");
+  char *key_pem, *trust_pem, *cert_pem;
+
+  key_pem = load_file("privkey1.pem");
+	cert_pem = load_file("fullchain1.pem");
 
   //check if key could be read
-  if ((key_pem == NULL) || (cert_pem == NULL))
+  if ((key_pem == NULL) || (cert_pem == NULL) || (trust_pem == NULL))
   {
     printf ("The key/certificate files could not be read.\n");
     return 1;
