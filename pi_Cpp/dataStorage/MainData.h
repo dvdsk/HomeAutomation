@@ -14,6 +14,7 @@
 #include <cstdlib>     /* abs */
 #include <sys/stat.h> //mkdir and filesize
 #include <ctime> //unix timestamp
+#include <unistd.h> //truncate
 
 #include "MainHeader.h"
 #include "Cache.h"
