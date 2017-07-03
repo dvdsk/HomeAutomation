@@ -51,6 +51,22 @@ void updateSlow_Local(){
 	thSen.getTempHumid();
   co2.readCO2();
 	pressure.readPressure();
+	#ifdef DEBUG
+	Serial.println("update slow completed\n");
+	if(slowData[Idx::UPDATED] == SLOWDATA_COMPLETE){
+		Serial.print("UPDATESLOW INCOMPLETE, (raw status code: ");
+		Serial.print(slowData[Idx::UPDATED]);
+		Serial.println(")");
+		if((slowData[Idx::UPDATED] & (1<<Idx::TEMPERATURE_BED)) == 0)
+			Serial.println("\ttemp Incomplete\n");
+		if((slowData[Idx::UPDATED] & (1<<Idx::HUMIDITY_BED)) == 0)
+			Serial.println("\thumid Incomplete\n");
+		if((slowData[Idx::UPDATED] & (1<<Idx::CO2)) == 0)
+			Serial.println("\tco2 Incomplete\n");
+		if((slowData[Idx::UPDATED] & (1<<Idx::PRESSURE)) == 0)
+			Serial.println("\tpressure Incomplete\n");
+	}
+	#endif
 }
 
 inline bool slowDataComplete(){	return (slowData[Idx::UPDATED] == SLOWDATA_COMPLETE);}

@@ -2,6 +2,7 @@
 #include "lamps.h"
 
 int main(){
-	Lamps lamps;
-	lamps.setState(lmp::KITCHEN, "{\"on\": true, \"bri\": 200, \"transitiontime\": 0}");
+	Lamps* lamps = new Lamps;
+	lamps->off(1);	
+	//lamps.setState(lmp::KITCHEN, "{\"on\": true, \"bri\": 200, \"transitiontime\": 0}");
 }

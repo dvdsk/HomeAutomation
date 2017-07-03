@@ -9,15 +9,15 @@ OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowDat
 
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
-all: pi
+all: homeAutomation
 debug: CXXFLAGS += -DDEBUG -g
-debug: pi
+debug: homeAutomation
 nothread: CXXFLAGS += -DNOTHREAD
-nothread: pi
+nothread: homeAutomation
 
 
-pi: $(OBJS)
-	$(CXX) $(CXXFLAGS) -o pi $(OBJS) \
+homeAutomation: $(OBJS)
+	$(CXX) $(CXXFLAGS) -o homeAutomation $(OBJS) \
 	-lmicrohttpd -lcurl  -lpthread -lmenu -lncurses \
 	-lboost_system -lboost_thread
 
@@ -95,4 +95,4 @@ $(ODIR)/dygraphs.o: httpServer/pages/dygraphs.h httpServer/pages/dygraphs.cpp
 
 .PHONY : clean
 clean:
-	rm pi $(OBJS)
+	rm homeAutomation $(OBJS)

@@ -293,7 +293,7 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
   MainHeader::getNextFullTS(startByte, nextFullTSLoc, nextFullTS);
 	/*do a quick sanity check on the search results*/
 	if(stopByte < startByte){std::cout<<"ERROR STOPBYTE<STARTBYTE\n"; while(1);}
-
+	if(stopByte-startByte==0) return 0;
 
   initGetTime(startByte);
 
@@ -749,6 +749,7 @@ double Data::meanT(uint32_t* array, int len){
   uint32_t Mean = 0;
   uint32_t first = *(array+0);
   for(int i = 1; i<len; i++){ Mean = Mean+*(array+i)-first;}
+	std::cout<<len<<", "<<Mean<<"\n";
   Mean /= len;
   Mean += first;
   return (double)Mean;

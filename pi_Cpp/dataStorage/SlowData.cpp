@@ -42,7 +42,8 @@ void SlowData::process(const uint8_t raw[Enc_slow::LEN_ENCODED], const uint32_t 
 
 	/*calculate the mean of all light data since the last slowdata package*/
 	for(int i = 0; i<3; i++){
-  	light_Mean[i] = light_Sum[i]/light_N;
+		light_Mean[i] = light_Sum[i]/light_N;
+		light_Sum[i] = 0;
 	}
 	
 	if(newData(raw, light_Mean)){

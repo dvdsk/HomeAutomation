@@ -122,7 +122,7 @@ int main(int argc, char* argv[])
 
 	/*start the thread that is notified of state changes 
 	  and re-evalutes the system on such as change. */
-	//std::thread t4(thread_state_management, notShuttingdown,stateData, signalState);
+	std::thread t4(thread_state_management, notShuttingdown,stateData, signalState);
  	std::cout<<"State management started\n"; 
 
   signal(SIGINT, interruptHandler);  
@@ -146,7 +146,7 @@ int main(int argc, char* argv[])
 
 	t1.join();
 	t3.join();
-	//t4.join();
+	t4.join();
 
 	delete signalState;
 	delete sensorState;

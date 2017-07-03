@@ -41,7 +41,7 @@ public:
   /* takes a start and end time + an array to store the time in and one to store
    * floats in. Binning of data happens if there are 2* or more data points then
    * the plotresolution. The data is plotted from the start time to and including
-   * the end time*/
+   * the end time, returns number of elements fetched*/
   int fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 	              uint16_t (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE]), 
 	              float (*func2)(uint16_t integer_var));
