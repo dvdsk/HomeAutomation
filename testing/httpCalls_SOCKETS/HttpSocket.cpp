@@ -78,7 +78,7 @@ std::string HttpSocket::send(std::string request){
 	
 	readRemaining(buffer, response);
 
-	std::cout<<response<<"\n";
+	//std::cout<<response<<"\n";
 	return response;
 }
 
@@ -111,7 +111,9 @@ void HttpSocket::readRemaining(uint8_t* buffer, std::string &response){
 }
 
 bool HttpSocket::readABit(uint8_t* buffer){
-  int bytes, received, total = BUFFSIZE;
+  int bytes, received= 0, total = BUFFSIZE-1;
+	//BUFFSIZE-1 to accomodate for adding null terminator to string as we
+	//might not read the full string.
 	bool small = false;
 
 	do {
@@ -124,6 +126,8 @@ bool HttpSocket::readABit(uint8_t* buffer){
 		received+=bytes;
 	} while (received < total);
 
+	//didnt get the full string, add null terminator
+	buffer[BUFFSIZE] = '\0';
 	return small;
 }
 
