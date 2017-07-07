@@ -5,7 +5,7 @@
 #include <string.h> //strcmp
 #include <mutex>
 #include <atomic>
-
+#include <cstring> //strstr
 
 //needed for sockets
 #include <stdio.h>
@@ -18,20 +18,22 @@
 #include <netinet/in.h>
 #include <netdb.h> 
 
-constexpr int portno = 6600;
-constexpr const char* hostname = "192.168.1.10";
+constexpr int BUFFSIZE = 4096;
 
 class HttpSocket{
 	public:
 		HttpSocket(const char* host, uint16_t port);
 		~HttpSocket();
-		void send(std::string request);
+		std::string send(std::string request);
 
 	private:
 		std::mutex httpSocket_mutex;
 		int sockfd;//sockfd file discriptor
 	  struct sockaddr_in serv_addr;
 
+		bool readABit(uint8_t* buffer);
+		void readRemaining(uint8_t* buffer, std::string &response);
+		int readHeaders(uint8_t* buffer, char* &startOfMessage);
 };
 
 #endif // MPD
