@@ -55,13 +55,16 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 	SignalState* signalState;
 	WebGraph* webGraph;
 
+	#ifdef DEBUG
+	printf ("New %s request for %s using version %s\n", method, url, version);
+	#endif
+
+
 	convert_arguments(cls, bot, httpState, signalState, webGraph);
  
 	fail = authorised_connection(connection); //check if other party authorised
   if (0 == strcmp(method, "GET")){
 		if (NULL == *con_cls) {*con_cls = connection; return MHD_YES;}
-		
-		//printf ("New %s request for %s using version %s\n", method, url, version);
 		
 
 		
@@ -192,7 +195,7 @@ char* load_file (const char *filename)
 }
 
 
-int thread_Https_serv(std::shared_ptr<std::mutex> stop, 
+int thread_Https_serv(std::mutex* stop, 
 											TelegramBot* bot,
 											HttpState* httpState,
 											SignalState* signalState,
@@ -206,7 +209,7 @@ int thread_Https_serv(std::shared_ptr<std::mutex> stop,
 	cert_pem = load_file("fullchain1.pem");
 
   //check if key could be read
-  if ((key_pem == NULL) || (cert_pem == NULL) || (trust_pem == NULL))
+  if ((key_pem == NULL) || (cert_pem == NULL))
   {
     printf ("The key/certificate files could not be read.\n");
     return 1;

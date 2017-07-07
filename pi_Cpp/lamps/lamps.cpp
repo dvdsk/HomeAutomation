@@ -5,16 +5,16 @@ Lamps::Lamps()
 
 	std::string error = 
 	  "[{\"error\":{\"type\":1,\"address\":\"/\",\"description\":\"unauthorized user\"}}]";
-	//if(get("") == error){	std::cout<<"HUE CONFIG WRONG\n";}
+	if(get("") == error){	std::cout<<"HUE CONFIG WRONG\n";}
 	//std::cout<<get("")<<"\n";
 }
 
 void Lamps::off(int n){
 	std::lock_guard<std::mutex> guard(lamp_mutex);
-
+	//std::cout<<"THINGS\n";
 	saveState(n);
 
-	put("/lights/"+toId(n)+"/state", "{\"on\": false, \"transitiontime\": 0}");
+	//put("/lights/"+toId(n)+"/state", "{\"on\": false, \"transitiontime\": 0}");
 }
 
 void Lamps::off(){
@@ -33,10 +33,11 @@ void Lamps::off(){
 //NOT SHOULD ALWAYS BE RAN IN A MUTEX-env
 void Lamps::saveState(int n){
 
-	std::cout<<"/lights/"+toId(n)<<"\n";
-	std::string state = get("/lights/"+toId(n));
-	//std::string state = get("");
-	std::cout<<state<<"\n";
+	std::cout<<get("")<<"\n";
+//	std::cout<<"/lights/"+toId(n)<<"\n";
+//	std::string state = get("/lights/"+toId(n));
+//	//std::string state = get("");
+//	std::cout<<"state: "<<state<<"\n";
 
 //	int pos1 = state.find("bri");
 //	int pos2 = state.find(",",pos1);

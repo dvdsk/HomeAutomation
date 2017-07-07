@@ -18,18 +18,21 @@ size_t readCurlToString(void *contents, size_t size, size_t nmemb, std::string *
 }
 
 //FIXME was static and not used wanted to get rid of warning
-size_t read_callback(void *src, size_t size, size_t nmemb, void *stream){
+size_t read_callback(void* src, size_t size, size_t nmemb, void* stream){
   //int retcode = 0;
   int strSize;
 	
-	//std::cout<<"now: "<<(const char*)stream<<"\n";
+	std::cout<<"now: "<<(const char*)stream<<"\n";
 	strSize = strlen((const char*)stream);
+	//strSize = strlen(stream);
 
   std::memcpy(src, stream, strSize);
+  //std::memcpy(src, stream, size);
 	//std::cout<<(const char*)src<<"\n";
 	//std::cout<<strSize<<"\n";
- 
+
   return strSize;
+	//return size;
 }
 
 HttpGetPostPut::HttpGetPostPut(std::string baseUrl_){

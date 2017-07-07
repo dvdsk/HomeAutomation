@@ -41,7 +41,7 @@ FILE* file1; //needed as global for interrupt handling
 FILE* file2;
 
 ////////////////////////////////////////////////////////////////////
-std::shared_ptr<std::mutex> stopHttpServ = std::make_shared<std::mutex>();
+std::mutex* stopHttpServ = new std::mutex();
 std::atomic<bool>* notShuttingdown = new std::atomic<bool>();
 std::condition_variable cv_updataSlow;
 std::mutex cv_updataSlow_m;

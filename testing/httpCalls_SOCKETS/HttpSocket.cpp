@@ -2,6 +2,7 @@
 #include <stdio.h> //debugging
 	#include <chrono>
 	#include <thread>
+	#include <cstdio> //debugging
 
 void PressEnterToContinue()
   {
@@ -36,14 +37,10 @@ HttpSocket::HttpSocket(const char* host, uint16_t portno){
   serv_addr.sin_port = htons(portno);
   memcpy(&serv_addr.sin_addr.s_addr,server->h_addr,server->h_length);
 
-  /* connect the socket */
-  if (connect(sockfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr)) < 0)
-		error("ERROR connecting");
 }
 
 HttpSocket::~HttpSocket(){
-  /* close the socket */
-  close(sockfd);
+
 }
 
 
@@ -51,13 +48,15 @@ void HttpSocket::send(std::string request){
   int bytes, sent, received, total;
   char* response[4096];
 
+  /* connect the socket */
+  if (connect(sockfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr)) < 0)
+		error("ERROR connecting");
 
   /* send the request */
   sent = 0;
   do {
     bytes = write(sockfd,request.c_str()+sent,request.size()-sent);
-    if (bytes < 0)
-        error("ERROR writing message to socket");
+    if (bytes < 0) error("ERROR writing message to socket");
     if (bytes == 0)
         break;
     sent+=bytes;
@@ -70,19 +69,23 @@ void HttpSocket::send(std::string request){
   total = sizeof(response)-1;
   received = 0;
   do {
-		std::cout<<"waiting for response\n";
+		std::cout<<"waiting for response, recieved: "<<received<<"\n";
     bytes = read(sockfd,response+received,total-received);
     if (bytes < 0) std::cerr<<"ERROR reading response from socket\n";
     if (bytes == 0){std::cout<<"done reading, breaking\n\n"; break; }
     received+=bytes;
   } while (received < total);
 
+  /* close the socket */
+  close(sockfd);
+
   if (received == total) 
 		std::cerr<<"ERROR storing complete response from socket\n";
 
 
   /* process response */
-  printf("Response:\n%s\n",response);
+  //printf("Response:\n%s\nraw: ",response);
+	fwrite(response, 1, received, stdout);
 
 	std::cout<<"\n";
 }
@@ -91,11 +94,13 @@ void HttpSocket::send(std::string request){
 int main()
 {
 	
-//	HttpSocket* lampServ = new HttpSocket("192.168.1.11", 80);
-	HttpSocket* lampServ = new HttpSocket("google.com", 80);
+	//HttpSocket* lampServ = new HttpSocket("192.168.1.11", 80);
+	HttpSocket* lampServ = new HttpSocket("www.example.com", 80);
 
-	//https://www.jmarshall.com/easy/http/#structure
-	lampServ->send("GET / HTTP/1.0\n\r\n\r");
+	//https://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html#sec5
+	//Request-Line   = Method SP Request-URI SP HTTP-Version CRLF
+
+	lampServ->send("GET http://www.example.com/ HTTP/1.0 \r\n\r\n");
 
 	delete lampServ;
   return 0;
