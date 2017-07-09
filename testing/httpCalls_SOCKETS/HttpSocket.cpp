@@ -48,7 +48,7 @@ HttpSocket::~HttpSocket(){
 
 std::string HttpSocket::send(std::string request){
   int bytes, sent, received, total;
-  uint8_t buffer[BUFFSIZE];
+  char buffer[BUFFSIZE];
 	char* startOfMessage;
 	unsigned int content_length;
 	
@@ -75,42 +75,41 @@ std::string HttpSocket::send(std::string request){
 	if(fitsBuffer) return response;
 	else if(content_length != 0)
 		response.resize(content_length);
-	
 	readRemaining(buffer, response);
 
-	//std::cout<<response<<"\n";
 	return response;
 }
 
-int HttpSocket::readHeaders(uint8_t* buffer, char* &startOfMessage){
+int HttpSocket::readHeaders(char* buffer, char* &startOfMessage){
 	int content_length;
 
-	char* contentLengthLoc = strstr((char*)buffer, "Content-Length:");
+	char* contentLengthLoc = strstr(buffer, "Content-Length:");
 	if(contentLengthLoc != nullptr) content_length = atoi(contentLengthLoc);
 	else content_length = 0;
 
-	startOfMessage = strstr((char*)buffer, "\r\n\r\n");
+	startOfMessage = strstr(buffer, "\r\n\r\n");
 	if(startOfMessage == nullptr){
-		startOfMessage = (char*)buffer;
+		startOfMessage = buffer;
 		std::cerr<<"server reply does not contain a message";
 	}
 	
 	return content_length;
 }
 
-void HttpSocket::readRemaining(uint8_t* buffer, std::string &response){
+void HttpSocket::readRemaining(char* buffer, std::string &response){
   int bytes, received, total = BUFFSIZE;
  	constexpr bool keepReading = true;
 	
 	do {
+		memset(buffer, 0, BUFFSIZE);
  		bytes = read(sockfd,buffer,total);
  		if (bytes < 0) std::cerr<<strerror(errno)<<"\n";
- 		if (bytes == 0)	break;
- 		response.append((char*)buffer);
+ 		if (bytes == 0)	{std::cout<< "zero bytes remaining"; break;}
+ 		response.append(buffer, bytes);
  	} while (keepReading);
 }
 
-bool HttpSocket::readABit(uint8_t* buffer){
+bool HttpSocket::readABit(char* buffer){
   int bytes, received= 0, total = BUFFSIZE-1;
 	//BUFFSIZE-1 to accomodate for adding null terminator to string as we
 	//might not read the full string.
@@ -152,7 +151,9 @@ int main()
 
 
 	//lampServ->send("GET http://www.example.com/ HTTP/1.0 \r\n\r\nConnection: \"close\"\r\n");
-	lampServ->send(request);
+	//lampServ->send(request);
+	std::cout<<lampServ->send(request)<<"\n";
+
 	//lampServ->send("GET http://www.example.com/ HTTP/1.0 \r\n\r\n");
 
 	delete lampServ;

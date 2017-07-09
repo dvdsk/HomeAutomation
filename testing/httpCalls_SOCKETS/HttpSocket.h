@@ -31,9 +31,9 @@ class HttpSocket{
 		int sockfd;//sockfd file discriptor
 	  struct sockaddr_in serv_addr;
 
-		bool readABit(uint8_t* buffer);
-		void readRemaining(uint8_t* buffer, std::string &response);
-		int readHeaders(uint8_t* buffer, char* &startOfMessage);
+		bool readABit(char* buffer);
+		void readRemaining(char* buffer, std::string &response);
+		int readHeaders(char* buffer, char* &startOfMessage);
 };
 
 #endif // MPD
