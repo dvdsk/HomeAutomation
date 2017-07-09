@@ -25,11 +25,12 @@ bool State::updateOnHttp(){
 	}
 	else if(url == "/|lamps/alloff"){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
-		data->Lamps::off(1);
+		std::cout<<"should be turning lamps off\n";
+		data->Lamps::off();
 	}
 	else if(url == "/|lamps/allon"){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
-		data->Lamps::on(1);
+		data->Lamps::on();
 	}
 
 

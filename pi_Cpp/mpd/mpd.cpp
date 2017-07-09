@@ -2,15 +2,15 @@
 #include <stdio.h> //debugging
 
 
-void PressEnterToContinue()
-  {
-  int c;
-  printf( "Press ENTER to continue... \n" );
-  fflush( stdout );
-  do c = getchar(); while ((c != '\n') && (c != EOF));
-  }
+//void PressEnterToContinue()
+//  {
+//  int c;
+//  printf( "Press ENTER to continue... \n" );
+//  fflush( stdout );
+//  do c = getchar(); while ((c != '\n') && (c != EOF));
+//  }
 
-void error(const char *msg)
+static inline void error(const char *msg)
 {
     perror(msg);
     exit(0);
@@ -23,7 +23,6 @@ Mpd::Mpd(MpdState* mpdState_, SignalState* signalState_){
 	signalState = signalState_;
 	dataRdy = false;
 	
-
 	//arange socket connection
 
 	//create TCP internet socket
@@ -45,8 +44,9 @@ Mpd::Mpd(MpdState* mpdState_, SignalState* signalState_){
   serv_addr.sin_port = htons(portno);	
 
 	//and finally connect the socket to the remote server
-  if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
+  if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0){
   	error("ERROR connecting");
+	}
 
 	//check if connected to mpd and empty socket
 	bzero(buffer,256);
@@ -66,7 +66,7 @@ Mpd::~Mpd(){
 	//request data to force update so stop bool gets noticed
 	std::lock_guard<std::mutex> guard(mpd_mutex);
 	write(sockfd,stopIdle,strlen(stopIdle));
-
+	close(sockfd);
 	m_thread->join();
 }
 
@@ -82,7 +82,6 @@ void Mpd::readLoop(){
 	char buffer[BUFFERSIZE];
 	bzero(buffer,BUFFERSIZE);
 
-	uint8_t bufferSize;
 	uint8_t n;
 	std::string buffer2 = "";
 	std::string output;
@@ -204,11 +203,11 @@ std::string Mpd::getInfo(std::string const& command){
 }
 
 void Mpd::QueueFromPLs(std::string const &source, 
-	const int tMin, const int tMax){
+	const unsigned int tMin, const unsigned int tMax){
 
 	std::vector<int> runTimes;
 	std::vector<std::string> filePaths; 
-	int len=0, start, stop=0, time=0, r;
+	unsigned int start, len=0, stop=0, time=0, r;
 	std::string toAdd;
 
 	//request and organise needed song data
@@ -247,7 +246,7 @@ void Mpd::QueueFromPLs(std::string const &source,
 void Mpd::saveAndClearCP(){
 	std::vector<std::string> filePaths; 
 	std::string commands;
-	int start, stop=0;
+	unsigned int start, stop=0;
 
 	if(mpdState->playlistlength != 0){
 		std::string info = getInfo("playlistinfo\n");

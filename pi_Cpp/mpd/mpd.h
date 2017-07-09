@@ -38,7 +38,7 @@ class Mpd{
 		/* adds songs from the source playlist to the current playlist / queue 
 		   a minimum and maximum runtime can be passed along */ 
 		void QueueFromPLs(std::string const &source,
-		const int tMin, const int tMax);
+		const unsigned int tMin, const unsigned int tMax);
 
 		/* stores the current playlist to "oldPL" then clears the current playlist*/
 		void saveAndClearCP();

@@ -5,7 +5,7 @@ CXX = g++
 CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 
 ODIR = .BUILD
-OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o httpGetPostPut.o commandline.o webGraph.o plotly.o dygraphs.o mpd.o lamps.o default.o SleepInterrupt.o GoingToSleep.o Minimal.o Wakeup.o)
+OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o HttpSocket.o commandline.o webGraph.o plotly.o dygraphs.o mpd.o lamps.o default.o SleepInterrupt.o GoingToSleep.o Minimal.o Wakeup.o)
 
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
@@ -18,7 +18,7 @@ nothread: homeAutomation
 
 homeAutomation: $(OBJS)
 	$(CXX) $(CXXFLAGS) -o homeAutomation $(OBJS) \
-	-lmicrohttpd -lcurl  -lpthread -lmenu -lncurses \
+	-lmicrohttpd -lpthread -lmenu -lncurses \
 	-lboost_system -lboost_thread
 
 $(ODIR)/main.o: main.cpp config.h arduinoContact/decode.h \
@@ -77,13 +77,13 @@ $(ODIR)/webGraph.o: httpServer/pages/webGraph.cpp httpServer/pages/webGraph.h \
 	$(CXX) $(CXXFLAGS) -o$@ -c httpServer/pages/webGraph.cpp
 
 
-$(ODIR)/httpGetPostPut.o: lamps/httpGetPostPut.cpp lamps/httpGetPostPut.h
-	$(CXX) $(CXXFLAGS) -lcurl -o$@ -c lamps/httpGetPostPut.cpp	
+$(ODIR)/HttpSocket.o: smallFunct/HttpSocket.cpp smallFunct/HttpSocket.h
+	$(CXX) $(CXXFLAGS) -o$@ -c smallFunct/HttpSocket.cpp	
 $(ODIR)/mpd.o: mpd/mpd.cpp mpd/mpd.h
 	$(CXX) $(CXXFLAGS) -o$@ -c mpd/mpd.cpp		
 
 
-$(ODIR)/lamps.o: lamps/httpGetPostPut.h lamps/lamps.cpp lamps/lamps.h
+$(ODIR)/lamps.o: smallFunct/HttpSocket.h lamps/lamps.cpp lamps/lamps.h
 	$(CXX) $(CXXFLAGS) -o$@ -c lamps/lamps.cpp
 
 $(ODIR)/plotly.o: httpServer/pages/plotly.h httpServer/pages/plotly.cpp

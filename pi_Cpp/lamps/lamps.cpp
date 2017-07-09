@@ -25,7 +25,6 @@ void Lamps::off(int n){
 void Lamps::off(){
 	std::string resource;
 	std::lock_guard<std::mutex> guard(lamp_mutex);
-	
 	saveState();
 
 	for(int n=0; n<lmp::LEN; n++){
@@ -100,7 +99,6 @@ void Lamps::setState(std::string json){
 
 	for(int n=0; n<lmp::LEN; n++){
 		resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
-		put(resource, json);
 	}
 }
 
