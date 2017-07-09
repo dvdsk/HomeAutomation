@@ -4,12 +4,13 @@
 #include <iostream> //cout
 #include <string.h> //strcmp
 #include <mutex>
-#include "httpGetPostPut.h"
+#include "../smallFunct/HttpSocket.h"
 #include "../config.h"
 
+constexpr const char* BASE_URL = config::HUE_RESOURCE;
 
 /*small wrapper around HttpGetPostPut for controlling the lamps */ 
-class Lamps : public HttpGetPostPut
+class Lamps : public HttpSocket
 {
 	
 	public:
@@ -17,7 +18,8 @@ class Lamps : public HttpGetPostPut
 		 get and parse the current lamp status*/
 	Lamps();
 
-	/* turn on specific lamp or all lamps with zero transition time*/
+	/* turn on specific lamp or all lamps with zero transition time with
+	   the last off settings */
 	void on(int n);
 	void on();
 	/* turn off specific lamp or all lamps with zero transition time*/

@@ -1,19 +1,19 @@
 CXX = g++
 CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 
-objects = httpGetPostPut.o lamps.o main.o
+objects = HttpSocket.o lamps.o main.o
 
 pi: $(objects)
-	$(CXX) $(CXXFLAGS) $(ROOTFLAGS) -lcurl -o pi $(objects)
+	$(CXX) $(CXXFLAGS) -o pi $(objects)
 
-main.o: main.cpp lamps.h httpGetPostPut.h 
+main.o: main.cpp lamps.h ../smallFunct/HttpSocket.h
 	$(CXX) $(CXXFLAGS) -c main.cpp	
 
-lamps.o: lamps.cpp httpGetPostPut.h
+lamps.o: lamps.cpp ../smallFunct/HttpSocket.h
 	$(CXX) $(CXXFLAGS) -c lamps.cpp	
 
-httpGetPostPut.o: httpGetPostPut.cpp httpGetPostPut.h
-	$(CXX) $(CXXFLAGS) -lcurl -c httpGetPostPut.cpp	
+HttpSocket.o: ../smallFunct/HttpSocket.cpp ../smallFunct/HttpSocket.h
+	$(CXX) $(CXXFLAGS) -c ../smallFunct/HttpSocket.cpp	
 
 .PHONY : clean
 clean:
