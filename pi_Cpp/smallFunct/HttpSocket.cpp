@@ -37,6 +37,7 @@ std::string HttpSocket::rawRequest(const std::string request){
 	char* startOfMessage;
 	unsigned int content_length;
 
+	httpSocket_mutex.lock();	
 	/* open new socket */
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockfd < 0) error("ERROR opening socket");	
@@ -47,7 +48,6 @@ std::string HttpSocket::rawRequest(const std::string request){
   /* send the request */
   sent = 0;
  	//lock mutex to prevent conflicts if sending from multiple threads 
-	std::lock_guard<std::mutex> lock(httpSocket_mutex);	
 	do {
     bytes = write(sockfd,request.c_str()+sent,request.size()-sent);
     if (bytes < 0) error("ERROR writing message to socket");
@@ -55,17 +55,18 @@ std::string HttpSocket::rawRequest(const std::string request){
         break;
     sent+=bytes;
   } while (sent < request.size());
-
+	
 	bool fitsBuffer = readABit(buffer);
 	content_length = readHeaders(buffer, startOfMessage);
 	std::string response(startOfMessage);
 
-	if(fitsBuffer) return response;
+	if(fitsBuffer){httpSocket_mutex.unlock(); return response; }
 	else if(content_length != 0)
 		response.resize(content_length);
 	readRemaining(buffer, response);
 
 	close(sockfd);
+	httpSocket_mutex.unlock();
 
 	return response;
 }

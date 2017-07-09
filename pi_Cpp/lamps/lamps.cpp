@@ -6,14 +6,15 @@ Lamps::Lamps()
 	std::string error = 
 	  "[{\"error\":{\"type\":1,\"address\":\"/\",\"description\":\"unauthorized user\"}}]";
 
+	std::string test;
 	if(get(BASE_URL) == error){	std::cout<<"HUE CONFIG WRONG\n";}
+
 
 	//get current settings for all lamps and store
 	saveState();
 }
 
 void Lamps::off(int n){
-	std::lock_guard<std::mutex> guard(lamp_mutex);
 	saveState(n);
 
 	std::string resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)
@@ -24,7 +25,6 @@ void Lamps::off(int n){
 
 void Lamps::off(){
 	std::string resource;
-	std::lock_guard<std::mutex> guard(lamp_mutex);
 	saveState();
 
 	for(int n=0; n<lmp::LEN; n++){
@@ -39,10 +39,11 @@ inline void Lamps::saveState(int n){
 	std::string resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n);
 
 	std::string state = get(resource);
-	//std::cout<<state<<"\n";
 
 	int pos1 = state.find("bri");
 	int pos2 = state.find(",",pos1);
+
+	std::lock_guard<std::mutex> guard(lamp_mutex);
 	lampBri[n] = stoi(state.substr(pos1+5, pos2-pos1));
 
 	pos1 = state.find("xy", 54)+sizeof("xy\":[");
@@ -99,6 +100,7 @@ void Lamps::setState(std::string json){
 
 	for(int n=0; n<lmp::LEN; n++){
 		resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
+		put(resource, json);
 	}
 }
 

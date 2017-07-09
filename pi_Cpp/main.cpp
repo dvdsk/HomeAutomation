@@ -40,28 +40,10 @@ uint8_t cache2[CACHESIZE_slowData];
 FILE* file1; //needed as global for interrupt handling
 FILE* file2;
 
-////////////////////////////////////////////////////////////////////
-std::mutex* stopHttpServ = new std::mutex();
+std::mutex cv_updataSlow_m;
 std::atomic<bool>* notShuttingdown = new std::atomic<bool>();
 std::condition_variable cv_updataSlow;
-std::mutex cv_updataSlow_m;
-
-TelegramBot* bot = new TelegramBot();
-
-//expriment not using shared pointers (possible speedup)
-SignalState* signalState = new SignalState;
-
-SensorState* sensorState = new SensorState;
-MpdState* mpdState = new MpdState;
-Mpd* mpd = new Mpd(mpdState, signalState);
-HttpState* httpState = new HttpState;
-ComputerState* computerState = new ComputerState;
-
-StateData* stateData = new StateData(sensorState, mpdState, mpd, httpState, computerState);
-
-PirData* pirDat = new PirData("pirs", cache1, CACHESIZE_pir);
-SlowData* slowDat = new SlowData("slowData", cache2, CACHESIZE_slowData);
-
+////////////////////////////////////////////////////////////////////
 
 
 void updateVSlow_thread(StateData* stateData){
@@ -94,7 +76,23 @@ void interruptHandler(int s){
 
 int main(int argc, char* argv[])
 {
+	std::mutex* stopHttpServ = new std::mutex();
+	TelegramBot* bot = new TelegramBot();
+	SignalState* signalState = new SignalState;
 
+	SensorState* sensorState = new SensorState;
+	MpdState* mpdState = new MpdState;
+	Mpd* mpd = new Mpd(mpdState, signalState);
+	HttpState* httpState = new HttpState;
+	ComputerState* computerState = new ComputerState;
+
+	StateData* stateData = new StateData(sensorState, mpdState, mpd, httpState, computerState);
+
+	PirData* pirDat = new PirData("pirs", cache1, CACHESIZE_pir);
+	SlowData* slowDat = new SlowData("slowData", cache2, CACHESIZE_slowData);
+
+
+	std::cout<<"test\n";
 	(*stopHttpServ).lock();
 	(*notShuttingdown) = true;
 	file1 = pirDat->getFileP();
