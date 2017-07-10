@@ -67,7 +67,7 @@ inline void Lamps::saveFullState(uint8_t n){
 	int pos2 = state.find(",",pos1);
 	bri[n] = stoi(state.substr(pos1+5, pos2-pos1));
 
-	isOn[n] = (state.substr(sizeof("\"state\":{\"on\":"), 4) == "true");
+	isOn[n] = (state.substr(sizeof("\"state\":{\"on\""), 4) == "true");
 
 	pos1 = state.find("xy", 54)+sizeof("xy\":[");
 	x[n] = stof(state.substr(pos1, 5));

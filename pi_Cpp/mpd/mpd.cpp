@@ -145,10 +145,10 @@ inline void Mpd::parseStatus(std::string const& output){
 	mpdState->volume = stoi(output.substr(8,3));
 	mpdState->playlistlength = stoi(output.substr(output.find("playlistlength:")+15, 4));
 
-	if(output.substr(111,4) == "stop"){
+	if(output.rfind("stop") != std::string::npos){
 		mpdState->playback = STOPPED;
 	}
-	else if(output.substr(111,4) == "paus"){
+	else if(output.rfind("paus") != std::string::npos){
 		mpdState->playback = PAUSED;
 	}
 	else{
@@ -208,7 +208,8 @@ void Mpd::QueueFromPLs(std::string const &source,
 
 	std::vector<int> runTimes;
 	std::vector<std::string> filePaths; 
-	unsigned int start, len=0, stop=0, time=0, r;
+	int start; //as std::string::npos = -1
+	unsigned int len=0, stop=0, time=0, r;
 	std::string toAdd;
 
 	//request and organise needed song data
@@ -247,7 +248,8 @@ void Mpd::QueueFromPLs(std::string const &source,
 void Mpd::saveAndClearCP(){
 	std::vector<std::string> filePaths; 
 	std::string commands;
-	unsigned int start, stop=0;
+	unsigned int stop=0;
+	int start;
 
 	if(mpdState->playlistlength != 0){
 		std::string info = getInfo("playlistinfo\n");

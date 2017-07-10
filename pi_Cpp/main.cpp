@@ -145,6 +145,7 @@ int main(int argc, char* argv[])
 	cv_updataSlow.notify_all();
 
 	t1.join();
+	t2.join();
 	t3.join();
 	t4.join();
 

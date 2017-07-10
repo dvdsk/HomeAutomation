@@ -25,7 +25,7 @@ static void* threadFunction(WakeUp* currentState){
 
 	while(!currentState->stop.load() && time < WAKEUP_DURATION){
 		bri = (int)(BRI_PER_SEC*time);
-		ct = (int)(CT_MIN+CT_PER_SEC*time);
+		ct = (int)(CT_MAX-CT_PER_SEC*time);
 		//Do something with lamps
 		lamps->setState(lmp::BUREAU, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
 		lamps->setState(lmp::RADIATOR, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
@@ -51,6 +51,7 @@ static void* threadFunction(WakeUp* currentState){
 				lamps->setState(lmp::CEILING, "{\"on\": true, \"bri\": "+std::to_string(bri+5*BRI_PER_SEC)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 50}");
 			}
 		}
+
 		if(time>WAKEUP_MUSIC_ON){
 			if(mpdState->playback != PLAYING){
 				std::string cList = "setvol "+std::to_string(VOL_MIN)+"\nplay 0\n";
@@ -60,7 +61,6 @@ static void* threadFunction(WakeUp* currentState){
 				mpd->sendCommand("setvol "+std::to_string(time*VOL_PER_SEC+VOL_MIN));	
 		}
 	time +=5; //due to code execution +- 1 second drift over 15 min 
-	std::cout<<"time: "<<time<<"\n";
 	cv_wakeup.wait_for(lk, 5*1s, [currentState](){return currentState->stop.load();});
 	}
 
@@ -76,13 +76,12 @@ WakeUp::WakeUp(StateData* stateData)
 	stop = false;
 	m_thread = new std::thread(threadFunction, this);
 
-	//TODO save current playlist, clear playlist
 	stateData->mpd->saveAndClearCP();	
+
 	stateData->mpd->QueueFromPLs("calm", 3*60, 5*60);
 	stateData->mpd->QueueFromPLs("energetic", 10*60, 11*60);
 
 	std::cout<<"Ran Wakeup state constructor\n";
-	std::cout<<"stateName: "<<stateName<<"\n";
 }
 
 WakeUp::~WakeUp(){
