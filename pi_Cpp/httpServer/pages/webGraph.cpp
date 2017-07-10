@@ -158,10 +158,17 @@ WebGraph::WebGraph(PirData* pirData_, SlowData* slowData_){
 	slowData = slowData_;
 
   //check if key could be read
-  if ((dyCss == NULL) || (dyjs == NULL))
+  if ((dyCss == nullptr) || (dyjs == nullptr))
   {
     printf ("The dyCss/dyjs files should be in sources/dygraph.css and sources/dygraph.min.js\n");
   }
+}
+
+WebGraph::~WebGraph(){
+	if(dyCss != nullptr) delete[] dyCss;
+	if(dyjs != nullptr) delete[] dyjs;
+
+
 }
 
 long WebGraph::get_file_size (const char *filename)
@@ -186,35 +193,33 @@ long WebGraph::get_file_size (const char *filename)
 
 //used to load the key files into memory
 //FIXME was static and not used wanted to get rid of warning
-char* WebGraph::load_file (const char *filename)
-{
+//used to load the key files into memory
+char* WebGraph::load_file(const char* filename) {
   FILE *fp;
   char* buffer;
   unsigned long size;
 
   size = get_file_size(filename);
   if (0 == size)
-    return NULL;
+    return nullptr;
 
   fp = fopen(filename, "rb");
-  if (! fp)
-    return NULL;
+  if (!fp)
+    return nullptr;
 
-  buffer = (char*)malloc(size + 1);
-  if (! buffer)
-    {
+  buffer = new char[size + 1];
+  if (!buffer) {
       fclose (fp);
-      return NULL;
-    }
+      return nullptr;
+  }
   buffer[size] = '\0';
 
-  if (size != fread (buffer, 1, size, fp))
-    {
-      free (buffer);
-      buffer = NULL;
-    }
+  if (size != fread(buffer, 1, size, fp)) {
+      free(buffer);
+      buffer = nullptr;
+  }
 
-  fclose (fp);
+  fclose(fp);
   return buffer;
 }
 

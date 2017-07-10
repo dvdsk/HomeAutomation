@@ -20,30 +20,43 @@ class Lamps : public HttpSocket
 
 	/* turn on specific lamp or all lamps with zero transition time with
 	   the last off settings */
-	void on(int n);
+	void on(uint8_t n);
 	void on();
 	/* turn off specific lamp or all lamps with zero transition time*/
-	void off(int n);
+	void off(uint8_t n);
 	void off();
 
-	/* set full config for one or all lamps*/
-	void setState(int n, std::string json);
+	/* set full config for one or all lamps, the configuration is not stored 
+		 in thiss class*/
+	void setState(uint8_t n, std::string json);
 	void setState(std::string json);
+
+	/* set the brightness and ct for all lamps that are on, and */
+	void set_ctBri(uint8_t n, uint16_t ct, uint8_t bri);
+	void set_ctBri(uint16_t ct, uint8_t bri);
 
 	private:
 	/* need a mutex as we may never share the same handle in multiple threads */
 	std::mutex lamp_mutex;
 
-	void saveState(int n);
+	/* save bri, ct, xy and colormode */
+	void saveState(uint8_t n);
 	void saveState();
 
-	int lampBri[7];
-	float lampX[7];
-	float lampY[7];
+	/* special version of saveState that also checks the on/off state */
+	void saveFullState(uint8_t n);
+	void saveFullState();
+
+	bool isOn[lmp::LEN];
+	std::string colormode[lmp::LEN];
+	uint16_t ct[lmp::LEN];
+	uint8_t bri[lmp::LEN];
+	float x[lmp::LEN];
+	float y[lmp::LEN];
 
 	/* translates between lampNumb and lampId */
-	std::string toId(int lampNumb);
-	int toIntId(int lampNumb);
+	std::string toId(uint8_t lampNumb);
+	int toIntId(uint8_t lampNumb);
 };
 
 

@@ -15,6 +15,9 @@
 
 #include "../config.h"
 #include "../lamps/lamps.h"
+#include "../smallFunct/sunSetRise.h"
+
+constexpr double LLONGITUDE = 4.497010, LLATITUDE = 52.160114;
 
 class Mpd;
 //#include "../mpd/mpd.h"
@@ -102,6 +105,17 @@ class StateData : public Lamps
 			mpd = mpd_;
 			httpState = httpState_;
 			computerState = computerState_;
+
+			double sunRise, sunSet;
+
+			time_t theTime = time(NULL);
+			struct tm *aTime = localtime(&theTime);
+
+			sun_rise_set(aTime->tm_year+1900, aTime->tm_mon+1, aTime->tm_mday, 
+			LLONGITUDE, LLATITUDE, &sunRise, &sunSet);
+
+			tWarm = 3600*(sunSet-1); 	//time since midnight in sec UTC
+			tCool = 3600*(sunRise-1);	//time since midnight in sec UTC	
 		}
 		~StateData(){
 			std::cout<<"STATEDATA HAS BEEN DELETED\n";

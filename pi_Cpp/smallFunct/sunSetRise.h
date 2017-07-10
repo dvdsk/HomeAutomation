@@ -1,3 +1,5 @@
+#ifndef SUNSETRISE
+#define SUNSETRISE
 /* +++Date last modified: 05-Jul-1997 */
 /* Updated comments, 05-Aug-2013 */
 
@@ -518,3 +520,4 @@ double GMST0( double d )
                           ( 0.9856002585 + 4.70935E-5 ) * d );
       return sidtim0;
 }  /* GMST0 */
+#endif

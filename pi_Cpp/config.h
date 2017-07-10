@@ -113,13 +113,13 @@ namespace hum {//humidity sensors
 }
 
 namespace lmp {//lamps
-	constexpr int DOOR = 0;
-	constexpr int KITCHEN = 1;
-	constexpr int CEILING = 2;
-	constexpr int BATHROOM = 3;
-	constexpr int RADIATOR = 4;
-	constexpr int BUREAU = 5;
-	constexpr int LEN = 6;
+	constexpr uint8_t DOOR = 0;
+	constexpr uint8_t KITCHEN = 1;
+	constexpr uint8_t CEILING = 2;
+	constexpr uint8_t BATHROOM = 3;
+	constexpr uint8_t RADIATOR = 4;
+	constexpr uint8_t BUREAU = 5;
+	constexpr uint8_t LEN = 6;
 }
 
 namespace plnt {//plants

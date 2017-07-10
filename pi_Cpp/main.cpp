@@ -148,6 +148,9 @@ int main(int argc, char* argv[])
 	t3.join();
 	t4.join();
 
+	delete pirDat;
+	delete slowDat;
+
 	delete signalState;
 	delete sensorState;
 	delete httpState;

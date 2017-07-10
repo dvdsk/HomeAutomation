@@ -9,14 +9,17 @@ Lamps::Lamps()
 	if(get(BASE_URL) == error){	std::cout<<"HUE CONFIG WRONG\n";}
 
 	//get current settings for all lamps and store
-	saveState();
+	saveFullState();
+
 }
 
-void Lamps::off(int n){
+void Lamps::off(uint8_t n){
+	std::string resource;	
 	std::lock_guard<std::mutex> guard(lamp_mutex);
 	saveState(n);
 
-	std::string resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)
+	isOn[n] = false;
+	resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)
 		+(std::string)+"/state";
 
 	put(resource, "{\"on\": false, \"transitiontime\": 0}");
@@ -28,6 +31,7 @@ void Lamps::off(){
 	saveState();
 
 	for(int n=0; n<lmp::LEN; n++){
+		isOn[n] = false;
 		resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)
 							 +(std::string)+"/state";
 
@@ -35,19 +39,46 @@ void Lamps::off(){
 	}
 }
 
-inline void Lamps::saveState(int n){
+inline void Lamps::saveState(uint8_t n){
 	std::string resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n);
-
 	std::string state = get(resource);
-	//std::cout<<state<<"\n";
 
 	int pos1 = state.find("bri");
 	int pos2 = state.find(",",pos1);
-	lampBri[n] = stoi(state.substr(pos1+5, pos2-pos1));
+	bri[n] = stoi(state.substr(pos1+5, pos2-pos1));
 
 	pos1 = state.find("xy", 54)+sizeof("xy\":[");
-	lampX[n] = stof(state.substr(pos1, 5));
-	lampY[n] = stof(state.substr(state.find(",", pos1)+sizeof(","), 5));
+	x[n] = stof(state.substr(pos1, 5));
+	y[n] = stof(state.substr(state.find(",", pos1)+sizeof(","), 5));
+
+	pos1 = state.find("ct", 73)+sizeof("ct\"");
+	ct[n] = stoi(state.substr(pos1, 3));
+
+	pos1 = state.find("colormode", 103)+sizeof("colormode\":");
+	pos2 = state.find(",", pos1)-1;
+	colormode[n] = state.substr(pos1, pos2-pos1);
+}
+
+inline void Lamps::saveFullState(uint8_t n){
+	std::string resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n);
+	std::string state = get(resource);
+
+	int pos1 = state.find("bri");
+	int pos2 = state.find(",",pos1);
+	bri[n] = stoi(state.substr(pos1+5, pos2-pos1));
+
+	isOn[n] = (state.substr(sizeof("\"state\":{\"on\":"), 4) == "true");
+
+	pos1 = state.find("xy", 54)+sizeof("xy\":[");
+	x[n] = stof(state.substr(pos1, 5));
+	y[n] = stof(state.substr(state.find(",", pos1)+sizeof(","), 5));
+
+	pos1 = state.find("ct", 73)+sizeof("ct\"");
+	ct[n] = stoi(state.substr(pos1, 3));
+
+	pos1 = state.find("colormode", 103)+sizeof("colormode\":");
+	pos2 = state.find(",", pos1)-1;
+	colormode[n] = state.substr(pos1, pos2-pos1);
 }
 
 void Lamps::saveState(){
@@ -56,16 +87,24 @@ void Lamps::saveState(){
 		saveState(n);
 }
 
-void Lamps::on(int n){
+void Lamps::saveFullState(){
+
+	for(int n=0; n<lmp::LEN; n++)
+		saveFullState(n);
+}
+
+void Lamps::on(uint8_t n){
 	std::string resource;
 	std::string toput;
 
 	std::lock_guard<std::mutex> guard(lamp_mutex);
 
+	isOn[n] = true;
 	resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
 	toput = 
-	"{\"on\": true, \"transitiontime\": 0,\"bri\":"	+ std::to_string(lampBri[n])
-	+ ",\"xy\":["+std::to_string(lampX[n])+","+std::to_string(lampY[n])+"]}";
+	"{\"on\": true, \"transitiontime\": 0,\"bri\":"	+ std::to_string(bri[n])
+	+ ",\"xy\":["+std::to_string(x[n])+","+std::to_string(y[n])+"\"ct\":"
+	+std::to_string(ct[n])+"]}";
 
 	put(resource, toput);
 }
@@ -76,16 +115,17 @@ void Lamps::on(){
 	std::lock_guard<std::mutex> guard(lamp_mutex);
 
 	for(int n=0; n<lmp::LEN; n++){
+		isOn[n] = true;		
 		resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
 		toput = 
-		"{\"on\": true, \"transitiontime\": 0,\"bri\":"	+ std::to_string(lampBri[n])
-		+ ",\"xy\":["+std::to_string(lampX[n])+","+std::to_string(lampY[n])+"]}";
+		"{\"on\": true, \"transitiontime\": 0,\"bri\":"	+ std::to_string(bri[n])
+		+ ",\"xy\":["+std::to_string(x[n])+","+std::to_string(y[n])+"]}";
 
 		put(resource, toput);
 	}
 }
 
-void Lamps::setState(int n, std::string json){
+void Lamps::setState(uint8_t n, std::string json){
 	std::string resource;
 	std::lock_guard<std::mutex> guard(lamp_mutex);
 
@@ -98,14 +138,53 @@ void Lamps::setState(std::string json){
 	std::lock_guard<std::mutex> guard(lamp_mutex);
 
 	for(int n=0; n<lmp::LEN; n++){
-		resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
+		if(isOn[n]){
+			resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
+			put(resource, json);
+		}
 	}
 }
 
-//////PRIVATE FUNCT///////////////////////
+void Lamps::set_ctBri(uint8_t n, uint16_t ct_, uint8_t bri_){
+	if(isOn[n]){
+		std::string resource;
+		std::string json;
+		std::lock_guard<std::mutex> guard(lamp_mutex);
+
+		ct[n] = ct_;
+		bri[n] = bri_;
+		colormode[n] = "ct";
+	
+		json = "{\"bri\": "+std::to_string(bri_)+", \"ct\": "+std::to_string(ct_)+"}";
+		resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
+
+		put(resource, json);
+	}
+}
+
+void Lamps::set_ctBri(uint16_t ct_, uint8_t bri_){
+	std::string resource;
+	std::string json;
+	std::lock_guard<std::mutex> guard(lamp_mutex);
+
+	for(int n=0; n<lmp::LEN; n++){
+		if(isOn[n]){
+			ct[n] = ct_;
+			bri[n] = bri_;
+			colormode[n] = "ct";
+
+			json = "{\"bri\": "+std::to_string(bri_)+", \"ct\": "+std::to_string(ct_)+"}";
+			resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
+
+			put(resource, json);
+		}
+	}
+}
+
+/////////////////////////////
 
 //TODO add correct numbers
-inline std::string Lamps::toId(int lampNumb){
+inline std::string Lamps::toId(uint8_t lampNumb){
 
 	switch(lampNumb){
 		case lmp::DOOR: //done
@@ -128,7 +207,7 @@ inline std::string Lamps::toId(int lampNumb){
 }
 
 //TODO add correct numbers
-inline int Lamps::toIntId(int lampNumb){
+inline int Lamps::toIntId(uint8_t lampNumb){
 	switch(lampNumb){
 		case lmp::DOOR:
 			return 5;	

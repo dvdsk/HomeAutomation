@@ -34,6 +34,8 @@ HttpSocket::~HttpSocket(){
 std::string HttpSocket::rawRequest(const std::string request){
   unsigned int bytes, sent;
   char buffer[BUFFSIZE];
+	buffer[BUFFSIZE-1] = '\0';
+	memset(buffer, 0, BUFFSIZE-1);
 	char* startOfMessage;
 	unsigned int content_length;
 
@@ -110,6 +112,7 @@ bool HttpSocket::readABit(char* buffer){
 		if (bytes < 0) std::cerr<<strerror(errno)<<"\n";
 		if (bytes == 0){
 			small = true;
+			buffer[BUFFSIZE] = '\0';
 			break;
 		}
 		received+=bytes;
@@ -131,6 +134,7 @@ std::string HttpSocket::get(const std::string resource){
 
 //	std::string respons =	rawRequest(request);
 //	std::cout<<"response GET: "<<respons<<"\n";
+//	std::cout<<"returning\n";
 //	return respons;
 	return rawRequest(request);
 }

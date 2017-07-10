@@ -21,6 +21,7 @@
 class WebGraph{
 	public:
 	WebGraph(PirData* pirData, SlowData* slowData);
+	~WebGraph();
 	std::string dy_mainPage(); //uses dygraphs 
 	std::string* plotly_mainPage();
 

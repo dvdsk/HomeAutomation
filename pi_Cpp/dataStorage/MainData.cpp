@@ -69,6 +69,10 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
   Cache::InitCache(cache);
 }
 
+Data::~Data(){
+	fclose(fileP_);
+}
+
 FILE* Data::getFileP(){
   return fileP_;
 }

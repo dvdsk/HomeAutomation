@@ -29,6 +29,7 @@ class Data : public Cache, public MainHeader
 {
 public:
   Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheSize);
+	~Data();
 
   /*gets the file pointer for setting shut down conditions*/
   FILE* getFileP();

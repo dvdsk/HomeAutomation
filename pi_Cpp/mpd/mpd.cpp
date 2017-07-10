@@ -68,6 +68,7 @@ Mpd::~Mpd(){
 	write(sockfd,stopIdle,strlen(stopIdle));
 	close(sockfd);
 	m_thread->join();
+	delete m_thread;
 }
 
 static void thread_Mpd_readLoop(Mpd* mpd)

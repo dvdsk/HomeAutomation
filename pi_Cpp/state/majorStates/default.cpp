@@ -70,11 +70,8 @@ static void lightColor_thread(Default* currentState){
 			bri = BRI_NIGHT;
 		}
 
-		currentState->data->setState("{\"bri\": "+std::to_string(bri)+", \"ct\": "
-	  +std::to_string(ct)+", \"transitiontime\": 0}");
-		
-		//FIXME 200 should be less.
-		cv_default.wait_for(lk, 200*1s, [currentState](){return currentState->stop.load();});
+		currentState->data->set_ctBri(ct, bri);	
+		cv_default.wait_for(lk, 60*1s, [currentState](){return currentState->stop.load();});
 	}
 }				
 
@@ -93,6 +90,7 @@ Default::~Default(){
 	stop = true;
 	cv_default.notify_all();
 	m_thread->join();
+	delete m_thread;
 
 	std::cout<<"cleaned up the default state"<<"\n";
 }
