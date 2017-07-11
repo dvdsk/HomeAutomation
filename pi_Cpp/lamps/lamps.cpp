@@ -6,7 +6,9 @@ Lamps::Lamps()
 	std::string error = 
 	  "[{\"error\":{\"type\":1,\"address\":\"/\",\"description\":\"unauthorized user\"}}]";
 
+	std::string test;
 	if(get(BASE_URL) == error){	std::cout<<"HUE CONFIG WRONG\n";}
+
 
 	//get current settings for all lamps and store
 	saveFullState();
@@ -34,7 +36,6 @@ void Lamps::off(){
 		isOn[n] = false;
 		resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)
 							 +(std::string)+"/state";
-
 		put(resource, "{\"on\": false, \"transitiontime\": 0}");
 	}
 }
@@ -65,6 +66,7 @@ inline void Lamps::saveFullState(uint8_t n){
 
 	int pos1 = state.find("bri");
 	int pos2 = state.find(",",pos1);
+	std::lock_guard<std::mutex> guard(lamp_mutex);
 	bri[n] = stoi(state.substr(pos1+5, pos2-pos1));
 
 	isOn[n] = (state.substr(sizeof("\"state\":{\"on\""), 4) == "true");
@@ -127,7 +129,6 @@ void Lamps::on(){
 
 void Lamps::setState(uint8_t n, std::string json){
 	std::string resource;
-	std::lock_guard<std::mutex> guard(lamp_mutex);
 
 	resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
 	put(resource, json);
@@ -135,13 +136,10 @@ void Lamps::setState(uint8_t n, std::string json){
 
 void Lamps::setState(std::string json){
 	std::string resource;
-	std::lock_guard<std::mutex> guard(lamp_mutex);
 
 	for(int n=0; n<lmp::LEN; n++){
-		if(isOn[n]){
-			resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
-			put(resource, json);
-		}
+		resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
+		put(resource, json);
 	}
 }
 
@@ -157,7 +155,6 @@ void Lamps::set_ctBri(uint8_t n, uint16_t ct_, uint8_t bri_){
 	
 		json = "{\"bri\": "+std::to_string(bri_)+", \"ct\": "+std::to_string(ct_)+"}";
 		resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
-
 		put(resource, json);
 	}
 }
@@ -175,7 +172,6 @@ void Lamps::set_ctBri(uint16_t ct_, uint8_t bri_){
 
 			json = "{\"bri\": "+std::to_string(bri_)+", \"ct\": "+std::to_string(ct_)+"}";
 			resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
-
 			put(resource, json);
 		}
 	}

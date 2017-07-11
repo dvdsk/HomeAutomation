@@ -3,6 +3,7 @@
 
 #include <iostream> //cout
 #include <string.h> //strcmp
+#include <atomic>
 #include <mutex>
 #include "../smallFunct/HttpSocket.h"
 #include "../config.h"

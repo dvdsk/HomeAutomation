@@ -32,7 +32,15 @@ bool State::updateOnHttp(){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		data->Lamps::on();
 	}
-
+	else if(url == "/|lamps/flicker"){
+		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
+		for(int i=0; i<20; i++){
+			std::cout<<"test0\n";
+			data->Lamps::on(lmp::BUREAU);
+			std::cout<<"test1\n";
+			data->Lamps::off(lmp::BUREAU);
+		}
+	}
 
 //	else if(url == "/|state/away"){
 //		if(stateName != AWAY){data->newState = AWAY;}
