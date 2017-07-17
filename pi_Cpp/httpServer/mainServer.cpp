@@ -142,8 +142,8 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
         return MHD_YES;
       }
 			else if (nullptr != con_info->answerstring){
-				response = MHD_create_response_from_buffer(strlen (unknown_page),
-        (void *) unknown_page, MHD_RESPMEM_PERSISTENT);  
+				response = MHD_create_response_from_buffer(strlen (con_info->answerstring),
+        (void *) con_info->answerstring, MHD_RESPMEM_PERSISTENT);  
 				ret = MHD_queue_response(connection, MHD_HTTP_OK, response); 
 			}
     }
