@@ -51,11 +51,13 @@ void updateVSlow_thread(StateData* stateData){
   std::unique_lock<std::mutex> lk(cv_updataSlow_m);	
 	constexpr double LLONGITUDE = 4.497010, LLATITUDE = 52.160114;
 	double sunRise, sunSet;
+	struct tm* aTime;
+	time_t theTime;
 
 	while(*notShuttingdown){
 
-		time_t theTime = time(NULL);
-		struct tm *aTime = localtime(&theTime);
+		theTime = time(NULL);
+		aTime = localtime(&theTime);
 
 		sun_rise_set(aTime->tm_year+1900, aTime->tm_mon+1, aTime->tm_mday, 
 		LLONGITUDE, LLATITUDE, &sunRise, &sunSet);

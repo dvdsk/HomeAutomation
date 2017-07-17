@@ -2,6 +2,7 @@
 
 const char* orderRecieved = "<html><body>Order recieved.</body></html>";
 const char* unknown_page = "<html><body>A secret.</body></html>";
+const char* ok = "OK";
 
 int print_out_key (void *cls, enum MHD_ValueKind kind, 
                    const char *key, const char *value)
@@ -142,8 +143,8 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
         return MHD_YES;
       }
 			else if (nullptr != con_info->answerstring){
-				response = MHD_create_response_from_buffer(strlen (con_info->answerstring),
-        (void *) con_info->answerstring, MHD_RESPMEM_PERSISTENT);  
+				response = MHD_create_response_from_buffer(strlen(ok),
+        (void *) ok, MHD_RESPMEM_PERSISTENT);  
 				ret = MHD_queue_response(connection, MHD_HTTP_OK, response); 
 			}
     }
@@ -165,32 +166,32 @@ static int iterate_post(void *coninfo_cls, enum MHD_ValueKind kind, const char *
 												const char *filename, const char *content_type,
 												const char *transfer_encoding, const char *data, 
 												uint64_t off, size_t size) {
-	
-	int minTillAlarm;
 
-	char* answerstring = "nice post!";
+	const char* answerstring = "nice post!";
   struct connection_info_struct* con_info = (connection_info_struct*)coninfo_cls;
 
   if (0 == strcmp (key, "minTillAlarm")) {
     if ((size > 0) && (size <= config::MAXNAMESIZE)) {
 			con_info->postKey = MINTILLALARM;
+			std::cout<<"set the key\n";
 
-			con_info->data = new char[size];
+			con_info->data = new char[size+1];
 			memcpy(con_info->data, data, size);
+			con_info->data[size] = '\0';
 
-			con_info->answerstring = new char[sizeof(answerstring)];      
-			memcpy(con_info->answerstring, answerstring, sizeof(answerstring));  
+			con_info->answerstring = new char[sizeof(answerstring)]; 
+			memcpy(con_info->answerstring, answerstring, sizeof(*answerstring));  
     } 
     else con_info->answerstring = nullptr;  
 		return MHD_NO;//inform postprocessor no further call to this func are needed
   }
+	else con_info->answerstring = nullptr; 
   return MHD_YES;
 }
 
 
 void request_completed(void *cls, struct MHD_Connection *connection, 
      		        			 void **con_cls, enum MHD_RequestTerminationCode toe) {
-	char* minutes;
   struct connection_info_struct* con_info = (connection_info_struct*)*con_cls;
 
   if (NULL == con_info) return;
@@ -202,13 +203,13 @@ void request_completed(void *cls, struct MHD_Connection *connection,
 				int minTillAlarm = atoi(con_info->data);
 				if(minTillAlarm > 0){
 					con_info->data = (char*)std::to_string(minTillAlarm-WAKEUP_DURATION).c_str();
-					char* argv[] = {"at", "now", "+", con_info->data, "minutes", NULL};
+					char* argv[] = { (char*)"at", (char*)"now", (char*)"+",  
+													 con_info->data, (char*)"minutes", nullptr};
 					minimalShell(argv, "./homeAutomation startWakeup");
-
-					//cleanup
-					delete[] con_info->data;
-					delete[] con_info->answerstring;
 				}	
+				//cleanup
+				delete[] con_info->data;
+
 			break;
 		}		
     MHD_destroy_post_processor (con_info->postprocessor);        
@@ -307,6 +308,7 @@ int thread_Https_serv(std::mutex* stop,
   daemon = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY | MHD_USE_SSL,
 														 config::HTTPSERVER_PORT, NULL, NULL,
                              &answer_to_connection, (void*)arrayOfPointers,
+														 MHD_OPTION_NOTIFY_COMPLETED, &request_completed, NULL,
                              MHD_OPTION_HTTPS_MEM_KEY, key_pem,
                              MHD_OPTION_HTTPS_MEM_CERT, cert_pem,
                              MHD_OPTION_END);
@@ -316,8 +318,8 @@ int thread_Https_serv(std::mutex* stop,
     {
       printf ("%s\n", cert_pem);
       //free memory if the server crashed
-      free(key_pem);
-      free(cert_pem);
+			delete[] key_pem;
+			delete[] cert_pem;	
 
       return 1;
     }
@@ -329,8 +331,8 @@ int thread_Https_serv(std::mutex* stop,
 	
   //free memory if the server stops
   MHD_stop_daemon(daemon);
-  free(key_pem);
-  free(cert_pem);	
+  delete[] key_pem;
+  delete[] cert_pem;	
 	(*stop).unlock();	  
   return 0;      
 }

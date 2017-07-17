@@ -23,7 +23,8 @@ int MainHeader::fileSize(int fd, const char* filePath){
   int stopCheck = filesize;
   
   lseek(fd, startCheck, SEEK_SET);
-  int res = read(fd, &data, stopCheck-startCheck);
+	read(fd, &data, stopCheck-startCheck);
+  //int res = read(fd, &data, stopCheck-startCheck);
   //std::cout<<"res: "<<res<<"\n";
   //std::cout<<"start/stopcheck: "<<startCheck<<"/"<<stopCheck<<"\n";
   for(unsigned int i=0; i<(startCheck-stopCheck)/sizeof(uint32_t); i+=2) {
