@@ -177,6 +177,15 @@ void Lamps::set_ctBri(uint16_t ct_, uint8_t bri_){
 	}
 }
 
+bool Lamps::avgOn(){
+
+	int total=0;		
+	for(int i=0; i<lmp::LEN; i++)
+		total += isOn[i];
+	
+	return total>0.5*lmp::LEN;
+}
+
 /////////////////////////////
 
 //TODO add correct numbers

@@ -36,6 +36,9 @@ class Lamps : public HttpSocket
 	void set_ctBri(uint8_t n, uint16_t ct, uint8_t bri);
 	void set_ctBri(uint16_t ct, uint8_t bri);
 
+	/* returns if most lights are on */
+	bool avgOn();
+
 	private:
 	/* need a mutex as we may never share the same handle in multiple threads */
 	std::mutex lamp_mutex;

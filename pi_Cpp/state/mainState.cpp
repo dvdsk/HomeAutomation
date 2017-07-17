@@ -32,6 +32,13 @@ bool State::updateOnHttp(){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		data->Lamps::on();
 	}
+	else if(url == "/|lamps/toggle"){
+		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
+		if(data->avgOn())
+			data->Lamps::off();
+		else
+			data->Lamps::on();
+	}
 	else if(url == "/|lamps/flicker"){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		for(int i=0; i<20; i++){
