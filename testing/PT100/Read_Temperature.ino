@@ -33,10 +33,10 @@
  **************************************************************************/
 
 #include <SPI.h>
-#include <MAX31865.h>
+#include "MAX31865.h"
 
 
-#define RTD_CS_PIN   10
+#define RTD_CS_PIN 10
 
 
 MAX31865_RTD rtd( MAX31865_RTD::RTD_PT100, RTD_CS_PIN );
@@ -44,7 +44,7 @@ MAX31865_RTD rtd( MAX31865_RTD::RTD_PT100, RTD_CS_PIN );
 
 void setup()
 {
-  Serial.begin( 115200 );
+  Serial.begin( 9600 );
   /* Initialize SPI communication. */
   SPI.begin( );
   SPI.setClockDivider( SPI_CLOCK_DIV16 );
@@ -65,7 +65,7 @@ void setup()
        Low threshold:  0x0000
        High threshold:  0x7fff
   */
-  rtd.configure( true, true, false, true, MAX31865_FAULT_DETECTION_NONE,
+  rtd.configure( true, true, false, true, MAX31865_FAULT_DETECTION_AUTO,
                  true, true, 0x0000, 0x7fff );
 	Serial.println("setup done");
 }
@@ -118,6 +118,6 @@ void loop()
     }
   }
 
-  delay( 3000 );
+  delay( 1000 );
 }
 

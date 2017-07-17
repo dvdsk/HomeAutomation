@@ -24,6 +24,7 @@
 #include "mpd/mpd.h"
 
 #include "smallFunct/sunSetRise.h"
+#include "smallFunct/HttpsSocket.h"
 
 #include "debug.h"
 
@@ -76,6 +77,23 @@ void interruptHandler(int s){
 
 int main(int argc, char* argv[])
 {
+	if(argc==2){	
+		if(strcmp(argv[1], "startWakeup") == 0){		
+			HttpsSocket local("127.0.0.1", config::HTTPSERVER_PORT);
+			std::string request =
+				 "GET /|state/wakeup HTTP/1.0\r\n"
+				 "Host: 127.0.0.1\r\n"
+				 "Accept: application/json\r\n"
+				 "Connection: close\r\n"
+				 "Authorization: Basic "
+					+std::string(config::HTTPSERVER_USERPASS_B64)+"\r\n"
+				 "\r\n\r\n";
+
+			local.rawRequest(request);
+			return 0;
+		}
+	}
+
 	std::mutex* stopHttpServ = new std::mutex();
 	TelegramBot* bot = new TelegramBot();
 	SignalState* signalState = new SignalState;

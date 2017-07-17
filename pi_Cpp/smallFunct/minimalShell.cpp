@@ -1,26 +1,7 @@
-#include <string>
-#include <ctime>
-#include <cstdint> //uint16_t
-#include <iostream>
-#include <thread>
-#include <atomic>
-#include <mutex>
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <string.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <errno.h>
+#include "minimalShell.h"
 
 #define MAX_ARGS 50
 #define MAX_PATH_SIZE 1024
-
-constexpr int WRITE_END = 1;
-constexpr int READ_END = 0;
 
 /**
  * Find the full path of an executable.
@@ -28,21 +9,11 @@ constexpr int READ_END = 0;
  * @param path An array of the directories in which to look for the executable
  * @param fullpath The output of the full path of the found executable
  * @param argList An array of the arguments to the executable
- * @return -1 on error, 0 on success, 1 on internal command (e.g. cd, exit)
+ * @return -1 on error, 0 on success
  */
-int findExecutable(const char* execName, const char* path[], char* fullpath, char* argList[]){
+int findExecutable(const char* execName, const char* path[], char* fullpath){
 	if (strcmp(execName, "") == 0) {
 	  return -1;
-	}
-	if (strcmp(execName, "exit") == 0) {
-	  exit(0);
-	}
-	if (strcmp(execName, "cd") == 0) {
-	  if (chdir(argList[1]) != 0) {
-      fprintf(stderr, "Error: %s\n", strerror(errno));
-      return -1;
-	  }
-	  return 1;
 	}
 	struct stat buffer;
 	if (execName[0] == '.' || execName[0] == '/') { // Path relative to current directory or absolute.
@@ -85,29 +56,28 @@ const char* mypath[] = {
   NULL
 };
 
-int main(int argc, char** argv) {
-	
-  char buf;
-	char fullpath[100];
-	char* argList[7];
 
+std::string minimalShell(char* argv[], std::string input){
+	constexpr int WRITE_END = 1;
+	constexpr int READ_END = 0;
   int Input[2], Output[2];
-	pid_t cpid;
+	pid_t pid;
 
-	if(findExecutable("at", mypath, fullpath, argList) == -1)
-		std::cout<<"error finding executable\n"; 
+	char fullpath[100];
+	char buf[100];
+	int nRead;
+	std::string str;
 
-	argList[0] = fullpath;
-	argList[1] = "now";
-	argList[2] = "+";
-	argList[3] = "5";
-	argList[4] = "minutes";	
-	argList[5] = NULL;	
+	if(findExecutable(argv[0], mypath, fullpath) == -1)
+		std::cout<<"error finding executable\n"; 	
+
+	argv[0] = fullpath;
 
 	pipe(Input);
-	pipe(Output);
-	cpid = fork();
-  if (cpid == 0) {// We're in the child here.
+	pipe(Output);	
+	pid = fork();
+
+	if (pid == 0) {// We're in the child here.
 
 		close(Input[WRITE_END]);//Close the writing end of the input pipe
 		close(Output[READ_END] );//Close the reading end of the output pipe
@@ -119,7 +89,7 @@ int main(int argc, char** argv) {
 		close(Input[READ_END]); //Close fd that are no longer needed
 		close(Output[WRITE_END]); //Close fd that are no longer needed
 		
-		execv(fullpath, argList); 	
+		execv(argv[0], argv); 	
 		exit(EXIT_FAILURE);//as execv should exit on its own
 
 	} else {// We're in the parent here.
@@ -127,22 +97,24 @@ int main(int argc, char** argv) {
     close(Input[READ_END]);// Close the reading end of the input pipe.
     close(Output[WRITE_END]);// Close the writing end of the output pipe
 
-    char buffer[100];
-    int count;
-
     // Write to child’s stdin
-    write(Input[WRITE_END], "echo test\n", strlen("echo test"));
+    write(Input[WRITE_END], input.c_str(), input.size());
     close(Input[WRITE_END]); //sends EOF
 
 		/* read output of the subprocess */
-		while(read(Output[READ_END], &buf, 1) >0)
-			write(STDOUT_FILENO, &buf, 1);
-		write(STDOUT_FILENO, "\n", 1);
-
+		while((nRead = read(Output[READ_END], buf, 100)) >0){
+			str.append(buf, nRead);
+		}
 		close(Output[READ_END] );//Close the reading end of the output pipe
-    }
-	return 0;
+  }
+	return str;
 }
 
-//system("at -f ./homeAutomation startWakeup '13:52' today");
+/* example usage */
+//int main() {
+//	
+//	char* argv[] = {"at", "now", "+", "1", "minutes", NULL};
+//	minimalShell(argv, "./homeAutomation startWakeup");
 
+//	return 0;
+//}

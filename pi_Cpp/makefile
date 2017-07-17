@@ -4,8 +4,11 @@ MAKEFLAGS+="-j -l $(shell grep -c ^processor /proc/cpuinfo) "
 CXX = g++
 CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 
+LDFLAGS = -L/usr/local/ssl/lib
+LDLIBS = -lssl -lcrypto
+
 ODIR = .BUILD
-OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o HttpSocket.o commandline.o webGraph.o plotly.o dygraphs.o mpd.o lamps.o default.o SleepInterrupt.o GoingToSleep.o Minimal.o Wakeup.o sunSetRise.o)
+OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o HttpSocket.o HttpsSocket.o commandline.o webGraph.o plotly.o dygraphs.o mpd.o lamps.o default.o SleepInterrupt.o GoingToSleep.o Minimal.o Wakeup.o sunSetRise.o minimalShell.o)
 
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
@@ -19,17 +22,14 @@ nothread: homeAutomation
 homeAutomation: $(OBJS)
 	$(CXX) $(CXXFLAGS) -o homeAutomation $(OBJS) \
 	-lmicrohttpd -lpthread -lmenu -lncurses \
-	-lboost_system -lboost_thread
+	-lboost_system -lboost_thread $(LDFLAGS) $(LDLIBS)
 
 $(ODIR)/main.o: main.cpp config.h arduinoContact/decode.h \
 	dataStorage/MainData.h dataStorage/PirData.h dataStorage/SlowData.h \
 	state/mainState.h telegramBot/telegramBot.h state/stateManagement.cpp\
-	httpServer/mainServer.h arduinoContact/Serial.h commandLine/commandline.h debug.h
+	httpServer/mainServer.h arduinoContact/Serial.h commandLine/commandline.h \
+	debug.h smallFunct/HttpsSocket.h 
 	$(CXX) $(CXXFLAGS) -o$@ -c main.cpp
-
-$(ODIR)/commandline.o: commandLine/commandline.cpp commandLine/commandline.h \
-	config.h state/mainState.h
-	$(CXX) $(CXXFLAGS) -o$@ -c commandLine/commandline.cpp
 
 $(ODIR)/Cache.o: dataStorage/Cache.cpp dataStorage/Cache.h
 	$(CXX) $(CXXFLAGS) -o$@ -c dataStorage/Cache.cpp
@@ -53,7 +53,6 @@ $(ODIR)/Serial.o: arduinoContact/Serial.cpp arduinoContact/Serial.h
 
 $(ODIR)/mainState.o: state/mainState.cpp state/mainState.h lamps/lamps.h
 	$(CXX) $(CXXFLAGS) -o$@ -c state/mainState.cpp	
-
 $(ODIR)/default.o: state/majorStates/default.cpp state/majorStates/default.h state/mainState.cpp state/mainState.h
 	$(CXX) $(CXXFLAGS) -o$@ -c state/majorStates/default.cpp	 
 $(ODIR)/SleepInterrupt.o: state/majorStates/SleepInterrupt.cpp state/majorStates/SleepInterrupt.h state/mainState.cpp state/mainState.h
@@ -65,35 +64,39 @@ $(ODIR)/Minimal.o: state/majorStates/Minimal.cpp state/majorStates/Minimal.h sta
 $(ODIR)/Wakeup.o: state/majorStates/Wakeup.cpp state/majorStates/Wakeup.h state/mainState.cpp state/mainState.h
 	$(CXX) $(CXXFLAGS) -o$@ -c state/majorStates/Wakeup.cpp	
 
-$(ODIR)/mainServer.o: httpServer/mainServer.cpp httpServer/mainServer.h \
-	httpServer/pages/webGraph.h
-	$(CXX) $(CXXFLAGS) -lmicrohttpd -o$@ -c httpServer/mainServer.cpp
-$(ODIR)/telegramBot.o: telegramBot/telegramBot.cpp telegramBot/telegramBot.h \
-	telegramBot/httpGetPostPut.h
-	$(CXX) $(CXXFLAGS) -o$@ -c telegramBot/telegramBot.cpp
+$(ODIR)/mpd.o: mpd/mpd.cpp mpd/mpd.h
+	$(CXX) $(CXXFLAGS) -o$@ -c mpd/mpd.cpp		
+$(ODIR)/lamps.o: smallFunct/HttpSocket.h lamps/lamps.cpp lamps/lamps.h
+	$(CXX) $(CXXFLAGS) -o$@ -c lamps/lamps.cpp
 
+$(ODIR)/mainServer.o: httpServer/mainServer.cpp httpServer/mainServer.h \
+	httpServer/pages/webGraph.h smallFunct/minimalShell.h 
+	$(CXX) $(CXXFLAGS) -lmicrohttpd -o$@ -c httpServer/mainServer.cpp
+$(ODIR)/plotly.o: httpServer/pages/plotly.h httpServer/pages/plotly.cpp
+	$(CXX) $(CXXFLAGS) -o$@ -c httpServer/pages/plotly.cpp
+$(ODIR)/dygraphs.o: httpServer/pages/dygraphs.h httpServer/pages/dygraphs.cpp
+	$(CXX) $(CXXFLAGS) -o$@ -c httpServer/pages/dygraphs.cpp
 $(ODIR)/webGraph.o: httpServer/pages/webGraph.cpp httpServer/pages/webGraph.h \
 	httpServer/pages/dygraphs.h httpServer/pages/plotly.h config.h
 	$(CXX) $(CXXFLAGS) -o$@ -c httpServer/pages/webGraph.cpp
 
-
-$(ODIR)/HttpSocket.o: smallFunct/HttpSocket.cpp smallFunct/HttpSocket.h
-	$(CXX) $(CXXFLAGS) -o$@ -c smallFunct/HttpSocket.cpp	
-$(ODIR)/mpd.o: mpd/mpd.cpp mpd/mpd.h
-	$(CXX) $(CXXFLAGS) -o$@ -c mpd/mpd.cpp		
-
-
-$(ODIR)/lamps.o: smallFunct/HttpSocket.h lamps/lamps.cpp lamps/lamps.h
-	$(CXX) $(CXXFLAGS) -o$@ -c lamps/lamps.cpp
-
-$(ODIR)/plotly.o: httpServer/pages/plotly.h httpServer/pages/plotly.cpp
-	$(CXX) $(CXXFLAGS) -o$@ -c httpServer/pages/plotly.cpp
-
-$(ODIR)/dygraphs.o: httpServer/pages/dygraphs.h httpServer/pages/dygraphs.cpp
-	$(CXX) $(CXXFLAGS) -o$@ -c httpServer/pages/dygraphs.cpp
-
 $(ODIR)/sunSetRise.o: smallFunct/sunSetRise.h smallFunct/sunSetRise.cpp 
 	$(CXX) $(CXXFLAGS) -o$@ -c smallFunct/sunSetRise.cpp
+$(ODIR)/minimalShell.o: smallFunct/minimalShell.h smallFunct/minimalShell.cpp 
+	$(CXX) $(CXXFLAGS) -o$@ -c smallFunct/minimalShell.cpp
+$(ODIR)/HttpSocket.o: smallFunct/HttpSocket.cpp smallFunct/HttpSocket.h
+	$(CXX) $(CXXFLAGS) -o$@ -c smallFunct/HttpSocket.cpp	
+$(ODIR)/HttpsSocket.o: smallFunct/HttpsSocket.cpp smallFunct/HttpsSocket.h
+	$(CXX) $(CXXFLAGS) -o$@ -c smallFunct/HttpsSocket.cpp	
+
+$(ODIR)/commandline.o: commandLine/commandline.cpp commandLine/commandline.h \
+	config.h state/mainState.h
+	$(CXX) $(CXXFLAGS) -o$@ -c commandLine/commandline.cpp
+
+$(ODIR)/telegramBot.o: telegramBot/telegramBot.cpp telegramBot/telegramBot.h \
+	telegramBot/httpGetPostPut.h
+	$(CXX) $(CXXFLAGS) -o$@ -c telegramBot/telegramBot.cpp
+
 
 .PHONY : clean
 clean:

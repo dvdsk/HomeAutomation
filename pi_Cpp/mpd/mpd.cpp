@@ -173,7 +173,9 @@ void Mpd::sendCommandList(std::string &command){
 
 	command = "command_list_begin\n"+command+"command_list_end\n";
 
+	std::cout<<"in sendCommandList\n";
 	std::lock_guard<std::mutex> guard(mpd_mutex);
+	std::cout<<"in sendCommandList, passed lock\n";
 	write(sockfd,stopIdle,strlen(stopIdle));
 	write(sockfd,command.c_str(),strlen(command.c_str() ) );
 	write(sockfd,startIdle,strlen(startIdle));

@@ -36,6 +36,11 @@ namespace config {
 	constexpr int HTTPSERVER_PORT = 8444;
 	constexpr const char* HTTPSERVER_USER = "test";
 	constexpr const char* HTTPSERVER_PASS = "test"; //using random strings as passw
+	constexpr const char* HTTPSERVER_USERPASS_B64 = "dGVzdDp0ZXN0"; //USER:PASS 
+	//encoded to base 64 for use in Authorisation header
+  constexpr int POSTBUFFERSIZE = 512;
+	constexpr int MAXNAMESIZE = 20;
+	constexpr int MAXANSWERSIZE = 512;
 
 	constexpr const char* HUE_USER = "ZKK0CG0rOZY3nfhQsZbIkhH0y6P92EaaR-iBlBsk";
 	constexpr const char* HUE_IP = "192.168.1.11";

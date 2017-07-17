@@ -31,7 +31,7 @@
 
 #include <Arduino.h>
 #include <SPI.h>
-#include <MAX31865.h>
+#include "MAX31865.h"
 
 
 /**

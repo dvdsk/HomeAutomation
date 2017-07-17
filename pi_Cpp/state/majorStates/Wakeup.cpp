@@ -23,9 +23,11 @@ static void* threadFunction(WakeUp* currentState){
 	lamps->setState(lmp::BUREAU,"{\"on\": true, \"bri\": 0, \"transitiontime\":0}");
 	lamps->setState(lmp::RADIATOR,"{\"on\": true, \"bri\": 0, \"transitiontime\":0}");
 
-	while(!currentState->stop.load() && time < WAKEUP_DURATION){
+	while(!currentState->stop.load() && time < WAKEUP_DURATION+1){
 		bri = (int)(BRI_PER_SEC*time);
 		ct = (int)(CT_MAX-CT_PER_SEC*time);
+		std::cout<<"bri: "<<bri<<", "<<BRI_PER_SEC*WAKEUP_DURATION<<"\n";
+
 		//Do something with lamps
 		lamps->setState(lmp::BUREAU, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
 		lamps->setState(lmp::RADIATOR, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
@@ -53,12 +55,16 @@ static void* threadFunction(WakeUp* currentState){
 		}
 
 		if(time>WAKEUP_MUSIC_ON){
+			std::cout<<"test\n";
 			if(mpdState->playback != PLAYING){
 				std::string cList = "setvol "+std::to_string(VOL_MIN)+"\nplay 0\n";
 				mpd->sendCommandList(cList);
+				std::cout<<"done sending commandlist\n";
 			}
-			else
+			else{
 				mpd->sendCommand("setvol "+std::to_string(time*VOL_PER_SEC+VOL_MIN));	
+				std::cout<<"setting volume\n";
+			}
 		}
 	time +=5; //due to code execution +- 1 second drift over 15 min 
 	cv_wakeup.wait_for(lk, 5*1s, [currentState](){return currentState->stop.load();});
