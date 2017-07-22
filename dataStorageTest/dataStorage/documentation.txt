@@ -1,0 +1,51 @@
+/*
+Pir saving format, normal packages with sometimes a timestamp package in front
+
+NORMAL PACKAGE:
+total length 4 bytes, time short contains the lower part of the 4 byte unix time
+  ----------------------------------------------------------------------------
+  - time low 16 bit | N bits of usefull data                                 -
+  ----------------------------------------------------------------------------
+
+TIMESTAMP PACKAGE:
+total length 4 bytes, used to store the full unixtime just in front of a normal 
+pir package that crosses a treshold for putting in the full time again 
+  --------------------------------------
+  - time low 16 bit | time high 16 bit -
+  --------------------------------------
+recognised by 2 time lows after eachother
+--------------------------------------------
+ 
+ 
+ ----HIGH LEVEL ACCESS (public) ----
+    | storeData: storing data with a new time,*             -universal/all data
+    | getting: data from specific time frames,              -universal/all data
+    | removing specific time frames                         -universal/all data
+ Locking mechanism to allow multi threaded/processed access (one lock per above action). implement write/read lock
+ multiple readers or one write simultainiously
+ 
+ *note: the full unix time is stored together with the raw data in a FIFO queue before the lock. The lock has a
+        zero timeout. Thus time data is always accurate even if readout on another thread takes multiples of seconds
+        //TODO is this needed? (might be, raspberry pi weak? implement last anyhow)
+ 
+ ----LOW LEVEL ACCESS (private?) ----
+ -Starting up:
+    | fill cache: fills up the cache with stored data so we can access the stored
+                  data quickly. The cache is implemented transparently.           -universal/all data
+
+ -Storing a new time:
+    | process:  adjust formatting                                                 -data specific
+    | compress: check if it is really new data and needs to be saved              -data specific
+    | package:  add all data together and add the timestamp part                  -data specific
+  the above are all data specific. The below are not.
+    | write: writes the package to both cache and file                            -universal/all data
+    
+ -getting data from specific time frames
+    | searchFT: searches for the location of the two full timestamps closest to the requested
+    |           unix times first                                                  -universal/all data
+    | searchT:  searches onwards from the timestamps found in searchFT to find the lines of the exact times
+    |           returns these lines                                               -universal/all data
+    | getData:  given a binary number for the wanted columns, returns a pointer to an array where it stores
+    |           pointers to the arrays containing the requested data              -universal/all data
+                
+*/
