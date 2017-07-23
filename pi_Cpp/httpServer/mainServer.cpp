@@ -200,16 +200,15 @@ void request_completed(void *cls, struct MHD_Connection *connection,
 		//CLEANUP POST
 		switch(con_info->postKey){
 			case MINTILLALARM: 
+				std::cout<<"cleaning up post\n";
 				int minTillAlarm = atoi(con_info->data);
+				delete[] con_info->data;				
 				if(minTillAlarm > 0){
 					con_info->data = (char*)std::to_string(minTillAlarm-WAKEUP_DURATION).c_str();
 					char* argv[] = { (char*)"at", (char*)"now", (char*)"+",  
 													 con_info->data, (char*)"minutes", nullptr};
 					minimalShell(argv, "./homeAutomation startWakeup");
 				}	
-				//cleanup
-				delete[] con_info->data;
-
 			break;
 		}		
     MHD_destroy_post_processor (con_info->postprocessor);        
