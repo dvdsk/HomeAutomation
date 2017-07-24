@@ -83,6 +83,9 @@ public:
   /* generate indexes we will not take into accout for reading*/
   class iterator;
 
+	#ifdef DEBUG
+	uint32_t getTimeAt(int start_P);
+	#endif
 
 private:
   /*full unix time of previous package*/

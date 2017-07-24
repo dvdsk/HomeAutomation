@@ -49,8 +49,8 @@ int main(int argc, char* argv[])
 	std::cout<<"startSearch: "<<startSearch<<"\n";
 	std::cout<<"stopSearch: "<<stopSearch<<"\n";
 
-
-	slowDat->showHeaderData(0, slowDat->mapSize);
+	std::cout<<slowDat->getCurrentLinepos()<<"\n";
+	slowDat->showHeaderData(0, slowDat->getCurrentLinepos());
 	slowDat->exportAllSlowData(Tstamp_org, Tstamp);
 	//delete pirDat;
 	delete slowDat;

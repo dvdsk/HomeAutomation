@@ -49,15 +49,21 @@ public:
   /* get the location and value of the next full timestamp */
   void getNextFullTS(unsigned int byte, unsigned int& nextFullTSLoc, 
                      uint32_t& nextFullTS);
-  
 
+	#ifdef DEBUG
+	void showHeaderData(int lineStart, int lineEnd);
+	int getCurrentLinepos(); //last line in units of LINESIZE
+	void checkHeaderData();
+	void showHeaderData();
+	#endif
 
 private:
-  unsigned int pos; //next free spot in memory map in units 'sizeof(uint32_t) bytes'
+	unsigned int pos; //next free spot in memory map in units 'sizeof(uint32_t) bytes'
   uint32_t* data; //adress used to place items into map
   void* addr; //adress where the memory map is placed
-  size_t mapSize; //size of the current memory mapping (used for data + allocated)
+  //size_t mapSize; //size of the current memory mapping (used for data + allocated)
   int fd; //file discriptor 'points' tou open file
+  size_t mapSize; //size of the current memory mapping (used for data + allocated)
   
   /* wrapper around stat to find the filesize in bytes*/
   size_t getFilesize(const char* filename);

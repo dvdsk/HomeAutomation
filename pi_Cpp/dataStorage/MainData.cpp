@@ -67,6 +67,7 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
   prevFTstamp = MainHeader::lastFullTS();
   //pass the fully initialised cache on to the cache class
   Cache::InitCache(cache);
+	db("DATASTORAGE: INIT DONE\n");
 }
 
 Data::~Data(){
@@ -135,6 +136,26 @@ void Data::showLines(int start_P, int end_P){
   }
 }
 
+#ifdef DEBUG
+uint32_t Data::getTimeAt(int start_P){
+  uint8_t package[200];
+  uint32_t timeLow;
+  uint32_t TimeBegin;
+  uint32_t FullTime;
+  TimeBegin = MainHeader::fullTSJustBefore(start_P);
+  
+  fseek(fileP_, start_P, SEEK_SET);
+  fread(package, 1, packageSize_, fileP_);
+    
+  timeLow = package[1] << 8 |
+            package[0];
+  
+  FullTime = (TimeBegin & 0b11111111111111110000000000000000) | timeLow;
+  
+	std::cout<<"TimeBegin: "<<TimeBegin<<"\n"; 
+	return FullTime;
+}
+#endif
 
 int Data::fetchBinData(uint32_t startT, uint32_t stopT, uint32_t x[], uint16_t y[],
                        uint16_t (*func)(int blockIdx_B, uint8_t[MAXBLOCKSIZE])) {
@@ -598,8 +619,9 @@ int Data::findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSea
         orgIdx_B = startSearch+i*blockSize_B+ blockIdx_B;  
         //std::cout<<"fulltime here is: "<< +((uint32_t) timelow | timeHigh) <<"\n";   
         //std::cout<<"HERE1";
-        if(timelow == TS_low){return orgIdx_B;}
-        else{return orgIdx_B-packageSize_;} //to force inclusion of first time
+				return orgIdx_B;
+//        if(timelow == TS_low){return orgIdx_B;}
+//        else{std::cout<<"test\n"; return orgIdx_B-packageSize_;} //to force inclusion of first time
       }
     }
   }
@@ -616,8 +638,9 @@ int Data::findTimestamp_inFile_lowerBound(uint16_t TS_low, unsigned int startSea
       int orgIdx_B = startSearch+nBlocks*blockSize_B+ blockIdx_B;     
       //std::cout<<"HERE2\n";
       //std::cout<<startSearch<<"\n"<<nBlocks<<"\n"<<blockSize_B<<"\n"<<blockIdx_B<<"\n";
-      if(timelow == TS_low){return orgIdx_B;}
-      else{return orgIdx_B-packageSize_;} //to force inclusion of first time
+			return orgIdx_B;
+//      if(timelow == TS_low){return orgIdx_B;}
+//      else{return orgIdx_B-packageSize_;} //to force inclusion of first time
     }
   }
   //every value in the range is smaller then the wanted timestamp

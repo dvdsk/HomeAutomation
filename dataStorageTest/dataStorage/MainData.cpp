@@ -67,7 +67,7 @@ Data::Data(std::string fileName, uint8_t* cache, uint8_t packageSize, int cacheS
   prevFTstamp = MainHeader::lastFullTS();
   //pass the fully initialised cache on to the cache class
   Cache::InitCache(cache);
-	std::cerr<<"DATASTORAGE: INIT DONE\n";
+	db("DATASTORAGE: INIT DONE\n");
 }
 
 Data::~Data(){

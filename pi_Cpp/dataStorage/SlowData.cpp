@@ -41,10 +41,15 @@ void SlowData::process(const uint8_t raw[Enc_slow::LEN_ENCODED], const uint32_t 
 	uint16_t light_Mean[3];
 
 	/*calculate the mean of all light data since the last slowdata package*/
-	for(int i = 0; i<3; i++){
-		light_Mean[i] = light_Sum[i]/light_N;
-		light_Sum[i] = 0;
+	if(light_N != 0){
+		for(int i = 0; i<3; i++){
+			light_Mean[i] = light_Sum[i]/light_N;
+			light_Sum[i] = 0;
+		}
+		light_N = 0;
 	}
+	else
+		std::memcpy(light_Mean, prevLight_Mean, 3);
 	
 	if(newData(raw, light_Mean)){
 		//encode the light mean;
@@ -148,9 +153,10 @@ void SlowData::exportAllSlowData(uint32_t startT, uint32_t stopT){
 	std::fstream fs;
 	fs.open ("SlowData.txt", std::fstream::out | std::fstream::trunc);
 
+	//fetches all data in a loop;
 	do{
 		len = Data::fetchAllData(startT, stopT, startByte, stopByte, x, y, dTemp1, tempToFloat);
-		std::cout<<startByte<<", "<<stopByte<<", "<<x[len-1]<<", "<<y[len-1]<<"\n";		
+		//std::cout<<startByte<<", "<<stopByte<<", "<<x[len-1]<<", "<<y[len-1]<<"\n";		
 		for(int i=0; i<len; i++){
 			fs<<x[i]<<" "<<y[i]<<"\n";
 		}
