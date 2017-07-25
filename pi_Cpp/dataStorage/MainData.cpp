@@ -339,11 +339,10 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
   rest_B = (stopByte-startByte)%MAXBLOCKSIZE; //number of bytes that doesnt fit in the normal blocks
   
 	int skippedP = 0; //TODO debug
-	db("nBlocks: "<<nBlocks<<", blockSize_B: "<<blockSize_B<<", binSize_P: "
-							  <<binSize_P<<", nPackages: "<<(stopByte-startByte)/packageSize_<<"\n");
+
 	orgIdx_B = startByte;
 
-  for (unsigned int i = 0; i < nBlocks; i++) { 
+  for (unsigned int i = 0; i < nBlocks; i++) {
     fseek(fileP_, startByte+i*blockSize_B, SEEK_SET);
     fread(block, 1, blockSize_B, fileP_); //read one block to memory
 
@@ -359,27 +358,29 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 		    }
 				if(binIdx_P == binSize_P){//save bin result to array if at bincapacity
 					binIdx_P = 0;
-					//db("handeling bin\n");
+
 					x[binNumber] = meanT(x_bin, binSize_P);
 		      y[binNumber] = func2(meanI(y_bin, binSize_P));
-					if(y[binNumber] > 600) std::cout<<"hellup1\n";
 					binNumber++;
 					len++;
-					std::cout<<"binNumber: "<<binNumber<<"\n";
 				}
 
 				/*retrieve data and store for binning*/
         x_bin[binIdx_P] = getTime(blockIdx_B, block);
-        y_bin[binIdx_P] = func(blockIdx_B, block);	
+        y_bin[binIdx_P] = func(blockIdx_B, block);						
 				binIdx_P++;
 			}
-			else skippedP++;//TODO debug		
+			else{skippedP++;}//TODO debug		
 
 			/*always update counters*/
 			packageNumb++;
 			orgIdx_B += packageSize_;
 			blockIdx_B += packageSize_;		
 		}
+		/*clean up, (save current bin even if its not filled)*/
+		x[binNumber] = meanT(x_bin, binIdx_P);
+    y[binNumber] = func2(meanI(y_bin, binIdx_P) ); 
+		binIdx_P = 0;	
 	}
 
 	/*read the remaining data into a smaller block*/
@@ -401,10 +402,8 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 				binIdx_P = 0;
 				x[binNumber] = meanT(x_bin, binSize_P);
 	      y[binNumber] = func2(meanI(y_bin, binSize_P));
-				if(y[binNumber] > 600) std::cout<<"hellup3\n";
 				binNumber++;
 				len++;
-				std::cout<<"binNumber: "<<binNumber<<"\n";
 			}
 
 			/*retrieve data and store for binning*/
@@ -420,13 +419,11 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 		blockIdx_B += packageSize_;		
 	}
 
-	/*clean up, (save last bin even if its not filled)*/
+	/*clean up, (save current bin even if its not filled)*/
 	x[binNumber] = meanT(x_bin, binIdx_P);
   y[binNumber] = func2( meanI(y_bin, binIdx_P)); 
-	db("binNumber: "<<binNumber<<"\n");
 	binIdx_P = 0;	
-	if(y[binNumber] > 600) std::cout<<"hellup4\n";
-	db("len: "<<len<<"\n");
+
   return len;
 }//done
 
@@ -447,7 +444,7 @@ int Data::fetchAllData(uint32_t startT, uint32_t stopT, unsigned int &startByte,
   unsigned int nextFullTSLoc;
   uint32_t nextFullTS;
   uint8_t block[MAXBLOCKSIZE];
- 
+
   //find where to start and stop reading in the file if these have not been given
 	if(startByte == 0 && stopByte ==0){
 		searchTstamps(startT, stopT, startByte, stopByte);
@@ -779,9 +776,9 @@ double Data::meanT(uint32_t* array, int len){
   uint32_t Mean = 0;
   uint32_t first = *(array+0);
   for(int i = 1; i<len; i++){ Mean = Mean+*(array+i)-first;}
+	std::cout<<len<<", "<<Mean<<"\n";
   Mean /= len;
   Mean += first;
-	//std::cout<<len<<", "<<Mean<<"\n";
   return (double)Mean;
 }
 

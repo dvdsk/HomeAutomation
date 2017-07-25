@@ -25,8 +25,6 @@ std::string* WebGraph::plotly_mainPage(){
 	uint32_t t1 = now-secondsToPlot;
 	uint32_t t2 = now;
 
-	//unsigned int t1 = 0;
-	//unsigned int t2 = -1;
 	secondsToPlot = -1;
 	len = slowData->fetchSlowData(t1, t2, x, y, TEMP_BED);
 	std::cout<<"len: "<<len<<"\n";
