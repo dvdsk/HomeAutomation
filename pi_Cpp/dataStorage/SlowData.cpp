@@ -155,7 +155,7 @@ void SlowData::exportAllSlowData(uint32_t startT, uint32_t stopT){
 
 	//fetches all data in a loop;
 	do{
-		len = Data::fetchAllData(startT, stopT, startByte, stopByte, x, y, dTemp1, tempToFloat);
+		len = Data::fetchAllData(startT, stopT, startByte, stopByte, x, y, dLight1, toFloat);
 		//std::cout<<startByte<<", "<<stopByte<<", "<<x[len-1]<<", "<<y[len-1]<<"\n";		
 		for(int i=0; i<len; i++){
 			fs<<x[i]<<" "<<y[i]<<"\n";

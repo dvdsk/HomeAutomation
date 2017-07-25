@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
 
 	std::cout<<slowDat->getCurrentLinepos()<<"\n";
 	slowDat->showHeaderData(0, slowDat->getCurrentLinepos());
-	slowDat->exportAllSlowData(Tstamp_org, Tstamp);
+	slowDat->exportAllSlowData(0, -1);
 	//delete pirDat;
 	delete slowDat;
 

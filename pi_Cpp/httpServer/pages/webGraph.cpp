@@ -3,6 +3,7 @@
 std::string* WebGraph::plotly_mainPage(){
 	float y[MAXPLOTRESOLUTION];
 	uint32_t x[MAXPLOTRESOLUTION];
+	int	len;
 
 	std::string* page = new std::string;
 	plotly::PlotData plotDat(page);
@@ -20,17 +21,22 @@ std::string* WebGraph::plotly_mainPage(){
 
 	uint32_t now = this_unix_timestamp();
 
-	int	len;
-	len = slowData->fetchSlowData(now-5*24*3600, now, x, y, TEMP_BED);
+	int secondsToPlot = 2*24*3600;
+	uint32_t t1 = now-secondsToPlot;
+	uint32_t t2 = now;
+
+	secondsToPlot = -1;
+	len = slowData->fetchSlowData(t1, t2, x, y, TEMP_BED);
+	std::cout<<"len: "<<len<<"\n";
 	plotly::add_trace(plotDat, x, y, len, plotly::TEMP, "temperature bed");
 
-	len = slowData->fetchSlowData(now-5*24*3600, now, x, y, HUMIDITY_BED);
+	len = slowData->fetchSlowData(t1, t2, x, y, HUMIDITY_BED);
 	plotly::add_trace(plotDat, x, y, len, plotly::HUMID, "humidity bed");
 
-	len = slowData->fetchSlowData(now-5*24*3600, now, x, y, CO2PPM);
+	len = slowData->fetchSlowData(t1, t2, x, y, CO2PPM);
 	plotly::add_trace(plotDat, x, y, len, plotly::CO2, "co2");
 
-	len = slowData->fetchSlowData(now-5*24*3600, now, x, y, BRIGHTNESS_BED);
+	len = slowData->fetchSlowData(t1, t2, x, y, BRIGHTNESS_BED);
 	plotly::add_trace(plotDat, x, y, len, plotly::BRIGHTNESS, "brightness bed");
 
 	plotly::setData(plotDat);

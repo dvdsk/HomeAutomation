@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream> //FIXME DEBUG
 #include <ctime>
 #include <signal.h>
 #include <boost/exception/diagnostic_information.hpp> //for debugging
@@ -75,6 +76,13 @@ void interruptHandler(int s){
   fflush(file2);
   printf("Caught signal %d\n",s);
   exit(1); 
+}
+
+//FIXME REMOVE
+uint32_t this_unix_timestamp() {
+	time_t t = std::time(0);
+	uint32_t now = static_cast<uint32_t> (t);
+	return now;
 }
 
 int main(int argc, char* argv[])
@@ -154,7 +162,20 @@ int main(int argc, char* argv[])
 	CommandLineInterface interface(pirDat, slowDat, sensorState);
 	interface.mainMenu();
 
-	getchar();
+////	getchar();
+//	float y[MAXPLOTRESOLUTION];
+//	uint32_t x[MAXPLOTRESOLUTION];
+//	//uint32_t now = this_unix_timestamp();
+//	int len = slowDat->fetchSlowData(1500379402, 1500379402+10000000, x, y, BRIGHTNESS_BED);
+
+////	for(int i=0; i<len; i++)
+////		if(x[i] == 0) std::cout<<"error at: i: "<<i<<"\n";
+
+//  std::ofstream myfile;
+//  myfile.open ("SlowData.txt");
+//	for(int i=0; i<len; i++)
+//  	myfile<<x[i]<<" "<<y[i]<<"\n";
+//  myfile.close();
 
 	//shutdown code
 	(*stopHttpServ).unlock();
