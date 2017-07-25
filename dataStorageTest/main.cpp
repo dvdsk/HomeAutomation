@@ -27,8 +27,8 @@ void interruptHandler(int s){
 
 std::atomic<int> lightValues[lght::LEN];
 uint8_t data[SLOWDATA_SIZE];
-uint32_t Tstamp_org = TSTAMP_ORG;
-uint32_t Tstamp = Tstamp_org;
+uint32_t Tstamp_org;
+uint32_t Tstamp;
 unsigned int loc1, loc2;
 
 struct stat filestatus;
@@ -51,10 +51,12 @@ int main(int argc, char* argv[])
 		slowDat->searchTstamps(0, -1, loc1, loc2);
 		Tstamp_org = slowDat->getTimeAt(loc2);
 	}
-
+	Tstamp = Tstamp_org;
 
 	//file1 = pirDat->getFileP();
   file2 = slowDat->getFileP();
+
+	
 
 	for(unsigned int i = 0; i<RANGE; i++){
 		Tstamp += 100;

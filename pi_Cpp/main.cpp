@@ -162,7 +162,7 @@ int main(int argc, char* argv[])
 	CommandLineInterface interface(pirDat, slowDat, sensorState);
 	interface.mainMenu();
 
-//	getchar();
+////	getchar();
 //	float y[MAXPLOTRESOLUTION];
 //	uint32_t x[MAXPLOTRESOLUTION];
 //	//uint32_t now = this_unix_timestamp();

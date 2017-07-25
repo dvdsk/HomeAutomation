@@ -339,10 +339,11 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
   rest_B = (stopByte-startByte)%MAXBLOCKSIZE; //number of bytes that doesnt fit in the normal blocks
   
 	int skippedP = 0; //TODO debug
-	db("nBlocks: "<<nBlocks<<", blockSize_B: "<<blockSize_B<<", binSize_P: "<<binSize_P<<"\n");
+	db("nBlocks: "<<nBlocks<<", blockSize_B: "<<blockSize_B<<", binSize_P: "
+							  <<binSize_P<<", nPackages: "<<(stopByte-startByte)/packageSize_<<"\n");
 	orgIdx_B = startByte;
 
-  for (unsigned int i = 0; i < nBlocks; i++) {
+  for (unsigned int i = 0; i < nBlocks; i++) { 
     fseek(fileP_, startByte+i*blockSize_B, SEEK_SET);
     fread(block, 1, blockSize_B, fileP_); //read one block to memory
 
@@ -419,14 +420,13 @@ int Data::fetchData(uint32_t startT, uint32_t stopT, uint32_t x[], float y[],
 		blockIdx_B += packageSize_;		
 	}
 
-	/*clean up, (save current bin even if its not filled)*/
-	//x[binNumber] = meanT(x_bin, binIdx_P);
-  //y[binNumber] = func2( meanI(y_bin, binIdx_P)); 
-	std::cout<<"binNumber: "<<binNumber<<"\n";
+	/*clean up, (save last bin even if its not filled)*/
+	x[binNumber] = meanT(x_bin, binIdx_P);
+  y[binNumber] = func2( meanI(y_bin, binIdx_P)); 
+	db("binNumber: "<<binNumber<<"\n");
 	binIdx_P = 0;	
 	if(y[binNumber] > 600) std::cout<<"hellup4\n";
 	db("len: "<<len<<"\n");
-	std::cout<<"y[0]: "<<y[0]<<"\n";
   return len;
 }//done
 
