@@ -46,11 +46,10 @@ int main(int argc, char* argv[])
 	//PirData* pirDat = new PirData("pirs", cache1, CACHESIZE_pir);
 	SlowData* slowDat = new SlowData("slowData", cache2, CACHESIZE_slowData);
 
-	if(fileSize == 0) Tstamp_org = TSTAMP_ORG; 
+	if(fileSize == 0){Tstamp_org = TSTAMP_ORG; std::cout<<"USING TSTAMP_ORG\n"; }
 	else{
 		slowDat->searchTstamps(0, -1, loc1, loc2);
 		Tstamp_org = slowDat->getTimeAt(loc2);
-		std::cout<<"Continuing at: "<<Tstamp_org<<"\n";
 	}
 
 
@@ -58,7 +57,8 @@ int main(int argc, char* argv[])
   file2 = slowDat->getFileP();
 
 	for(unsigned int i = 0; i<RANGE; i++){
-		Tstamp += 1;
+		Tstamp += 100;
+		//std::cout<<"Tstamp: "<<Tstamp<<"\t\tContinuing at: "<<Tstamp_org<<"\n";
 		lightValues[lght::BED] += 1;	
 		slowDat->preProcess_light(lightValues, Tstamp);
 		slowDat->preProcess_light(lightValues, Tstamp);
