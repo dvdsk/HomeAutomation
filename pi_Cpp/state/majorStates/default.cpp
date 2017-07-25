@@ -23,7 +23,7 @@ static void lightColor_thread(Default* currentState){
 
 	constexpr int FADE_TO_NIGHT = 1*3600;		//seconds
 	constexpr int CT_NIGHT = CT_MAX;
-	constexpr int BRI_NIGHT = 100;
+	constexpr int BRI_NIGHT = 150;
 
 	constexpr int FADE_TO_DAY = 1*3600;
 	constexpr int CT_DAY = CT_MIN+ 110;

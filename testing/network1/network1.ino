@@ -44,23 +44,6 @@ void setup(){
 }
 void loop(void) {
     byte gotByte[5]; // Initialize a variable for the incoming response
-      
-/*    Serial.print(F("Now sending ")); // Use a simple byte counter as payload*/
-/*    Serial.println(counter);*/
-    
-/*    if (millis()-startTime > channel*TIME_PER_CHANNEL && notdone){*/
-/*        Serial.print("Channel ");*/
-/*        Serial.print(channel);*/
-/*        Serial.print(" Failure rate: ");*/
-/*        Serial.print(100*failureCounter/arrivedCounter);*/
-/*        Serial.println("%");*/
-/*        failureCounter = 0;*/
-/*        arrivedCounter = 0;*/
-/*        channel++;*/
-/*        if (channel > 128){notdone = false;}    */
-/*    }*/
-
-/*    unsigned long time = micros();  // Record the current microsecond count   */
     
     radio.openWritingPipe(ADDRESSES[1]);//set address to node 1                           
 		if (radio.write(&counter,1) ){  // Send the counter variable to the other radio 
@@ -70,7 +53,7 @@ void loop(void) {
                 radio.read( &gotByte, 5 ); // Read it, and display the response time
                 counter++; // Increment the counter variable
                 arrivedCounter++;
-                Serial.println(gotByte[1]);
+                //Serial.println(gotByte[1]);
             }
         }
     
@@ -80,23 +63,23 @@ void loop(void) {
         Serial.println(100*failureCounter/(failureCounter+arrivedCounter));
         } // If no ack response, sending failed
 
-    radio.openWritingPipe(ADDRESSES[2]);//set address to node 1                        
-    if (radio.write(&counter,1) ){  // Send the counter variable to the other radio 
-        if(!radio.available()){     // If nothing in the buffer, we got an ack but it is blank
-        }else{      
-            while(radio.available() ){  // If an ack with payload was received
-                radio.read( &gotByte, 5 ); // Read it, and display the response time
-                counter++; // Increment the counter variable
-                arrivedCounter++;
-                Serial.println(gotByte[1]);
-            }
-        }
-    
-    }else{
-        failureCounter++;
-        Serial.print(" Failure rate: ");
-        Serial.println(100*failureCounter/(failureCounter+arrivedCounter));
-        } // If no ack response, sending failed
+/*    radio.openWritingPipe(ADDRESSES[2]);//set address to node 1                        */
+/*    if (radio.write(&counter,1) ){  // Send the counter variable to the other radio */
+/*        if(!radio.available()){     // If nothing in the buffer, we got an ack but it is blank*/
+/*        }else{      */
+/*            while(radio.available() ){  // If an ack with payload was received*/
+/*                radio.read( &gotByte, 5 ); // Read it, and display the response time*/
+/*                counter++; // Increment the counter variable*/
+/*                arrivedCounter++;*/
+/*                Serial.println(gotByte[1]);*/
+/*            }*/
+/*        }*/
+/*    */
+/*    }else{*/
+/*        failureCounter++;*/
+/*        Serial.print(" Failure rate: ");*/
+/*        Serial.println(100*failureCounter/(failureCounter+arrivedCounter));*/
+/*        } // If no ack response, sending failed*/
     
     delay(0);  // Try again later
 }
