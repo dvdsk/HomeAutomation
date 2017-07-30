@@ -141,11 +141,6 @@ int main(int argc, char* argv[])
 	std::thread t3(thread_checkSensorData, pirDat, slowDat, sensorState, signalState, notShuttingdown);
 	std::cout<<"Sensor readout started\n";
 
-	/*sleep to give checkSensorData time to aquire some data
-	  from the arduino.*/
-	std::cout<<"Waiting 5 seconds for sensors to set room states\n";
-	//TODO FIXME std::this_thread::sleep_for(std::chrono::seconds(5));
-
 	/*start the thread that is notified of state changes 
 	  and re-evalutes the system on such as change. */
 	std::thread t4(thread_state_management, notShuttingdown,stateData, signalState);

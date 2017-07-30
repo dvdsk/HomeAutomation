@@ -204,10 +204,12 @@ void request_completed(void *cls, struct MHD_Connection *connection,
 				int minTillAlarm = atoi(con_info->data);
 				delete[] con_info->data;				
 				if(minTillAlarm > 0){
-					con_info->data = (char*)std::to_string(minTillAlarm-WAKEUP_DURATION).c_str();
+					std::cout<<minTillAlarm<<"\n";
+					con_info->data = (char*)std::to_string(minTillAlarm-WAKEUP_DURATION_MIN).c_str();
+					std::cout<<"con_info->data: "<<con_info->data<<"\n";
 					char* argv[] = { (char*)"at", (char*)"now", (char*)"+",  
 													 con_info->data, (char*)"minutes", nullptr};
-					minimalShell(argv, "./homeAutomation startWakeup");
+					std::cout<<"shell response: "<<minimalShell(argv, "./homeAutomation startWakeup")<<"\n";
 				}	
 			break;
 		}		

@@ -72,7 +72,8 @@ namespace config {
 }
 
 //wakeup config
-constexpr int WAKEUP_DURATION = 1*60; 	//sec
+constexpr int WAKEUP_DURATION_MIN = 15; //minutes
+constexpr int WAKEUP_DURATION = WAKEUP_DURATION_MIN*60; 	//sec
 constexpr int BRI_MAX = 254;
 constexpr float BRI_PER_SEC = 254/WAKEUP_DURATION;
 constexpr int CT_MIN = 153; 	//coldest

@@ -16,9 +16,9 @@ class WakeUp : public State
 		void updateOnSensors();
 
 		std::atomic<bool> stop;
+		bool wakeUpDone;
 	
 	private:
-
 //		static void* threadFunction(WakeUp* arg);
 
 	

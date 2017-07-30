@@ -71,6 +71,7 @@ static void* threadFunction(WakeUp* currentState){
 	}
 
 	std::cout<<"done with wakeup\n";
+	currentState->wakeUpDone = true;
 	return 0;
 }
 
@@ -79,14 +80,14 @@ WakeUp::WakeUp(StateData* stateData)
 {
 	stateName = WAKEUP_S;
 
-	stop = false;
-	m_thread = new std::thread(threadFunction, this);
-
 	stateData->mpd->saveAndClearCP();	
 
 	stateData->mpd->QueueFromPLs("calm", 3*60, 5*60);
 	stateData->mpd->QueueFromPLs("energetic", 10*60, 11*60);
+	wakeUpDone = false;
 
+	stop = false;
+	m_thread = new std::thread(threadFunction, this);
 	std::cout<<"Ran Wakeup state constructor\n";
 }
 
@@ -103,6 +104,12 @@ WakeUp::~WakeUp(){
 
 bool WakeUp::stillValid(){
 	std::cout<<"decided its still the right state\n";
+	if(wakeUpDone){
+		data->newState = WAKEUP_S;
+		return false;
+	}
+
+
 	return true;
 }
 
