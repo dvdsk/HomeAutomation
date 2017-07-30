@@ -4,7 +4,7 @@
 
 int main(){
 	NodeMaster nodeMaster;
-	//nodeMaster.updateNodes();
+	nodeMaster.updateNodes();
 }
 
 uint8_t addresses[][6] = {"1Node","2Node"}; //FIXME
@@ -13,24 +13,21 @@ NodeMaster::NodeMaster() : RF24(pin::RADIO_CE, pin::RADIO_CS){
 
 	//initialise and configure radio
   begin();
-  //setAddressWidth(3);          //sets adress with to 3 bytes long
-  //setAutoAck(true);            // Ensure autoACK is enabled
+  setAutoAck(true);            // Ensure autoACK is enabled
   //setPayloadSize(5);                
 
   //setRetries(15,15);            // Smallest time between retries, max no. of retries
 	setPALevel(RF24_PA_MIN);	  
-  //setDataRate(RF24_250KBPS);
+  setDataRate(RF24_250KBPS);
 	setChannel(108);	           // 2.508 Ghz - Above most Wifi Channels
 
-	openWritingPipe(addresses[1]);//NODE_BED::addr);	
-	openReadingPipe(PIPE, addresses[0]);//NODE_CENTRAL::addr);	
+	openWritingPipe(NODE_BED::addr);	
+	openReadingPipe(PIPE, NODE_CENTRAL::addr);	
 
-  //openWritingPipe(addresses[1]);
-  //openReadingPipe(1,addresses[0]);
-
-	startListening();            // Start listening  
   //printDetails();              // Dump the configuration of the rf unit for debugging
-
+	stopListening(); //need to call even though never started
+/*
+// TESTING CODE 
 	unsigned long time;
 	unsigned long started_waiting_at;
 	unsigned long got_time;
@@ -61,69 +58,72 @@ NodeMaster::NodeMaster() : RF24(pin::RADIO_CE, pin::RADIO_CS){
 			printf("Got response %lu, round-trip delay: %lu\n",got_time,millis()-got_time);
 		}
 	}
-}
-
-/*Server side
-	forever:
-
-	if(send request fast == done)
-		listen for awnser(timeout)
-		process awns (if awns given)
-
-	if(time>5 seconds)
-		if(send request slow == done)
-			listen for awnser(timeout) 
-	while(slowNotComplete)
-		do another fast check
-		if(send request slow == done)
-			listen for awnser(timeout)
-
-funct notation:
 */
 
+//	bool test;
+//	unsigned long time;
+//	time = millis();
+//	stopListening();
+//	openWritingPipe(NODE_BED::addr);	
+//	test = write(&time, sizeof(unsigned long));
+
+//	if(test == true) std::cout<<"write succesfull\n";
+//	else std::cout<<"write unsuccesful\n";
+//	while(1);
+}
+
+
 void NodeMaster::updateNodes(){
-	bool succes = true;
+	bool succes;
 	bool notshuttingDown = true;
 	uint32_t now, last = unix_timestamp(); //seconds
   uint32_t start_t; //milliseconds
 
-	//request all nodes to reinitialise, set all theire variables to theire
+	//request all nodes to reinitialise, setting all theire variables to the
 	//default values.
-	bool test = false; //FIXME
 	start_t = timeMicroSec();
+ 	succes = true;
 	do{
-		succes = request_Init(NODE_BED::addr); 
-		//succes = succes && request_Init(NODE_BED::addr);
-		std::cout<<"succes: "<<succes<<"\n";
-		if(timeMicroSec()-start_t > MAXDURATION && false) {
+		succes = succes && request_Init(NODE_BED::addr);
+		if(timeMicroSec()-start_t > MAXDURATION) {
 			std::cerr<<"TIMEOUT COULD NOT INIT REMOTE NODES\n";
-			while(1);
-			break;
+			while(1); break;
 		}
 	} while(!succes && notshuttingDown);	
+	std::cout<<"NODES (RE-) INIT SUCCESFULLY\n";
 
+
+	//loop unit shutdown
 	while(notshuttingDown){
+
+		//instruct nodes to start there high freq measurements, and wait for them
+		//to respond with the outcome. If that outcome contains a status message that
+		//the low freq data is also ready, request that data and wait for it.
 		succes = requestAndListen_fast(NODE_BED::fBuf, NODE_BED::addr, NODE_BED::LEN_fBuf);
 		now = unix_timestamp();
 		if(succes){
-			succes = false;
 			process_Fast(); 	
 			if(slowRdy(NODE_BED::fBuf)){
 				succes = requestAndListen_slowValue(NODE_BED::sBuf, NODE_BED::addr, NODE_BED::LEN_sBuf);
 				if(succes){
-					succes = false; 
 					process_Slow();
 				}
 			}
 		}
+		else {std::cout<<"rqFast failed!\n";}
+
+		//instruct nodes to start there low freq measurements
 		if(now-last >= 5){//every 5 seconds do this loop
 			last = now;
 			start_t = timeMicroSec();
+			succes = false;
 			do{
 				succes = request_slowMeasure(NODE_BED::addr);
-				//TODO sleep for some time, //TODO optimise for multiple nodes
-			} while(!succes && (timeMicroSec()-start_t < MAXDURATION));
-			succes = false;
+				if(timeMicroSec()-start_t > MAXDURATION) {
+					std::cerr<<"TIMEOUT COULD NOT REQUEST SLOW-MEASURE\n";
+					while(1); break;
+				}
+			} while(!succes && notshuttingDown);
 		}
 	}
 }
@@ -134,7 +134,6 @@ bool NodeMaster::waitForReply(){
   uint32_t start_t;
 
 	startListening(); 
-
   start_t = timeMicroSec();
   bool timeout = false;
 	while ( !available() ){
@@ -150,25 +149,14 @@ bool NodeMaster::waitForReply(){
 }
 
 bool NodeMaster::request_Init(const uint8_t addr[]){
-	bool test;
-	std::cout<<"ran request init\n";
 	openWritingPipe(addr);
-
-	write(&headers::RQ_INIT, 1);
-
-
-//	test = write(&headers::RQ_INIT, 1);
-	if(test == true) std::cout<<"write succesfull\n";
-	else std::cout<<"write unsuccesful\n";
-
-	//std::cout<<"test: "<<test<<"\n";
-	return test;
+	return write(&headers::RQ_INIT, 1);
 }
 
 
 bool NodeMaster::request_slowMeasure(const uint8_t addr[]){
 	openWritingPipe(addr);
-	return (write(&headers::RQ_MEASURE_SLOW, 1));
+	return write(&headers::RQ_MEASURE_SLOW, 1);
 }
 
 /* TODO use awk package? */

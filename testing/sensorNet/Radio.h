@@ -31,13 +31,16 @@ namespace headers{
 constexpr uint8_t PIPE = 1;
 
 namespace NODE_CENTRAL{
-	constexpr uint8_t addr[] = "0No";
+	constexpr uint8_t addr[] = "1Node"; //addr may only diff in first byte
 }
 
 namespace NODE_BED{
-	constexpr uint8_t addr[] = "1No";
+	constexpr uint8_t addr[] = "2Node"; //addr may only diff in first byte
 	constexpr uint8_t LEN_fBuf = 10;
 	constexpr uint8_t LEN_sBuf = 10;
+
+	int nRadioCalls;
+	int nRadioCallsFailed;
 
 	uint8_t fBuf[LEN_fBuf];
 	uint8_t sBuf[LEN_sBuf];
@@ -67,10 +70,10 @@ private:
 };
 
 void process_Slow(){
-	std::cout<<"test\n";
+	std::cout<<"processed-slow\n";
 }
 void process_Fast(){
-	std::cout<<"test\n";
+	std::cout<<"processed-fast\n";
 }
 
 #endif

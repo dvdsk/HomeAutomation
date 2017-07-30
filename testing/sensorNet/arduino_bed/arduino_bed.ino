@@ -19,13 +19,13 @@ namespace pin {
 }
 
 namespace NODE_CENTRAL{
-	constexpr uint8_t addr[] = "0No";
+	constexpr uint8_t addr[] = "1Node"; //addr may only diff in first byte
 }
 
 constexpr uint8_t PIPE = 1;
 
 namespace NODE_BED{
-	constexpr uint8_t addr[] = "1No";
+	constexpr uint8_t addr[] = "2Node"; //addr may only diff in first byte
 	constexpr uint8_t LEN_fBuf = 10;
 	constexpr uint8_t LEN_sBuf = 10;
 
@@ -53,39 +53,38 @@ void setup(){
 	printf_begin();
 
   radio.begin();
-  //radio.setAddressWidth(3);          //sets adress with to 3 bytes long
-  //radio.setAutoAck(1);               // Ensure autoACK is enabled
+  radio.setAutoAck(1);               // Ensure autoACK is enabled
   //radio.setPayloadSize(5);                
 
   //radio.setRetries(15,15);            // Smallest time between retries, max no. of retries
 	radio.setPALevel(RF24_PA_MIN);	  
-  //radio.setDataRate(RF24_250KBPS);
+  radio.setDataRate(RF24_250KBPS);
 	radio.setChannel(108);	            // 2.508 Ghz - Above most Wifi Channels
 
-	radio.openWritingPipe(addresses[0]);//NODE_CENTRAL::addr);	
-	radio.openReadingPipe(PIPE, addresses[1]);//NODE_BED::addr);	
+	radio.openWritingPipe(NODE_CENTRAL::addr);	
+	radio.openReadingPipe(PIPE, NODE_BED::addr);	
 
-
-  //radio.openWritingPipe(addresses[0]);
-  //radio.openReadingPipe(1,addresses[1]);
 
 	radio.startListening();            // Start listening  
 
+	/*
 	while(1){ //loop
 		unsigned long got_time;
 		if( radio.available()){
       while (radio.available()) radio.read( &got_time, sizeof(unsigned long) ); 
-		  radio.stopListening();
-		  radio.write( &got_time, sizeof(unsigned long) ); 
-		  radio.startListening();
-		  Serial.print(F("Sent response "));
-		  Serial.println(got_time);
+//		  radio.stopListening();
+//		  radio.write( &got_time, sizeof(unsigned long) ); 
+//		  radio.startListening();
+//		  Serial.print(F("Sent response "));
+//		  Serial.println(got_time);
 		}
 	}
+	*/
 }
 
 
 void reInitVars(){
+	Serial.println("re-initting vars\n");
 	status = 0;
 	reInit = true;
 	slowRdy = false;
@@ -94,10 +93,9 @@ void reInitVars(){
 bool checkRadio(){
 	uint8_t header;
 	if(radio.available()){
-		Serial.println("gotRadio");
 		radio.read(&header, 1);
 		Serial.print("gotheader: ");
-		Serial.println("header\n");
+		Serial.println(header);
 		switch(header){
 			case headers::RQ_FAST:
 			handle_fast();
@@ -106,7 +104,6 @@ bool checkRadio(){
 			handle_readSlow();
 			break;
 			case headers::RQ_INIT:
-			Serial.println("init request recieved");
 			reInitVars();
 			break;
 
@@ -130,7 +127,7 @@ void handle_fast(){
 
 	//delay(10); //TODO simulates sensor reading taking time
 	Serial.println("read fast sensors\n");
-	radio.startListening();
+	radio.stopListening();
 	radio.write(fBuf, NODE_BED::LEN_fBuf+1);
 	radio.startListening();
 }
@@ -140,7 +137,7 @@ void handle_readSlow(){
 	uint8_t sBuf[NODE_BED::LEN_sBuf];
 
 	Serial.println("sending slow data\n");
-	radio.startListening();
+	radio.stopListening();
 	radio.write(sBuf, NODE_BED::LEN_fBuf+1);
 	radio.startListening();
 }
