@@ -28,10 +28,6 @@ void TempHumid::startWaitForResultSHT()
 
 bool TempHumid::readyToRead(){
   unsigned int ack;
-
-	radio->pollNodes();
-	local->updateFast_Local();		
-	(*sendFastDataPtr)();
   
   ack = PINA;
   return ((ack & PIN_TERM_DATA) == 0);

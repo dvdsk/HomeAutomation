@@ -3,7 +3,7 @@
 void readAndEncode(uint8_t buffer[]){
 	buffer[0] |= readPIRs();
 	encode(buffer, readLight(), EncFastArduino::LIGHT_BED, 
-	       EncFastArduino::LEN_LIGHT)
+	       EncFastArduino::LEN_LIGHT);
 }
 
 uint8_t readPIRs(){

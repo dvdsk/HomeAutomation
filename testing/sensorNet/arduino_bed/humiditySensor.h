@@ -2,8 +2,7 @@
 #define HUMIDITYSENSOR_H
 
 #include <Arduino.h> //needed for Serial.print
-#include "remoteNodes.h"
-#include "localSensors.h"
+#include "config.h"
 
 namespace TempHumid
 {   

@@ -31,11 +31,11 @@
  PRIVATE FUNCTIONS
  ***************************************************************************/
 
-bool Adafruit_BMP280::Adafruit_BMP280() {
+void Adafruit_BMP280::setup() {
   Wire.begin();
 
   if (read8(BMP280_REGISTER_CHIPID) != BMP280_CHIPID)
-    Serial.println("CHIPID DID NOT MATCH");
+    Serial.println("CHIPID DID NOT MATCH"); //cant do this here
 
   readCoefficients();
   write8(BMP280_REGISTER_CONTROL, 0x3F);
@@ -207,7 +207,7 @@ uint16_t Adafruit_BMP280::readPressure(void) {
   var1 = (((((int64_t)1)<<47)+var1))*((int64_t)_bmp280_calib.dig_P1)>>33;
 
   if (var1 == 0) {
-    return;  // avoid exception caused by division by zero
+    return 0;  // avoid exception caused by division by zero
   }
   p = 1048576 - adc_P;
   p = (((p<<31) - var2)*3125) / var1;

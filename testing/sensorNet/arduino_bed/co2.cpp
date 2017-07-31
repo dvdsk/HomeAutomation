@@ -1,24 +1,24 @@
 #include "Arduino.h"
-//#include "config.h"
+#include "config.h"
 #include "co2.h"
 
-void setup(){
+void Co2::setup(){
 	
 	Serial1.begin(9600);  //Opens the second serial port with a baud of 9600 
 		                     //connect TX from MH Co2 sensor to TX1 on arduino etc
 }
 
 
-void request(){
+void Co2::request(){
 	Serial1.write(REQUESTCO2,9);// request the CO2 sensor to do a reading
 	return;
 }
 
-bool readyToRead(){
+bool Co2::readyToRead(){
 	return Serial1.available() > 8;
 }
 
-inline uint8_t calculate_checkV(const byte data[9]){
+inline uint8_t Co2::calculate_checkV(const byte data[9]){
 	uint8_t checkV;	
 
 	checkV = (data[1]+data[2]+data[3]+data[4]+data[5]+data[6]+data[7]);
@@ -29,7 +29,7 @@ inline uint8_t calculate_checkV(const byte data[9]){
 }			
 
 
-uint16_t readCO2(){
+uint16_t Co2::readCO2(){
   //reads awnser from Co2 sensor that resides in the hardware serial buffer
   //this can be called some time after reqeusting the data thus it is not 
   //needed to wait for a reply after the request, Will also not 

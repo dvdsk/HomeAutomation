@@ -108,7 +108,7 @@ class Adafruit_BMP280
 {
   public:
 
-		Adafruit_BMP280();
+		void setup();
     float readTemperature(void);
     uint16_t readPressure(void);
 
