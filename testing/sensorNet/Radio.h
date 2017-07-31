@@ -46,7 +46,7 @@ namespace NODE_BED{
 	uint8_t sBuf[LEN_sBuf];
 }
 //time in which node must reply through awk package.
-constexpr int MAXDURATION = 50*1000; //milliseconds
+constexpr int MAXDURATION = 500*1000; //milliseconds
 
 class NodeMaster : public RF24 
 {
@@ -69,11 +69,14 @@ private:
 	uint32_t timeMicroSec();
 };
 
-void process_Slow(){
+//pasts together all the data
+void process_Slow(uint32_t now){
 	std::cout<<"processed-slow\n";
 }
+
+//should be node specific
 void process_Fast(){
-	std::cout<<"processed-fast\n";
+	//std::cout<<"processed-fast\n";
 }
 
 #endif

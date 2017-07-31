@@ -13,7 +13,7 @@ NodeMaster::NodeMaster() : RF24(pin::RADIO_CE, pin::RADIO_CS){
 
 	//initialise and configure radio
   begin();
-  setAutoAck(true);            // Ensure autoACK is enabled
+  //setAutoAck(true);            // Ensure autoACK is enabled
   //setPayloadSize(5);                
 
   //setRetries(15,15);            // Smallest time between retries, max no. of retries
@@ -24,52 +24,8 @@ NodeMaster::NodeMaster() : RF24(pin::RADIO_CE, pin::RADIO_CS){
 	openWritingPipe(NODE_BED::addr);	
 	openReadingPipe(PIPE, NODE_CENTRAL::addr);	
 
-  //printDetails();              // Dump the configuration of the rf unit for debugging
+  printDetails();              // Dump the configuration of the rf unit for debugging
 	stopListening(); //need to call even though never started
-/*
-// TESTING CODE 
-	unsigned long time;
-	unsigned long started_waiting_at;
-	unsigned long got_time;
-	bool ok;
-	bool timeout;
-	while(1){ //loopt
-		stopListening();
-
-		std::cout<<"Now sending\n";
-		time = millis();
-		
-		ok = write( &time, sizeof(unsigned long) );
-		if (!ok){
-			printf("SENDING FAILED.\n");
-		}
-		startListening();
-		started_waiting_at = millis();
-		timeout = false;
-		while ( !available() && !timeout ) {
-			if (millis() - started_waiting_at > 200 )
-				timeout = true;
-		}
-
-		if ( timeout ) printf("Failed, response timed out.\n");
-		else{
-			got_time;
-			read( &got_time, sizeof(unsigned long) );
-			printf("Got response %lu, round-trip delay: %lu\n",got_time,millis()-got_time);
-		}
-	}
-*/
-
-//	bool test;
-//	unsigned long time;
-//	time = millis();
-//	stopListening();
-//	openWritingPipe(NODE_BED::addr);	
-//	test = write(&time, sizeof(unsigned long));
-
-//	if(test == true) std::cout<<"write succesfull\n";
-//	else std::cout<<"write unsuccesful\n";
-//	while(1);
 }
 
 
@@ -87,7 +43,7 @@ void NodeMaster::updateNodes(){
 		succes = succes && request_Init(NODE_BED::addr);
 		if(timeMicroSec()-start_t > MAXDURATION) {
 			std::cerr<<"TIMEOUT COULD NOT INIT REMOTE NODES\n";
-			while(1); break;
+			break;
 		}
 	} while(!succes && notshuttingDown);	
 	std::cout<<"NODES (RE-) INIT SUCCESFULLY\n";
@@ -106,8 +62,9 @@ void NodeMaster::updateNodes(){
 			if(slowRdy(NODE_BED::fBuf)){
 				succes = requestAndListen_slowValue(NODE_BED::sBuf, NODE_BED::addr, NODE_BED::LEN_sBuf);
 				if(succes){
-					process_Slow();
+					process_Slow(now);
 				}
+				else {std::cout<<"rqSlow failed!\n";}
 			}
 		}
 		else {std::cout<<"rqFast failed!\n";}
@@ -121,7 +78,7 @@ void NodeMaster::updateNodes(){
 				succes = request_slowMeasure(NODE_BED::addr);
 				if(timeMicroSec()-start_t > MAXDURATION) {
 					std::cerr<<"TIMEOUT COULD NOT REQUEST SLOW-MEASURE\n";
-					while(1); break;
+					break;
 				}
 			} while(!succes && notshuttingDown);
 		}
@@ -135,17 +92,18 @@ bool NodeMaster::waitForReply(){
 
 	startListening(); 
   start_t = timeMicroSec();
-  bool timeout = false;
+  bool gotreply = true;
 	while ( !available() ){
 		if (timeMicroSec() - start_t > MAXDURATION ){
-      timeout = true;
+      gotreply = false;
+			std::cerr<<"TIMEOUT WAITING FOR REPLY\n";
 			break;
 		}
 		//TODO introduce some sort of wait to prevent this from eating all of the
 		//cpu. Should be slightly more then 1/2 the time it takes to respond normally
 	}
 	stopListening();
-	return timeout;
+	return gotreply;
 }
 
 bool NodeMaster::request_Init(const uint8_t addr[]){
@@ -159,15 +117,12 @@ bool NodeMaster::request_slowMeasure(const uint8_t addr[]){
 	return write(&headers::RQ_MEASURE_SLOW, 1);
 }
 
-/* TODO use awk package? */
 bool NodeMaster::slowRdy(const uint8_t buffer[]){
 	uint8_t status = buffer[0];
 	if(status == status::SLOW_RDY) return true;
 	return false;
 }
 
-
-//TODO may not take more then 100 millisec
 bool NodeMaster::requestAndListen_fast(uint8_t buffer[], 
      const uint8_t addr[], uint8_t replyLen)
 {
@@ -209,21 +164,4 @@ uint32_t NodeMaster::timeMicroSec(){
 	gettimeofday(&tv, nullptr);
 	return tv.tv_usec;
 }
-
-
-
-/*Node side
-//Node: 
-	if no message recieved
-		if data procedure running: continue
-		else: go to deep sleep
-	else
-  	if request == fast
-			check fast sensors
-			transmit fast data + if(slow data aquired?)
-		if request == slow
-      start the procedure to aquire that data parallel to normal operation
-	
-
-*/
 
