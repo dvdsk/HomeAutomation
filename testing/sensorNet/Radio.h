@@ -8,6 +8,9 @@
 #include <ctime>
 #include <bitset>
 
+#include "decode.h"
+#include "encodingScheme.h"
+
 //TODO extra for debugging
 #include <sstream>
 #include <string>
@@ -27,7 +30,7 @@ class ConnectionStats{
 		int pos = 0;
 };
 
-class NodeMaster : public RF24 
+class NodeMaster : public RF24, Decode
 {
 public:
 	NodeMaster();
@@ -55,9 +58,21 @@ namespace NODE_BED{
 
 	ConnectionStats conStats;
 
-	uint8_t fBuf[LEN_fBuf];
-	uint8_t sBuf[LEN_sBuf];
+	uint8_t fBuf[EncSlowArduino::LEN_BEDNODE];
+	uint8_t sBuf[EncFastArduino::LEN_BED_NODE];
 }
+
+namespace NODE_KITCHEN{
+	constexpr uint8_t addr[] = "3Node"; //addr may only diff in first byte
+	constexpr uint8_t LEN_fBuf = 10;
+	constexpr uint8_t LEN_sBuf = 10;
+
+	ConnectionStats conStats;
+
+	uint8_t fBuf[EncSlowArduino::LEN_BEDNODE];
+	uint8_t sBuf[EncFastArduino::LEN_BED_NODE];
+}
+
 //time in which node must reply through awk package.
 constexpr int MAXDURATION = 500*1000; //milliseconds
 

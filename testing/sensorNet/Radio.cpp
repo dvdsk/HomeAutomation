@@ -73,7 +73,7 @@ void NodeMaster::updateNodes(){
 				succes = requestAndListen_slowValue(NODE_BED::sBuf, NODE_BED::addr, NODE_BED::LEN_sBuf);
 				if(succes){
 					NODE_BED::conStats.callSucceeded();
-					process_Slow(now);
+					process_Slow(now, NODE_BED::sBuf, );
 				}
 				else NODE_BED::conStats.callFailed();
 			}
