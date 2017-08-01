@@ -16,7 +16,7 @@ NodeMaster::NodeMaster() : RF24(pin::RADIO_CE, pin::RADIO_CS){
   //setAutoAck(true);            // Ensure autoACK is enabled
   //setPayloadSize(5);                
 
-  //setRetries(15,15);            // Smallest time between retries, max no. of retries
+  setRetries(1,5);            // Smallest time between retries, max no. of retries
 	setPALevel(RF24_PA_MIN);	  
   setDataRate(RF24_250KBPS);
 	setChannel(108);	           // 2.508 Ghz - Above most Wifi Channels
@@ -41,6 +41,15 @@ void NodeMaster::updateNodes(){
  	succes = true;
 	do{
 		succes = succes && request_Init(NODE_BED::addr);
+		if(succes){
+			NODE_BED::conStats.callSucceeded();
+			break;
+		}
+		else{
+			NODE_BED::conStats.callFailed(); 
+			break;
+		}
+
 		if(timeMicroSec()-start_t > MAXDURATION) {
 			std::cerr<<"TIMEOUT COULD NOT INIT REMOTE NODES\n";
 			break;
@@ -58,16 +67,18 @@ void NodeMaster::updateNodes(){
 		succes = requestAndListen_fast(NODE_BED::fBuf, NODE_BED::addr, NODE_BED::LEN_fBuf);
 		now = unix_timestamp();
 		if(succes){
+			NODE_BED::conStats.callSucceeded();
 			process_Fast(); 	
 			if(slowRdy(NODE_BED::fBuf)){
 				succes = requestAndListen_slowValue(NODE_BED::sBuf, NODE_BED::addr, NODE_BED::LEN_sBuf);
 				if(succes){
+					NODE_BED::conStats.callSucceeded();
 					process_Slow(now);
 				}
-				else {std::cout<<"rqSlow failed!\n";}
+				else NODE_BED::conStats.callFailed();
 			}
 		}
-		else {std::cout<<"rqFast failed!\n";}
+		else NODE_BED::conStats.callFailed();
 
 		//instruct nodes to start there low freq measurements
 		if(now-last >= 5){//every 5 seconds do this loop
@@ -76,11 +87,22 @@ void NodeMaster::updateNodes(){
 			succes = false;
 			do{
 				succes = request_slowMeasure(NODE_BED::addr);
-				if(timeMicroSec()-start_t > MAXDURATION) {
-					std::cerr<<"TIMEOUT COULD NOT REQUEST SLOW-MEASURE\n";
+				if(succes){
+					NODE_BED::conStats.callSucceeded();
 					break;
 				}
-			} while(!succes && notshuttingDown);
+				else{
+					NODE_BED::conStats.callFailed();
+					succes = requestAndListen_fast(NODE_BED::fBuf, NODE_BED::addr, NODE_BED::LEN_fBuf);
+					now = unix_timestamp();
+					if(succes){
+						NODE_BED::conStats.callSucceeded();
+						process_Fast(); 	
+					}
+					else  NODE_BED::conStats.callFailed();					
+
+				}
+			} while(notshuttingDown);
 		}
 	}
 }
@@ -96,7 +118,6 @@ bool NodeMaster::waitForReply(){
 	while ( !available() ){
 		if (timeMicroSec() - start_t > MAXDURATION ){
       gotreply = false;
-			std::cerr<<"TIMEOUT WAITING FOR REPLY\n";
 			break;
 		}
 		//TODO introduce some sort of wait to prevent this from eating all of the
@@ -163,5 +184,48 @@ uint32_t NodeMaster::timeMicroSec(){
 	timeval tv;	
 	gettimeofday(&tv, nullptr);
 	return tv.tv_usec;
+}
+
+
+ConnectionStats::ConnectionStats(){
+	pos = 0;//check if needed
+	nRadioCalls = 0;
+}
+
+void ConnectionStats::callFailed(){
+	if(nRadioCalls<1000){
+		radioCallFailed.set(nRadioCalls);
+		nRadioCalls++;
+	}
+	else{
+		if(pos>999) pos = 0;	
+		radioCallFailed.set(pos);
+		pos++;
+	}
+	std::cout<<"Failure: "
+					 <<( 100*(float)radioCallFailed.count()/
+							     (float)nRadioCalls )
+					 <<" %\n";
+}
+
+void ConnectionStats::callSucceeded(){
+	if(nRadioCalls<1000){
+		nRadioCalls++;
+	}
+	else{
+		if(pos>999) pos = 0;	
+		radioCallFailed.reset(pos);
+		pos++;
+	}
+}
+
+uint16_t ConnectionStats::getSucceeded(){
+	return nRadioCalls - radioCallFailed.count();
+}
+uint16_t ConnectionStats::getFailed(){
+	return radioCallFailed.count();
+}
+uint16_t ConnectionStats::getRatio(){
+	return radioCallFailed.count()/(nRadioCalls - radioCallFailed.count());
 }
 
