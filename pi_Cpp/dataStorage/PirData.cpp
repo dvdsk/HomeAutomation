@@ -5,7 +5,7 @@
 
 
 PirData::PirData(const std::string filePath, uint8_t* cache, const int cacheLen)
-: Data(filePath, cache, pirData::PACKAGESIZE, cacheLen){
+: Data(filePath, cache, EncFastFile::LEN_ENCODED, cacheLen){
 
   //init local variables
   toStore_value = 0;
@@ -24,7 +24,7 @@ void PirData::process(const uint8_t rawData[2], const uint32_t Tstamp){
     toStore_value = toStore_value | rawData[0];
     toStore_readSensores = toStore_readSensores | rawData[1];
 
-    if (Tstamp-prevTstamp >= pirData::PIR_DT){
+    if (Tstamp-prevTstamp >= PIRTEMPORALRES){
       line[0] = toStore_value;
       line[1] = toStore_readSensores;
       

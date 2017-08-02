@@ -4,10 +4,6 @@
 #include <cstdint> //uint16_t
 #include "encodingScheme.h"
 
-//length in bytes
-constexpr uint8_t FASTDATA_SIZE = 4;
-constexpr uint8_t SLOWDATA_SIZE = 12;
-
 constexpr uint16_t MAXPLOTRESOLUTION = 1000;
 constexpr uint16_t MAX_FETCHED_ELEMENTS = 1000;
 
@@ -135,19 +131,6 @@ namespace plnt {//plants
 }
 
 
-// THIS IS THE ENCODING USED BY DATASTORAGE TO STORE DATA IN MEMORY, IT 
-// DIFFERS SUBTILY FROM THE ENCODING USED BY THE SENSORDATA
-namespace Enc_slow {
-	//location where data starts in bits and lenght of data info			 
-
-	constexpr int LEN_LIGHT = 10;
-	constexpr int LIGHT_BED = CO2+LEN_CO2;
-	constexpr int LIGHT_DOOR = LIGHT_BED+LEN_LIGHT;
-	constexpr int LIGHT_KITCHEN = LIGHT_DOOR+LEN_LIGHT;
-
-	constexpr int LEN_ADD_ENCODED = LEN_LIGHT*3;
-}
-
 enum plotables{
   MOVEMENTSENSOR0,
   MOVEMENTSENSOR1,
@@ -174,20 +157,5 @@ enum plotables{
   BRIGHTNESS_KITCHEN,
   BRIGHTNESS_DOORHIGH
 };
-
-namespace mainState {
-	constexpr int LEN_soilHumidityValues = 5;		
-	constexpr int LEN_movement = 5;	
-}
-
-namespace pirData {
-	constexpr int PACKAGESIZE = Enc_fast::LEN_ENCODED+2;
-	constexpr int PIR_DT= 1; //time to bin data for
-}
-
-namespace slowData {
-	constexpr int PACKAGESIZE = Enc_slow::LEN_ENCODED+Enc_slow::LEN_ADD_ENCODED+2; 
-	//slow data + light data + timestamp
-}
 
 #endif

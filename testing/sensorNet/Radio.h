@@ -53,13 +53,12 @@ private:
 
 namespace NODE_BED{
 	constexpr uint8_t addr[] = "2Node"; //addr may only diff in first byte
-	constexpr uint8_t LEN_fBuf = 10;
-	constexpr uint8_t LEN_sBuf = 10;
+	constexpr uint8_t LEN_fBuf = EncFastArduino::LEN_BED_NODE;
+	constexpr uint8_t LEN_sBuf = EncSlowArduino::LEN_BEDNODE;
 
+	uint8_t fBuf[LEN_fBuf];
+	uint8_t sBuf[LEN_sBuf];
 	ConnectionStats conStats;
-
-	uint8_t fBuf[EncSlowArduino::LEN_BEDNODE];
-	uint8_t sBuf[EncFastArduino::LEN_BED_NODE];
 }
 
 namespace NODE_KITCHEN{

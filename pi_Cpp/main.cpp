@@ -12,7 +12,7 @@
 #include <atomic>
 
 #include "config.h"
-#include "arduinoContact/Serial.h"
+#include "arduinoContact/nodeMaster.h"
 #include "arduinoContact/decode.h"
 #include "dataStorage/MainData.h"
 #include "dataStorage/PirData.h"
@@ -32,8 +32,8 @@
 #include <stdio.h>//TODO DEBUG
 
 const std::string PATHPIR = "pirs.binDat";
-const int CACHESIZE_pir      = pirData::PACKAGESIZE*2;
-const int CACHESIZE_slowData = slowData::PACKAGESIZE*2;
+const int CACHESIZE_pir      = EncFastFile::LEN_ENCODED*2;
+const int CACHESIZE_slowData = EncSlowFile::LEN_ENCODED*2;
 
 //cache for data
 uint8_t cache1[CACHESIZE_pir];
@@ -119,6 +119,7 @@ int main(int argc, char* argv[])
 	PirData* pirDat = new PirData("pirs", cache1, CACHESIZE_pir);
 	SlowData* slowDat = new SlowData("slowData", cache2, CACHESIZE_slowData);
 
+	NodeMaster nodeMaster(pirDat, slowDat, sensorState, signalState);
 
 	std::cout<<"test\n";
 	(*stopHttpServ).lock();
@@ -135,12 +136,6 @@ int main(int argc, char* argv[])
 	std::thread t2(updateVSlow_thread, stateData);
 	std::cout<<"Slow updating started\n";
 
-	/*start the thread that checks the output of the arduino 
-	  it is responsible for setting the enviremental variables
-	  the statewatcher responds too*/
-	std::thread t3(thread_checkSensorData, pirDat, slowDat, sensorState, signalState, notShuttingdown);
-	std::cout<<"Sensor readout started\n";
-
 	/*sleep to give checkSensorData time to aquire some data
 	  from the arduino.*/
 	std::cout<<"Waiting 5 seconds for sensors to set room states\n";
@@ -148,7 +143,7 @@ int main(int argc, char* argv[])
 
 	/*start the thread that is notified of state changes 
 	  and re-evalutes the system on such as change. */
-	std::thread t4(thread_state_management, notShuttingdown,stateData, signalState);
+	std::thread t3(thread_state_management, notShuttingdown,stateData, signalState);
  	std::cout<<"State management started\n"; 
 
   signal(SIGINT, interruptHandler);  
@@ -186,7 +181,6 @@ int main(int argc, char* argv[])
 	t1.join();
 	t2.join();
 	t3.join();
-	t4.join();
 
 	delete pirDat;
 	delete slowDat;

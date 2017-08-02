@@ -114,7 +114,7 @@ inline bool State::recent(uint32_t time, unsigned int threshold){
 inline bool State::anyRecent(uint32_t times[],
 unsigned int threshold){
 	bool recent = false;
-	for(int i=0; i<mainState::LEN_movement; i++)
+	for(int i=0; i<EncFastFile::N_ENCODED; i++)
 		if(data->currentTime - times[i] < threshold){recent = true; } 
 	return recent;
 }

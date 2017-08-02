@@ -7,6 +7,7 @@ void readAndEncode(uint8_t buffer[]){
 }
 
 uint8_t readPIRs(){
+	uint8_t pirStat;
 	//check the PIR sensor for movement as fast as possible, this happens
 	//many many times a second
 
@@ -14,7 +15,10 @@ uint8_t readPIRs(){
 	//returns byte on is high bit off is low. See this chart for which bit in the 
 	//byte corrosponds to which pin http://forum.arduino.cc/index.php?topic=45329.0
 	delay(1);//crashes if removed  TODO checkthis!!!
-	return PINA & (PIR_SOUTH | PIR_NORTH);  //set bedSouth value to recieved data
+	pirStat =  PINA & PIR_SOUTH >> 4;
+	pirStat |= PINA & PIR_NORTH >> 4;
+
+	return pirStat;  //set bedSouth value to recieved data
 }
 
 uint16_t readLight(){

@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "config.h"
-#include "arduinoContact/Serial.h"
+#include "arduinoContact/nodeMaster.h"
 #include "arduinoContact/decode.h"
 #include "dataStorage/MainData.h"
 #include "dataStorage/PirData.h"

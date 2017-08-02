@@ -64,7 +64,7 @@ inline void encode(uint8_t encoded[], uint16_t toEncode, const int package_offse
 }
 
 //function that does the actual work
-inline uint16_t decode2(uint8_t encoded[], int byte_offset, 
+inline uint16_t decode2(const uint8_t encoded[], int byte_offset, 
 											 int bit_offset, int length_bits){
 
 	uint16_t decoded;
@@ -76,7 +76,7 @@ inline uint16_t decode2(uint8_t encoded[], int byte_offset,
 }
 
 //with in memory offset
-inline uint16_t decode(uint8_t encoded[], const int memory_offset_bytes, 
+inline uint16_t decode(const uint8_t encoded[], const int memory_offset_bytes, 
 						 		 			 const int package_offset_bits, const int length_bits){
 
 	int byte_offset = memory_offset_bytes+package_offset_bits/8;
@@ -86,7 +86,7 @@ inline uint16_t decode(uint8_t encoded[], const int memory_offset_bytes,
 }
 
 //without in memory offset
-inline uint16_t decode(uint8_t encoded[], const int package_offset_bits, 
+inline uint16_t decode(const uint8_t encoded[], const int package_offset_bits, 
 								 			 const int length_bits){
 
 	int byte_offset = package_offset_bits/8;

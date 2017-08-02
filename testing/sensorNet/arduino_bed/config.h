@@ -36,6 +36,7 @@ namespace headers{
 	constexpr uint8_t RQ_READ_SLOW = 2;
 	constexpr uint8_t RQ_INIT = 3;
 
+	constexpr uint8_t INIT_DONE = 0b00000010;
 	constexpr uint8_t SLOW_RDY = 0b00000001;
 }
 

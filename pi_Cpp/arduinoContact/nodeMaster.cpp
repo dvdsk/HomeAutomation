@@ -1,15 +1,68 @@
-#include "Radio.h"
+#include "nodeMaster.h"
 
 /*compile with: "g++ -std=c++14 Radio.cpp -L/usr/local/lib -lrf24"   */
 
-int main(){
-	NodeMaster nodeMaster;
-	nodeMaster.updateNodes();
+namespace NODE_BED{
+	constexpr uint8_t addr[] = "2Node"; //addr may only diff in first byte
+	constexpr uint8_t LEN_fBuf = EncFastArduino::LEN_BED_NODE;
+	constexpr uint8_t LEN_sBuf = EncSlowArduino::LEN_BED_NODE;
+
+	constexpr uint8_t start  	 = EncSlowFile::START_BEDNODE;
+	constexpr uint8_t complete = COMPLETE_BED_NODE; //from decode.h
+
+	uint8_t fBuf[LEN_fBuf];
+	uint8_t sBuf[LEN_sBuf];
+	ConnectionStats conStats;
 }
 
-uint8_t addresses[][6] = {"1Node","2Node"}; //FIXME
+namespace NODE_KITCHEN{
+	constexpr uint8_t addr[] = "3Node"; //addr may only diff in first byte
+	constexpr uint8_t LEN_fBuf = EncFastArduino::LEN_KITCHEN_NODE;
+	constexpr uint8_t LEN_sBuf = EncSlowArduino::LEN_KITCHEN_NODE;
 
-NodeMaster::NodeMaster() : RF24(pin::RADIO_CE, pin::RADIO_CS){
+	constexpr uint8_t start  	 = EncSlowFile::START_BEDNODE;
+	constexpr uint8_t complete = COMPLETE_BED_NODE; //from decode.h
+
+	uint8_t fBuf[LEN_fBuf];
+	uint8_t sBuf[LEN_sBuf];
+	ConnectionStats conStats;
+}
+
+//time in which node must reply through awk package.
+constexpr int MAXDURATION = 500*1000; //milliseconds
+
+namespace pin{
+	constexpr int RADIO_CE = 22;
+	constexpr int RADIO_CS = 0;
+}
+
+namespace status{
+	constexpr uint8_t SLOW_RDY = 0b00000001;
+}
+
+namespace headers{
+	constexpr uint8_t RQ_FAST = 0;
+	constexpr uint8_t RQ_MEASURE_SLOW = 1;
+	constexpr uint8_t RQ_READ_SLOW = 2;
+	constexpr uint8_t RQ_INIT = 3;
+}
+
+constexpr uint8_t PIPE = 1;
+
+namespace NODE_CENTRAL{
+	constexpr uint8_t addr[] = "1Node"; //addr may only diff in first byte
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+NodeMaster::NodeMaster(PirData* pirData, SlowData* slowData,
+	                     SensorState* sensorState, SignalState* signalState) 
+	: RF24(pin::RADIO_CE, pin::RADIO_CS), 
+		Decode(pirData, slowData, sensorState, signalState)
+{
+	uint32_t start_t; //milliseconds
+	bool succes;
+	notshuttingDown = true;
 
 	//initialise and configure radio
   begin();
@@ -26,19 +79,12 @@ NodeMaster::NodeMaster() : RF24(pin::RADIO_CE, pin::RADIO_CS){
 
   printDetails();              // Dump the configuration of the rf unit for debugging
 	stopListening(); //need to call even though never started
-}
 
-
-void NodeMaster::updateNodes(){
-	bool succes;
-	bool notshuttingDown = true;
-	uint32_t now, last = unix_timestamp(); //seconds
-  uint32_t start_t; //milliseconds
 
 	//request all nodes to reinitialise, setting all theire variables to the
 	//default values.
-	start_t = timeMicroSec();
  	succes = true;
+	start_t = timeMicroSec();
 	do{
 		succes = succes && request_Init(NODE_BED::addr);
 		if(succes){
@@ -47,16 +93,52 @@ void NodeMaster::updateNodes(){
 		}
 		else{
 			NODE_BED::conStats.callFailed(); 
-			break;
 		}
 
 		if(timeMicroSec()-start_t > MAXDURATION) {
-			std::cerr<<"TIMEOUT COULD NOT INIT REMOTE NODES\n";
+			std::cerr<<"TIMEOUT COULD NOT INIT REMOTE NODES"
+							 <<", check if they are online\n";
 			break;
 		}
-	} while(!succes && notshuttingDown);	
-	std::cout<<"NODES (RE-) INIT SUCCESFULLY\n";
 
+	} while(!succes && notshuttingDown);
+	
+	if(succes){
+		start_t = timeMicroSec();
+		succes = false;
+		do{
+			succes = waitForReply();
+			if(timeMicroSec()-start_t > MAXDURATION) {
+				std::cerr<<"TIMEOUT NO REPLY FROM REMOTE NODE"
+				         <<", something might be wrong with the program on it\n";
+				break;
+			}	
+		} while(!succes && notshuttingDown);
+	}
+
+	if(succes){
+		std::cout<<"NODES (RE-) INIT SUCCESFULLY\n";
+		m_thread = new std::thread(thread_NodeMaster_updateNodes, this);
+	}
+	else std::cout<<"EXITING NODEMASTER\n";
+}
+
+NodeMaster::~NodeMaster(){
+	notshuttingDown = false;
+	m_thread->join();
+	delete m_thread;
+}
+
+inline void thread_NodeMaster_updateNodes(NodeMaster* nodeMaster)
+{
+	nodeMaster->updateNodes();
+}
+
+void NodeMaster::updateNodes(){
+	bool succes;
+	bool notshuttingDown = true;
+	uint32_t now, last = unix_timestamp(); //seconds
+  uint32_t start_t; //milliseconds
 
 	//loop unit shutdown
 	while(notshuttingDown){
@@ -68,12 +150,13 @@ void NodeMaster::updateNodes(){
 		now = unix_timestamp();
 		if(succes){
 			NODE_BED::conStats.callSucceeded();
-			process_Fast(); 	
+			process_Fast_BED(now, NODE_BED::fBuf); 	
 			if(slowRdy(NODE_BED::fBuf)){
+				std::cout<<"slowRdy\n";
 				succes = requestAndListen_slowValue(NODE_BED::sBuf, NODE_BED::addr, NODE_BED::LEN_sBuf);
 				if(succes){
 					NODE_BED::conStats.callSucceeded();
-					process_Slow(now, NODE_BED::sBuf, );
+					process_Slow(now, NODE_BED::sBuf, NODE_BED::start, NODE_BED::LEN_sBuf, NODE_BED::complete);
 				}
 				else NODE_BED::conStats.callFailed();
 			}
@@ -97,14 +180,14 @@ void NodeMaster::updateNodes(){
 					now = unix_timestamp();
 					if(succes){
 						NODE_BED::conStats.callSucceeded();
-						process_Fast(); 	
+						process_Fast_BED(now, NODE_BED::fBuf);
 					}
 					else  NODE_BED::conStats.callFailed();					
-
 				}
 			} while(notshuttingDown);
-		}
-	}
+			std::cout<<"requested measurement\n";
+		}//if
+	}//while(notshuttingdown
 }
 
 
@@ -152,7 +235,7 @@ bool NodeMaster::requestAndListen_fast(uint8_t fBuf[],
 	if(write(&headers::RQ_FAST, 1)){
 		gotReply = waitForReply();
 		if(gotReply){
-			read(buffer, replyLen);
+			read(fBuf, replyLen);
 			return true;
 		}
 	}
@@ -167,10 +250,11 @@ bool NodeMaster::requestAndListen_slowValue(uint8_t sBuf[],
 	if(write(&headers::RQ_READ_SLOW, 1)){
 		gotReply = waitForReply();
 		if(gotReply){
-			read(buffer+bufPos, replyLen);
+			read(sBuf, replyLen);
 			return true;
 		}
 	}
+	std::cout<<"no Response to slow\n";
 	return false;
 }
 
@@ -202,10 +286,10 @@ void ConnectionStats::callFailed(){
 		radioCallFailed.set(pos);
 		pos++;
 	}
-	std::cout<<"Failure: "
-					 <<( 100*(float)radioCallFailed.count()/
-							     (float)nRadioCalls )
-					 <<" %\n";
+//	std::cout<<"Failure: "
+//					 <<( 100*(float)radioCallFailed.count()/
+//							     (float)nRadioCalls )
+//					 <<" %\n";
 }
 
 void ConnectionStats::callSucceeded(){

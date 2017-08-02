@@ -3,10 +3,13 @@
 void process_Slow(const uint32_t now, const uint8_t sBuf[], 
      const uint8_t start, const uint8_t len, const uint8_t completionPart)
 {
-	memcpy(writeBuf+start, sBuf, len);
+	writeBuf+start |= sBuf[0]; //first byte overlaps with prev message
+	memcpy(writeBuf+start+1, sBuf, len-1);
+
 	bufferStatus |= completionPart;
 	if(bufferStatus == ALL_COMPLETE){
 		decodeSlowData(now, writeBuf);
+		memset(writeBuf, 0, EncSlowFile::LEN_ENCODED);
 		bufferStatus = 0;
 	}	
 }
@@ -25,11 +28,7 @@ void process_Fast_BED(const uint32_t now, const uint8_t fBuf[])
 	sensorState->lightValues_updated = true;
 	signalState->runUpdate();
 	
-	slowData->preProcess_light(sensorState->lightValues[lght::BED], now)
-
-//	uint8_t writeBufF |= (fBuf>>EncFastArduino::PIRS_KICHEN)
-//	        <<EncFastFile::PIRS_KICHEN;
-
+	slowData->preProcess_light(sensorState->lightValues[lght::BED], now);
 }
 
 void process_Fast_KITCHEN(const uint32_t now, const uint8_t fBuf[])

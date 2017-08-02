@@ -10,8 +10,8 @@
 
 namespace NODE_BED{
 	constexpr uint8_t addr[] = "2Node"; //addr may only diff in first byte
-	constexpr uint8_t LEN_fBuf = EncFastArduino::LEN_BEDNODE;
-	constexpr uint8_t LEN_sBuf = EncSlowArduino::LEN_BEDNODE;
+	constexpr uint8_t LEN_fBuf = EncFastArduino::LEN_BED_NODE;
+	constexpr uint8_t LEN_sBuf = EncSlowArduino::LEN_BED_NODE;
 	uint8_t sBuf[LEN_sBuf];
 }
 
@@ -60,6 +60,9 @@ void reInitVars(){
 	slowMeasurementStatus = 0;
 	reInit = true;
 	slowRdy = false;
+	radio.stopListening();
+	radio.write(&headers::INIT_DONE, 1);
+	radio.startListening();	
 }
 
 bool checkRadio(){
@@ -95,9 +98,12 @@ void loop(){
 
 void handle_fast(){
 	uint8_t fBuf[NODE_BED::LEN_fBuf];
-	fBuf[0] = slowMeasurementStatus;
+	memset(fBuf, 0, NODE_BED::LEN_fBuf);
 
-	readAndEncode(fBuf); //TODO check if delay needed
+	fBuf[0] = slowMeasurementStatus; //if moved after read and encode this works....
+
+	readAndEncode(fBuf);
+
 	radio.stopListening();
 	radio.write(fBuf, NODE_BED::LEN_fBuf);
 	radio.startListening();
@@ -105,6 +111,7 @@ void handle_fast(){
 
 void handle_readSlow(){
 	//no header in slow package
+	Serial.println("trying to send slowdata\n");
 	radio.stopListening();
 	if(radio.write(NODE_BED::sBuf, NODE_BED::LEN_sBuf))
 		slowMeasurementStatus = 0; //reset slowMeasurementStatus only if slow deliverd succesfully
@@ -115,19 +122,19 @@ void measure_slow(bool (*checkRadio)(void)){
 	float tempC;
 	memset(NODE_BED::sBuf, 0, NODE_BED::LEN_sBuf);
 
-	Serial.println("sending measure requests to slow non continues sensors");
+	//Serial.println("sending measure requests to slow non continues sensors");
 	//send request for data to sensors
 	Co2::request();
 	TempHumid::requestTemp();
 
-	Serial.println("reading continues sensors with registers");
+	//Serial.println("reading continues sensors with registers");
 	//reading continues sensors with registers
 	encode(NODE_BED::sBuf, pressure.readPressure(), 
 	       EncSlowArduino::PRESSURE, EncSlowArduino::LEN_PRESSURE);
 
 	while(!reInit && !TempHumid::readyToRead()){
 		checkRadio();
-		Serial.println("polling if temp is ready for readout");
+		//Serial.println("polling if temp is ready for readout");
 	}
 	tempC = TempHumid::readTemperatureC();
 	encode(NODE_BED::sBuf, (uint16_t)((tempC*10) +100),
@@ -136,14 +143,14 @@ void measure_slow(bool (*checkRadio)(void)){
 
 	while(!reInit && !TempHumid::readyToRead()){
 		checkRadio();
-		Serial.println("polling if humidity is ready for readout");
+		//Serial.println("polling if humidity is ready for readout");
 	}
 	encode(NODE_BED::sBuf, (uint16_t)(TempHumid::readHumidity(tempC)*10), 
 	       EncSlowArduino::HUM_BED, EncSlowArduino::LEN_HUM);
 
 	while(!reInit && !Co2::readyToRead()){
 		checkRadio();
-		Serial.println("polling if co2 is ready for readout");
+		//Serial.println("polling if co2 is ready for readout");
 	}
 	encode(NODE_BED::sBuf, Co2::readCO2(), EncSlowArduino::CO2, 
 	       EncSlowArduino::LEN_CO2);

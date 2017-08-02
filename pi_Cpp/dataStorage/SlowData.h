@@ -57,12 +57,13 @@ class SlowData : public Data
 		  data points is performed*/
 		void exportAllSlowData(uint32_t startT, uint32_t stopT);
 
-		void preProcess_light(std::atomic<int> lightValues[], const uint32_t Tstamp);
+		void preProcess_light(std::atomic<int> lightValues[], uint8_t lightId,
+		     const uint32_t Tstamp);
 
   private:
-    bool newData(const uint8_t raw[Enc_slow::LEN_ENCODED], uint16_t light_Mean[3]);
+    bool newData(const uint8_t raw[EncSlowFile::LEN_ENCODED], uint16_t light_Mean[3]);
 		uint32_t light_Sum[3];
-		uint16_t light_N;
+		uint16_t light_N[3];
 		uint16_t prevLight_Mean[3];
 
     /*checks if data is diffrent the previous data*/
