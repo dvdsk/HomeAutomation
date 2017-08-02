@@ -67,7 +67,7 @@ class SlowData : public Data
 		uint16_t prevLight_Mean[3];
 
     /*checks if data is diffrent the previous data*/
-    uint8_t prevRaw[9];
+    uint8_t prevRaw[EncSlowFile::LEN_ENCODED];
 };
 
 #endif // DATASTORE_H

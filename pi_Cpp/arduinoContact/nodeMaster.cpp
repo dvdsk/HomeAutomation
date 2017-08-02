@@ -1,59 +1,15 @@
 #include "nodeMaster.h"
 
-/*compile with: "g++ -std=c++14 Radio.cpp -L/usr/local/lib -lrf24"   */
-
 namespace NODE_BED{
-	constexpr uint8_t addr[] = "2Node"; //addr may only diff in first byte
-	constexpr uint8_t LEN_fBuf = EncFastArduino::LEN_BED_NODE;
-	constexpr uint8_t LEN_sBuf = EncSlowArduino::LEN_BED_NODE;
-
-	constexpr uint8_t start  	 = EncSlowFile::START_BEDNODE;
-	constexpr uint8_t complete = COMPLETE_BED_NODE; //from decode.h
-
 	uint8_t fBuf[LEN_fBuf];
 	uint8_t sBuf[LEN_sBuf];
 	ConnectionStats conStats;
 }
-
 namespace NODE_KITCHEN{
-	constexpr uint8_t addr[] = "3Node"; //addr may only diff in first byte
-	constexpr uint8_t LEN_fBuf = EncFastArduino::LEN_KITCHEN_NODE;
-	constexpr uint8_t LEN_sBuf = EncSlowArduino::LEN_KITCHEN_NODE;
-
-	constexpr uint8_t start  	 = EncSlowFile::START_BEDNODE;
-	constexpr uint8_t complete = COMPLETE_BED_NODE; //from decode.h
-
 	uint8_t fBuf[LEN_fBuf];
 	uint8_t sBuf[LEN_sBuf];
 	ConnectionStats conStats;
 }
-
-//time in which node must reply through awk package.
-constexpr int MAXDURATION = 500*1000; //milliseconds
-
-namespace pin{
-	constexpr int RADIO_CE = 22;
-	constexpr int RADIO_CS = 0;
-}
-
-namespace status{
-	constexpr uint8_t SLOW_RDY = 0b00000001;
-}
-
-namespace headers{
-	constexpr uint8_t RQ_FAST = 0;
-	constexpr uint8_t RQ_MEASURE_SLOW = 1;
-	constexpr uint8_t RQ_READ_SLOW = 2;
-	constexpr uint8_t RQ_INIT = 3;
-}
-
-constexpr uint8_t PIPE = 1;
-
-namespace NODE_CENTRAL{
-	constexpr uint8_t addr[] = "1Node"; //addr may only diff in first byte
-}
-
-////////////////////////////////////////////////////////////////////////////////
 
 NodeMaster::NodeMaster(PirData* pirData, SlowData* slowData,
 	                     SensorState* sensorState, SignalState* signalState) 
@@ -138,7 +94,6 @@ void NodeMaster::updateNodes(){
 	bool succes;
 	bool notshuttingDown = true;
 	uint32_t now, last = unix_timestamp(); //seconds
-  uint32_t start_t; //milliseconds
 
 	//loop unit shutdown
 	while(notshuttingDown){
@@ -152,11 +107,10 @@ void NodeMaster::updateNodes(){
 			NODE_BED::conStats.callSucceeded();
 			process_Fast_BED(now, NODE_BED::fBuf); 	
 			if(slowRdy(NODE_BED::fBuf)){
-				std::cout<<"slowRdy\n";
 				succes = requestAndListen_slowValue(NODE_BED::sBuf, NODE_BED::addr, NODE_BED::LEN_sBuf);
 				if(succes){
 					NODE_BED::conStats.callSucceeded();
-					process_Slow(now, NODE_BED::sBuf, NODE_BED::start, NODE_BED::LEN_sBuf, NODE_BED::complete);
+					process_Slow_BED(now, NODE_BED::sBuf);
 				}
 				else NODE_BED::conStats.callFailed();
 			}
@@ -166,7 +120,6 @@ void NodeMaster::updateNodes(){
 		//instruct nodes to start there low freq measurements
 		if(now-last >= 5){//every 5 seconds do this loop
 			last = now;
-			start_t = timeMicroSec();
 			succes = false;
 			do{
 				succes = request_slowMeasure(NODE_BED::addr);
@@ -223,7 +176,7 @@ bool NodeMaster::request_slowMeasure(const uint8_t addr[]){
 
 bool NodeMaster::slowRdy(const uint8_t buffer[]){
 	uint8_t status = buffer[0];
-	if(status == status::SLOW_RDY) return true;
+	if(status & status::SLOW_RDY) return true;
 	return false;
 }
 
@@ -254,7 +207,6 @@ bool NodeMaster::requestAndListen_slowValue(uint8_t sBuf[],
 			return true;
 		}
 	}
-	std::cout<<"no Response to slow\n";
 	return false;
 }
 

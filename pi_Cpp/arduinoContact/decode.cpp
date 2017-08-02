@@ -12,19 +12,59 @@ Decode::Decode(PirData* pirData_, SlowData* slowData_,
 		signalState = signalState_;
 }
 
-void Decode::process_Slow(const uint32_t now, const uint8_t sBuf[], 
+void Decode::append_Slow(const uint32_t now, const uint8_t sBuf[], 
      const uint8_t start, const uint8_t len, const uint8_t completionPart)
 {
 	*(writeBufS+start) |= sBuf[0]; //first byte overlaps with prev message
-	memcpy(writeBufS+start+1, sBuf, len-1);
+	memcpy(writeBufS+start+1, sBuf+1, len-1);
+
+	std::cout<<"co2_0: "<<decode(writeBufS, EncSlowArduino::CO2, EncSlowArduino::LEN_CO2)<<"\n";
 
 	bufferStatus |= completionPart;
 	if(bufferStatus == ALL_COMPLETE){
-		decodeSlowData(now, writeBufS);
+		slowData->process(writeBufS, now);
 		memset(writeBufS, 0, EncSlowFile::LEN_ENCODED);
 		bufferStatus = 0;
 	}	
 }
+
+void Decode::process_Slow_BED(const uint32_t now, const uint8_t sBuf[])
+{
+	//immidiatly decode data for state sys.
+	sensorState->tempValues[temp::BED] 
+	= decode(sBuf, EncSlowArduino::TEMP_BED, EncSlowArduino::LEN_TEMP);	
+	sensorState->humidityValues[hum::BED] 
+	= decode(sBuf, EncSlowArduino::HUM_BED, EncSlowArduino::LEN_HUM);
+	sensorState->CO2ppm   
+	= decode(sBuf, EncSlowArduino::CO2, EncSlowArduino::LEN_CO2);
+	sensorState->Pressure 
+	= decode(sBuf, EncSlowArduino::PRESSURE, EncSlowArduino::LEN_PRESSURE);
+	signalState->runUpdate();
+
+	std::cout<<sensorState->CO2ppm<<", "<<sensorState->tempValues[temp::BED] 
+	         <<", "<<sensorState->humidityValues[hum::BED]<<", "
+	         <<sensorState->Pressure<<"\n";
+
+	append_Slow(now, sBuf, NODE_BED::start, 
+	            NODE_BED::LEN_sBuf, NODE_BED::complete);	
+}
+
+void Decode::process_Slow_KITCHEN(const uint32_t now, const uint8_t sBuf[])
+{
+	//immidiatly decode data for state sys.
+	sensorState->tempValues[temp::DOOR] 
+	= decode(sBuf, EncSlowArduino::TEMP_DOOR, EncSlowArduino::LEN_TEMP);
+	sensorState->tempValues_updated = true;
+	sensorState->humidityValues[hum::DOOR] 
+	= decode(sBuf, EncSlowArduino::HUM_DOOR, EncSlowArduino::LEN_HUM);
+	sensorState->humidityValues_updated = true;
+	signalState->runUpdate();
+
+	append_Slow(now, sBuf, NODE_KITCHEN::start, 
+	            NODE_KITCHEN::LEN_sBuf, NODE_KITCHEN::complete);
+}
+
+
 
 void Decode::process_Fast_BED(const uint32_t now, const uint8_t fBuf[])
 {
@@ -64,35 +104,4 @@ void Decode::process_Fast_KITCHEN(const uint32_t now, const uint8_t fBuf[])
 	
 	slowData->preProcess_light(sensorState->lightValues, lght::KITCHEN, now);
 	slowData->preProcess_light(sensorState->lightValues, lght::DOOR, now);
-}
-
-void Decode::decodeSlowData(uint32_t Tstamp, uint8_t writeBuf[]){
-	
-	//decode temp, humidity, co2 and store in state
-	sensorState->tempValues[temp::BED] 
-	= decode(writeBuf, EncSlowArduino::TEMP_BED, EncSlowArduino::LEN_TEMP);
-	sensorState->tempValues[temp::BATHROOM] 
-	= decode(writeBuf, EncSlowArduino::TEMP_BATHROOM, EncSlowArduino::LEN_TEMP);
-	sensorState->tempValues[temp::DOOR] 
-	= decode(writeBuf, EncSlowArduino::TEMP_DOOR, EncSlowArduino::LEN_TEMP);
-	sensorState->tempValues_updated = true;
-
-	sensorState->humidityValues[hum::BED] 
-	= decode(writeBuf, EncSlowArduino::HUM_BED, EncSlowArduino::LEN_HUM);
-	sensorState->humidityValues[hum::BATHROOM] 
-	= decode(writeBuf, EncSlowArduino::HUM_BATHROOM, EncSlowArduino::LEN_HUM);
-	sensorState->humidityValues[hum::DOOR] 
-	= decode(writeBuf, EncSlowArduino::HUM_DOOR, EncSlowArduino::LEN_HUM);
-	sensorState->humidityValues_updated = true;
-
-	sensorState->CO2ppm   = decode(writeBuf, EncSlowArduino::CO2, EncSlowArduino::LEN_CO2);
-	sensorState->Pressure = decode(writeBuf, EncSlowArduino::PRESSURE, EncSlowArduino::LEN_PRESSURE);
-
-	signalState->runUpdate();
-
-	std::cout<<"Co2: "<<sensorState->CO2ppm<<"\n";
-
-
-	//store
-	slowData->process(writeBuf,Tstamp);
 }

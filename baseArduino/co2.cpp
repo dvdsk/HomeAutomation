@@ -14,7 +14,6 @@ void Co2::rqCO2(){
 	return;
 }
 
-
 inline byte Co2::calculate_checkV(const byte data[9]){
 	byte checkV;	
 
@@ -24,7 +23,6 @@ inline byte Co2::calculate_checkV(const byte data[9]){
 
 	return checkV;
 }			
-
 
 void Co2::readCO2(){
   //reads awnser from Co2 sensor that resides in the hardware serial buffer

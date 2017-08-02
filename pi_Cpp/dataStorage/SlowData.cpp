@@ -14,7 +14,7 @@ SlowData::SlowData(const std::string filePath, uint8_t* cache, const int cacheLe
 : Data(filePath, cache, EncSlowFile::LEN_ENCODED, cacheLen){
   
   //init local variables
-  memset(&prevRaw, 0, 9);
+  memset(&prevRaw, 0, EncSlowFile::LEN_ENCODED);
 }
 
 bool SlowData::newData(const uint8_t raw[EncSlowArduino::LEN_ENCODED], uint16_t light_Mean[3]){
@@ -52,14 +52,21 @@ void SlowData::process(const uint8_t raw[EncSlowArduino::LEN_ENCODED], const uin
 		//encode the light mean;
 		std::memcpy(prevLight_Mean, light_Mean, 3);
   	std::memcpy(prevRaw, raw, EncSlowArduino::LEN_ENCODED);				
-		
+
+		std::cout<<"co2_1: "<<decode(raw, EncSlowArduino::CO2, EncSlowArduino::LEN_CO2)<<"\n";
+		std::cout<<"EncSlowArduino::LEN_ENCODED: "<<EncSlowArduino::LEN_ENCODED<<"\n";
 		memcpy(raw_extended, raw, EncSlowArduino::LEN_ENCODED);
+		std::cout<<"co2_2: "<<decode(raw_extended, EncSlowArduino::CO2, EncSlowArduino::LEN_CO2)<<"\n";
+
 		memset(raw_extended+EncSlowArduino::LEN_ENCODED, 0, 
 		       EncSlowFile::LEN_ENCODED-EncSlowArduino::LEN_ENCODED);		
+		std::cout<<"co2_3: "<<decode(raw_extended, EncSlowArduino::CO2, EncSlowArduino::LEN_CO2)<<"\n";
 		
 		encode(raw_extended, light_Mean[lght::BED], EncSlowFile::LIGHT_BED, EncSlowFile::LEN_LIGHT);
 		encode(raw_extended, light_Mean[lght::DOOR], EncSlowFile::LIGHT_DOOR, EncSlowFile::LEN_LIGHT);
 		encode(raw_extended, light_Mean[lght::KITCHEN], EncSlowFile::LIGHT_KITCHEN, EncSlowFile::LEN_LIGHT);
+
+		std::cout<<"co2_4: "<<decode(raw_extended, EncSlowArduino::CO2, EncSlowArduino::LEN_CO2)<<"\n";
 
     Data::append(raw_extended, Tstamp); 
   }
@@ -153,7 +160,7 @@ void SlowData::exportAllSlowData(uint32_t startT, uint32_t stopT){
 
 	//fetches all data in a loop;
 	do{
-		len = Data::fetchAllData(startT, stopT, startByte, stopByte, x, y, dLight1, toFloat);
+		len = Data::fetchAllData(startT, stopT, startByte, stopByte, x, y, dCo2, toFloat);
 		//std::cout<<startByte<<", "<<stopByte<<", "<<x[len-1]<<", "<<y[len-1]<<"\n";		
 		for(int i=0; i<len; i++){
 			fs<<x[i]<<" "<<y[i]<<"\n";

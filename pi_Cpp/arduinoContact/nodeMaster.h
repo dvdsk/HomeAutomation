@@ -9,6 +9,7 @@
 #include <bitset>
 
 #include "decode.h"
+#include "radio.h"
 #include "../encodingScheme.h"
 
 //TODO extra for debugging
