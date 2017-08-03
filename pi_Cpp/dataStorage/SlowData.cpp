@@ -53,14 +53,9 @@ void SlowData::process(const uint8_t raw[EncSlowArduino::LEN_ENCODED], const uin
 		std::memcpy(prevLight_Mean, light_Mean, 3);
   	std::memcpy(prevRaw, raw, EncSlowArduino::LEN_ENCODED);				
 
-		std::cout<<"co2_1: "<<decode(raw, EncSlowArduino::CO2, EncSlowArduino::LEN_CO2)<<"\n";
-		std::cout<<"EncSlowArduino::LEN_ENCODED: "<<EncSlowArduino::LEN_ENCODED<<"\n";
 		memcpy(raw_extended, raw, EncSlowArduino::LEN_ENCODED);
-		std::cout<<"co2_2: "<<decode(raw_extended, EncSlowArduino::CO2, EncSlowArduino::LEN_CO2)<<"\n";
-		std::cout<<"EncSlowFile::LEN_ENCODED-EncSlowArduino::LEN_ENCODED: "<<EncSlowFile::LEN_ENCODED-EncSlowArduino::LEN_ENCODED<<"\n";
-
-		memset(raw_extended+EncSlowArduino::LEN_ENCODED, 0, 
-		       EncSlowFile::LEN_ENCODED-EncSlowArduino::LEN_ENCODED);		
+//		memset(raw_extended+EncSlowArduino::LEN_ENCODED, 0, 
+//		       EncSlowFile::LEN_ENCODED-EncSlowArduino::LEN_ENCODED);		
 		std::cout<<"co2_3: "<<decode(raw_extended, EncSlowArduino::CO2, EncSlowArduino::LEN_CO2)<<"\n";
 		
 		encode(raw_extended, light_Mean[lght::BED], EncSlowFile::LIGHT_BED, EncSlowFile::LEN_LIGHT);
