@@ -16,6 +16,22 @@ static inline void error(const char *msg)
     exit(0);
 }
 
+void Mpd::safeWrite(int sockfd, const char* message, int len){
+
+	if(write(sockfd, message, len) == -1){
+		std::cout<<"*********COULD NOT WRITE TO SOCKET!!!!!**************\n";
+		//re-connect the socket to the remote server
+		close(sockfd);
+
+		sockfd = socket(AF_INET, SOCK_STREAM, 0);
+		if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0){
+			error("ERROR connecting");
+		}
+		write(sockfd, message, len);
+	}
+	else std::cout<<"write is ok\n";
+}
+
 Mpd::Mpd(MpdState* mpdState_, SignalState* signalState_){
 	char buffer[256];
 	int n;
@@ -53,6 +69,10 @@ Mpd::Mpd(MpdState* mpdState_, SignalState* signalState_){
 	n = read(sockfd,buffer,255);
 	if(strcmp(buffer, "OK MPD") > 6){std::cout<<"Connected to MPD succesfully\n";}
 
+	// We expect write failures to occur but we want to handle them where 
+	// the error occurs rather than in a SIGPIPE handler.
+	signal(SIGPIPE, SIG_IGN);
+
 	//start mpd Read loop
 	stop = false;
 	m_thread = new std::thread(thread_Mpd_readLoop, this);
@@ -62,10 +82,10 @@ Mpd::~Mpd(){
 	const char* stopIdle = "noidle\n";
 
 	stop = true;
-
+	std::cout<<"mpd DECONSTRUCTOR ran\n";
 	//request data to force update so stop bool gets noticed
 	std::lock_guard<std::mutex> guard(mpd_mutex);
-	write(sockfd,stopIdle,strlen(stopIdle));
+	safeWrite(sockfd,stopIdle,strlen(stopIdle));
 	close(sockfd);
 	m_thread->join();
 	delete m_thread;
@@ -133,8 +153,6 @@ inline void Mpd::requestStatus(){
 	const char* status = "status\n";
 	const char* idle = "idle\n";
 
-	//std::cout<<"rq status\n";
-
 	std::lock_guard<std::mutex> guard(mpd_mutex);
 	write(sockfd,status,strlen(status));	
 	write(sockfd,idle,strlen(idle));	
@@ -162,9 +180,9 @@ void Mpd::sendCommand(std::string const& command){
 	const char* stopIdle = "noidle\n";
 
 	std::lock_guard<std::mutex> guard(mpd_mutex);
-	write(sockfd,stopIdle,strlen(stopIdle));
-	write(sockfd,command.c_str(),strlen(command.c_str()));
-	write(sockfd,startIdle,strlen(startIdle));
+	safeWrite(sockfd,stopIdle,strlen(stopIdle));
+	safeWrite(sockfd,command.c_str(),strlen(command.c_str()));
+	safeWrite(sockfd,startIdle,strlen(startIdle));
 }
 
 void Mpd::sendCommandList(std::string &command){
@@ -173,12 +191,10 @@ void Mpd::sendCommandList(std::string &command){
 
 	command = "command_list_begin\n"+command+"command_list_end\n";
 
-	std::cout<<"in sendCommandList\n";
 	std::lock_guard<std::mutex> guard(mpd_mutex);
-	std::cout<<"in sendCommandList, passed lock\n";
-	write(sockfd,stopIdle,strlen(stopIdle));
-	write(sockfd,command.c_str(),strlen(command.c_str() ) );
-	write(sockfd,startIdle,strlen(startIdle));
+	safeWrite(sockfd,stopIdle,strlen(stopIdle));
+	safeWrite(sockfd,command.c_str(),strlen(command.c_str() ) );
+	safeWrite(sockfd,startIdle,strlen(startIdle));
 }
 
 std::string Mpd::getInfo(std::string const& command){
@@ -188,12 +204,14 @@ std::string Mpd::getInfo(std::string const& command){
 	std::string info;
 
 	//request data
+	{
 	std::lock_guard<std::mutex> guard(mpd_mutex);
 	write(sockfd,stopIdle,strlen(stopIdle));
 
 	dataReqested = true;
 	write(sockfd,command.c_str(),strlen(command.c_str()));
 	write(sockfd,startIdle,strlen(startIdle));
+	}
 
 	//get data from read thread
 	//no need for lock around data as access is controlled by cv and 

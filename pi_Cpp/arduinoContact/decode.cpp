@@ -18,8 +18,6 @@ void Decode::append_Slow(const uint32_t now, const uint8_t sBuf[],
 	*(writeBufS+start) |= sBuf[0]; //first byte overlaps with prev message
 	memcpy(writeBufS+start+1, sBuf+1, len-1);
 
-	std::cout<<"co2_0: "<<decode(writeBufS, EncSlowArduino::CO2, EncSlowArduino::LEN_CO2)<<"\n";
-
 	bufferStatus |= completionPart;
 	if(bufferStatus == ALL_COMPLETE){
 		slowData->process(writeBufS, now);

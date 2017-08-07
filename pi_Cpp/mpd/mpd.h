@@ -9,6 +9,7 @@
 #include <vector>
 #include <random>
 #include <ctime> 
+#include <csignal>
 
 //needed for sockets
 #include <stdio.h>
@@ -50,7 +51,7 @@ class Mpd{
 			std::lock_guard<std::mutex> guard(debug_mutex);
 			std::cout<<toprint;
 		}
-			
+		void safeWrite(int sockfd, const char* message, int len);		
 		void processMessage(std::string output);
 
 		MpdState* mpdState;

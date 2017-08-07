@@ -98,13 +98,14 @@ class StateData : public Lamps
 {
 	public:
 		StateData(SensorState* sensorState_, MpdState* mpdState_, Mpd* mpd_, 
-		          HttpState* httpState_, ComputerState* computerState_)
+		          HttpState* httpState_, ComputerState* computerState_, SignalState* signalState_)
 		: Lamps(){
 			sensorState = sensorState_;
 			mpdState = mpdState_;
 			mpd = mpd_;
 			httpState = httpState_;
 			computerState = computerState_;
+			signalState = signalState_;
 
 			double sunRise, sunSet;
 
@@ -126,6 +127,7 @@ class StateData : public Lamps
 		ComputerState* computerState;
 		Mpd* mpd; //needed to call mpd functions
 		HttpState* httpState;
+		SignalState* signalState;
 
 		uint32_t tWarm;
 		uint32_t tCool;

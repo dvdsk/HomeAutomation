@@ -54,15 +54,12 @@ void SlowData::process(const uint8_t raw[EncSlowArduino::LEN_ENCODED], const uin
   	std::memcpy(prevRaw, raw, EncSlowArduino::LEN_ENCODED);				
 
 		memcpy(raw_extended, raw, EncSlowArduino::LEN_ENCODED);
-//		memset(raw_extended+EncSlowArduino::LEN_ENCODED, 0, 
-//		       EncSlowFile::LEN_ENCODED-EncSlowArduino::LEN_ENCODED);		
-		std::cout<<"co2_3: "<<decode(raw_extended, EncSlowArduino::CO2, EncSlowArduino::LEN_CO2)<<"\n";
-		
+		memset(raw_extended+EncSlowArduino::LEN_ENCODED, 0, 
+		       EncSlowFile::LEN_ENCODED-EncSlowArduino::LEN_ENCODED);		
+
 		encode(raw_extended, light_Mean[lght::BED], EncSlowFile::LIGHT_BED, EncSlowFile::LEN_LIGHT);
 		encode(raw_extended, light_Mean[lght::DOOR], EncSlowFile::LIGHT_DOOR, EncSlowFile::LEN_LIGHT);
 		encode(raw_extended, light_Mean[lght::KITCHEN], EncSlowFile::LIGHT_KITCHEN, EncSlowFile::LEN_LIGHT);
-
-		std::cout<<"co2_4: "<<decode(raw_extended, EncSlowArduino::CO2, EncSlowArduino::LEN_CO2)<<"\n";
 
     Data::append(raw_extended, Tstamp); 
   }

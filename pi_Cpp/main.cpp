@@ -31,7 +31,6 @@
 
 #include <stdio.h>//TODO DEBUG
 
-const std::string PATHPIR = "pirs.binDat";
 const int CACHESIZE_pir      = EncFastFile::LEN_ENCODED*2;
 const int CACHESIZE_slowData = EncSlowFile::LEN_ENCODED*2;
 
@@ -86,6 +85,7 @@ uint32_t this_unix_timestamp() {
 }
 
 int main(int argc, char* argv[])
+
 {
 	if(argc==2){	
 		if(strcmp(argv[1], "startWakeup") == 0){		
@@ -114,7 +114,7 @@ int main(int argc, char* argv[])
 	HttpState* httpState = new HttpState;
 	ComputerState* computerState = new ComputerState;
 
-	StateData* stateData = new StateData(sensorState, mpdState, mpd, httpState, computerState);
+	StateData* stateData = new StateData(sensorState, mpdState, mpd, httpState, computerState, signalState);
 
 	PirData* pirDat = new PirData("pirs", cache1, CACHESIZE_pir);
 	SlowData* slowDat = new SlowData("slowData", cache2, CACHESIZE_slowData);
@@ -192,5 +192,6 @@ int main(int argc, char* argv[])
 	delete mpdState;
 	delete mpd;
   
+
 	return 0;
 }

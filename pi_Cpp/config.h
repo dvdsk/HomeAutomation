@@ -69,6 +69,11 @@ namespace config {
 
 //wakeup config
 constexpr int WAKEUP_DURATION = 1*60; 	//sec
+
+constexpr int DOORLAMPON = 			(int)(WAKEUP_DURATION/5); 	//sec
+constexpr int ALLLAMPSON = 			(int)(WAKEUP_DURATION/3);		//sec
+constexpr int WAKEUP_MUSIC_ON = (int)(WAKEUP_DURATION/2);		//sec
+
 constexpr int BRI_MAX = 254;
 constexpr float BRI_PER_SEC = 254/WAKEUP_DURATION;
 constexpr int CT_MIN = 153; 	//coldest
@@ -76,7 +81,8 @@ constexpr int CT_MAX = 500;		//warmest
 constexpr float CT_PER_SEC = (CT_MAX-CT_MIN)/WAKEUP_DURATION;
 constexpr int VOL_MIN = 10; //%
 constexpr int VOL_MAX = 50; //%
-constexpr float VOL_PER_SEC = 2*(VOL_MAX-VOL_MIN)/(WAKEUP_DURATION);
+constexpr float VOL_PER_SEC = ((float)(VOL_MAX-VOL_MIN))/
+((float)(WAKEUP_DURATION - WAKEUP_MUSIC_ON));
 
 
 namespace lght {//lightvalues

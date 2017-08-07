@@ -1,32 +1,32 @@
-#include "localSensors.h"
+#include "fastSensors.h"
 
-void LocalSensors::setup(uint16_t* fastData_){fastData = fastData_; }
-
-void LocalSensors::updateFast_Local(){
-	readPIRs();
-	readLight();
+void readAndEncode(uint8_t buffer[]){
+	buffer[0] |= readPIRs();
+	encode(buffer, readLight(), EncFastArduino::LIGHT_BED, 
+	       EncFastArduino::LEN_LIGHT);
 }
 
-void LocalSensors::readPIRs(){
+uint8_t readPIRs(){
+	uint8_t pirStat;
 	//check the PIR sensor for movement as fast as possible, this happens
 	//many many times a second
-	
+
 	//read registery of pin bank L (fast way to read state), 
 	//returns byte on is high bit off is low. See this chart for which bit in the 
 	//byte corrosponds to which pin http://forum.arduino.cc/index.php?topic=45329.0
 	delay(1);//crashes if removed  TODO checkthis!!!
-	*(fastData+Idx::PIRS) = PINA & 0b01010000;  //set bedSouth value to recieved data
-	*(fastData+Idx::PIRS_UPDATED) = 0b01010000;  //location on pinbank
+	pirStat =  PINA & PIR_SOUTH >> 4;
+	pirStat |= PINA & PIR_NORTH >> 4;
+
+	return pirStat;  //set bedSouth value to recieved data
 }
 
-void LocalSensors::readLight(){
+uint16_t readLight(){
 	//read light sensor (anolog) and return over serial, this happens multiple times
 	//a second, convert the data to binairy and send using hte following format:
 	//[header for this light sensor (see the top of file)][lightLevel byte 1]
 	//[light level byte 2]
 	
-	INTUNION_t light;
-	
-	light.number = analogRead(pin::LIGHT_BED);    // read the input pin
-	*(fastData+Idx::LIGHT_BED) = light.number;
+	return analogRead(pin::LIGHT_BED);    // read the input pin
 }
+

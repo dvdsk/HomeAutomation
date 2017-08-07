@@ -103,36 +103,14 @@
     } bmp280_calib_data;
 /*=========================================================================*/
 
-/*
-class Adafruit_BMP280_Unified : public Adafruit_Sensor
-{
-  public:
-    Adafruit_BMP280_Unified(int32_t sensorID = -1);
-
-    bool  begin(uint8_t addr = BMP280_ADDRESS, uint8_t chipid = BMP280_CHIPID);
-    void  getTemperature(float *temp);
-    void  getPressure(float *pressure);
-    float pressureToAltitude(float seaLevel, float atmospheric, float temp);
-    float seaLevelForAltitude(float altitude, float atmospheric, float temp);
-    void  getEvent(sensors_event_t*);
-    void  getSensor(sensor_t*);
-
-  private:
-    uint8_t   _i2c_addr;
-    int32_t   _sensorID;
-};
-
-*/
 
 class Adafruit_BMP280
 {
   public:
-    Adafruit_BMP280();
 
-		bool setup(uint16_t* slowData_, uint8_t addr = BMP280_ADDRESS, uint8_t chipid = BMP280_CHIPID);
+		void setup();
     float readTemperature(void);
-    void readPressure(void);
-//    float readAltitude(float seaLevelhPa = 1013.25);
+    uint16_t readPressure(void);
 
   private:
 
@@ -146,12 +124,7 @@ class Adafruit_BMP280
     uint16_t  read16_LE(byte reg); // little endian
     int16_t   readS16_LE(byte reg); // little endian
 
-		uint16_t* slowData;
-    uint8_t   _i2caddr;
-    int32_t   _sensorID;
     int32_t t_fine;
-
-    int8_t _cs, _mosi, _miso, _sck;
 
     bmp280_calib_data _bmp280_calib;
 

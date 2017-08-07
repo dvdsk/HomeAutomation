@@ -246,6 +246,7 @@ void ConnectionStats::callFailed(){
 
 void ConnectionStats::callSucceeded(){
 	if(nRadioCalls<1000){
+		//no reset needed as numb of succeeded calls = nRadioCalls
 		nRadioCalls++;
 	}
 	else{

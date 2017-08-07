@@ -31,24 +31,14 @@
  PRIVATE FUNCTIONS
  ***************************************************************************/
 
-
-Adafruit_BMP280::Adafruit_BMP280()
-  : _cs(-1), _mosi(-1), _miso(-1), _sck(-1)
-{ }
-
-
-bool Adafruit_BMP280::setup( uint16_t* slowData_, uint8_t addr, uint8_t chipid) {
-	slowData = slowData_;
-  _i2caddr = addr;
-
+void Adafruit_BMP280::setup() {
   Wire.begin();
 
-  if (read8(BMP280_REGISTER_CHIPID) != chipid)
-    return false;
+  if (read8(BMP280_REGISTER_CHIPID) != BMP280_CHIPID)
+    Serial.println("CHIPID DID NOT MATCH"); //cant do this here
 
   readCoefficients();
   write8(BMP280_REGISTER_CONTROL, 0x3F);
-  return true;
 }
 
 /**************************************************************************/
@@ -58,7 +48,7 @@ bool Adafruit_BMP280::setup( uint16_t* slowData_, uint8_t addr, uint8_t chipid) 
 /**************************************************************************/
 void Adafruit_BMP280::write8(byte reg, byte value)
 {
-  Wire.beginTransmission((uint8_t)_i2caddr);
+  Wire.beginTransmission((uint8_t)BMP280_ADDRESS);
   Wire.write((uint8_t)reg);
   Wire.write((uint8_t)value);
   Wire.endTransmission();
@@ -73,10 +63,10 @@ uint8_t Adafruit_BMP280::read8(byte reg)
 {
   uint8_t value;
 
-  Wire.beginTransmission((uint8_t)_i2caddr);
+  Wire.beginTransmission((uint8_t)BMP280_ADDRESS);
   Wire.write((uint8_t)reg);
   Wire.endTransmission();
-  Wire.requestFrom((uint8_t)_i2caddr, (byte)1);
+  Wire.requestFrom((uint8_t)BMP280_ADDRESS, (byte)1);
   value = Wire.read();
 
   return value;
@@ -91,10 +81,10 @@ uint16_t Adafruit_BMP280::read16(byte reg)
 {
   uint16_t value;
 
-  Wire.beginTransmission((uint8_t)_i2caddr);
+  Wire.beginTransmission((uint8_t)BMP280_ADDRESS);
   Wire.write((uint8_t)reg);
   Wire.endTransmission();
-  Wire.requestFrom((uint8_t)_i2caddr, (byte)2);
+  Wire.requestFrom((uint8_t)BMP280_ADDRESS, (byte)2);
   value = (Wire.read() << 8) | Wire.read();
 
   return value;
@@ -133,10 +123,10 @@ uint32_t Adafruit_BMP280::read24(byte reg)
 {
   uint32_t value;
 
-  Wire.beginTransmission((uint8_t)_i2caddr);
+  Wire.beginTransmission((uint8_t)BMP280_ADDRESS);
   Wire.write((uint8_t)reg);
   Wire.endTransmission();
-  Wire.requestFrom((uint8_t)_i2caddr, (byte)3);
+  Wire.requestFrom((uint8_t)BMP280_ADDRESS, (byte)3);
   
   value = Wire.read();
   value <<= 8;
@@ -199,7 +189,7 @@ float Adafruit_BMP280::readTemperature(void)
 
 */
 /**************************************************************************/
-void Adafruit_BMP280::readPressure(void) {
+uint16_t Adafruit_BMP280::readPressure(void) {
   int64_t var1, var2, p;
 
   // Must be done first to get the t_fine variable set up
@@ -217,7 +207,7 @@ void Adafruit_BMP280::readPressure(void) {
   var1 = (((((int64_t)1)<<47)+var1))*((int64_t)_bmp280_calib.dig_P1)>>33;
 
   if (var1 == 0) {
-    return;  // avoid exception caused by division by zero
+    return 0;  // avoid exception caused by division by zero
   }
   p = 1048576 - adc_P;
   p = (((p<<31) - var2)*3125) / var1;
@@ -227,20 +217,5 @@ void Adafruit_BMP280::readPressure(void) {
   p = ((p + var1 + var2) >> 8) + (((int64_t)_bmp280_calib.dig_P7)<<4);
 	p = p/256;
 
-	//Serial.println((5*(p-MINIMUM_MEASURABLE_PRESSURE)));
-	Serial.println(uint16_t(5*(p-MINIMUM_MEASURABLE_PRESSURE)));
-	*(slowData+Idx::PRESSURE) = uint16_t(5*(p-MINIMUM_MEASURABLE_PRESSURE));
-	*(slowData+Idx::UPDATED) |= 1 << Idx::PRESSURE; //indicate co2 has been updated
-	return;
+	return (5*(p-MINIMUM_MEASURABLE_PRESSURE));
 }
-
-//float Adafruit_BMP280::readAltitude(float seaLevelhPa) {
-//  float altitude;
-
-//  float pressure = readPressure(); // in Si units for Pascal
-//  pressure /= 100;
-
-//  altitude = 44330 * (1.0 - pow(pressure / seaLevelhPa, 0.1903));
-
-//  return altitude;
-//}

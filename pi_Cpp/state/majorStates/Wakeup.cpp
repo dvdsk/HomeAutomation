@@ -9,7 +9,7 @@ std::mutex cv_wakeup_m;
 static void* threadFunction(WakeUp* currentState){				
   std::unique_lock<std::mutex> lk(cv_wakeup_m);	
 	int time = 0;
-	int bri, ct;
+	int bri, ct, volume;
 
 	StateData* lamps = currentState->data;
 	Mpd* mpd = currentState->data->mpd;
@@ -55,15 +55,16 @@ static void* threadFunction(WakeUp* currentState){
 		}
 
 		if(time>WAKEUP_MUSIC_ON){
-			std::cout<<"test\n";
 			if(mpdState->playback != PLAYING){
 				std::string cList = "setvol "+std::to_string(VOL_MIN)+"\nplay 0\n";
 				mpd->sendCommandList(cList);
-				std::cout<<"done sending commandlist\n";
+				mpdState->playback = PLAYING;
 			}
 			else{
-				mpd->sendCommand("setvol "+std::to_string(time*VOL_PER_SEC+VOL_MIN));	
-				std::cout<<"setting volume\n";
+				volume = (int)((time-WAKEUP_MUSIC_ON)*VOL_PER_SEC + VOL_MIN);
+				mpd->sendCommand("setvol "+std::to_string(volume)+"\n");	
+				std::cout<<"volPerSec: "<<VOL_PER_SEC<<"\n";
+				std::cout<<"setting volume to: "<<volume<<"\n";
 			}
 		}
 	time +=5; //due to code execution +- 1 second drift over 15 min 
@@ -71,6 +72,8 @@ static void* threadFunction(WakeUp* currentState){
 	}
 
 	std::cout<<"done with wakeup\n";
+	currentState->done = true;
+	currentState->data->signalState->runUpdate();
 	return 0;
 }
 
@@ -78,14 +81,17 @@ WakeUp::WakeUp(StateData* stateData)
 	: State(stateData)
 {
 	stateName = WAKEUP_S;
+	data->newState = DEFAULT_S;
 
 	stop = false;
+	done = false;
 	m_thread = new std::thread(threadFunction, this);
 
 	stateData->mpd->saveAndClearCP();	
 
 	stateData->mpd->QueueFromPLs("calm", 3*60, 5*60);
 	stateData->mpd->QueueFromPLs("energetic", 10*60, 11*60);
+	stateData->mpd->QueueFromPLs("active", 30*60, 60*60);
 
 	std::cout<<"Ran Wakeup state constructor\n";
 }
@@ -102,10 +108,10 @@ WakeUp::~WakeUp(){
 }
 
 bool WakeUp::stillValid(){
-	std::cout<<"decided its still the right state\n";
-	return true;
+	//std::cout<<"decided its still the right state\n";
+	return !done;
 }
 
 void WakeUp::updateOnSensors(){
-	std::cout<<"updated based on sensor values and stuff\n";
+	//std::cout<<"updated based on sensor values and stuff\n";
 }

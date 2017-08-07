@@ -1,154 +1,133 @@
-//FOR REMOTE ARDUINO 1 (ARDUINO NANO), using termpin's 3 en 2 (data, sck)
-
-#include "Arduino.h"
 #include "humiditySensor.h"
-#include "RF24.h"
 
+//rewritten all ports to new bank, thus pin 51 (PB2) [term_dataPin] and 53 (PB0)[term_clockPin] 
+//to: pin 24 (PA2) and 22 (PA0)
 
-//constructor
-TempHumid::TempHumid(int dataPin, int clockPin)
+void TempHumid::reset()
 {
-   _dataPin = dataPin;
-   _clockPin = clockPin;
-}
+	DDRA = PIN_TERM_DATA | PIN_TERM_CLOCK;
 
+	//cancel current order
+  DDRA = PIN_TERM_DATA | PIN_TERM_CLOCK;
+	for(int i = 0; i<12; i++){
+		PORTA = PIN_TERM_DATA | PIN_TERM_CLOCK;
+		PORTA = PIN_TERM_DATA;
+	}
+
+	//reset command
+	int _command = 0b00011110;	
+	sendCommandSHT(_command);
+}
   
-void TempHumid::skipCrcSHT(int _dataPin, int _clockPin)
+void TempHumid::skipCrcSHT()
 {
   // Skip acknowledge to end trans (no CRC)
   
   //pinMode(_dataPin, OUTPUT); //PA2
   //pinMode(_clockPin, OUTPUT); //PA0
   //-> relaced with port manipulation
-  DDRD = PIN_TERM_DATA | PIN_TERM_CLOCK;
+  DDRA = PIN_TERM_DATA | PIN_TERM_CLOCK;
 
   //digitalWrite(_dataPin, HIGH);
   //digitalWrite(_clockPin, HIGH);
   //digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation
-  PORTD = PIN_TERM_DATA | PIN_TERM_CLOCK;
-  PORTD = PIN_TERM_DATA;
+  PORTA = PIN_TERM_DATA | PIN_TERM_CLOCK;
+  PORTA = PIN_TERM_DATA;
 }
 
-
-void TempHumid::waitForResultSHT(int _dataPin, void (*f1)(byte sendBuffer[5]), byte sendBuffer[5], RF24& radio)
+void TempHumid::startWaitForResultSHT()
 {
-  static const byte sendBuffer_def[5] = {255,0,0,0,0};
-  
+  pinMode(pin::TERM_DATA, INPUT);
+}
+
+bool TempHumid::readyToRead(){
   unsigned int ack;
-  byte gotByte;
   
-  pinMode(_dataPin, INPUT);
-
-  for(int i= 0; i < 100; ++i) {
-    
-    delay(10);// FIXME works with delay(10)
-    //instead of using the above delay (and wasting cycles) we run readPir
-    //and other functions
-    if (radio.available()){
-      radio.read( &gotByte, 1 );
-      if (gotByte == '1'){
-        memcpy(sendBuffer, sendBuffer_def, sizeof(sendBuffer_def));
-      }
-    }
-
-    f1(sendBuffer); //readpir and put values into sendbuffer
-    radio.writeAckPayload(1,sendBuffer, 5);
-
-    ack = PIND;
-    if ((ack & PIN_TERM_DATA) == 0) break;
-  }
-
-//  if (ack == HIGH) {
-//    //Serial.println("Ack Error 2"); // Can't do serial stuff here, 
-//    //need another way of reporting errors
-//  }
+  ack = PINA;
+  return ((ack & PIN_TERM_DATA) == 0);
 }
 
-
-int TempHumid::getData16SHT(int _dataPin, int _clockPin)
-{
+int TempHumid::getData16SHT(){
   int val;
 
   // Get the most significant bits
   //  pinMode(_dataPin, INPUT);
   //  pinMode(_clockPin, OUTPUT);
   //-> replaced with port manipulation
-  DDRD = PIN_TERM_CLOCK;
+  DDRA = PIN_TERM_CLOCK;
   
-  val = shiftIn(_dataPin, _clockPin, 8);
+  val = shiftIn(pin::TERM_DATA, pin::TERM_CLOCK, 8);
   val *= 256;
 
   // Send the required ack
   //  pinMode(_dataPin, OUTPUT);
   //-> replaced with port manipulation
-  DDRD = PIN_TERM_CLOCK | PIN_TERM_DATA;
+  DDRA = PIN_TERM_CLOCK | PIN_TERM_DATA;
 
   //  digitalWrite(_dataPin, HIGH);
   //  digitalWrite(_dataPin, LOW);
   //-> replaced with port manipulation
-  PORTD = PIN_TERM_DATA;
-  PORTD = NULL;
+  PORTA = PIN_TERM_DATA;
+  PORTA = 0;
 
   //  digitalWrite(_clockPin, HIGH);
   //  digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation  
-  PORTD = PIN_TERM_CLOCK;
-  PORTD = NULL;
+  PORTA = PIN_TERM_CLOCK;
+  PORTA = 0;
 
   // Get the least significant bits
 //  pinMode(_dataPin, INPUT);
   //-> replaced with port manipulation
-  DDRD = PIN_TERM_CLOCK;
+  DDRA = PIN_TERM_CLOCK;
   
-  val |= shiftIn(_dataPin, _clockPin, 8);
+  val |= shiftIn(pin::TERM_DATA, pin::TERM_CLOCK, 8);
   return val;
 }
 
-
-void TempHumid::sendCommandSHT(int _command, int _dataPin, int _clockPin)
-{
+void TempHumid::sendCommandSHT(int _command){
 /*  unsigned int ack;*/
 
   // Transmission Start
   //  pinMode(_dataPin, OUTPUT);
   //  pinMode(_clockPin, OUTPUT);
   //-> replaced with port manipulation
-  DDRD = PIN_TERM_CLOCK | PIN_TERM_DATA;
-  
-  digitalWrite(_dataPin, HIGH);
-  digitalWrite(_clockPin, HIGH);
+  DDRA = PIN_TERM_CLOCK | PIN_TERM_DATA;
+
+  //digitalWrite(pin::TERM_DATA, HIGH);  
+  //digitalWrite(pin::TERM_CLOCK, HIGH);
   //-> replaced with port manipulation
-  PORTD = PIN_TERM_CLOCK | PIN_TERM_DATA;
+  PORTA = PIN_TERM_CLOCK | PIN_TERM_DATA;
     
   //  digitalWrite(_dataPin, LOW);
   //  digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation
-  PORTD = PIN_TERM_CLOCK;
-  PORTD = NULL;
+  PORTA = PIN_TERM_CLOCK;
+  PORTA = 0;
   
   //  digitalWrite(_clockPin, HIGH);
   //  digitalWrite(_dataPin, HIGH);
   //-> replaced with port manipulation
-  PORTD = PIN_TERM_CLOCK | PIN_TERM_DATA;
+  PORTA = PIN_TERM_CLOCK | PIN_TERM_DATA;
   
   //  digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation
-  PORTD = PIN_TERM_DATA;
+  PORTA = PIN_TERM_DATA;
 
   // The command (3 msb are address and must be 000, and last 5 bits are command)
-  shiftOut(_dataPin, _clockPin, MSBFIRST, _command);
+  shiftOut(pin::TERM_DATA, pin::TERM_CLOCK, MSBFIRST, _command);
 
   //skipping data verificatin for MOAR SPEEED
   // Verify we get the correct ack
   
   //  digitalWrite(_clockPin, HIGH);
   //-> replaced with port manipulation
-  PORTD = PIN_TERM_CLOCK | PIN_TERM_DATA;
+  PORTA = PIN_TERM_CLOCK | PIN_TERM_DATA;
   
   //  pinMode(_dataPin, INPUT);
   //-> replaced with port manipulation
-  DDRD = PIN_TERM_CLOCK;
+  DDRA = PIN_TERM_CLOCK;
   
   //ack = digitalRead(_dataPin);
   //if (ack != LOW) {
@@ -164,12 +143,12 @@ void TempHumid::sendCommandSHT(int _command, int _dataPin, int _clockPin)
   
 //  digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation
-  PORTD = PIN_TERM_DATA;
+  PORTA = PIN_TERM_DATA;
   
-  //ack = digitalRead(_dataPin);
-  //if (ack != HIGH) {
-  //  Serial.println("Ack Error 1");
-  //}
+//  int ack = digitalRead(pin::TERM_DATA);
+//  if (ack != HIGH) {
+//    Serial.println("Ack Error 1 after sendcommand");
+//  }
   //-> replaced with port manipulation
 
   //skipping for speed  
@@ -179,24 +158,27 @@ void TempHumid::sendCommandSHT(int _command, int _dataPin, int _clockPin)
 /*  }*/
 }
 
-
-float TempHumid::readTemperatureRaw(void (*f1)(byte sendBuffer[5]), byte sendBuffer[5], RF24& radio)
-{
-  int _val;
-
+void TempHumid::requestTemp()
+{ 
   // Command to send to the SHT1x to request Temperature
-  int _gTempCmd  = 0b00000011;
+  constexpr int _gTempCmd  = 0b00000011;
 
-  sendCommandSHT(_gTempCmd, _dataPin, _clockPin);
-  waitForResultSHT(_dataPin, f1, sendBuffer, radio);
-  _val = getData16SHT(_dataPin, _clockPin);
-  skipCrcSHT(_dataPin, _clockPin);
-
-  return (_val);
+  sendCommandSHT(_gTempCmd);
+  startWaitForResultSHT();
+  return;
 }
 
+void TempHumid::requestHumid()
+{
+  // Command to send to the SHT1x to request humidity
+  int _gHumidCmd = 0b00000101;
 
-float TempHumid::readTemperatureC(void (*f1)(byte sendBuffer[5]), byte sendBuffer[5], RF24& radio)
+  // Fetch the value from the sensor
+  sendCommandSHT(_gHumidCmd);
+  startWaitForResultSHT();
+}
+
+float TempHumid::readTemperatureC()
 {
   int _val;                // Raw value returned from sensor
   float _temperature;      // Temperature derived from raw value
@@ -205,17 +187,17 @@ float TempHumid::readTemperatureC(void (*f1)(byte sendBuffer[5]), byte sendBuffe
   const float D1 = -40.0;  // for 14 Bit @ 5V
   const float D2 =   0.01; // for 14 Bit DEGC
 
-  // Fetch raw value
-  _val = readTemperatureRaw(f1, sendBuffer, radio);
 
+  // Fetch raw value
+  _val = getData16SHT();
+  skipCrcSHT();
   // Convert raw value to degrees Celsius
   _temperature = (_val * D2) + D1;
 
   return (_temperature);
 }
 
-
-float TempHumid::readHumidity(float _temperature, void (*f1)(byte sendBuffer[5]), byte sendBuffer[5], RF24& radio)
+float TempHumid::readHumidity(float tempC)
 {
   int _val;                    // Raw humidity value returned from sensor
   double _linearHumidity;       // Humidity with linear correction applied
@@ -228,20 +210,16 @@ float TempHumid::readHumidity(float _temperature, void (*f1)(byte sendBuffer[5])
   const float T1 =  0.01;      // for 14 Bit @ 5V
   const double T2 =  0.00008;   // for 14 Bit @ 5V
 
-  // Command to send to the SHT1x to request humidity
-  int _gHumidCmd = 0b00000101;
-
-  // Fetch the value from the sensor
-  sendCommandSHT(_gHumidCmd, _dataPin, _clockPin);
-  waitForResultSHT(_dataPin, f1, sendBuffer, radio);
-  _val = getData16SHT(_dataPin, _clockPin);
-  skipCrcSHT(_dataPin, _clockPin);
+  _val = getData16SHT();
+  skipCrcSHT();
 
   // Apply linear conversion to raw value
   _linearHumidity = C1 + C2 * _val + C3 * _val * _val;
 
   // Correct humidity value for current temperature
-  _correctedHumidity = (_temperature - 25.0 ) * (T1 + T2 * _val) + _linearHumidity;
+  _correctedHumidity = (tempC - 25.0 ) * (T1 + T2 * _val) + _linearHumidity;
+	
+
 
   return (_correctedHumidity);
 }
