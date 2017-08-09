@@ -11,13 +11,13 @@
 //the final 2 bytes.
 
 SlowData::SlowData(const std::string filePath, uint8_t* cache, const int cacheLen)
-: Data(filePath, cache, slowData::PACKAGESIZE, cacheLen){
+: Data(filePath, cache, EncSlowFile::LEN_ENCODED, cacheLen){
   
   //init local variables
-  memset(&prevRaw, 0, 9);
+  memset(&prevRaw, 0, EncSlowFile::LEN_ENCODED);
 }
 
-bool SlowData::newData(const uint8_t raw[Enc_slow::LEN_ENCODED], uint16_t light_Mean[3]){
+bool SlowData::newData(const uint8_t raw[EncSlowArduino::LEN_ENCODED], uint16_t light_Mean[3]){
 	for(int i = 1; i<9; i++){
     if(raw[i] != prevRaw[i]){ return true;}
   }
@@ -28,40 +28,38 @@ bool SlowData::newData(const uint8_t raw[Enc_slow::LEN_ENCODED], uint16_t light_
 	return false;
 }
 
-void SlowData::preProcess_light(std::atomic<int> lightValues[], const uint32_t Tstamp){  
+void SlowData::preProcess_light(std::atomic<int> lightValues[], uint8_t lightId, const uint32_t Tstamp){  
 	//add all the light values for averaging later
-	light_Sum[lght::BED] 			+= lightValues[lght::BED]; 
-	light_Sum[lght::KITCHEN] 	+= lightValues[lght::KITCHEN]; 
-	light_Sum[lght::DOOR] 		+= lightValues[lght::DOOR]; 
-	light_N ++;
+	light_Sum[lightId] += lightValues[lightId]; 
+	light_N[lightId]++;
 }
 
-void SlowData::process(const uint8_t raw[Enc_slow::LEN_ENCODED], const uint32_t Tstamp){  
-	uint8_t raw_extended[Enc_slow::LEN_ENCODED+Enc_slow::LEN_ADD_ENCODED]; //package without tstamp
+void SlowData::process(const uint8_t raw[EncSlowArduino::LEN_ENCODED], const uint32_t Tstamp){  
+	uint8_t raw_extended[EncSlowFile::LEN_ENCODED]; //package without tstamp
 	uint16_t light_Mean[3];
 
 	/*calculate the mean of all light data since the last slowdata package*/
-	if(light_N != 0){
-		for(int i = 0; i<3; i++){
-			light_Mean[i] = light_Sum[i]/light_N;
+	for(int i = 0; i<3; i++){
+		if(light_N[i] != 0){			
+			light_Mean[i] = light_Sum[i]/light_N[i];
 			light_Sum[i] = 0;
-		}
-		light_N = 0;
+		}		
+		else light_Mean[i] = prevLight_Mean[i];
+		light_N[i] = 0;
 	}
-	else
-		std::memcpy(light_Mean, prevLight_Mean, 3);
-	
+
 	if(newData(raw, light_Mean)){
 		//encode the light mean;
 		std::memcpy(prevLight_Mean, light_Mean, 3);
-  	std::memcpy(prevRaw, raw, Enc_slow::LEN_ENCODED);				
-		
-		memcpy(raw_extended, raw, Enc_slow::LEN_ENCODED);
-		memset(raw_extended+Enc_slow::LEN_ENCODED, 0, Enc_slow::LEN_ADD_ENCODED);		
-		
-		encode(raw_extended, light_Mean[lght::BED], Enc_slow::LIGHT_BED, Enc_slow::LEN_LIGHT);
-		encode(raw_extended, light_Mean[lght::DOOR], Enc_slow::LIGHT_DOOR, Enc_slow::LEN_LIGHT);
-		encode(raw_extended, light_Mean[lght::KITCHEN], Enc_slow::LIGHT_KITCHEN, Enc_slow::LEN_LIGHT);
+  	std::memcpy(prevRaw, raw, EncSlowArduino::LEN_ENCODED);				
+
+		memcpy(raw_extended, raw, EncSlowArduino::LEN_ENCODED);
+		memset(raw_extended+EncSlowArduino::LEN_ENCODED, 0, 
+		       EncSlowFile::LEN_ENCODED-EncSlowArduino::LEN_ENCODED);		
+
+		encode(raw_extended, light_Mean[lght::BED], EncSlowFile::LIGHT_BED, EncSlowFile::LEN_LIGHT);
+		encode(raw_extended, light_Mean[lght::DOOR], EncSlowFile::LIGHT_DOOR, EncSlowFile::LEN_LIGHT);
+		encode(raw_extended, light_Mean[lght::KITCHEN], EncSlowFile::LIGHT_KITCHEN, EncSlowFile::LEN_LIGHT);
 
     Data::append(raw_extended, Tstamp); 
   }
@@ -70,37 +68,37 @@ void SlowData::process(const uint8_t raw[Enc_slow::LEN_ENCODED], const uint32_t 
 //SPECIFIC DECODER FUNCT
 /* +2 converts arduino packages to packages with a 2 byte timestamp in front*/
 uint16_t dTemp1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	return decode(block, blockIdx_B+2, Enc_slow::TEMP_BED, Enc_slow::LEN_TEMP);}
+	return decode(block, blockIdx_B+2, EncSlowFile::TEMP_BED, EncSlowFile::LEN_TEMP);}
 uint16_t dTemp2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	return decode(block, blockIdx_B+2, Enc_slow::TEMP_BATHROOM, Enc_slow::LEN_TEMP);}
+	return decode(block, blockIdx_B+2, EncSlowFile::TEMP_BATHROOM, EncSlowFile::LEN_TEMP);}
 uint16_t dTemp3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	return decode(block, blockIdx_B+2, Enc_slow::TEMP_DOOR, Enc_slow::LEN_TEMP);}
+	return decode(block, blockIdx_B+2, EncSlowFile::TEMP_DOOR, EncSlowFile::LEN_TEMP);}
 
 float tempToFloat(uint16_t integer_var){return integer_var/10. -10; }
 
 uint16_t dHum1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	return decode(block, blockIdx_B+2, Enc_slow::HUM_BED, Enc_slow::LEN_HUM); }
+	return decode(block, blockIdx_B+2, EncSlowFile::HUM_BED, EncSlowFile::LEN_HUM); }
 uint16_t dHum2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	return decode(block, blockIdx_B+2, Enc_slow::HUM_BATHROOM, Enc_slow::LEN_HUM); }
+	return decode(block, blockIdx_B+2, EncSlowFile::HUM_BATHROOM, EncSlowFile::LEN_HUM); }
 uint16_t dHum3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	return decode(block, blockIdx_B+2, Enc_slow::HUM_DOOR, Enc_slow::LEN_HUM); }
+	return decode(block, blockIdx_B+2, EncSlowFile::HUM_DOOR, EncSlowFile::LEN_HUM); }
 
 float humToFloat(uint16_t integer_var){return integer_var/10.; }
 
 uint16_t dLight1(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	return decode(block, blockIdx_B+2, Enc_slow::LIGHT_BED, Enc_slow::LEN_LIGHT); }
+	return decode(block, blockIdx_B+2, EncSlowFile::LIGHT_BED, EncSlowFile::LEN_LIGHT); }
 uint16_t dLight2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	return decode(block, blockIdx_B+2, Enc_slow::LIGHT_DOOR, Enc_slow::LEN_LIGHT); }
+	return decode(block, blockIdx_B+2, EncSlowFile::LIGHT_DOOR, EncSlowFile::LEN_LIGHT); }
 uint16_t dLight3(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	return decode(block, blockIdx_B+2, Enc_slow::LIGHT_KITCHEN, Enc_slow::LEN_LIGHT); }
+	return decode(block, blockIdx_B+2, EncSlowFile::LIGHT_KITCHEN, EncSlowFile::LEN_LIGHT); }
 
 uint16_t dCo2(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	return decode(block, blockIdx_B+2, Enc_slow::CO2, Enc_slow::LEN_CO2); }
+	return decode(block, blockIdx_B+2, EncSlowFile::CO2, EncSlowFile::LEN_CO2); }
 
 float toFloat(uint16_t integer_var){return (float)integer_var; }
 
 uint16_t dPressure(int blockIdx_B, uint8_t block[MAXBLOCKSIZE]){
-	return decode(block, blockIdx_B+2, Enc_slow::PRESSURE, Enc_slow::LEN_PRESSURE); }
+	return decode(block, blockIdx_B+2, EncSlowFile::PRESSURE, EncSlowFile::LEN_PRESSURE); }
 
 float pressureToFloat(uint16_t integer_var){return integer_var/5+MINIMUM_MEASURABLE_PRESSURE; }
 
@@ -155,7 +153,7 @@ void SlowData::exportAllSlowData(uint32_t startT, uint32_t stopT){
 
 	//fetches all data in a loop;
 	do{
-		len = Data::fetchAllData(startT, stopT, startByte, stopByte, x, y, dLight1, toFloat);
+		len = Data::fetchAllData(startT, stopT, startByte, stopByte, x, y, dCo2, toFloat);
 		//std::cout<<startByte<<", "<<stopByte<<", "<<x[len-1]<<", "<<y[len-1]<<"\n";		
 		for(int i=0; i<len; i++){
 			fs<<x[i]<<" "<<y[i]<<"\n";

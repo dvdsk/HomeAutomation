@@ -1,126 +1,105 @@
 #include "decode.h"
 
-uint32_t unix_timestamp() {
-  time_t t = std::time(0);
-  uint32_t now = static_cast<uint32_t> (t);
-  return now;
+Decode::Decode(PirData* pirData_, SlowData* slowData_, 
+			     SensorState* sensorState_, SignalState* signalState_){
+		bufferStatus = 0;
+		memset(writeBufS, 0, EncSlowFile::LEN_ENCODED);
+		memset(writeBufF, 0, EncFastFile::LEN_ENCODED);
+
+		pirData = pirData_;
+		slowData = slowData_;
+    sensorState = sensorState_;
+		signalState = signalState_;
 }
 
-void requestSensorData(Serial* arduino, 
-	std::atomic<bool>* notShuttingdown){
-	while(*notShuttingdown){
-		arduino->writeString("0");
-		std::this_thread::sleep_for(std::chrono::seconds(5));
-	}
-	std::cout<<"reqSensorDat shut down successfully\n";
-	return;
-}
+void Decode::append_Slow(const uint32_t now, const uint8_t sBuf[], 
+     const uint8_t start, const uint8_t len, const uint8_t completionPart)
+{
+	*(writeBufS+start) |= sBuf[0]; //first byte overlaps with prev message
+	memcpy(writeBufS+start+1, sBuf+1, len-1);
 
-void thread_checkSensorData(PirData* pirData, 
-	  SlowData* slowData, 
-	  SensorState* sensorState,
-	  SignalState* signalState,
-	  std::atomic<bool>* notShuttingdown){
-  
-  uint32_t Tstamp;
-	uint8_t data[SLOWDATA_SIZE]; 
-  uint8_t x; 
-	Serial* arduino;
-
-	try{
-		arduino = new Serial("/dev/ttyUSB0", config::ARDUINO_BAUDRATE);
-	}catch (boost::system::system_error const& e) {
-		std::cout<<"\tCould not open serial connection on ttyUSB0,\n\t...trying ttyUSB1\n";
-
-		try{
-			arduino = new Serial("/dev/ttyUSB1", config::ARDUINO_BAUDRATE);
-		}catch (boost::system::system_error const& e) {
-			std::cout<<"\tCould not open serial connection on ttyUSB1\n";
-			std::cout<<"\t!!!Abborting sensor readout!!!\n";
-			return;
-		}		
+	bufferStatus |= completionPart;
+	if(bufferStatus == ALL_COMPLETE){
+		slowData->process(writeBufS, now);
+		memset(writeBufS, 0, EncSlowFile::LEN_ENCODED);
+		bufferStatus = 0;
 	}	
-
-	//spawn thread that sends request for 'slow data'
-	std::thread t4(requestSensorData, arduino, notShuttingdown);
-
-	while (*notShuttingdown){
-    x = arduino->readHeader();
-    switch (x){      
-      case headers::FAST_UPDATE:
-				//std::cout<<"update fast\n";
-				Tstamp = unix_timestamp();
-				arduino->readMessage(data, Enc_fast::LEN_ENCODED);			
-				decodeFastData(Tstamp, data, pirData, slowData, sensorState, signalState);           
-        break;             
-      case headers::SLOW_UPDATE:
-				//std::cout<<"update slow\n";
-				Tstamp = unix_timestamp();
-				arduino->readMessage(data, Enc_slow::LEN_ENCODED);				
-				decodeSlowData(Tstamp, data, pirData, slowData, sensorState, signalState);
-				break;        
-      default:
-        //std::cout << "error no code matched, header: " << +x <<"\n";   
-				break;  
-    }
-  }
-	if(!t4.joinable()){ t4.join();}
-	delete arduino;
-	std::cout<<"Sensor readout shut down gracefully";
 }
 
-void decodeFastData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
-										PirData* pirData, 
-										SlowData* slowData, 
-										SensorState* sensorState,
-	                  SignalState* signalState){
-	uint8_t temp;
-	//process movement values
-	//if the there has been movement recently the value temp will be one this indicates that
-	//movement[] needs to be updated for that sensor. Instead of an if statement we use multiplication 
-	//with temp, as temp is either 1 or 0.
-	for (int i = 0; i<8; i++){
-		temp = (data[0] & (1<<i)) & (data[2] & (1<<i));
-		sensorState->movement[i] = !temp * sensorState->movement[i] + temp*Tstamp;
-		temp = (data[1] & (1<<i)) & (data[3] & (1<<i));
-		sensorState->movement[i+8] = !temp * sensorState->movement[i+8] + temp*Tstamp;
-	}
-
-	//process light values
-	sensorState->lightValues[lght::BED] = 		decode(data, Enc_fast::LIGHT_BED, Enc_fast::LEN_LIGHT);
-	sensorState->lightValues[lght::KITCHEN] = decode(data, Enc_fast::LIGHT_KITCHEN, Enc_fast::LEN_LIGHT);
-	sensorState->lightValues[lght::DOOR] = 		decode(data, Enc_fast::LIGHT_DOOR, Enc_fast::LEN_LIGHT);
-	sensorState->lightValues_updated = true;
-	signalState->runUpdate();//TODO check if values differ enough to warrent an update
-
-	//store
-	pirData->process(data, Tstamp);
-	slowData->preProcess_light(sensorState->lightValues, Tstamp);//FIXME outside of guard
-}
-
-
-void decodeSlowData(uint32_t Tstamp, uint8_t data[SLOWDATA_SIZE],
-										PirData* pirData, 
-										SlowData* slowData, 
-										SensorState* sensorState,
-	                  SignalState* signalState){
-	
-	//decode temp, humidity, co2 and store in state
-	sensorState->tempValues[temp::BED] = 			decode(data, Enc_slow::TEMP_BED, Enc_slow::LEN_TEMP);
-	sensorState->tempValues[temp::BATHROOM] = decode(data, Enc_slow::TEMP_BATHROOM, Enc_slow::LEN_TEMP);
-	sensorState->tempValues[temp::DOOR] = 		decode(data, Enc_slow::TEMP_DOOR, Enc_slow::LEN_TEMP);
-	sensorState->tempValues_updated = true;
-
-	sensorState->humidityValues[hum::BED] =      decode(data, Enc_slow::HUM_BED, Enc_slow::LEN_HUM);
-	sensorState->humidityValues[hum::BATHROOM] = decode(data, Enc_slow::HUM_BATHROOM, Enc_slow::LEN_HUM);
-	sensorState->humidityValues[hum::DOOR] =     decode(data, Enc_slow::HUM_DOOR, Enc_slow::LEN_HUM);
-	sensorState->humidityValues_updated = true;
-
-	sensorState->CO2ppm = 	decode(data, Enc_slow::CO2, Enc_slow::LEN_CO2);
-	sensorState->Pressure = decode(data, Enc_slow::PRESSURE, Enc_slow::LEN_PRESSURE);
-
+void Decode::process_Slow_BED(const uint32_t now, const uint8_t sBuf[])
+{
+	//immidiatly decode data for state sys.
+	sensorState->tempValues[temp::BED] 
+	= decode(sBuf, EncSlowArduino::TEMP_BED, EncSlowArduino::LEN_TEMP);	
+	sensorState->humidityValues[hum::BED] 
+	= decode(sBuf, EncSlowArduino::HUM_BED, EncSlowArduino::LEN_HUM);
+	sensorState->CO2ppm   
+	= decode(sBuf, EncSlowArduino::CO2, EncSlowArduino::LEN_CO2);
+	sensorState->Pressure 
+	= decode(sBuf, EncSlowArduino::PRESSURE, EncSlowArduino::LEN_PRESSURE);
 	signalState->runUpdate();
 
-	//store
-	slowData->process(data,Tstamp);
+	std::cout<<sensorState->CO2ppm<<", "<<sensorState->tempValues[temp::BED] 
+	         <<", "<<sensorState->humidityValues[hum::BED]<<", "
+	         <<sensorState->Pressure<<"\n";
+
+	append_Slow(now, sBuf, NODE_BED::start, 
+	            NODE_BED::LEN_sBuf, NODE_BED::complete);	
+}
+
+void Decode::process_Slow_KITCHEN(const uint32_t now, const uint8_t sBuf[])
+{
+	//immidiatly decode data for state sys.
+	sensorState->tempValues[temp::DOOR] 
+	= decode(sBuf, EncSlowArduino::TEMP_DOOR, EncSlowArduino::LEN_TEMP);
+	sensorState->tempValues_updated = true;
+	sensorState->humidityValues[hum::DOOR] 
+	= decode(sBuf, EncSlowArduino::HUM_DOOR, EncSlowArduino::LEN_HUM);
+	sensorState->humidityValues_updated = true;
+	signalState->runUpdate();
+
+	append_Slow(now, sBuf, NODE_KITCHEN::start, 
+	            NODE_KITCHEN::LEN_sBuf, NODE_KITCHEN::complete);
+}
+
+
+
+void Decode::process_Fast_BED(const uint32_t now, const uint8_t fBuf[])
+{
+	uint8_t active;
+	for (int i = EncFastArduino::PIRS_BED; i<EncFastArduino::LEN_PIRS_BED; i++){
+		active = (fBuf[0] & (1<<i));
+		sensorState->movement[i] = !active*sensorState->movement[i] + active*now;
+	}
+	writeBufF[0] |= (fBuf[0]>>EncFastArduino::PIRS_BED)
+	                <<EncFastFile::PIRS_BED;
+
+
+	sensorState->lightValues[lght::BED] = decode(fBuf, EncFastArduino::LIGHT_BED,
+	  EncFastArduino::LEN_LIGHT);
+	sensorState->lightValues_updated = true;
+	signalState->runUpdate();
+	
+	slowData->preProcess_light(sensorState->lightValues, lght::BED, now);
+}
+
+void Decode::process_Fast_KITCHEN(const uint32_t now, const uint8_t fBuf[])
+{
+	uint8_t active;
+	for (int i = EncFastArduino::PIRS_KICHEN; i<EncFastArduino::LEN_PIRS_KICHEN; i++){
+		active = (fBuf[0] & (1<<i));
+		sensorState->movement[i] = !active*sensorState->movement[i] + active*now;
+	}
+	writeBufF[0] |= (fBuf[0]>>EncFastArduino::PIRS_KICHEN)
+	                <<EncFastFile::PIRS_KICHEN;
+
+	sensorState->lightValues[lght::KITCHEN] 
+	= decode(fBuf, EncFastArduino::LIGHT_BED, EncFastArduino::LEN_LIGHT);
+	sensorState->lightValues[lght::DOOR] 
+	= decode(fBuf, EncFastArduino::LIGHT_DOOR, EncFastArduino::LEN_LIGHT);
+	sensorState->lightValues_updated = true;
+	signalState->runUpdate();
+	
+	slowData->preProcess_light(sensorState->lightValues, lght::KITCHEN, now);
+	slowData->preProcess_light(sensorState->lightValues, lght::DOOR, now);
 }

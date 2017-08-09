@@ -39,12 +39,12 @@ namespace EncSlowFile {
 	constexpr int START_LIGHTS = LIGHT_BED;
 
 	//length
-	constexpr int LEN_BEDNODE = roundUp(LEN_TEMP+LEN_HUM+LEN_CO2+LEN_PRESSURE, 8);
-	constexpr int LEN_KITCHENNODE = roundUp(LEN_TEMP+LEN_HUM,8);
-	constexpr int LEN_DOORNODE = roundUp(LEN_TEMP+LEN_HUM,8);
-	constexpr int LEN_LIGHTS = roundUp(LEN_LIGHT*3, 8);
+	constexpr int LEN_BEDNODE = roundUp(LEN_TEMP+LEN_HUM+LEN_CO2+LEN_PRESSURE+,8);
+	constexpr int LEN_KITCHENNODE = roundUp(LEN_TEMP+LEN_HUM,8)
+	constexpr int LEN_DOORNODE = roundUp(LEN_TEMP+LEN_HUM,8)
+	constexpr int LEN_LIGHTS = roundUp(LEN_LIGHT*3, 8)
 
-	constexpr int LEN_ENCODED = roundUp(LIGHT_DOOR+LEN_LIGHT, 8); //in bytes
+	constexpr int LEN_ENCODED = roundUp(START_LIGHTS+LEN_LIGHTS,8); //in bytes
 }
 
 namespace EncSlowArduino {
@@ -59,7 +59,7 @@ namespace EncSlowArduino {
 	constexpr int HUM_BED = TEMP_BED+LEN_TEMP;		
 	constexpr int CO2 = HUM_BED+LEN_HUM;	 
 	constexpr int PRESSURE = CO2+LEN_CO2;
-	constexpr int LEN_BED_NODE = roundUp(PRESSURE+LEN_PRESSURE,8); //in bytes 
+	constexpr int LEN_BEDNODE = roundUp(PRESSURE+LEN_PRESSURE,8); //in bytes 
 
 	//node bathroom
 	constexpr int TEMP_BATHROOM = 0; 
@@ -68,9 +68,6 @@ namespace EncSlowArduino {
 	//node kitchen
 	constexpr int TEMP_DOOR = 0; 
 	constexpr int HUM_DOOR = TEMP_DOOR+LEN_TEMP;		
-	constexpr int LEN_KITCHEN_NODE = roundUp(LEN_TEMP+LEN_HUM,8); //in bytes 
-
-	constexpr int LEN_ENCODED = roundUp(3*LEN_TEMP+3*LEN_HUM+LEN_CO2+LEN_PRESSURE,8); //in bytes
 }
 
 namespace EncFastArduino {
@@ -111,7 +108,6 @@ namespace EncFastFile {
 /*	constexpr int LIGHT_DOOR = LIGHT_KITCHEN+LEN_LIGHT;*/
 /*	constexpr int LEN_KITCHEN_NODE = roundUp(LIGHT_BED+LEN_LIGHT,8);*/
 
-	constexpr int N_ENCODED = LEN_PIRS_BED+LEN_PIRS_KICHEN;
 	constexpr int LEN_ENCODED = roundUp(PIRS_KICHEN+LEN_PIRS_KICHEN,8); //in bytes
 }
 

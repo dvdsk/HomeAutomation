@@ -4,11 +4,16 @@ MAKEFLAGS+="-j -l $(shell grep -c ^processor /proc/cpuinfo) "
 CXX = g++
 CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 
-LDFLAGS = -L/usr/local/ssl/lib
+LDFLAGS = -L/usr/local/ssl/lib -L/usr/local/lib 
 LDLIBS = -lssl -lcrypto
 
+ifeq ($(RASPBERRYPI),Pi)
+  LDLIBS    += -lrf24
+endif
+
+
 ODIR = .BUILD
-OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o Serial.o MainHeader.o  mainServer.o mainState.o telegramBot.o HttpSocket.o HttpsSocket.o commandline.o webGraph.o plotly.o dygraphs.o mpd.o lamps.o default.o SleepInterrupt.o GoingToSleep.o Minimal.o Wakeup.o sunSetRise.o minimalShell.o)
+OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o nodeMaster.o MainHeader.o  mainServer.o mainState.o telegramBot.o HttpSocket.o HttpsSocket.o commandline.o webGraph.o plotly.o dygraphs.o mpd.o lamps.o default.o SleepInterrupt.o GoingToSleep.o Minimal.o Wakeup.o sunSetRise.o minimalShell.o)
 
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
@@ -27,7 +32,7 @@ homeAutomation: $(OBJS)
 $(ODIR)/main.o: main.cpp config.h arduinoContact/decode.h \
 	dataStorage/MainData.h dataStorage/PirData.h dataStorage/SlowData.h \
 	state/mainState.h telegramBot/telegramBot.h state/stateManagement.cpp\
-	httpServer/mainServer.h arduinoContact/Serial.h commandLine/commandline.h \
+	httpServer/mainServer.h arduinoContact/nodeMaster.h commandLine/commandline.h \
 	debug.h smallFunct/HttpsSocket.h 
 	$(CXX) $(CXXFLAGS) -o$@ -c main.cpp
 
@@ -45,11 +50,12 @@ $(ODIR)/SlowData.o: dataStorage/SlowData.cpp dataStorage/SlowData.h dataStorage/
 	compression.h compression.h encodingScheme.h
 	$(CXX) $(CXXFLAGS) -o$@ -c dataStorage/SlowData.cpp
 
-$(ODIR)/decode.o: arduinoContact/decode.cpp arduinoContact/decode.h arduinoContact/Serial.h \
+$(ODIR)/decode.o: arduinoContact/decode.cpp arduinoContact/decode.h \
 	compression.h encodingScheme.h
 	$(CXX) $(CXXFLAGS) -o$@ -c arduinoContact/decode.cpp		
-$(ODIR)/Serial.o: arduinoContact/Serial.cpp arduinoContact/Serial.h
-	$(CXX) $(CXXFLAGS) -o$@ -c arduinoContact/Serial.cpp	
+$(ODIR)/nodeMaster.o: arduinoContact/nodeMaster.cpp arduinoContact/nodeMaster.h\
+	arduinoContact/decode.h
+	$(CXX) $(CXXFLAGS) -o$@ -c arduinoContact/nodeMaster.cpp	
 
 $(ODIR)/mainState.o: state/mainState.cpp state/mainState.h lamps/lamps.h
 	$(CXX) $(CXXFLAGS) -o$@ -c state/mainState.cpp	

@@ -44,7 +44,7 @@ namespace EncSlowFile {
 	constexpr int LEN_DOORNODE = roundUp(LEN_TEMP+LEN_HUM,8);
 	constexpr int LEN_LIGHTS = roundUp(LEN_LIGHT*3, 8);
 
-	constexpr int LEN_ENCODED = roundUp(LIGHT_DOOR+LEN_LIGHT, 8); //in bytes
+	constexpr int LEN_ENCODED = roundUp(START_LIGHTS+LEN_LIGHTS,8); //in bytes
 }
 
 namespace EncSlowArduino {
@@ -70,7 +70,7 @@ namespace EncSlowArduino {
 	constexpr int HUM_DOOR = TEMP_DOOR+LEN_TEMP;		
 	constexpr int LEN_KITCHEN_NODE = roundUp(LEN_TEMP+LEN_HUM,8); //in bytes 
 
-	constexpr int LEN_ENCODED = roundUp(3*LEN_TEMP+3*LEN_HUM+LEN_CO2+LEN_PRESSURE,8); //in bytes
+	constexpr int LEN_ENCODED = roundUp(HUM_DOOR+LEN_HUM,8); //in bytes
 }
 
 namespace EncFastArduino {

@@ -14,6 +14,8 @@ sensor polled/not polled (1/0) => polled and one, polled and zero. The data to
 a moniroring process and binned (PIR_DT second bintime) then stored on file.
 */
 
+constexpr int PIRTEMPORALRES = 5;
+
 //data specific functions and variables
 class PirData : public Data
 {

@@ -1,19 +1,60 @@
 #include "mpd.h"
-#include <stdio.h> //debugging
+
+#ifdef DEBUG
+#define db(x) std::cerr << x;
+#else
+#define db(x)
+#endif
+
+//started processMessage
+//started requestStatus
+//write is ok
+//write is ok
+//done requestStatus
+//done processMessage
+
+//done sendCommandList
+//done QueueFromPLs
+//started QueueFromPLs
+//started getInfo
+//write is ok
+//write is ok
+//write is ok
+//started processMessage
+//started parseStatus
+
+//done sendCommandList
+//done QueueFromPLs
+//started QueueFromPLs
+//started getInfo
+//write is ok
+//write is ok
+//write is ok
+//started processMessage
+//started parseStatus
 
 
-//void PressEnterToContinue()
-//  {
-//  int c;
-//  printf( "Press ENTER to continue... \n" );
-//  fflush( stdout );
-//  do c = getchar(); while ((c != '\n') && (c != EOF));
-//  }
 
 static inline void error(const char *msg)
 {
-    perror(msg);
-    exit(0);
+  perror(msg);
+  exit(0);
+}
+
+void Mpd::safeWrite(int sockfd, const char* message, int len){
+
+	if(write(sockfd, message, len) == -1){
+		std::cout<<"*********COULD NOT WRITE TO SOCKET!!!!!**************\n";
+		//re-connect the socket to the remote server
+		close(sockfd);
+
+		sockfd = socket(AF_INET, SOCK_STREAM, 0);
+		if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0){
+			error("ERROR connecting");
+		}
+		write(sockfd, message, len);
+	}
+	else std::cout<<"write is ok\n";
 }
 
 Mpd::Mpd(MpdState* mpdState_, SignalState* signalState_){
@@ -53,6 +94,10 @@ Mpd::Mpd(MpdState* mpdState_, SignalState* signalState_){
 	n = read(sockfd,buffer,255);
 	if(strcmp(buffer, "OK MPD") > 6){std::cout<<"Connected to MPD succesfully\n";}
 
+	// We expect write failures to occur but we want to handle them where 
+	// the error occurs rather than in a SIGPIPE handler.
+	signal(SIGPIPE, SIG_IGN);
+
 	//start mpd Read loop
 	stop = false;
 	m_thread = new std::thread(thread_Mpd_readLoop, this);
@@ -62,10 +107,10 @@ Mpd::~Mpd(){
 	const char* stopIdle = "noidle\n";
 
 	stop = true;
-
+	std::cout<<"mpd DECONSTRUCTOR ran\n";
 	//request data to force update so stop bool gets noticed
 	std::lock_guard<std::mutex> guard(mpd_mutex);
-	write(sockfd,stopIdle,strlen(stopIdle));
+	safeWrite(sockfd,stopIdle,strlen(stopIdle));
 	close(sockfd);
 	m_thread->join();
 	delete m_thread;
@@ -77,7 +122,7 @@ static void thread_Mpd_readLoop(Mpd* mpd)
 }
 
 void Mpd::readLoop(){
-	
+	db("started readLoop\n")
 	constexpr int BUFFERSIZE = 100;
 	size_t loc;
 	char buffer[BUFFERSIZE];
@@ -91,12 +136,12 @@ void Mpd::readLoop(){
 
 	{	
 		std::lock_guard<std::mutex> guard(mpd_mutex);
-		write(sockfd,status,strlen(status));	
-		write(sockfd,idle,strlen(idle));	
+		safeWrite(sockfd,status,strlen(status));	
+		safeWrite(sockfd,idle,strlen(idle));	
 	}
 
 	std::cout<<"mpd watcher started\n";
-	while(!stop){//TODO replace with not shutdown		
+	while(!stop){//TODO replace with not shutdown	
 		n = read(sockfd, buffer, BUFFERSIZE);
 		buffer2.append(buffer, n);		
 		bzero(buffer,n);
@@ -106,12 +151,14 @@ void Mpd::readLoop(){
 				processMessage(buffer2.substr(0, loc));
 			buffer2.erase(0, loc+3);
 		}
+		db(buffer2<<"\n\n")
 	}
-	std::cout<<"Mpd status loop shutting down\n";
+	db("done readLoop\n")
 }
 
 //TODO check const etc
 void Mpd::processMessage(std::string output){
+	db("started processMessage\n")
 	//check if notification from server
 	if(output.substr(0,8) == "changed:")
 		requestStatus();
@@ -120,6 +167,7 @@ void Mpd::processMessage(std::string output){
 		parseStatus(output);
 	//otherwise must be requested data
 	else if(dataReqested ){
+		std::cout<<"\033[1;35mgot rq data\033[0m\n";
 		dataReqested = false;
 		dataRdy = true;
 		rqData = output;
@@ -127,20 +175,22 @@ void Mpd::processMessage(std::string output){
 	}
 	else debugPrint("\033[1;31mOUTPUT: "+output+" DATARQ:"+
 	     std::to_string(dataReqested)+"\033[0m\n\n");
+	db("done processMessage\n");
 }
 
 inline void Mpd::requestStatus(){
+	db("started requestStatus\n")
 	const char* status = "status\n";
 	const char* idle = "idle\n";
 
-	//std::cout<<"rq status\n";
-
 	std::lock_guard<std::mutex> guard(mpd_mutex);
-	write(sockfd,status,strlen(status));	
-	write(sockfd,idle,strlen(idle));	
+	safeWrite(sockfd,status,strlen(status));	
+	safeWrite(sockfd,idle,strlen(idle));	
+	db("done requestStatus\n")
 }
 
 inline void Mpd::parseStatus(std::string const& output){
+	db("started parseStatus\n")
 	//parse the respons
 	mpdState->volume = stoi(output.substr(8,3));
 	mpdState->playlistlength = stoi(output.substr(output.find("playlistlength:")+15, 4));
@@ -154,46 +204,53 @@ inline void Mpd::parseStatus(std::string const& output){
 	else{
 		mpdState->playback = PLAYING;
 	}
-	signalState->runUpdate();//always run update since there always is a change
+//	db("\033[1;32mrunning Update\033[0m\n")  //TODO FIXME
+	signalState->runUpdate();//always run update since there always is a change  //TODO FIXME
+	db("done parseStatus\n") 
 }
 
 void Mpd::sendCommand(std::string const& command){
+	db("started sendCommand\n")
 	const char* startIdle = "idle player mixer\n";
 	const char* stopIdle = "noidle\n";
 
 	std::lock_guard<std::mutex> guard(mpd_mutex);
-	write(sockfd,stopIdle,strlen(stopIdle));
-	write(sockfd,command.c_str(),strlen(command.c_str()));
-	write(sockfd,startIdle,strlen(startIdle));
+	safeWrite(sockfd,stopIdle,strlen(stopIdle));
+	safeWrite(sockfd,command.c_str(),strlen(command.c_str()));
+	safeWrite(sockfd,startIdle,strlen(startIdle));
+	db("done sendCommand\n")
 }
 
 void Mpd::sendCommandList(std::string &command){
+	db("started sendCommandList\n")
 	const char* startIdle = "idle player mixer\n";
 	const char* stopIdle = "noidle\n";
 
 	command = "command_list_begin\n"+command+"command_list_end\n";
 
-	std::cout<<"in sendCommandList\n";
 	std::lock_guard<std::mutex> guard(mpd_mutex);
-	std::cout<<"in sendCommandList, passed lock\n";
-	write(sockfd,stopIdle,strlen(stopIdle));
-	write(sockfd,command.c_str(),strlen(command.c_str() ) );
-	write(sockfd,startIdle,strlen(startIdle));
+	safeWrite(sockfd,stopIdle,strlen(stopIdle));
+	safeWrite(sockfd,command.c_str(),strlen(command.c_str() ) );
+	safeWrite(sockfd,startIdle,strlen(startIdle));
+	db("done sendCommandList\n")
 }
 
 std::string Mpd::getInfo(std::string const& command){
+	db("started getInfo\n")
 	const char* startIdle = "idle player mixer\n";
 	const char* stopIdle = "noidle\n";
 	std::unique_lock<std::mutex> lk(cv_m);
 	std::string info;
 
 	//request data
+	{
 	std::lock_guard<std::mutex> guard(mpd_mutex);
-	write(sockfd,stopIdle,strlen(stopIdle));
+	safeWrite(sockfd,stopIdle,strlen(stopIdle));
 
 	dataReqested = true;
-	write(sockfd,command.c_str(),strlen(command.c_str()));
-	write(sockfd,startIdle,strlen(startIdle));
+	safeWrite(sockfd,command.c_str(),strlen(command.c_str()));
+	safeWrite(sockfd,startIdle,strlen(startIdle));
+	}
 
 	//get data from read thread
 	//no need for lock around data as access is controlled by cv and 
@@ -202,11 +259,13 @@ std::string Mpd::getInfo(std::string const& command){
 	dataRdy = false;
 	info = rqData;
 
+	db("done getInfo\n")
 	return info;
 }
 
 void Mpd::QueueFromPLs(std::string const &source, 
 	const unsigned int tMin, const unsigned int tMax){
+	db("started QueueFromPLs\n")
 
 	std::vector<int> runTimes;
 	std::vector<std::string> filePaths; 
@@ -217,7 +276,8 @@ void Mpd::QueueFromPLs(std::string const &source,
 	//request and organise needed song data
 	std::string info = getInfo("listplaylistinfo "+source+"\n");
 
-	while(1 ){ 
+	while(1){
+		std::cout<<"inWhile\n"; 
 		start = info.find("file:", stop);
 		if(start == std::string::npos){break;}
 		stop = info.find("\n", start);
@@ -233,6 +293,7 @@ void Mpd::QueueFromPLs(std::string const &source,
 	std::minstd_rand generator(std::time(0)); 
 
 	while(time<tMin && len != 0){
+		std::cout<<"inWhile\n"; 
 		r = (int) (generator()%(len-1+1) +0);
 
 		if(time+runTimes[r]<tMax){
@@ -244,10 +305,13 @@ void Mpd::QueueFromPLs(std::string const &source,
 		len--;
 	};
 
+	db("about to send commandlist\n")
 	sendCommandList(toAdd);
+	db("done QueueFromPLs\n")
 }
 
 void Mpd::saveAndClearCP(){
+	db("started saveAndClearCP\n")
 	std::vector<std::string> filePaths; 
 	std::string commands;
 	unsigned int stop=0;
@@ -270,6 +334,7 @@ void Mpd::saveAndClearCP(){
 	commands+="clear\n";
 
 	sendCommandList(commands);
+	db("done saveAndClearCP\n")
 }
 
 //int main()

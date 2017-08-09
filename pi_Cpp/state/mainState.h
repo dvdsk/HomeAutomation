@@ -85,11 +85,14 @@ struct SensorState{
 struct SignalState{
 	std::mutex m;
 	std::condition_variable cv;
+	bool signalled;
 
 	void runUpdate(){
-		//std::cout<<"done\n";
-		std::unique_lock<std::mutex> lk(m);
+		//std::lock_guard<std::mutex> lock(m); //TODO not needed/could cause problems
+		std::cout<<"\033[1;31mstarted signalling\033[0m\n";
+		signalled = true;
 		cv.notify_one();
+		std::cout<<"\033[1;32mdone signalling\033[0m\n";
 	}
 };
 
@@ -98,13 +101,14 @@ class StateData : public Lamps
 {
 	public:
 		StateData(SensorState* sensorState_, MpdState* mpdState_, Mpd* mpd_, 
-		          HttpState* httpState_, ComputerState* computerState_)
+		          HttpState* httpState_, ComputerState* computerState_, SignalState* signalState_)
 		: Lamps(){
 			sensorState = sensorState_;
 			mpdState = mpdState_;
 			mpd = mpd_;
 			httpState = httpState_;
 			computerState = computerState_;
+			signalState = signalState_;
 
 			double sunRise, sunSet;
 
@@ -126,6 +130,7 @@ class StateData : public Lamps
 		ComputerState* computerState;
 		Mpd* mpd; //needed to call mpd functions
 		HttpState* httpState;
+		SignalState* signalState;
 
 		uint32_t tWarm;
 		uint32_t tCool;

@@ -3,14 +3,14 @@
 
 #include <Arduino.h> //needed for Serial.print
 
-class Co2
+namespace Co2
 {
-	public:
-		void setup(uint16_t* slowData_);
-		void rqCO2();
-		void readCO2();
-	private:
-		uint16_t* slowData;
+		void setup();
+		void request();
+		bool readyToRead();
+		uint16_t readCO2();
+
+
 		inline byte calculate_checkV(const byte data[9]);
 };
 

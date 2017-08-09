@@ -3,15 +3,20 @@
 //rewritten all ports to new bank, thus pin 51 (PB2) [term_dataPin] and 53 (PB0)[term_clockPin] 
 //to: pin 24 (PA2) and 22 (PA0)
 
-//constructor
-
-void TempHumid::setup(RemoteNodes* radio_, LocalSensors* local_, 
-											void(*sendFastDataPtr_)(void), uint16_t* slowData_)
+void TempHumid::reset()
 {
-	sendFastDataPtr = sendFastDataPtr_;
-	slowData = slowData_;
-	radio = radio_;
-	local = local_;
+	DDRC = PIN_TERM_DATA | PIN_TERM_CLOCK;
+
+	//cancel current order
+  DDRC = PIN_TERM_DATA | PIN_TERM_CLOCK;
+	for(int i = 0; i<12; i++){
+		PORTC = PIN_TERM_DATA | PIN_TERM_CLOCK;
+		PORTC = PIN_TERM_DATA;
+	}
+
+	//reset command
+	int _command = 0b00011110;	
+	sendCommandSHT(_command);
 }
   
 void TempHumid::skipCrcSHT()
@@ -21,38 +26,26 @@ void TempHumid::skipCrcSHT()
   //pinMode(_dataPin, OUTPUT); //PA2
   //pinMode(_clockPin, OUTPUT); //PA0
   //-> relaced with port manipulation
-  DDRA = PIN_TERM_DATA | PIN_TERM_CLOCK;
+  DDRC = PIN_TERM_DATA | PIN_TERM_CLOCK;
 
   //digitalWrite(_dataPin, HIGH);
   //digitalWrite(_clockPin, HIGH);
   //digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation
-  PORTA = PIN_TERM_DATA | PIN_TERM_CLOCK;
-  PORTA = PIN_TERM_DATA;
+  PORTC = PIN_TERM_DATA | PIN_TERM_CLOCK;
+  PORTC = PIN_TERM_DATA;
 }
 
-void TempHumid::waitForResultSHT()
+void TempHumid::startWaitForResultSHT()
 {
-  unsigned int ack;
-
   pinMode(pin::TERM_DATA, INPUT);
+}
 
-  for(int i= 0; i < 1000; ++i)
-  { 
-		radio->pollNodes();
-		local->updateFast_Local();		
-		(*sendFastDataPtr)();
-    
-    ack = PINA;
-    if ((ack & PIN_TERM_DATA) == 0) break;
-  }
-  if (ack == HIGH) {
-		#ifdef DEBUG
-		Serial.println("ACK TIMEOUT");	
-		#endif
-		//if we time out unset the slowdata aquired bits.
-		*(slowData+Idx::UPDATED) = 0;
-  }
+bool TempHumid::readyToRead(){
+  unsigned int ack;
+  
+  ack = PINC;
+  return ((ack & PIN_TERM_DATA) == 0);
 }
 
 int TempHumid::getData16SHT(){
@@ -62,7 +55,7 @@ int TempHumid::getData16SHT(){
   //  pinMode(_dataPin, INPUT);
   //  pinMode(_clockPin, OUTPUT);
   //-> replaced with port manipulation
-  DDRA = PIN_TERM_CLOCK;
+  DDRC = PIN_TERM_CLOCK;
   
   val = shiftIn(pin::TERM_DATA, pin::TERM_CLOCK, 8);
   val *= 256;
@@ -70,24 +63,24 @@ int TempHumid::getData16SHT(){
   // Send the required ack
   //  pinMode(_dataPin, OUTPUT);
   //-> replaced with port manipulation
-  DDRA = PIN_TERM_CLOCK | PIN_TERM_DATA;
+  DDRC = PIN_TERM_CLOCK | PIN_TERM_DATA;
 
   //  digitalWrite(_dataPin, HIGH);
   //  digitalWrite(_dataPin, LOW);
   //-> replaced with port manipulation
-  PORTA = PIN_TERM_DATA;
-  PORTA = 0;
+  PORTC = PIN_TERM_DATA;
+  PORTC = 0;
 
   //  digitalWrite(_clockPin, HIGH);
   //  digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation  
-  PORTA = PIN_TERM_CLOCK;
-  PORTA = 0;
+  PORTC = PIN_TERM_CLOCK;
+  PORTC = 0;
 
   // Get the least significant bits
 //  pinMode(_dataPin, INPUT);
   //-> replaced with port manipulation
-  DDRA = PIN_TERM_CLOCK;
+  DDRC = PIN_TERM_CLOCK;
   
   val |= shiftIn(pin::TERM_DATA, pin::TERM_CLOCK, 8);
   return val;
@@ -100,27 +93,27 @@ void TempHumid::sendCommandSHT(int _command){
   //  pinMode(_dataPin, OUTPUT);
   //  pinMode(_clockPin, OUTPUT);
   //-> replaced with port manipulation
-  DDRA = PIN_TERM_CLOCK | PIN_TERM_DATA;
+  DDRC = PIN_TERM_CLOCK | PIN_TERM_DATA;
 
-  digitalWrite(pin::TERM_DATA, HIGH);  
-  digitalWrite(pin::TERM_CLOCK, HIGH);
+  //digitalWrite(pin::TERM_DATA, HIGH);  
+  //digitalWrite(pin::TERM_CLOCK, HIGH);
   //-> replaced with port manipulation
-  PORTA = PIN_TERM_CLOCK | PIN_TERM_DATA;
+  PORTC = PIN_TERM_CLOCK | PIN_TERM_DATA;
     
   //  digitalWrite(_dataPin, LOW);
   //  digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation
-  PORTA = PIN_TERM_CLOCK;
-  PORTA = 0;
+  PORTC = PIN_TERM_CLOCK;
+  PORTC = 0;
   
   //  digitalWrite(_clockPin, HIGH);
   //  digitalWrite(_dataPin, HIGH);
   //-> replaced with port manipulation
-  PORTA = PIN_TERM_CLOCK | PIN_TERM_DATA;
+  PORTC = PIN_TERM_CLOCK | PIN_TERM_DATA;
   
   //  digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation
-  PORTA = PIN_TERM_DATA;
+  PORTC = PIN_TERM_DATA;
 
   // The command (3 msb are address and must be 000, and last 5 bits are command)
   shiftOut(pin::TERM_DATA, pin::TERM_CLOCK, MSBFIRST, _command);
@@ -130,11 +123,11 @@ void TempHumid::sendCommandSHT(int _command){
   
   //  digitalWrite(_clockPin, HIGH);
   //-> replaced with port manipulation
-  PORTA = PIN_TERM_CLOCK | PIN_TERM_DATA;
+  PORTC = PIN_TERM_CLOCK | PIN_TERM_DATA;
   
   //  pinMode(_dataPin, INPUT);
   //-> replaced with port manipulation
-  DDRA = PIN_TERM_CLOCK;
+  DDRC = PIN_TERM_CLOCK;
   
   //ack = digitalRead(_dataPin);
   //if (ack != LOW) {
@@ -150,12 +143,12 @@ void TempHumid::sendCommandSHT(int _command){
   
 //  digitalWrite(_clockPin, LOW);
   //-> replaced with port manipulation
-  PORTA = PIN_TERM_DATA;
+  PORTC = PIN_TERM_DATA;
   
-  //ack = digitalRead(_dataPin);
-  //if (ack != HIGH) {
-  //  Serial.println("Ack Error 1");
-  //}
+//  int ack = digitalRead(pin::TERM_DATA);
+//  if (ack != HIGH) {
+//    Serial.println("Ack Error 1 after sendcommand");
+//  }
   //-> replaced with port manipulation
 
   //skipping for speed  
@@ -165,19 +158,24 @@ void TempHumid::sendCommandSHT(int _command){
 /*  }*/
 }
 
-float TempHumid::readTemperatureRaw()
+void TempHumid::requestTemp()
 { 
-  int _val;
-
   // Command to send to the SHT1x to request Temperature
-  int _gTempCmd  = 0b00000011;
+  constexpr int _gTempCmd  = 0b00000011;
 
   sendCommandSHT(_gTempCmd);
-  waitForResultSHT();
-  _val = getData16SHT();
-  skipCrcSHT();
+  startWaitForResultSHT();
+  return;
+}
 
-  return (_val);
+void TempHumid::requestHumid()
+{
+  // Command to send to the SHT1x to request humidity
+  int _gHumidCmd = 0b00000101;
+
+  // Fetch the value from the sensor
+  sendCommandSHT(_gHumidCmd);
+  startWaitForResultSHT();
 }
 
 float TempHumid::readTemperatureC()
@@ -189,9 +187,10 @@ float TempHumid::readTemperatureC()
   const float D1 = -40.0;  // for 14 Bit @ 5V
   const float D2 =   0.01; // for 14 Bit DEGC
 
-  // Fetch raw value
-  _val = readTemperatureRaw();
 
+  // Fetch raw value
+  _val = getData16SHT();
+  skipCrcSHT();
   // Convert raw value to degrees Celsius
   _temperature = (_val * D2) + D1;
 
@@ -211,12 +210,6 @@ float TempHumid::readHumidity(float tempC)
   const float T1 =  0.01;      // for 14 Bit @ 5V
   const double T2 =  0.00008;   // for 14 Bit @ 5V
 
-  // Command to send to the SHT1x to request humidity
-  int _gHumidCmd = 0b00000101;
-
-  // Fetch the value from the sensor
-  sendCommandSHT(_gHumidCmd);
-  waitForResultSHT();
   _val = getData16SHT();
   skipCrcSHT();
 
@@ -225,25 +218,8 @@ float TempHumid::readHumidity(float tempC)
 
   // Correct humidity value for current temperature
   _correctedHumidity = (tempC - 25.0 ) * (T1 + T2 * _val) + _linearHumidity;
+	
+
 
   return (_correctedHumidity);
 }
-
-void TempHumid::getTempHumid(){
-	float tempC;
-	float humid;	
-
-	//set slowdata bits to fetched, if something times out during readTemp we unset it.
-	*(slowData+Idx::UPDATED) |= (1 << Idx::TEMPERATURE_BED) | (1<<Idx::HUMIDITY_BED);
-
-	tempC = readTemperatureC();
-	humid = readHumidity(tempC);
-
-	*(slowData+Idx::TEMPERATURE_BED) = (uint16_t)((tempC*10) +100);
-	*(slowData+Idx::HUMIDITY_BED) = (uint16_t)(humid*10);
-
-
-}
-
-
-

@@ -4,10 +4,6 @@
 #include <cstdint> //uint16_t
 #include "encodingScheme.h"
 
-//length in bytes
-constexpr uint8_t FASTDATA_SIZE = 4;
-constexpr uint8_t SLOWDATA_SIZE = 12;
-
 constexpr uint16_t MAXPLOTRESOLUTION = 1000;
 constexpr uint16_t MAX_FETCHED_ELEMENTS = 1000;
 
@@ -71,9 +67,20 @@ namespace config {
 																						//drop in the bathroom
 }
 
+
 //wakeup config
-constexpr int WAKEUP_DURATION_MIN = 15; //minutes
-constexpr int WAKEUP_DURATION = WAKEUP_DURATION_MIN*60; 	//sec
+constexpr int WAKEUP_DURATION_MIN = 15; 	//sec
+#ifdef DEBUG
+	constexpr int WAKEUP_DURATION = 10; 	//sec //FIXME //TODO
+#else
+	constexpr int WAKEUP_DURATION = WAKEUP_DURATION_MIN*60; 	//sec
+#endif
+constexpr int UPDATEPERIOD = std::max(1, WAKEUP_DURATION/400);
+
+constexpr int DOORLAMPON = 			(int)(WAKEUP_DURATION/5); 	//sec
+constexpr int ALLLAMPSON = 			(int)(WAKEUP_DURATION/3);		//sec
+constexpr int WAKEUP_MUSIC_ON = (int)(WAKEUP_DURATION/2);		//sec
+
 constexpr int BRI_MAX = 254;
 constexpr float BRI_PER_SEC = 254/WAKEUP_DURATION;
 constexpr int CT_MIN = 153; 	//coldest
@@ -81,7 +88,16 @@ constexpr int CT_MAX = 500;		//warmest
 constexpr float CT_PER_SEC = (CT_MAX-CT_MIN)/WAKEUP_DURATION;
 constexpr int VOL_MIN = 10; //%
 constexpr int VOL_MAX = 50; //%
-constexpr float VOL_PER_SEC = 2*(VOL_MAX-VOL_MIN)/(WAKEUP_DURATION);
+constexpr float VOL_PER_SEC = ((float)(VOL_MAX-VOL_MIN))/
+((float)(WAKEUP_DURATION - WAKEUP_MUSIC_ON));
+
+//FIXME new
+constexpr int BRI_PER_Ks = 1000*254/WAKEUP_DURATION; //Ks kiloSecond
+constexpr int CT_PER_Ks = (1000*(CT_MAX-CT_MIN)) /WAKEUP_DURATION;
+constexpr int VOL_PER_Ks = (1000*(VOL_MAX-VOL_MIN)) /(WAKEUP_DURATION - WAKEUP_MUSIC_ON);
+
+
+
 
 
 namespace lght {//lightvalues
@@ -136,19 +152,6 @@ namespace plnt {//plants
 }
 
 
-// THIS IS THE ENCODING USED BY DATASTORAGE TO STORE DATA IN MEMORY, IT 
-// DIFFERS SUBTILY FROM THE ENCODING USED BY THE SENSORDATA
-namespace Enc_slow {
-	//location where data starts in bits and lenght of data info			 
-
-	constexpr int LEN_LIGHT = 10;
-	constexpr int LIGHT_BED = CO2+LEN_CO2;
-	constexpr int LIGHT_DOOR = LIGHT_BED+LEN_LIGHT;
-	constexpr int LIGHT_KITCHEN = LIGHT_DOOR+LEN_LIGHT;
-
-	constexpr int LEN_ADD_ENCODED = LEN_LIGHT*3;
-}
-
 enum plotables{
   MOVEMENTSENSOR0,
   MOVEMENTSENSOR1,
@@ -175,20 +178,5 @@ enum plotables{
   BRIGHTNESS_KITCHEN,
   BRIGHTNESS_DOORHIGH
 };
-
-namespace mainState {
-	constexpr int LEN_soilHumidityValues = 5;		
-	constexpr int LEN_movement = 5;	
-}
-
-namespace pirData {
-	constexpr int PACKAGESIZE = Enc_fast::LEN_ENCODED+2;
-	constexpr int PIR_DT= 1; //time to bin data for
-}
-
-namespace slowData {
-	constexpr int PACKAGESIZE = Enc_slow::LEN_ENCODED+Enc_slow::LEN_ADD_ENCODED+2; 
-	//slow data + light data + timestamp
-}
 
 #endif
