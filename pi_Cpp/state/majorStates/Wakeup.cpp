@@ -31,8 +31,8 @@ static void* threadFunction(WakeUp* currentState){
 		lamps->setState(lmp::BUREAU, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
 		lamps->setState(lmp::RADIATOR, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
 
-		if(bri>DOORLAMPON){
-			if(time>DOORLAMPON*1000/BRI_PER_Ks+10){
+		if(time>DOORLAMPON){
+			if(time>DOORLAMPON+10){
 				std::cout<<"door lamp, updating brict\n";
 				lamps->setState(lmp::DOOR, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");}
 			else{
@@ -40,8 +40,8 @@ static void* threadFunction(WakeUp* currentState){
 				lamps->setState(lmp::DOOR, "{\"on\": true, \"bri\": "+std::to_string((int)(bri+10*BRI_PER_Ks/1000))+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 100}");}
 		}
 
-		if(bri>ALLLAMPSON){
-			if(time>ALLLAMPSON*1000/BRI_PER_Ks+10){
+		if(time>ALLLAMPSON){
+			if(time>ALLLAMPSON+10){
 				std::cout<<"kitchCeil, updating brict\n";
 				lamps->setState(lmp::KITCHEN, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
 				lamps->setState(lmp::CEILING, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");

@@ -75,7 +75,8 @@ constexpr int WAKEUP_DURATION_MIN = 15; 	//sec
 #else
 	constexpr int WAKEUP_DURATION = WAKEUP_DURATION_MIN*60; 	//sec
 #endif
-constexpr int UPDATEPERIOD = std::max(1, WAKEUP_DURATION/400);
+//constexpr int UPDATEPERIOD = std::max(1, WAKEUP_DURATION/400); //TODO use when supported
+constexpr int UPDATEPERIOD = 1;
 
 constexpr int DOORLAMPON = 			(int)(WAKEUP_DURATION/5); 	//sec
 constexpr int ALLLAMPSON = 			(int)(WAKEUP_DURATION/3);		//sec

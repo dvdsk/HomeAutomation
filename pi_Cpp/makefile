@@ -7,10 +7,12 @@ CXXFLAGS= -Wall -pedantic -std=c++14 #-pedantic
 LDFLAGS = -L/usr/local/ssl/lib -L/usr/local/lib 
 LDLIBS = -lssl -lcrypto
 
-ifeq ($(RASPBERRYPI),Pi)
-  LDLIBS    += -lrf24
-endif
+RASPBERRYPI=$(cat /proc/cpuinfo | grep "Hardware")
+IFRASPBERRY=$(echo Hardware : BCM2835)
 
+ifeq ($(RASPBERRYPI),$(IFRASPBERRY))
+  LDLIBS += -lrf24
+endif
 
 ODIR = .BUILD
 OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o nodeMaster.o MainHeader.o  mainServer.o mainState.o telegramBot.o HttpSocket.o HttpsSocket.o commandline.o webGraph.o plotly.o dygraphs.o mpd.o lamps.o default.o SleepInterrupt.o GoingToSleep.o Minimal.o Wakeup.o sunSetRise.o minimalShell.o)

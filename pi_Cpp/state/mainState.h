@@ -1,6 +1,12 @@
 #ifndef MAINSTATE
 #define MAINSTATE
 
+#ifdef DEBUG
+#define db(x) std::cerr << x;
+#else
+#define db(x)
+#endif
+
 #include <ctime> //time()
 #include <thread>
 
@@ -89,10 +95,10 @@ struct SignalState{
 
 	void runUpdate(){
 		//std::lock_guard<std::mutex> lock(m); //TODO not needed/could cause problems
-		std::cout<<"\033[1;31mstarted signalling\033[0m\n";
+		db("\033[1;31mstarted signalling\033[0m\n")
 		signalled = true;
 		cv.notify_one();
-		std::cout<<"\033[1;32mdone signalling\033[0m\n";
+		db("\033[1;32mdone signalling\033[0m\n")
 	}
 };
 

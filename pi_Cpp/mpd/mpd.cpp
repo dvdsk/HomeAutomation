@@ -143,6 +143,7 @@ void Mpd::readLoop(){
 	std::cout<<"mpd watcher started\n";
 	while(!stop){//TODO replace with not shutdown	
 		n = read(sockfd, buffer, BUFFERSIZE);
+		if(n == -1){std::cout<<"\033[1;31mREAD ERROR\033[0m\n"; }
 		buffer2.append(buffer, n);		
 		bzero(buffer,n);
 
