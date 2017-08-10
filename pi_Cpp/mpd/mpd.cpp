@@ -47,11 +47,13 @@ void Mpd::safeWrite(int sockfd, const char* message, int len){
 		std::cout<<"*********COULD NOT WRITE TO SOCKET!!!!!**************\n";
 		//re-connect the socket to the remote server
 		close(sockfd);
-
+		std::cout<<"test1\n";
 		sockfd = socket(AF_INET, SOCK_STREAM, 0);
+		std::cout<<"test2\n";
 		if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0){
 			error("ERROR connecting");
 		}
+		std::cout<<"redone write\n";
 		write(sockfd, message, len);
 	}
 	else std::cout<<"write is ok\n";
