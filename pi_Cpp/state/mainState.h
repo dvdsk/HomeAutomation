@@ -95,10 +95,10 @@ struct SignalState{
 
 	void runUpdate(){
 		//std::lock_guard<std::mutex> lock(m); //TODO not needed/could cause problems
-		db("\033[1;31mstarted signalling\033[0m\n")
+		//db("\033[1;31mstarted signalling\033[0m\n")
 		signalled = true;
 		cv.notify_one();
-		db("\033[1;32mdone signalling\033[0m\n")
+		//db("\033[1;32mdone signalling\033[0m\n")
 	}
 };
 

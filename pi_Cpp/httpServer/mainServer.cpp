@@ -290,7 +290,7 @@ int thread_Https_serv(std::mutex* stop,
   //check if key could be read
   if ((key_pem == NULL) || (cert_pem == NULL))
   {
-    printf ("The key/certificate files could not be read.\n");
+		std::cout<<"\033[1;31mThe key/certificate files could not be read\033[0m\n";
     return 1;
   }
 
@@ -317,7 +317,8 @@ int thread_Https_serv(std::mutex* stop,
   //check if the server started alright                           
   if(NULL == daemon)
     {
-      printf ("%s\n", cert_pem);
+			std::cout<<"\033[1;31mserver could not be started, cleaning up\033[0m\n"
+			         <<"\t-check if there is another server running\n";
       //free memory if the server crashed
 			delete[] key_pem;
 			delete[] cert_pem;	

@@ -20,6 +20,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h> 
+#include <poll.h>
 
 #include "../state/mainState.h"
 
@@ -68,6 +69,8 @@ class Mpd{
 		std::condition_variable cv;
 		bool dataRdy;
 		std::atomic<bool> dataReqested;
+		std::mutex dataRQ_m; //TODO //FIXME needed?
+
 		std::string rqData; //needs to be locked with mpd_mutex
 
 		//needed for threading

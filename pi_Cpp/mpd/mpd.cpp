@@ -6,35 +6,6 @@
 #define db(x)
 #endif
 
-//started processMessage
-//started requestStatus
-//write is ok
-//write is ok
-//done requestStatus
-//done processMessage
-
-//done sendCommandList
-//done QueueFromPLs
-//started QueueFromPLs
-//started getInfo
-//write is ok
-//write is ok
-//write is ok
-//started processMessage
-//started parseStatus
-
-//done sendCommandList
-//done QueueFromPLs
-//started QueueFromPLs
-//started getInfo
-//write is ok
-//write is ok
-//write is ok
-//started processMessage
-//started parseStatus
-
-
-
 static inline void error(const char *msg)
 {
   perror(msg);
@@ -42,6 +13,8 @@ static inline void error(const char *msg)
 }
 
 void Mpd::safeWrite(int sockfd, const char* message, int len){
+	int BUFFERSIZE = 100;	
+	uint8_t buffer[BUFFERSIZE];
 
 	if(write(sockfd, message, len) == -1){
 		std::cout<<"*********COULD NOT WRITE TO SOCKET!!!!!**************\n";
@@ -136,6 +109,11 @@ void Mpd::readLoop(){
 	const char* idle = "idle\n";
 	const char* status = "status\n";
 
+	pollfd pollsocketfd;
+	pollsocketfd.fd = sockfd;
+	pollsocketfd.events = POLLIN;
+	pollsocketfd.revents = POLLHUP | POLLERR | POLLNVAL;
+
 	{	
 		std::lock_guard<std::mutex> guard(mpd_mutex);
 		safeWrite(sockfd,status,strlen(status));	
@@ -143,24 +121,29 @@ void Mpd::readLoop(){
 	}
 
 	std::cout<<"mpd watcher started\n";
-	while(!stop){//TODO replace with not shutdown	
-		n = read(sockfd, buffer, BUFFERSIZE);
-		if(n == -1){std::cout<<"\033[1;31mREAD ERROR\033[0m\n"; }
-		buffer2.append(buffer, n);		
-		bzero(buffer,n);
+	while(!stop){
+		if(poll(&pollsocketfd, 1, 100) != 0){; //wait 100 milisec for data
+			n = read(sockfd, buffer, BUFFERSIZE);
+			if(n == -1){std::cout<<"\033[1;31mREAD ERROR\033[0m\n"; while(1);}
+			buffer2.append(buffer, n);		
+			bzero(buffer, BUFFERSIZE); //TODO //FIXME n should work too
 
-		while((loc = buffer2.find("OK\n") ) != std::string::npos){
-			if(loc > 3)
-				processMessage(buffer2.substr(0, loc));
-			buffer2.erase(0, loc+3);
+			db("read from socket: "<<std::to_string(n)<<"\n")
+			//db(buffer2<<"\n\n")
+			while((loc = buffer2.find("OK\n") ) != std::string::npos){
+				if(loc > 3)
+					processMessage(buffer2.substr(0, loc));
+				buffer2.erase(0, loc+3);
+			}
 		}
-		db(buffer2<<"\n\n")
 	}
 	db("done readLoop\n")
 }
 
 //TODO check const etc
 void Mpd::processMessage(std::string output){
+	std::lock_guard<std::mutex> guard2(dataRQ_m); //TODO FIXME needed?
+	std::cout<<"1: got lock\n";
 	db("started processMessage\n")
 	//check if notification from server
 	if(output.substr(0,8) == "changed:")
@@ -168,6 +151,9 @@ void Mpd::processMessage(std::string output){
 	//check if status message
 	else if(output.substr(0,7) == "volume:")
 		parseStatus(output);
+	//check if version string
+	else if(output.substr(0, sizeof("OK MPD version")) == "OK MPD version:")
+		std::cout<<"NEW CONNECTION SUCCESSFULLY ESTABLISHED\n";
 	//otherwise must be requested data
 	else if(dataReqested ){
 		std::cout<<"\033[1;35mgot rq data\033[0m\n";
@@ -249,18 +235,33 @@ std::string Mpd::getInfo(std::string const& command){
 	{
 	std::lock_guard<std::mutex> guard(mpd_mutex);
 	safeWrite(sockfd,stopIdle,strlen(stopIdle));
-
-	dataReqested = true;
-	safeWrite(sockfd,command.c_str(),strlen(command.c_str()));
-	safeWrite(sockfd,startIdle,strlen(startIdle));
 	}
+	{
+		//std::lock_guard<std::mutex> guard2(dataRQ_m);
+		//std::cout<<"\033[1;34mlocked dataRQ_m\033[0m\n";
+
+		dataReqested = true;
+	}
+	{
+	std::lock_guard<std::mutex> guard(mpd_mutex);
+	safeWrite(sockfd,command.c_str(),strlen(command.c_str()));
+	}
+	std::cout<<"2: data requested\n";
 
 	//get data from read thread
 	//no need for lock around data as access is controlled by cv and 
 	//mpd_mutex already.
 	cv.wait(lk, [this](){return dataRdy;});
+	std::cout<<"got notified\n";
 	dataRdy = false;
 	info = rqData;
+
+	{
+	std::lock_guard<std::mutex> guard(mpd_mutex);
+	safeWrite(sockfd,startIdle,strlen(startIdle));
+	}
+
+
 
 	db("done getInfo\n")
 	return info;
@@ -280,7 +281,7 @@ void Mpd::QueueFromPLs(std::string const &source,
 	std::string info = getInfo("listplaylistinfo "+source+"\n");
 
 	while(1){
-		std::cout<<"inWhile\n"; 
+		//std::cout<<"inWhile\n"; 
 		start = info.find("file:", stop);
 		if(start == std::string::npos){break;}
 		stop = info.find("\n", start);
@@ -296,7 +297,7 @@ void Mpd::QueueFromPLs(std::string const &source,
 	std::minstd_rand generator(std::time(0)); 
 
 	while(time<tMin && len != 0){
-		std::cout<<"inWhile\n"; 
+		//std::cout<<"inWhile\n"; 
 		r = (int) (generator()%(len-1+1) +0);
 
 		if(time+runTimes[r]<tMax){
@@ -344,23 +345,37 @@ void Mpd::saveAndClearCP(){
 //{
 //	MpdState* mpdState = new MpdState;
 //	SignalState* signalState = new SignalState;	
-
-
 //	Mpd* mpd = new Mpd(mpdState, signalState);
+//	
+//	std::cin.ignore();
 
-//	PressEnterToContinue();
+//	mpd->saveAndClearCP();	
+//	std::cout<<"\033[1;34mdone saveAndClear\033[0m\n";
 
-//	//mpd->sendCommand("playlistclear oldPL\n");	
-//	mpd->QueueFromPLs("energetic", 10*60, 11*60);
-//	mpd->saveAndClearCP();
 //	mpd->QueueFromPLs("calm", 3*60, 5*60);
-//	//PressEnterToContinue();
-
-
-//	PressEnterToContinue();
-
-//	//*notShuttingdown = false;
-//	//t1.join();
+//	std::cout<<"\033[1;34mdone queue1\033[0m\n";
+//	mpd->QueueFromPLs("energetic", 10*60, 11*60);
+//	std::cout<<"\033[1;34mdone queue2\033[0m\n";
+//	mpd->QueueFromPLs("active", 30*60, 60*60);
+//	std::cout<<"\033[1;34mdone queue3\033[0m\n";
+//	mpd->QueueFromPLs("calm", 3*60, 5*60);
+//	std::cout<<"\033[1;34mdone queue1\033[0m\n";
+//	mpd->QueueFromPLs("energetic", 10*60, 11*60);
+//	std::cout<<"\033[1;34mdone queue2\033[0m\n";
+//	mpd->QueueFromPLs("active", 30*60, 60*60);
+//	std::cout<<"\033[1;34mdone queue3\033[0m\n";
+//	mpd->QueueFromPLs("calm", 3*60, 5*60);
+//	std::cout<<"\033[1;34mdone queue1\033[0m\n";
+//	mpd->QueueFromPLs("energetic", 10*60, 11*60);
+//	std::cout<<"\033[1;34mdone queue2\033[0m\n";
+//	mpd->QueueFromPLs("active", 30*60, 60*60);
+//	std::cout<<"\033[1;34mdone queue3\033[0m\n";
+//	mpd->QueueFromPLs("calm", 3*60, 5*60);
+//	std::cout<<"\033[1;34mdone queue1\033[0m\n";
+//	mpd->QueueFromPLs("energetic", 10*60, 11*60);
+//	std::cout<<"\033[1;34mdone queue2\033[0m\n";
+//	mpd->QueueFromPLs("active", 30*60, 60*60);
+//	std::cout<<"\033[1;34mdone queue3\033[0m\n";
 //	
 //  return 0;
 //}

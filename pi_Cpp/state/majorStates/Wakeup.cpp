@@ -55,6 +55,7 @@ static void* threadFunction(WakeUp* currentState){
 
 		if(time>WAKEUP_MUSIC_ON){
 			if(mpdState->playback != PLAYING){
+				std::cout<<"turning on music\n";
 				std::string cList = "setvol "+std::to_string(VOL_MIN)+"\nplay 0\n";
 				mpd->sendCommandList(cList);
 				mpdState->playback = PLAYING;
@@ -67,11 +68,11 @@ static void* threadFunction(WakeUp* currentState){
 			}
 		}
 	time += UPDATEPERIOD; //due to code execution +- 1 second drift over 15 min 
+	std::cout<<"cv wait\n";
 	cv_wakeup.wait_for(lk, UPDATEPERIOD*1s, [currentState](){return currentState->stop.load();});
 	}
 
 	currentState->done = true;
-//	std::cout<<"\033[1;34mlocking from wakeup\033[0m\n"; //TODO FIXME
 	currentState->data->signalState->runUpdate(); //TODO FIXME
 	std::cout<<"done with wakeup\n";
 	return 0;
