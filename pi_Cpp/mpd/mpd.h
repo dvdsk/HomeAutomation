@@ -55,11 +55,14 @@ class Mpd{
 		}
 		void safeWrite(int sockfd, const char* message, int len);		
 		void processMessage(std::string output);
+		int reconnect();
 
 		MpdState* mpdState;
 		SignalState* signalState;
 
-		int sockfd;//sockfd file discriptor
+		int sockfd;//sockfd file discriptor might need atomic?
+		std::mutex reconn_m;
+		
     struct sockaddr_in serv_addr;
     struct hostent *server;
 		std::mutex mpd_mutex;

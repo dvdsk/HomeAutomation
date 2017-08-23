@@ -12,22 +12,26 @@ static inline void error(const char *msg)
   exit(0);
 }
 
+//re-connect the socket to the remote server
+int Mpd::reconnect(){
+	//TODO check if socket connected
+	if(reconn_m.try_lock() == -1){
+		std::cout<<"*********RECONNECTING TO SOCKET!!!!!**************\n";
+		close(sockfd);
+		sockfd = socket(AF_INET, SOCK_STREAM, 0);
+		if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
+			error("ERROR connecting");
+		}
+	return sockfd;
+}
+
 void Mpd::safeWrite(int sockfd, const char* message, int len){
 	int BUFFERSIZE = 100;	
 	uint8_t buffer[BUFFERSIZE];
 
 	if(write(sockfd, message, len) == -1){
-		std::cout<<"*********COULD NOT WRITE TO SOCKET!!!!!**************\n";
-		//re-connect the socket to the remote server
-		close(sockfd);
-		std::cout<<"test1\n";
-		sockfd = socket(AF_INET, SOCK_STREAM, 0);
-		std::cout<<"test2\n";
-		if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0){
-			error("ERROR connecting");
-		}
 		std::cout<<"redone write\n";
-		write(sockfd, message, len);
+		write(reconnect(), message, len); //reconnect returns the sockfd
 	}
 	else std::cout<<"write is ok\n";
 }
@@ -47,6 +51,7 @@ Mpd::Mpd(MpdState* mpdState_, SignalState* signalState_){
       error("ERROR opening socket");	
 
 	//get host info  
+	std::cout<<"TESTING\n";
 	server = gethostbyname(hostname);
   if (server == NULL) {
       fprintf(stderr,"ERROR, no such host\n");
@@ -103,17 +108,17 @@ void Mpd::readLoop(){
 	char buffer[BUFFERSIZE];
 	bzero(buffer,BUFFERSIZE);
 
+	pollfd pollsocketfd; //used for storing socket status info
+	pollsocketfd.events = POLLIN;
+	pollsocketfd.fd = sockfd;
+
 	uint8_t n;
 	std::string buffer2 = "";
 	std::string output;
 	const char* idle = "idle\n";
 	const char* status = "status\n";
 
-	pollfd pollsocketfd;
-	pollsocketfd.fd = sockfd;
-	pollsocketfd.events = POLLIN;
-	pollsocketfd.revents = POLLHUP | POLLERR | POLLNVAL;
-
+	int rv;
 	{	
 		std::lock_guard<std::mutex> guard(mpd_mutex);
 		safeWrite(sockfd,status,strlen(status));	
@@ -122,20 +127,30 @@ void Mpd::readLoop(){
 
 	std::cout<<"mpd watcher started\n";
 	while(!stop){
-		if(poll(&pollsocketfd, 1, 100) != 0){; //wait 100 milisec for data
-			n = read(sockfd, buffer, BUFFERSIZE);
-			if(n == -1){std::cout<<"\033[1;31mREAD ERROR\033[0m\n"; while(1);}
-			buffer2.append(buffer, n);		
-			bzero(buffer, BUFFERSIZE); //TODO //FIXME n should work too
+		if(rv = poll(&pollsocketfd, 1, 100) != 0){; //wait 100 milisec for data
+			if(pollsocketfd.revents & POLLIN){
+				n = read(pollsocketfd.fd, buffer, BUFFERSIZE);
+				if(n == -1){std::cout<<"\033[1;31mREAD ERROR\033[0m\n"; while(1);}
+				if(n == 0){
+					std::cout<<"remote host has closed the connection, re-establishing\n";
+					pollsocketfd.fd = reconnect();		
+				}
+				else{
+					buffer2.append(buffer, n);		
+					bzero(buffer, BUFFERSIZE); //TODO //FIXME n should work too
 
-			db("read from socket: "<<std::to_string(n)<<"\n")
-			//db(buffer2<<"\n\n")
-			while((loc = buffer2.find("OK\n") ) != std::string::npos){
-				if(loc > 3)
-					processMessage(buffer2.substr(0, loc));
-				buffer2.erase(0, loc+3);
+					db("read from socket: "<<std::to_string(n)<<"\n")
+					//db(buffer2<<"\n\n")
+					while((loc = buffer2.find("OK\n") ) != std::string::npos){
+						if(loc > 3)
+							processMessage(buffer2.substr(0, loc));
+						buffer2.erase(0, loc+3);
+					}
+				}
 			}
 		}
+		else if (rv == -1)
+    	perror("poll"); // error occurred in poll()
 	}
 	db("done readLoop\n")
 }
