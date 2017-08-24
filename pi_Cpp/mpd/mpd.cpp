@@ -37,8 +37,6 @@ void Mpd::safeWrite(int sockfd, const char* message, int len){
 }
 
 Mpd::Mpd(MpdState* mpdState_, SignalState* signalState_){
-	server = gethostbyname(hostname);
-
 	char buffer[256];
 	int n;
 	mpdState = mpdState_;
