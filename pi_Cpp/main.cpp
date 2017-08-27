@@ -160,9 +160,9 @@ int main(int argc, char* argv[])
 
 	getchar();
 
-//	TODO update commandlineinterface for new State system.
-	//CommandLineInterface interface(pirDat, slowDat, sensorState);
-	//interface.mainMenu();
+	//TODO update commandlineinterface for new State system.
+	CommandLineInterface interface(pirDat, slowDat, sensorState);
+	interface.mainMenu();
 
 ////	getchar();
 //	float y[MAXPLOTRESOLUTION];

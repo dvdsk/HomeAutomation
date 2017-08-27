@@ -1,6 +1,6 @@
 #include "mpd.h"
-
-#ifdef DEBUG
+ 
+#ifdef DEBUGPRINTMPD
 #define db(x) std::cerr << x;
 #else
 #define db(x)
@@ -15,20 +15,27 @@ static inline void error(const char *msg)
 //re-connect the socket to the remote server
 int Mpd::reconnect(){
 	//TODO check if socket connected
-	if(reconn_m.try_lock() == -1){
+	std::cout<<"TRYING RECONN\n";
+	std::lock_guard<std::mutex> guard(reconn_m);
+	if(newSockfd)
+		return sockfd;
+	else{
 		std::cout<<"*********RECONNECTING TO SOCKET!!!!!**************\n";
 		close(sockfd);
 		sockfd = socket(AF_INET, SOCK_STREAM, 0);
 		if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
 			error("ERROR connecting");
-		}
-	return sockfd;
+		return sockfd;
+	}
 }
 
 void Mpd::safeWrite(int sockfd, const char* message, int len){
 	int BUFFERSIZE = 100;	
 	uint8_t buffer[BUFFERSIZE];
 
+	//store the message for resend in case of read fail
+	lastMessage = (char*)message;
+	lastMessage_len = len;
 	if(write(sockfd, message, len) == -1){
 		std::cout<<"redone write\n";
 		write(reconnect(), message, len); //reconnect returns the sockfd
@@ -42,6 +49,7 @@ Mpd::Mpd(MpdState* mpdState_, SignalState* signalState_){
 	mpdState = mpdState_;
 	signalState = signalState_;
 	dataRdy = false;
+	newSockfd = false;
 	
 	//arange socket connection
 
@@ -133,14 +141,18 @@ void Mpd::readLoop(){
 				if(n == -1){std::cout<<"\033[1;31mREAD ERROR\033[0m\n"; while(1);}
 				if(n == 0){
 					std::cout<<"remote host has closed the connection, re-establishing\n";
-					pollsocketfd.fd = reconnect();		
+					
+					const char* lastMessage2 = lastMessage;
+					pollsocketfd.fd = reconnect();
+					std::cout<<"lastMessage2: "<<lastMessage2<<"\n";
+					std::cout<<"lastMessage: "<<lastMessage<<"\n";
+					safeWrite(pollsocketfd.fd, lastMessage2, lastMessage_len);
 				}
 				else{
 					buffer2.append(buffer, n);		
 					bzero(buffer, BUFFERSIZE); //TODO //FIXME n should work too
 
 					db("read from socket: "<<std::to_string(n)<<"\n")
-					//db(buffer2<<"\n\n")
 					while((loc = buffer2.find("OK\n") ) != std::string::npos){
 						if(loc > 3)
 							processMessage(buffer2.substr(0, loc));

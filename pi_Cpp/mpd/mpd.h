@@ -47,7 +47,6 @@ class Mpd{
 		void saveAndClearCP();
 
 	private:
-
 		std::mutex debug_mutex;
 		void debugPrint(std::string toprint){
 			std::lock_guard<std::mutex> guard(debug_mutex);
@@ -62,6 +61,9 @@ class Mpd{
 
 		int sockfd;//sockfd file discriptor might need atomic?
 		std::mutex reconn_m;
+		char* lastMessage;
+		int lastMessage_len;
+		std::atomic<bool> newSockfd;
 		
     struct sockaddr_in serv_addr;
     struct hostent *server;
@@ -73,7 +75,6 @@ class Mpd{
 		bool dataRdy;
 		std::atomic<bool> dataReqested;
 		std::mutex dataRQ_m; //TODO //FIXME needed?
-
 		std::string rqData; //needs to be locked with mpd_mutex
 
 		//needed for threading
