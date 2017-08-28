@@ -91,6 +91,7 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
   if (authorised_connection(connection)){
     
     if (0 == strcmp (method, "GET")){
+			std::cout<<"url: "<<url<<"\n";
       //create diffrent pages (responses) to different url's
 				//if its a state switch command send it to state for processing
 				if(url[1] == '|'){		
@@ -306,7 +307,7 @@ int thread_Https_serv(std::mutex* stop,
 
 
 
-  daemon = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY | MHD_USE_SSL,
+  daemon = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY | MHD_USE_SSL | MHD_USE_DEBUG,
 														 config::HTTPSERVER_PORT, NULL, NULL,
                              &answer_to_connection, (void*)arrayOfPointers,
 														 MHD_OPTION_NOTIFY_COMPLETED, &request_completed, NULL,
