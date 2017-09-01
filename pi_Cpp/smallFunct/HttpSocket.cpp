@@ -38,10 +38,12 @@ std::string HttpSocket::rawRequest(const std::string request){
 	memset(buffer, 0, BUFFSIZE-1);
 	char* startOfMessage;
 	unsigned int content_length;
+	std::string response;
 
 	httpSocket_mutex.lock();	
 	/* open new socket */
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
 	if (sockfd < 0) error("ERROR opening socket");	
   /* connect the socket */
   if (connect(sockfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr)) < 0)
@@ -60,13 +62,13 @@ std::string HttpSocket::rawRequest(const std::string request){
 	
 	bool fitsBuffer = readABit(buffer);
 	content_length = readHeaders(buffer, startOfMessage);
-	std::cout<<"startOfMessage"<<startOfMessage<<"\n";
-	std::string response(startOfMessage); 
-
-	if(fitsBuffer){httpSocket_mutex.unlock(); return response; }
-	else if(content_length != 0)
+	response = startOfMessage; 
+	if(content_length != 0){
 		response.resize(content_length);
-	readRemaining(buffer, response);
+		if(!fitsBuffer)
+			readRemaining(buffer, response);
+	}
+
 
 	close(sockfd);
 	httpSocket_mutex.unlock();
@@ -104,6 +106,7 @@ void HttpSocket::readRemaining(char* buffer, std::string &response){
  	} while (true);
 }
 
+
 bool HttpSocket::readABit(char* buffer){
   int bytes, received= 0, total = BUFFSIZE-1;
 	//BUFFSIZE-1 to accomodate for adding null terminator to string as we
@@ -115,8 +118,6 @@ bool HttpSocket::readABit(char* buffer){
 		if (bytes < 0) std::cerr<<strerror(errno)<<"\n";
 		if (bytes == 0){
 			small = true;
-			std::cout<<"got 0 bytes\n";
-			//buffer[BUFFSIZE] = '\0';
 			break;
 		}
 		received+=bytes;
