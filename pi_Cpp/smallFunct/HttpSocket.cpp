@@ -60,7 +60,8 @@ std::string HttpSocket::rawRequest(const std::string request){
 	
 	bool fitsBuffer = readABit(buffer);
 	content_length = readHeaders(buffer, startOfMessage);
-	std::string response(startOfMessage);
+	std::cout<<"startOfMessage"<<startOfMessage<<"\n";
+	std::string response(startOfMessage); 
 
 	if(fitsBuffer){httpSocket_mutex.unlock(); return response; }
 	else if(content_length != 0)
@@ -80,18 +81,19 @@ int HttpSocket::readHeaders(char* buffer, char* &startOfMessage){
 	if(contentLengthLoc != nullptr) content_length = atoi(contentLengthLoc);
 	else content_length = 0;
 
-	startOfMessage = strstr(buffer, "\r\n\r\n")+sizeof("\r\n\r\n");
+	startOfMessage = strstr(buffer, "\r\n\r\n");
 	if(startOfMessage == nullptr){
 		startOfMessage = buffer;
 		std::cerr<<"server reply does not contain a message";
 	}
+	else
+		startOfMessage += sizeof("\r\n\r\n");
 	
 	return content_length;
 }
 
 void HttpSocket::readRemaining(char* buffer, std::string &response){
   int bytes, total = BUFFSIZE;
- 	constexpr bool keepReading = true;
 	
 	do {
 		memset(buffer, 0, BUFFSIZE);
@@ -99,7 +101,7 @@ void HttpSocket::readRemaining(char* buffer, std::string &response){
  		if (bytes < 0) std::cerr<<strerror(errno)<<"\n";
  		if (bytes == 0)	{break;}
  		response.append(buffer, bytes);
- 	} while (keepReading);
+ 	} while (true);
 }
 
 bool HttpSocket::readABit(char* buffer){
@@ -113,7 +115,8 @@ bool HttpSocket::readABit(char* buffer){
 		if (bytes < 0) std::cerr<<strerror(errno)<<"\n";
 		if (bytes == 0){
 			small = true;
-			buffer[BUFFSIZE] = '\0';
+			std::cout<<"got 0 bytes\n";
+			//buffer[BUFFSIZE] = '\0';
 			break;
 		}
 		received+=bytes;
