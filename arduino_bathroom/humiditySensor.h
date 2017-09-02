@@ -25,8 +25,8 @@ namespace TempHumid
 };
 
 
-const short PIN_TERM_DATA =  0b00010000;
-const short PIN_TERM_CLOCK = 0b00100000;
+const short PIN_TERM_DATA =  0b00000001; //SDA nano A0
+const short PIN_TERM_CLOCK = 0b00000010; //SCL nano A1
 const short PINS_OFF = 0b00000000;
 
 

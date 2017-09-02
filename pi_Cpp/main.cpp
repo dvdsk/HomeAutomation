@@ -125,7 +125,7 @@ int main(int argc, char* argv[])
 
 
   #ifdef __arm__
-	//NodeMaster nodeMaster(pirDat, slowDat, sensorState, signalState); //TODO
+		NodeMaster nodeMaster(pirDat, slowDat, sensorState, signalState); //TODO
 	#endif
 
 	std::cout<<"test\n";

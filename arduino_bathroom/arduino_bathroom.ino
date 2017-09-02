@@ -5,8 +5,8 @@
 #include "humiditySensor.h"
 #include "encodingScheme.h"
 
-namespace NODE_KITCHEN{
-	constexpr uint8_t addr[] = "3Node"; //addr may only diff in first byte
+namespace NODE_BATHROOM{
+	constexpr uint8_t addr[] = "4Node"; //addr may only diff in first byte
 	constexpr uint8_t LEN_fBuf = EncFastArduino::LEN_KITCHEN_NODE;
 	constexpr uint8_t LEN_sBuf = EncSlowArduino::LEN_KITCHEN_NODE;
 	uint8_t sBuf[LEN_sBuf];
@@ -41,7 +41,7 @@ void setup(){
 	radio.setChannel(108);	            // 2.508 Ghz - Above most Wifi Channels
 
 	radio.openWritingPipe(NODE_CENTRAL::addr);	
-	radio.openReadingPipe(PIPE, NODE_KITCHEN::addr);	
+	radio.openReadingPipe(PIPE, NODE_BATHROOM::addr);	
 
 	radio.printDetails();
 	radio.startListening();            // Start listening  
@@ -56,7 +56,7 @@ void reInitVars(){
 	reInit = true;
 	slowRdy = false;
 
-	TempHumid::reset();
+	
 
 	radio.stopListening();
 	radio.write(&headers::INIT_DONE, 1);
@@ -89,36 +89,26 @@ bool checkRadio(bool &measureSlow){
 }
 
 void loop(){
-	uint8_t fBuf[NODE_KITCHEN::LEN_fBuf];
+	uint8_t fBuf[NODE_BATHROOM::LEN_fBuf];
 	bool measureSlow = false;
 	float tempC;
-/*	checkRadio(measureSlow);*/
-/*	if(measureSlow) measure_slow(checkRadio);*/
-	
-/*TempHumid::requestTemp();*/
-/*Serial.println("send temp request");*/
 
-/*while(!TempHumid::readyToRead()){*/
-/*	if(checkRadio(measureSlow)){Serial.println("hoi"); return; }*/
-/*}*/
-/*tempC = TempHumid::readTemperatureC();*/
-/*Serial.println(tempC);*/
-readAndEncode(fBuf);
-delay(5000);
-
-
+	checkRadio(measureSlow);
+	if(measureSlow) measure_slow(checkRadio);
+	readAndEncode(fBuf);
+	delay(5000);
 }
 
 void handle_fast(){
-	uint8_t fBuf[NODE_KITCHEN::LEN_fBuf];
-	memset(fBuf, 0, NODE_KITCHEN::LEN_fBuf);
+	uint8_t fBuf[NODE_BATHROOM::LEN_fBuf];
+	memset(fBuf, 0, NODE_BATHROOM::LEN_fBuf);
 
 	fBuf[0] = slowMeasurementStatus; //if moved after read and encode this works....
 
 	readAndEncode(fBuf);
 
 	radio.stopListening();
-	radio.write(fBuf, NODE_KITCHEN::LEN_fBuf);
+	radio.write(fBuf, NODE_BATHROOM::LEN_fBuf);
 	radio.startListening();
 }
 
@@ -126,14 +116,14 @@ void handle_readSlow(){
 	//no header in slow package
 	Serial.println("trying to send slowdata\n");
 	radio.stopListening();
-	if(radio.write(NODE_KITCHEN::sBuf, NODE_KITCHEN::LEN_sBuf))
+	if(radio.write(NODE_BATHROOM::sBuf, NODE_BATHROOM::LEN_sBuf))
 		slowMeasurementStatus = 0; //reset slowMeasurementStatus only if slow deliverd succesfully
 	radio.startListening();
 }
 
 void measure_slow(bool (*checkRadio)(void)){
 	float tempC;
-	memset(NODE_KITCHEN::sBuf, 0, NODE_KITCHEN::LEN_sBuf);
+	memset(NODE_BATHROOM::sBuf, 0, NODE_BATHROOM::LEN_sBuf);
 
 	//Serial.println("sending measure requests to slow non continues sensors");
 	//send request for data to sensors
@@ -144,15 +134,14 @@ void measure_slow(bool (*checkRadio)(void)){
 	}
 	tempC = TempHumid::readTemperatureC();
 	Serial.println(tempC);
-	encode(NODE_KITCHEN::sBuf, (uint16_t)((tempC*10) +100),
+	encode(NODE_BATHROOM::sBuf, (uint16_t)((tempC*10) +100),
 	       EncSlowArduino::TEMP_DOOR, EncSlowArduino::LEN_TEMP);
 	TempHumid::requestHumid();
 
 	while(!TempHumid::readyToRead()){
 		if(checkRadio()) return;
 	}
-	encode(NODE_KITCHEN::sBuf, (uint16_t)(TempHumid::readHumidity(tempC)*10), 
+	encode(NODE_BATHROOM::sBuf, (uint16_t)(TempHumid::readHumidity(tempC)*10), 
 	       EncSlowArduino::HUM_DOOR, EncSlowArduino::LEN_HUM);
-
 	slowMeasurementStatus = headers::SLOW_RDY;
 }
