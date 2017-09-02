@@ -20,9 +20,11 @@ class Decode{
 
 		void process_Slow_BED(const uint32_t now, const uint8_t sBuf[]);
 		void process_Slow_KITCHEN(const uint32_t now, const uint8_t sBuf[]);
+		void process_Slow_BATHROOM(const uint32_t now, const uint8_t sBuf[]);
 
 		void process_Fast_BED(const uint32_t now, const uint8_t fBuf[]);
 		void process_Fast_KITCHEN(const uint32_t now, const uint8_t fBuf[]);
+		void process_Fast_BATHROOM(const uint32_t now, const uint8_t fBuf[]);
 
 	private:
 		void decodeSlowData(uint32_t Tstamp, uint8_t writeBuf[]);

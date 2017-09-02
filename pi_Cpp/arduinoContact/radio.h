@@ -14,7 +14,6 @@ constexpr uint8_t ALL_COMPLETE = COMPLETE_BED_NODE;// |
 /*                                 COMPLETE_BATHROOM_NODE;*/
 
 
-
 namespace NODE_BED{
 	constexpr uint8_t addr[] = "2Node"; //addr may only diff in first byte
 	constexpr uint8_t LEN_fBuf = EncFastArduino::LEN_BED_NODE;
@@ -29,8 +28,17 @@ namespace NODE_KITCHEN{
 	constexpr uint8_t LEN_fBuf = EncFastArduino::LEN_KITCHEN_NODE;
 	constexpr uint8_t LEN_sBuf = EncSlowArduino::LEN_KITCHEN_NODE;
 
-	constexpr uint8_t start  	 = EncSlowFile::START_BEDNODE;
+	constexpr uint8_t start  	 = EncSlowFile::START_KITCHEN;
 	constexpr uint8_t complete = COMPLETE_KITCHEN_NODE; //from decode.h
+}
+
+namespace NODE_BATHROOM{
+	constexpr uint8_t addr[] = "4Node"; //addr may only diff in first byte
+	constexpr uint8_t LEN_fBuf = EncFastArduino::LEN_KITCHEN_NODE;
+	constexpr uint8_t LEN_sBuf = EncSlowArduino::LEN_KITCHEN_NODE;
+
+	constexpr uint8_t start  	 = EncSlowFile::START_BATHROOM;
+	constexpr uint8_t complete = COMPLETE_BATHROOM_NODE; //from decode.h
 }
 
 //time in which node must reply through awk package.

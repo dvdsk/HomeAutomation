@@ -23,7 +23,7 @@ namespace EncSlowFile {
 	constexpr int TEMP_BATHROOM = PRESSURE+LEN_PRESSURE; 
 	constexpr int HUM_BATHROOM = TEMP_BATHROOM+LEN_TEMP;
 
-	//node door
+	//node kitchen
 	constexpr int TEMP_DOOR = HUM_BATHROOM+LEN_HUM; 
 	constexpr int HUM_DOOR = TEMP_DOOR+LEN_TEMP;		
 
@@ -34,8 +34,8 @@ namespace EncSlowFile {
 
 	//startingPoints
 	constexpr int START_BEDNODE = TEMP_BED;
-	constexpr int START_KITCHEN = TEMP_BATHROOM;
-	constexpr int START_DOOR = TEMP_DOOR;
+	constexpr int START_BATHROOM = TEMP_BATHROOM;
+	constexpr int START_KITCHEN = TEMP_DOOR;
 	constexpr int START_LIGHTS = LIGHT_BED;
 
 	//length
@@ -64,6 +64,7 @@ namespace EncSlowArduino {
 	//node bathroom
 	constexpr int TEMP_BATHROOM = 0; 
 	constexpr int HUM_BATHROOM = TEMP_BATHROOM+LEN_TEMP;		
+	constexpr int LEN_BATHROOMNODE = roundUp(HUM_BATHROOM+LEN_HUM,8);
 
 	//node kitchen
 	constexpr int TEMP_DOOR = 0; 
@@ -104,6 +105,7 @@ namespace EncFastFile {
 	//need to stay at 0 and 1 for pirdata process to work
 	constexpr int LEN_PIRS_BED = 2; //pirs + pirs_updated
 	constexpr int LEN_PIRS_KICHEN = 5;
+	constexpr int LEN_PIRS_BATHROOM = 2;
 
 	//node bed
 	constexpr int PIRS_BED = 0;
@@ -116,8 +118,10 @@ namespace EncFastFile {
 /*	constexpr int LIGHT_DOOR = LIGHT_KITCHEN+LEN_LIGHT;*/
 /*	constexpr int LEN_KITCHEN_NODE = roundUp(LIGHT_BED+LEN_LIGHT,8);*/
 
-	constexpr int N_ENCODED = LEN_PIRS_BED+LEN_PIRS_KICHEN;
-	constexpr int LEN_ENCODED = roundUp(PIRS_KICHEN+LEN_PIRS_KICHEN,8); //in bytes
+	constexpr int PIRS_BATHROOM = PIRS_KICHEN+LEN_PIRS_KICHEN;
+
+	constexpr int N_ENCODED = LEN_PIRS_BED+LEN_PIRS_KICHEN+LEN_PIRS_BATHROOM;
+	constexpr int LEN_ENCODED = roundUp(N_ENCODED,8); //in bytes
 }
 
 /*Encoding Scheme:

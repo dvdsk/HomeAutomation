@@ -11,6 +11,11 @@ namespace NODE_KITCHEN{
 	uint8_t sBuf[LEN_sBuf];
 	ConnectionStats conStats;
 }
+namespace NODE_BATHROOM{
+	uint8_t fBuf[LEN_fBuf];
+	uint8_t sBuf[LEN_sBuf];
+	ConnectionStats conStats;
+}
 
 NodeMaster::NodeMaster(PirData* pirData, SlowData* slowData,
 	                     SensorState* sensorState, SignalState* signalState) 
@@ -102,22 +107,23 @@ void NodeMaster::updateNodes(){
 		//instruct nodes to start there high freq measurements, and wait for them
 		//to respond with the outcome. If that outcome contains a status message that
 		//the low freq data is also ready, request that data and wait for it.
-		succes = requestAndListen_fast(NODE_BED::fBuf, NODE_BED::addr, NODE_BED::LEN_fBuf);
-		now = unix_timestamp();
-		if(succes){
-			NODE_BED::conStats.callSucceeded();
-			process_Fast_BED(now, NODE_BED::fBuf); 	
-			if(slowRdy(NODE_BED::fBuf)){
-				succes = requestAndListen_slowValue(NODE_BED::sBuf, NODE_BED::addr, NODE_BED::LEN_sBuf);
-				if(succes){
-					NODE_BED::conStats.callSucceeded();
-					process_Slow_BED(now, NODE_BED::sBuf);
+		using namespace NODE_BED{		
+			succes = requestAndListen_fast(NODE_BED::fBuf, NODE_BED::addr, NODE_BED::LEN_fBuf);
+			now = unix_timestamp();
+			if(succes){
+				NODE_BED::conStats.callSucceeded();
+				process_Fast_BED(now, NODE_BED::fBuf); 	
+				if(slowRdy(NODE_BED::fBuf)){
+					succes = requestAndListen_slowValue(NODE_BED::sBuf, NODE_BED::addr, NODE_BED::LEN_sBuf);
+					if(succes){
+						NODE_BED::conStats.callSucceeded();
+						process_Slow_BED(now, NODE_BED::sBuf);
+					}
+					else NODE_BED::conStats.callFailed();
 				}
-				else NODE_BED::conStats.callFailed();
 			}
+			else NODE_BED::conStats.callFailed();
 		}
-		else NODE_BED::conStats.callFailed();
-
 		//instruct nodes to start there low freq measurements
 		if(now-last >= 5){//every 5 seconds do this loop
 			last = now;
