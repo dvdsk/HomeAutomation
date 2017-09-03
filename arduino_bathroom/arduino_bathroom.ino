@@ -36,7 +36,7 @@ void setup(){
   //radio.setPayloadSize(5);                
 
   radio.setRetries(1,5);            // Smallest time between retries, max no. of retries
-	radio.setPALevel(RF24_PA_MIN);	  
+	radio.setPALevel(RF24_PA_LOW);	  
   radio.setDataRate(RF24_250KBPS);
 	radio.setChannel(108);	            // 2.508 Ghz - Above most Wifi Channels
 
@@ -56,10 +56,8 @@ void reInitVars(){
 	reInit = true;
 	slowRdy = false;
 
-	
-
 	radio.stopListening();
-	radio.write(&headers::INIT_DONE, 1);
+	while(!radio.write(&headers::INIT_DONE, 1)){ }
 	radio.startListening();	
 }
 
@@ -96,7 +94,7 @@ void loop(){
 	checkRadio(measureSlow);
 	if(measureSlow) measure_slow(checkRadio);
 	readAndEncode(fBuf);
-	delay(5000);
+	//delay(5000);
 }
 
 void handle_fast(){
@@ -125,7 +123,7 @@ void measure_slow(bool (*checkRadio)(void)){
 	float tempC;
 	memset(NODE_BATHROOM::sBuf, 0, NODE_BATHROOM::LEN_sBuf);
 
-	//Serial.println("sending measure requests to slow non continues sensors");
+	Serial.println("sending measure requests to slow non continues sensors");
 	//send request for data to sensors
 	TempHumid::requestTemp();
 

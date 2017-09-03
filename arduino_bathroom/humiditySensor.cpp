@@ -38,7 +38,7 @@ void TempHumid::skipCrcSHT()
 
 void TempHumid::startWaitForResultSHT()
 {
-  pinMode(pin::TERM_DATA, INPUT);
+  pinMode(TERM_DATA, INPUT);
 }
 
 bool TempHumid::readyToRead(){
@@ -57,7 +57,7 @@ int TempHumid::getData16SHT(){
   //-> replaced with port manipulation
   DDRC = PIN_TERM_CLOCK;
   
-  val = shiftIn(pin::TERM_DATA, pin::TERM_CLOCK, 8);
+  val = shiftIn(TERM_DATA, TERM_CLOCK, 8);
   val *= 256;
 
   // Send the required ack
@@ -82,7 +82,7 @@ int TempHumid::getData16SHT(){
   //-> replaced with port manipulation
   DDRC = PIN_TERM_CLOCK;
   
-  val |= shiftIn(pin::TERM_DATA, pin::TERM_CLOCK, 8);
+  val |= shiftIn(TERM_DATA, TERM_CLOCK, 8);
   return val;
 }
 
@@ -116,7 +116,7 @@ void TempHumid::sendCommandSHT(int _command){
   PORTC = PIN_TERM_DATA;
 
   // The command (3 msb are address and must be 000, and last 5 bits are command)
-  shiftOut(pin::TERM_DATA, pin::TERM_CLOCK, MSBFIRST, _command);
+  shiftOut(TERM_DATA, TERM_CLOCK, MSBFIRST, _command);
 
   //skipping data verificatin for MOAR SPEEED
   // Verify we get the correct ack
