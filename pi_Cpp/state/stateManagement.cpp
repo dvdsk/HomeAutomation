@@ -39,7 +39,6 @@ void thread_state_management(std::atomic<bool>* notShuttingdown,
 	while(*notShuttingdown){
 		signalState->cv.wait(lk, [signalState]{return signalState->signalled;});//wait for new sensor data or forced update.	
 		signalState->signalled = false;
-		std::cout<<"should be waiting\n";
 
 		stateData->currentTime = (uint32_t)time(nullptr);
 		if(currentState->stillValid()) //TODO FIXME 

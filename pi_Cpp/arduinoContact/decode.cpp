@@ -68,9 +68,14 @@ void Decode::process_Slow_BATHROOM(const uint32_t now, const uint8_t sBuf[])
 	sensorState->tempValues[temp::BATHROOM] 
 	= decode(sBuf, EncSlowArduino::TEMP_BATHROOM, EncSlowArduino::LEN_TEMP);
 	sensorState->tempValues_updated = true;
+	std::cout<<sensorState->tempValues[temp::BATHROOM]<<"\n";
+
+
 	sensorState->humidityValues[hum::BATHROOM] 
 	= decode(sBuf, EncSlowArduino::HUM_BATHROOM, EncSlowArduino::LEN_HUM);
 	sensorState->humidityValues_updated = true;
+	std::cout<<sensorState->humidityValues[hum::BATHROOM]<<"\n";
+
 	signalState->runUpdate();
 
 	append_Slow(now, sBuf, NODE_BATHROOM::start, 
