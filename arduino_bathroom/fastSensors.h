@@ -8,8 +8,8 @@
 #include <Wire.h>
 
 //set both pins to locations on a bank that match this mask
-constexpr int PIR_SHOWER = 0b00001000;
-constexpr int PIR_WC = 0b00010000;
+constexpr int PIR_SHOWER = 0b00001000; //D4
+constexpr int PIR_WC = 0b00010000; //D5
 
 void readAndEncode(uint8_t buffer[]);
 uint8_t readPIRs();

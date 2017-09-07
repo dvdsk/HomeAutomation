@@ -21,8 +21,8 @@ namespace pin {
 	constexpr int PIR_BED_NORTH = 26; //PA4
 	constexpr int PIR_BED_SOUTH = 28; //PA6
 
-	constexpr int RADIO_CE = 48;
-	constexpr int RADIO_CS = 49;
+	constexpr int RADIO_CE = 7;
+	constexpr int RADIO_CS = 8;
 }
 
 //node specific stuff in nodes ino file
