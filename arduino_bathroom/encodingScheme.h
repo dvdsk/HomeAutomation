@@ -69,6 +69,7 @@ namespace EncSlowArduino {
 	constexpr int TEMP_DOOR = 0; 
 	constexpr int HUM_DOOR = TEMP_DOOR+LEN_TEMP;		
 	constexpr int LEN_KITCHEN_NODE = roundUp(LEN_TEMP+LEN_HUM,8); //in bytes 
+	constexpr int LEN_BATHROOM_NODE = roundUp(LEN_TEMP+LEN_HUM, 8);
 
 	constexpr int LEN_ENCODED = roundUp(HUM_DOOR+LEN_HUM,8); //in bytes
 }
