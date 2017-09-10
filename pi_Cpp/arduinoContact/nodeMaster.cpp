@@ -193,7 +193,7 @@ void NodeMaster::updateNodes(){
 						else conStats.callFailed();					
 					}
 				} while(notshuttingDown);
-				std::cout<<"requested measurement\n";
+				//std::cout<<"requested measurement\n";
 			}
 		}//if
 	}//while(notshuttingdown

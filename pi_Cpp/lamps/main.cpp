@@ -4,13 +4,15 @@
 int main(){
 	Lamps* lamps = new Lamps;
 
+//	lamps->off();
+//	lamps->on();
 
-//	lamps->off(5);	
-//	lamps->on(5);	
+	lamps->off(lmp::BATHROOM);	
+	lamps->on(lmp::BATHROOM);	
 
 while(1){
-	lamps->off();	
-	lamps->on();
+	lamps->off(lmp::BATHROOM);	
+	lamps->on(lmp::BATHROOM);	
 }
 	//lamps.setState(lmp::KITCHEN, "{\"on\": true, \"bri\": 200, \"transitiontime\": 0}");
 }

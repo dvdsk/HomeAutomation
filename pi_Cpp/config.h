@@ -115,8 +115,9 @@ namespace mov {//movement sensors
 	constexpr int BED_r = 3;
 	constexpr int RADIATOR = 4;
 	constexpr int MIDDLEROOM = 5;
-	constexpr int BATHROOM = 6;
-	constexpr int LEN = 7;
+	constexpr int BATHROOM_WC = 6;
+	constexpr int BATHROOM_SHOWER = 7;
+	constexpr int LEN = 8;
 }
 
 namespace temp {//temp sensors

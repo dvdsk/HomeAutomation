@@ -13,8 +13,13 @@ uint8_t readPIRs(){
 	//returns byte on is high bit off is low. See this chart for which bit in the 
 	//byte corrosponds to which pin http://forum.arduino.cc/index.php?topic=45329.0
 	delay(1);//crashes if removed  TODO checkthis!!!
-	pirStat =  PIND & PIR_SHOWER >> 2; 
-	pirStat |= PIND & PIR_WC >> 2;
+	pirStat =  (PIND & PIR_SHOWER) >> 3; 
+	pirStat |= (PIND & PIR_WC) >> 3;
+	
+//	Serial.print(digitalRead(4));
+//	Serial.print(", ");
+//	Serial.println(digitalRead(5));
+//	Serial.println(pirStat);
 
 	return pirStat;  //set bedSouth value to recieved data
 }

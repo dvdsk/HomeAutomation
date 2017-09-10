@@ -68,13 +68,13 @@ void Decode::process_Slow_BATHROOM(const uint32_t now, const uint8_t sBuf[])
 	sensorState->tempValues[temp::BATHROOM] 
 	= decode(sBuf, EncSlowArduino::TEMP_BATHROOM, EncSlowArduino::LEN_TEMP);
 	sensorState->tempValues_updated = true;
-	std::cout<<sensorState->tempValues[temp::BATHROOM]<<"\n";
+	//std::cout<<sensorState->tempValues[temp::BATHROOM]<<"\n";
 
 
 	sensorState->humidityValues[hum::BATHROOM] 
 	= decode(sBuf, EncSlowArduino::HUM_BATHROOM, EncSlowArduino::LEN_HUM);
 	sensorState->humidityValues_updated = true;
-	std::cout<<sensorState->humidityValues[hum::BATHROOM]<<"\n";
+	//std::cout<<sensorState->humidityValues[hum::BATHROOM]<<"\n";
 
 	signalState->runUpdate();
 
@@ -82,16 +82,30 @@ void Decode::process_Slow_BATHROOM(const uint32_t now, const uint8_t sBuf[])
 	            NODE_BATHROOM::LEN_sBuf, NODE_BATHROOM::complete);
 }
 
+void Decode::append_Fast(const uint32_t now, const uint8_t fBuf[], 
+     const uint8_t start, const uint8_t len, const uint8_t completionPart)
+{
+	*(writeBufF+start) |= fBuf[0]; //first byte overlaps with prev message
+	memcpy(writeBufF+start+1, fBuf+1, len-1);
+
+	bufferStatus |= completionPart;
+	if(bufferStatus == ALL_COMPLETE){
+		pirData->process(writeBufF, now);
+		memset(writeBufS, 0, EncSlowFile::LEN_ENCODED);
+		bufferStatus = 0;
+	}	
+}
+
 void Decode::process_Fast_BED(const uint32_t now, const uint8_t fBuf[])
 {
+	
 	uint8_t active;
-	for (int i = EncFastArduino::PIRS_BED; i<EncFastArduino::LEN_PIRS_BED; i++){
+	for (int i =EncFastArduino::PIRS_BED, j =mov::BATHROOM_WC; i<EncFastArduino::LEN_PIRS_BED; i++, j++){
 		active = (fBuf[0] & (1<<i));
-		sensorState->movement[i] = !active*sensorState->movement[i] + active*now;
+		sensorState->movement[j] = !active*sensorState->movement[j] + active*now;
 	}
-	writeBufF[0] |= (fBuf[0]>>EncFastArduino::PIRS_BED)
-	                <<EncFastFile::PIRS_BED;
-
+//	writeBufF[0] |= (fBuf[0]>>EncFastArduino::PIRS_BED)
+//	                <<EncFastFile::PIRS_BED;
 
 	sensorState->lightValues[lght::BED] = decode(fBuf, EncFastArduino::LIGHT_BED,
 	  EncFastArduino::LEN_LIGHT);
@@ -108,8 +122,8 @@ void Decode::process_Fast_KITCHEN(const uint32_t now, const uint8_t fBuf[])
 		active = (fBuf[0] & (1<<i));
 		sensorState->movement[i] = !active*sensorState->movement[i] + active*now;
 	}
-	writeBufF[0] |= (fBuf[0]>>EncFastArduino::PIRS_KICHEN)
-	                <<EncFastFile::PIRS_KICHEN;
+//	writeBufF[0] |= (fBuf[0]>>EncFastArduino::PIRS_KICHEN)
+//	                <<EncFastFile::PIRS_KICHEN;
 
 	sensorState->lightValues[lght::KITCHEN] 
 	= decode(fBuf, EncFastArduino::LIGHT_BED, EncFastArduino::LEN_LIGHT);
@@ -125,12 +139,20 @@ void Decode::process_Fast_KITCHEN(const uint32_t now, const uint8_t fBuf[])
 void Decode::process_Fast_BATHROOM(const uint32_t now, const uint8_t fBuf[])
 {
 	uint8_t active;
-	for (int i = EncFastArduino::PIRS_BATHROOM; i<EncFastArduino::LEN_PIRS_BATHROOM; i++){
-		active = (fBuf[0] & (1<<i));
-		sensorState->movement[i] = !active*sensorState->movement[i] + active*now;
+	//if(fBuf[0] != 0)
+	//std::cout<<"fBuf[0]: "<<+fBuf[0]<<"\n";
+	for (int i =EncFastArduino::PIRS_BATHROOM, j =mov::BATHROOM_WC; i<EncFastArduino::PIRS_BATHROOM+EncFastArduino::LEN_PIRS_BATHROOM; i++, j++){
+		active = (fBuf[0] & (1<<i))>>i;
+		//std::cout<<"active: "<<+active<<" "<<(1<<i)<<" "<<i<<"\n";
+		sensorState->movement[j] = !active*sensorState->movement[j] + active*now;
 	}
+//	std::cout<<"BATHROOM_WC: "<<sensorState->movement[mov::BATHROOM_WC]
+//	         <<" BATHROOM_SHOWER: "<<sensorState->movement[mov::BATHROOM_SHOWER]<<"\n";
 	writeBufF[0] |= (fBuf[0]>>EncFastArduino::PIRS_BATHROOM)
 	                <<EncFastFile::PIRS_BATHROOM;
+
+	append_Fast(now, writeBufF, EncFastFile::PIRS_BATHROOM, 
+	            roundUp(EncFastFile::LEN_PIRS_BATHROOM,8), NODE_BATHROOM::complete);
 
 	signalState->runUpdate();
 }

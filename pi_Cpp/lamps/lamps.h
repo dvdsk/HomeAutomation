@@ -38,7 +38,7 @@ class Lamps : public HttpSocket
 
 	/* returns if most lights are on */
 	bool avgOn();
-
+	bool isOn[lmp::LEN];
 	private:
 	/* need a mutex as we may never share the same handle in multiple threads */
 	std::mutex lamp_mutex;
@@ -51,7 +51,7 @@ class Lamps : public HttpSocket
 	void saveFullState(uint8_t n);
 	void saveFullState();
 
-	bool isOn[lmp::LEN];
+
 	std::string colormode[lmp::LEN];
 	uint16_t ct[lmp::LEN];
 	uint8_t bri[lmp::LEN];
