@@ -9,7 +9,6 @@ Lamps::Lamps()
 	std::string test;
 	if(get(BASE_URL) == error){	std::cout<<"HUE CONFIG WRONG\n";}
 
-
 	//get current settings for all lamps and store
 	saveFullState();
 
@@ -63,6 +62,7 @@ inline void Lamps::saveState(uint8_t n){
 inline void Lamps::saveFullState(uint8_t n){
 	std::string resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n);
 	std::string state = get(resource);
+	std::cout<<"ID:"<<+n<<" "<<state<<"\n";
 
 	int pos1 = state.find("bri");
 	int pos2 = state.find(",",pos1);
@@ -105,8 +105,7 @@ void Lamps::on(uint8_t n){
 	resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
 	toput = 
 	"{\"on\": true, \"transitiontime\": 0,\"bri\":"	+ std::to_string(bri[n])
-	+ ",\"xy\":["+std::to_string(x[n])+","+std::to_string(y[n])+"\"ct\":"
-	+std::to_string(ct[n])+"]}";
+	+ ",\"xy\":["+std::to_string(x[n])+","+std::to_string(y[n])+"]}";
 
 	put(resource, toput);
 }

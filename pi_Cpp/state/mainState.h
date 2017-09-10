@@ -7,6 +7,13 @@
 #define db(x)
 #endif
 
+#ifdef PRINT_STATE_MESSAGES
+#define ds(x) std::cerr << x;
+#else 
+#define ds(x)
+#endif
+
+ 
 #include <ctime> //time()
 #include <thread>
 
@@ -73,6 +80,16 @@ struct HttpState{
 };
 
 struct SensorState{
+	SensorState(){
+		lightValues_updated = false;
+		tempValues_updated = false;
+		humidityValues_updated = false;
+		soilHumidity_updated = false;
+		CO2ppm_updated = false;
+		Pressure_updated = false;
+		movement_updated = false;
+	}
+
 	std::atomic<int> lightValues[lght::LEN];
 	std::atomic<bool> lightValues_updated; 		
 	std::atomic<int> tempValues[temp::LEN];
@@ -82,6 +99,7 @@ struct SensorState{
 	std::atomic<int> soilHumidityValues[plnt::LEN];
 	std::atomic<bool> soilHumidity_updated; 		
 	std::atomic<std::int32_t> movement[mov::LEN];
+	std::atomic<bool> movement_updated;
 	std::atomic<int> CO2ppm;
 	std::atomic<bool> CO2ppm_updated;
 	std::atomic<int> Pressure;
@@ -116,6 +134,8 @@ class StateData : public Lamps
 			computerState = computerState_;
 			signalState = signalState_;
 
+			//extra pointers
+
 			double sunRise, sunSet;
 
 			time_t theTime = time(NULL);
@@ -137,7 +157,7 @@ class StateData : public Lamps
 		Mpd* mpd; //needed to call mpd functions
 		HttpState* httpState;
 		SignalState* signalState;
-
+	
 		uint32_t tWarm;
 		uint32_t tCool;
 
@@ -166,7 +186,6 @@ class State
 	StateData* data;
 
 	protected:
-
 	//away functions in away.cpp
 	void away_intruder_alarm();
 	void check_Plants();

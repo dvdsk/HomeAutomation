@@ -17,14 +17,49 @@ namespace NODE_BATHROOM{
 	ConnectionStats conStats;
 }
 
+bool NodeMaster::requestNodeInit(bool notshuttingDown, const uint8_t addr[]){
+ 	bool succes = true;
+	uint32_t start_t = timeMicroSec();
+	do{
+		succes = succes && request_Init(addr);
+		if(succes){
+			NODE_BED::conStats.callSucceeded();
+			break;
+		}
+		else{
+			NODE_BED::conStats.callFailed(); 
+		}
+
+		if(timeMicroSec()-start_t > MAXDURATION) {
+			std::cerr<<"COULD NOT INIT NODE AT ADDR: '"<<addr<<"'"
+							 <<", check if node is online\n";
+			break;
+		}
+
+	} while(!succes && notshuttingDown);
+
+	if(succes){
+		start_t = timeMicroSec();
+		succes = false;
+		do{
+			succes = waitForReply();
+			if(timeMicroSec()-start_t > MAXDURATION) {
+				std::cerr<<"NO REPLY FROM NODE AT ADDR: '"<<addr<<"'"
+					       <<", something might be wrong with the program on it\n";
+				break;
+			}	
+		} while(!succes && notshuttingDown);
+	}
+	return succes;
+}
+
 NodeMaster::NodeMaster(PirData* pirData, SlowData* slowData,
 	                     SensorState* sensorState, SignalState* signalState) 
 	: RF24(pin::RADIO_CE, pin::RADIO_CS), 
 		Decode(pirData, slowData, sensorState, signalState)
 {
-	uint32_t start_t; //milliseconds
-	bool succes;
-	notshuttingDown = true;
+	bool succes = true;
+	bool notshuttingDown = true;
 
 	//initialise and configure radio
   begin();
@@ -32,7 +67,7 @@ NodeMaster::NodeMaster(PirData* pirData, SlowData* slowData,
   //setPayloadSize(5);                
 
   setRetries(1,5);            // Smallest time between retries, max no. of retries
-	setPALevel(RF24_PA_MIN);	  
+	setPALevel(RF24_PA_LOW);	  
   setDataRate(RF24_250KBPS);
 	setChannel(108);	           // 2.508 Ghz - Above most Wifi Channels
 
@@ -45,41 +80,11 @@ NodeMaster::NodeMaster(PirData* pirData, SlowData* slowData,
 
 	//request all nodes to reinitialise, setting all theire variables to the
 	//default values.
- 	succes = true;
-	start_t = timeMicroSec();
-	do{
-		succes = succes && request_Init(NODE_BED::addr);
-		if(succes){
-			NODE_BED::conStats.callSucceeded();
-			break;
-		}
-		else{
-			NODE_BED::conStats.callFailed(); 
-		}
-
-		if(timeMicroSec()-start_t > MAXDURATION) {
-			std::cerr<<"TIMEOUT COULD NOT INIT REMOTE NODES"
-							 <<", check if they are online\n";
-			break;
-		}
-
-	} while(!succes && notshuttingDown);
-	
-	if(succes){
-		start_t = timeMicroSec();
-		succes = false;
-		do{
-			succes = waitForReply();
-			if(timeMicroSec()-start_t > MAXDURATION) {
-				std::cerr<<"TIMEOUT NO REPLY FROM REMOTE NODE"
-				         <<", something might be wrong with the program on it\n";
-				break;
-			}	
-		} while(!succes && notshuttingDown);
-	}
+	//TODO renable:	succes &= requestNodeInit(notshuttingDown, NODE_BED::addr);
+	succes &= requestNodeInit(notshuttingDown, NODE_BATHROOM::addr);
 
 	if(succes){
-		std::cout<<"NODES (RE-) INIT SUCCESFULLY\n";
+		std::cout<<"ALL NODES (RE-) INIT SUCCESFULLY\n";
 		m_thread = new std::thread(thread_NodeMaster_updateNodes, this);
 	}
 	else std::cout<<"EXITING NODEMASTER\n";
@@ -107,45 +112,89 @@ void NodeMaster::updateNodes(){
 		//instruct nodes to start there high freq measurements, and wait for them
 		//to respond with the outcome. If that outcome contains a status message that
 		//the low freq data is also ready, request that data and wait for it.
-		using namespace NODE_BED{		
-			succes = requestAndListen_fast(NODE_BED::fBuf, NODE_BED::addr, NODE_BED::LEN_fBuf);
+		{
+		using namespace NODE_BED;		
+			succes = requestAndListen_fast(fBuf, addr, LEN_fBuf);
 			now = unix_timestamp();
 			if(succes){
-				NODE_BED::conStats.callSucceeded();
+				conStats.callSucceeded();
 				process_Fast_BED(now, NODE_BED::fBuf); 	
 				if(slowRdy(NODE_BED::fBuf)){
 					succes = requestAndListen_slowValue(NODE_BED::sBuf, NODE_BED::addr, NODE_BED::LEN_sBuf);
 					if(succes){
-						NODE_BED::conStats.callSucceeded();
+						conStats.callSucceeded();
 						process_Slow_BED(now, NODE_BED::sBuf);
 					}
-					else NODE_BED::conStats.callFailed();
+					else conStats.callFailed();
 				}
 			}
-			else NODE_BED::conStats.callFailed();
+			else conStats.callFailed();
+		}
+		{
+		using namespace NODE_BATHROOM;		
+			succes = requestAndListen_fast(fBuf, addr, LEN_fBuf);
+			now = unix_timestamp();
+			if(succes){
+				conStats.callSucceeded();
+				process_Fast_BATHROOM(now, fBuf); 	
+				if(slowRdy(fBuf)){
+					succes = requestAndListen_slowValue(sBuf, addr, LEN_sBuf);
+					if(succes){
+						conStats.callSucceeded();
+						process_Slow_BATHROOM(now, sBuf);
+					}
+					else conStats.callFailed();
+				}
+			}
+			else conStats.callFailed();
 		}
 		//instruct nodes to start there low freq measurements
 		if(now-last >= 5){//every 5 seconds do this loop
 			last = now;
-			succes = false;
-			do{
-				succes = request_slowMeasure(NODE_BED::addr);
-				if(succes){
-					NODE_BED::conStats.callSucceeded();
-					break;
-				}
-				else{
-					NODE_BED::conStats.callFailed();
-					succes = requestAndListen_fast(NODE_BED::fBuf, NODE_BED::addr, NODE_BED::LEN_fBuf);
-					now = unix_timestamp();
+/*			{
+			using namespace NODE_BED;
+				succes = false;
+				do{
+					succes = request_slowMeasure(addr);
 					if(succes){
-						NODE_BED::conStats.callSucceeded();
-						process_Fast_BED(now, NODE_BED::fBuf);
+						conStats.callSucceeded();
+						break;
 					}
-					else  NODE_BED::conStats.callFailed();					
-				}
-			} while(notshuttingDown);
-			std::cout<<"requested measurement\n";
+					else{
+						NODE_BED::conStats.callFailed();
+						succes = requestAndListen_fast(fBuf, addr, LEN_fBuf);
+						now = unix_timestamp();
+						if(succes){
+							conStats.callSucceeded();
+							process_Fast_BED(now, fBuf);
+						}
+						else conStats.callFailed();					
+					}
+				} while(notshuttingDown);
+				std::cout<<"requested measurement\n";
+			}*///TODO re-enable this code when debugging combo of bed and bathroom node
+			{
+			using namespace NODE_BATHROOM;
+				succes = false;
+				do{
+					succes = request_slowMeasure(addr);
+					if(succes){
+						conStats.callSucceeded();
+						break;
+					}
+					else{
+						NODE_BED::conStats.callFailed();
+						succes = requestAndListen_fast(fBuf, addr, LEN_fBuf);
+						now = unix_timestamp();
+						if(succes){
+							conStats.callSucceeded();
+							process_Fast_BED(now, fBuf);
+						}
+						else conStats.callFailed();					
+					}
+				} while(notshuttingDown);
+				//std::cout<<"requested measurement\n";
+			}
 		}//if
 	}//while(notshuttingdown
 }

@@ -30,6 +30,8 @@ class Decode{
 		void decodeSlowData(uint32_t Tstamp, uint8_t writeBuf[]);
 		void append_Slow(const uint32_t now, const uint8_t sBuf[], 
 		     const uint8_t start, const uint8_t len, const uint8_t completionPart);
+		void append_Fast(const uint32_t now, const uint8_t fBuf[], 
+         const uint8_t start, const uint8_t len, const uint8_t completionPart);
 
 		uint8_t bufferStatus;
 		uint8_t writeBufS[EncSlowFile::LEN_ENCODED];

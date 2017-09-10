@@ -40,6 +40,7 @@ public:
 	NodeMaster(PirData* pirData, SlowData* slowData,
 	           SensorState* sensorState, SignalState* signalState);
 	~NodeMaster();
+	bool requestNodeInit(bool notshuttingDown, const uint8_t addr[]);
 	void updateNodes();
 private:
 	bool request_Init(const uint8_t addr[]);

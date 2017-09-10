@@ -93,6 +93,25 @@ bool State::updateOnHttp(){
 	std::cout<<"updateState is returning: "<<updateState<<"\n";
 	return updateState;		
 }
+////////////////////////GENERAL MEMBER FUNCT/////////////////////////////// /
+void State::lampCheck_Bathroom(){
+	std::atomic<std::int32_t>* movement = data->sensorState->movement;
+	//std::cout<<"updating "<<movement[mov::BATHROOM_WC]<<", "<<movement[mov::BATHROOM_SHOWER]<<"\n";
+	if(recent(movement[mov::BATHROOM_WC],10) or recent(movement[mov::BATHROOM_SHOWER],10)){
+		//std::cout<<"recent\n";
+		if(!data->isOn[lmp::BATHROOM]){
+			ds("Turning bathroom lamps on\n")
+			data->on(lmp::BATHROOM);
+		}
+	}
+	else{
+		std::cout<<data->isOn[lmp::BATHROOM]<<"\n";
+		if(data->isOn[lmp::BATHROOM]){
+			ds("Turning bathroom lamps off\n")
+			data->off(lmp::BATHROOM);
+		}
+	}
+}
 
 ////////////////////////GENERAL FUNCT///////////////////////////////////////
 inline void setAlarm(int nMinutes){
@@ -107,7 +126,7 @@ inline void sleep(int seconds){
 }
 
 inline bool State::recent(uint32_t time, unsigned int threshold){
-	if(data->currentTime-time > threshold){return true; }
+	if(data->currentTime-time < threshold){return true; }
 	else{return false; }
 }
 

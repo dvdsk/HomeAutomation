@@ -102,6 +102,7 @@ bool Default::stillValid(){
 
 void Default::updateOnSensors(){
 	//std::cout<<"updated based on sensor values and stuff"<<"\n";
+	lampCheck_Bathroom();
 }
 
 time_t day_seconds(){
