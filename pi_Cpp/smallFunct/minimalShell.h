@@ -16,6 +16,6 @@
 	 The input is enterd into the program when it has started. The output of the
 	 programm (both stdout and stderr) is passed back via a string */
 std::string minimalShell(char* argv[], std::string input);
-
+std::string minimalShell(char* argv[]);
 #endif
 

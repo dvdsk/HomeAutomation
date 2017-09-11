@@ -88,7 +88,6 @@ bool checkRadio(bool &measureSlow){
 void loop(){
 	uint8_t fBuf[NODE_BATHROOM::LEN_fBuf];
 	bool measureSlow = false;
-	float tempC;
 
 	checkRadio(measureSlow);
 	if(measureSlow) measure_slow(checkRadio);

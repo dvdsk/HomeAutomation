@@ -110,6 +110,49 @@ std::string minimalShell(char* argv[], std::string input){
 	return str;
 }
 
+std::string minimalShell(char* argv[]){
+	constexpr int WRITE_END = 1;
+	constexpr int READ_END = 0;
+  int Input[2], Output[2];
+	pid_t pid;
+
+	char fullpath[100];
+	char buf[100];
+	int nRead;
+	std::string str;
+
+	if(findExecutable(argv[0], mypath, fullpath) == -1)
+		std::cout<<"error finding executable\n"; 	
+
+	argv[0] = fullpath;
+
+	pipe(Output);	
+	pid = fork();
+
+	if (pid == 0) {// We're in the child here.
+
+		close(Output[READ_END] );//Close the reading end of the output pipe
+
+		dup2(Output[WRITE_END], STDOUT_FILENO);
+		dup2(Output[WRITE_END], STDERR_FILENO);
+		
+		close(Output[WRITE_END]); //Close fd that are no longer needed
+		
+		execv(argv[0], argv); 	
+		exit(EXIT_FAILURE);//as execv should exit on its own
+
+	} else {// We're in the parent here.
+    close(Output[WRITE_END]);// Close the writing end of the output pipe
+
+		/* read output of the subprocess */
+		while((nRead = read(Output[READ_END], buf, 100)) >0){
+			str.append(buf, nRead);
+		}
+		close(Output[READ_END] );//Close the reading end of the output pipe
+  }
+	return str;
+}
+
 /* example usage */
 //int main() {
 //	
