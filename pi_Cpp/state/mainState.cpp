@@ -9,19 +9,19 @@ bool State::updateOnHttp(){
 
 	if(url == "/|lamps/evening"){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
-		data->setState("{\"bri\":254, \"ct\":320, \"transitiontime\":10}");
+		data->setAll_ctBri(254, 320, 10);
 	}
 	else if(url == "/|lamps/night"){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
-		data->setState("{\"bri\":220, \"ct\":500, \"transitiontime\":10}");
+		data->setAll_ctBri(220, 500, 10);
 	}
 	else if(url == "/|lamps/bedlight"){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
-		data->setState("{\"bri\":1, \"ct\":500, \"transitiontime\":10}");
+		data->setAll_ctBri(1, 500, 10);
 	}
 	else if(url == "/|lamps/normal"){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
-		data->setState("{\"bri\":254, \"ct\":220, \"transitiontime\":10}");
+		data->setAll_ctBri(254, 220, 10);
 	}
 	else if(url == "/|lamps/alloff"){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
@@ -51,27 +51,27 @@ bool State::updateOnHttp(){
 
 //	else if(url == "/|state/away"){
 //		if(stateName != AWAY){data->newState = AWAY;}
-//		else{updateState=false;}		
+//		else{updateState=false;}
 //	}
 	else if(url == "/|state/default"){
 		if(stateName != DEFAULT_S){data->newState = DEFAULT_S;}
-		else{updateState=false;}		
+		else{updateState=false;}
 	}
 //	else if(url == "/|state/goingToSleep"){
 //		if(stateName != GOINGTOSLEEP_S){data->newState = GOINGTOSLEEP_S;}
-//		else{updateState=false;}		
+//		else{updateState=false;}
 //	}
 //	else if(url == "/|state/sleeping"){
 //		if(stateName != SLEEPING){data->newState = SLEEPING;}
-//		else{updateState=false;}		
+//		else{updateState=false;}
 //	}
 	else if(url == "/|state/minimal"){
 		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
-		else{updateState=false;}		
+		else{updateState=false;}
 	}
 	else if(url == "/|state/wakeup"){
 		if(stateName != WAKEUP_S){data->newState = WAKEUP_S;}
-		else{updateState=false;}		
+		else{updateState=false;}
 	}
 
 	//if string /|set/alarm in url
@@ -91,7 +91,7 @@ bool State::updateOnHttp(){
 		updateState=false;
 
 	std::cout<<"updateState is returning: "<<updateState<<"\n";
-	return updateState;		
+	return updateState;
 }
 ////////////////////////GENERAL MEMBER FUNCT/////////////////////////////// /
 void State::lampCheck_Bathroom(){
@@ -134,7 +134,7 @@ inline bool State::anyRecent(uint32_t times[],
 unsigned int threshold){
 	bool recent = false;
 	for(int i=0; i<EncFastFile::N_ENCODED; i++)
-		if(data->currentTime - times[i] < threshold){recent = true; } 
+		if(data->currentTime - times[i] < threshold){recent = true; }
 	return recent;
 }
 
@@ -142,4 +142,4 @@ inline std::string toTime(uint32_t seconds){
 	if(seconds<3600){return std::to_string(seconds/60)+"minutes"; }
 	else if(seconds<24*3600){return std::to_string(seconds/3600)+"hours"; }
 	else{return std::to_string(seconds/(24*3600))+"days"; }
-} 
+}

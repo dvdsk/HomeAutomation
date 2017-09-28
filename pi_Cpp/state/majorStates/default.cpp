@@ -10,7 +10,7 @@ inline int fade(int y0, int x0, int x, int dyDx){
 }
 
 static void lightColor_thread(Default* currentState){
-  std::unique_lock<std::mutex> lk(cv_default_m);	
+  std::unique_lock<std::mutex> lk(cv_default_m);
 	uint32_t time;
 
 	uint32_t* tWarm = &currentState->data->tWarm;
@@ -42,21 +42,21 @@ static void lightColor_thread(Default* currentState){
 			ct = fade(CT_DAY, *tWarm, time, (CT_DAY-CT_EVENING)/FADE_TO_EVENING);
 			bri = BRI_EVENING;
 		}
-		else if((time > *tWarm+FADE_TO_EVENING) 
+		else if((time > *tWarm+FADE_TO_EVENING)
 		&& (time < *tWarm+FADE_TO_EVENING+FADE_TO_NIGHT)){						//nightFade
 			//fade from CT_EVENING to CT_NIGHT in FADE_TO_NIGHT seconds
-			ct = fade(CT_EVENING, *tWarm+FADE_TO_NIGHT, time, 
+			ct = fade(CT_EVENING, *tWarm+FADE_TO_NIGHT, time,
 					 (CT_EVENING-CT_NIGHT)/FADE_TO_NIGHT);
 
-			bri =fade(BRI_EVENING, *tWarm+FADE_TO_NIGHT, time, 
+			bri =fade(BRI_EVENING, *tWarm+FADE_TO_NIGHT, time,
 					 (BRI_EVENING-BRI_NIGHT)/FADE_TO_NIGHT);
 		}
 		else if((time > *tCool) && (time < *tCool+FADE_TO_DAY)){			//dayFade
 			//fade from CT_NIGHT to CT_DAY in FADE_TO_NIGHT seconds
-			ct = fade(CT_NIGHT, *tCool, time, 
+			ct = fade(CT_NIGHT, *tCool, time,
 					 (CT_NIGHT-CT_DAY)/FADE_TO_DAY);
 
-			bri =fade(BRI_NIGHT, *tCool, time, 
+			bri =fade(BRI_NIGHT, *tCool, time,
 					 (BRI_NIGHT-BRI_DAY)/FADE_TO_DAY);
 		}
 		else if((time >= *tCool+FADE_TO_DAY) && (time <= *tWarm)){		//day
@@ -70,19 +70,19 @@ static void lightColor_thread(Default* currentState){
 			bri = BRI_NIGHT;
 		}
 
-		currentState->data->set_ctBri(ct, bri);	
+		currentState->data->setAll_ctBri(bri, ct);	
 		cv_default.wait_for(lk, 60*1s, [currentState](){return currentState->stop.load();});
 	}
-}				
+}
 
 Default::Default(StateData* stateData)
 	: State(stateData){
-	stateName = DEFAULT_S;	
+	stateName = DEFAULT_S;
 
 	stop = false;
 	m_thread = new std::thread(lightColor_thread, this);
 
-	
+
 	std::cout<<"Ran default state constructor"<<"\n";
 }
 
@@ -116,4 +116,3 @@ time_t day_seconds(){
   t2 = mktime(&tms);
   return uint32_t(t1 - t2);
 }
-

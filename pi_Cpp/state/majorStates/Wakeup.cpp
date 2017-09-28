@@ -6,10 +6,11 @@ using namespace std::chrono_literals;
 std::condition_variable cv_wakeup;
 std::mutex cv_wakeup_m;
 
-static void* threadFunction(WakeUp* currentState){				
-  std::unique_lock<std::mutex> lk(cv_wakeup_m);	
+static void* threadFunction(WakeUp* currentState){
+  std::unique_lock<std::mutex> lk(cv_wakeup_m);
 	int time = 0;
 	int bri, ct, volume;
+  bool started = false;
 
 	StateData* lamps = currentState->data;
 	Mpd* mpd = currentState->data->mpd;
@@ -19,59 +20,60 @@ static void* threadFunction(WakeUp* currentState){
 	constexpr int ALLLAMPSON = 			(int)(WAKEUP_DURATION/3);		//sec
 	constexpr int WAKEUP_MUSIC_ON = (int)(WAKEUP_DURATION/2);		//sec
 
-	//turn all lamps on with zero brightness
-	lamps->setState(lmp::BUREAU,"{\"on\": true, \"bri\": 0, \"transitiontime\":0}");
-	lamps->setState(lmp::RADIATOR,"{\"on\": true, \"bri\": 0, \"transitiontime\":0}");
+	//turn all lamps on with zero brightness and max colortone
+	lamps->set_ctBri(lmp::BUREAU, 0, CT_MAX, 0, true);
+	lamps->set_ctBri(lmp::RADIATOR, 0, CT_MAX, 0, true);
 
 	while(!currentState->stop.load() && time < WAKEUP_DURATION+1){
 		bri = (int)(BRI_PER_Ks*time/1000);
 		ct = (int)(CT_MAX-CT_PER_Ks*time/1000);
 
 		//Do something with lamps
-		lamps->setState(lmp::BUREAU, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
-		lamps->setState(lmp::RADIATOR, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
+		lamps->set_ctBri(lmp::BUREAU, bri, ct, 0);
+		lamps->set_ctBri(lmp::RADIATOR, bri, ct, 0);
 
 		if(time>DOORLAMPON){
-			if(time>DOORLAMPON+10){
+			if(time>DOORLAMPON+UPDATEPERIOD){
 				std::cout<<"door lamp, updating brict\n";
-				lamps->setState(lmp::DOOR, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");}
+				lamps->set_ctBri(lmp::DOOR, bri, ct, 0);}
 			else{
 				std::cout<<"door lamp, turning on\n";
-				lamps->setState(lmp::DOOR, "{\"on\": true, \"bri\": "+std::to_string((int)(bri+10*BRI_PER_Ks/1000))+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 100}");}
+				lamps->set_ctBri(lmp::DOOR, (int)(bri+10*BRI_PER_Ks/1000), ct, 100, true);}
 		}
 
 		if(time>ALLLAMPSON){
-			if(time>ALLLAMPSON+10){
+			if(time>ALLLAMPSON+UPDATEPERIOD){
 				std::cout<<"kitchCeil, updating brict\n";
-				lamps->setState(lmp::KITCHEN, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
-				lamps->setState(lmp::CEILING, "{\"bri\": "+std::to_string(bri)+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 0}");
+				lamps->set_ctBri(lmp::KITCHEN, bri, ct, 0);
+				lamps->set_ctBri(lmp::CEILING, bri, ct, 0);
 			}
 			else{
 				std::cout<<"kitchCeil, turning on\n";
-				lamps->setState(lmp::KITCHEN, "{\"on\": true, \"bri\": "+std::to_string((int)(bri+10*BRI_PER_Ks/1000))+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 100}");
-				lamps->setState(lmp::CEILING, "{\"on\": true, \"bri\": "+std::to_string((int)(bri+10*BRI_PER_Ks/1000))+", \"ct\": "+std::to_string(ct)+", \"transitiontime\": 100}");
+				lamps->set_ctBri(lmp::KITCHEN, (int)(bri+10*BRI_PER_Ks/1000), ct, 100, true);
+				lamps->set_ctBri(lmp::CEILING, (int)(bri+10*BRI_PER_Ks/1000), ct, 100, true);
 			}
 		}
 
 		if(time>WAKEUP_MUSIC_ON){
 			if(mpdState->playback != PLAYING){
-				std::cout<<"turning on music\n";
-				std::string cList = "setvol "+std::to_string(VOL_MIN)+"\nplay 0\n";
-				mpd->sendCommandList(cList);
-				mpdState->playback = PLAYING;
+        if(!started){
+          started = true;
+          std::cout<<"turning on music\n";
+          std::string cList = "setvol "+std::to_string(VOL_MIN)+"\nplay 0\n";
+          mpd->sendCommandList(cList);
+          mpdState->playback = PLAYING;
+        }
 			}
-			else{
+			else if(started){
 				volume = (int)(((time-WAKEUP_MUSIC_ON)*VOL_PER_Ks)/1000 + VOL_MIN);
-				mpd->sendCommand("setvol "+std::to_string(volume)+"\n");	
+				mpd->sendCommand("setvol "+std::to_string(volume)+"\n");
 				std::cout<<"volPerSec: "<<VOL_PER_Ks/1000<<"\n";
 				std::cout<<"setting volume to: "<<volume<<"\n";
 			}
 		}
-	time += UPDATEPERIOD; //due to code execution +- 1 second drift over 15 min 
-	std::cout<<"cv wait\n";
-	cv_wakeup.wait_for(lk, UPDATEPERIOD*1s, [currentState](){return currentState->stop.load();});
+  	time += UPDATEPERIOD; //due to code execution +- 1 second drift over 15 min
+  	cv_wakeup.wait_for(lk, UPDATEPERIOD*1s, [currentState](){return currentState->stop.load();});
 	}
-
 	currentState->done = true;
 	currentState->data->signalState->runUpdate(); //TODO FIXME
 	std::cout<<"done with wakeup\n";
@@ -84,7 +86,7 @@ WakeUp::WakeUp(StateData* stateData)
 	stateName = WAKEUP_S;
 	data->newState = DEFAULT_S;
 
-	stateData->mpd->saveAndClearCP();	
+	stateData->mpd->saveAndClearCP();
 	std::cout<<"\033[1;34mdone saveAndClear\033[0m\n";
 
 	stateData->mpd->QueueFromPLs("calm", 3*60, 5*60);

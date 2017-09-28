@@ -3,7 +3,7 @@
 Lamps::Lamps()
 	: HttpSocket(config::HUE_IP, 80){
 
-	std::string error = 
+	std::string error =
 	  "[{\"error\":{\"type\":1,\"address\":\"/\",\"description\":\"unauthorized user\"}}]";
 
 	std::string test;
@@ -15,7 +15,7 @@ Lamps::Lamps()
 }
 
 void Lamps::off(uint8_t n){
-	std::string resource;	
+	std::string resource;
 	std::lock_guard<std::mutex> guard(lamp_mutex);
 	saveState(n);
 
@@ -84,15 +84,80 @@ inline void Lamps::saveFullState(uint8_t n){
 }
 
 void Lamps::saveState(){
-
 	for(int n=0; n<lmp::LEN; n++)
 		saveState(n);
 }
 
 void Lamps::saveFullState(){
-
 	for(int n=0; n<lmp::LEN; n++)
 		saveFullState(n);
+}
+
+void Lamps::checkState(uint8_t n){
+	float x_, y_;
+	uint16_t ct_;
+	uint8_t bri_;
+	bool isOn_;
+	std::string colormode_, toput = "{";
+
+	std::string resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n);
+	std::string state = get(resource);
+
+	int pos1 = state.find("bri");
+	int pos2 = state.find(",",pos1);
+	bri_ = stoi(state.substr(pos1+5, pos2-pos1));
+	isOn_ = (state.substr(sizeof("\"state\":{\"on\""), 4) == "true");
+
+	pos1 = state.find("xy", 54)+sizeof("xy\":[");
+	x_ = stof(state.substr(pos1, 5));
+	y_ = stof(state.substr(state.find(",", pos1)+sizeof(","), 5));
+
+	pos1 = state.find("ct", 73)+sizeof("ct\"");
+	ct_ = stoi(state.substr(pos1, 3));
+
+	pos1 = state.find("colormode", 103)+sizeof("colormode\":");
+	pos2 = state.find(",", pos1)-1;
+	colormode_ = state.substr(pos1, pos2-pos1);
+
+	std::lock_guard<std::mutex> guard(lamp_mutex);
+	if(bri_ != bri[n])
+		toput += "\"bri\":"+std::to_string(bri[n])+",";
+	if(isOn_ != isOn[n]){
+		if(isOn[n])
+			toput += "\"on\": true,";
+		else
+			toput += "\"on\": false,";
+	}
+	if(colormode_.compare(colormode[n]) != 0)
+		toput += "\"colormode\":"+colormode[n]+",";
+
+	if(colormode_.compare("ct") == 0){
+		if(ct_ != ct[n]){
+			std::cout<<"ct_"<<ct_<<" "<<"ct[n]"<<ct[n]<<"\n";
+			toput += "\"ct\":"+std::to_string(ct[n])+",";
+		}
+	}
+	else{
+		if(x_ != x[n] || y_ != y[n]){
+			toput += "\"xy\":["+std::to_string(x[n])+","+std::to_string(y[n])+"],";
+			std::cout<<"x[n]"<<x[n]<<" "<<"x_"<<x_<<"\n"
+			         <<"y[n]"<<y[n]<<" "<<"y_"<<y_<<"\n";
+		}
+	}
+
+	if(toput.length()>2){
+		toput.pop_back();
+		toput += "}";
+		std::cout<<"correcting mistake with: "<<toput<<"\n";
+		resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
+		put(resource, toput);
+	}
+}
+
+
+void Lamps::checkState(){
+	for(int n=0; n<lmp::LEN; n++)
+		checkState(n);
 }
 
 void Lamps::on(uint8_t n){
@@ -103,7 +168,7 @@ void Lamps::on(uint8_t n){
 
 	isOn[n] = true;
 	resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
-	toput = 
+	toput =
 	"{\"on\": true, \"transitiontime\": 0,\"bri\":"	+ std::to_string(bri[n])
 	+ ",\"xy\":["+std::to_string(x[n])+","+std::to_string(y[n])+"]}";
 
@@ -116,9 +181,9 @@ void Lamps::on(){
 	std::lock_guard<std::mutex> guard(lamp_mutex);
 
 	for(int n=0; n<lmp::LEN; n++){
-		isOn[n] = true;		
+		isOn[n] = true;
 		resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
-		toput = 
+		toput =
 		"{\"on\": true, \"transitiontime\": 0,\"bri\":"	+ std::to_string(bri[n])
 		+ ",\"xy\":["+std::to_string(x[n])+","+std::to_string(y[n])+"]}";
 
@@ -142,7 +207,7 @@ void Lamps::setState(std::string json){
 	}
 }
 
-void Lamps::set_ctBri(uint8_t n, uint16_t ct_, uint8_t bri_){
+void Lamps::set_ctBri_f(uint8_t n, uint8_t bri_, uint16_t ct_){
 	if(isOn[n]){
 		std::string resource;
 		std::string json;
@@ -151,14 +216,55 @@ void Lamps::set_ctBri(uint8_t n, uint16_t ct_, uint8_t bri_){
 		ct[n] = ct_;
 		bri[n] = bri_;
 		colormode[n] = "ct";
-	
+
 		json = "{\"bri\": "+std::to_string(bri_)+", \"ct\": "+std::to_string(ct_)+"}";
 		resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
 		put(resource, json);
 	}
 }
 
-void Lamps::set_ctBri(uint16_t ct_, uint8_t bri_){
+void Lamps::set_ctBri_f(uint8_t n, uint8_t bri_, uint16_t ct_, uint8_t transitionTime){
+	if(isOn[n]){
+		std::string resource;
+		std::string json;
+		std::lock_guard<std::mutex> guard(lamp_mutex);
+
+		ct[n] = ct_;
+		bri[n] = bri_;
+		colormode[n] = "ct";
+
+		json = "{\"bri\": "+std::to_string(bri_)+", \"ct\": "+std::to_string(ct_)
+		+", \"transitiontime\": "+std::to_string(transitionTime)+"}";
+		resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
+		put(resource, json);
+	}
+}
+
+void Lamps::set_ctBri_f(uint8_t n, uint8_t bri_, uint16_t ct_, uint8_t transitionTime, bool on){
+	std::string resource;
+	std::string json;
+	std::string onStr = "{\"on\": true, ";
+	std::string offStr = "{\"on\": false, ";
+	std::lock_guard<std::mutex> guard(lamp_mutex);
+
+	ct[n] = ct_;
+	bri[n] = bri_;
+	colormode[n] = "ct";
+	isOn[n]= on;
+
+	if(on)
+		json = onStr+"\"bri\": "+std::to_string(bri_)+", \"ct\": "+std::to_string(ct_)
+		+", \"transitiontime\": "+std::to_string(transitionTime)+"}";
+	else
+		json = offStr+"\"bri\": "+std::to_string(bri_)+", \"ct\": "+std::to_string(ct_)
+		+", \"transitiontime\": "+std::to_string(transitionTime)+"}";
+
+	resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
+	put(resource, json);
+
+}
+
+void Lamps::setAll_ctBri_f(uint8_t bri_, uint16_t ct_){
 	std::string resource;
 	std::string json;
 	std::lock_guard<std::mutex> guard(lamp_mutex);
@@ -176,12 +282,53 @@ void Lamps::set_ctBri(uint16_t ct_, uint8_t bri_){
 	}
 }
 
-bool Lamps::avgOn(){
+void Lamps::setAll_ctBri_f(uint8_t bri_, uint16_t ct_, uint8_t transitionTime){
+	std::string resource;
+	std::string json;
+	std::lock_guard<std::mutex> guard(lamp_mutex);
 
-	int total=0;		
+	for(int n=0; n<lmp::LEN; n++){
+		if(isOn[n]){
+			ct[n] = ct_;
+			bri[n] = bri_;
+			colormode[n] = "ct";
+
+			json = "{\"bri\": "+std::to_string(bri_)+", \"ct\": "+std::to_string(ct_)
+			+", \"transitiontime\": "+std::to_string(transitionTime)+"}";
+			resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
+			put(resource, json);
+		}
+	}
+}
+
+void Lamps::setAll_ctBri_f(uint8_t bri_, uint16_t ct_, uint8_t transitionTime, bool on){
+	std::string resource;
+	std::string json;
+	std::lock_guard<std::mutex> guard(lamp_mutex);
+	std::string onStr = "{\"on\": true, ";
+	std::string offStr = "{\"on\": false, ";
+
+	for(int n=0; n<lmp::LEN; n++){
+		ct[n] = ct_;
+		bri[n] = bri_;
+		colormode[n] = "ct";
+		isOn[n]= on;
+		if(on)
+			json = onStr+"\"bri\": "+std::to_string(bri_)+", \"ct\": "+std::to_string(ct_)
+			+", \"transitiontime\": "+std::to_string(transitionTime)+"}";
+		else
+			json = offStr+"\"bri\": "+std::to_string(bri_)+", \"ct\": "+std::to_string(ct_)
+			+", \"transitiontime\": "+std::to_string(transitionTime)+"}";
+		resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
+		put(resource, json);
+	}
+}
+
+bool Lamps::avgOn(){
+	int total=0;
 	for(int i=0; i<lmp::LEN; i++)
 		total += isOn[i];
-	
+
 	return total>0.5*lmp::LEN;
 }
 
@@ -189,23 +336,22 @@ bool Lamps::avgOn(){
 
 //TODO add correct numbers
 inline std::string Lamps::toId(uint8_t lampNumb){
-
 	switch(lampNumb){
 		case lmp::DOOR: //done
-			return "5";	
+			return "5";
 		case lmp::KITCHEN:
-			return "7";	
+			return "7";
 		case lmp::CEILING: //done
-			return "4";	
+			return "4";
 		case lmp::BATHROOM: //done
-			return "1";	
+			return "1";
 		case lmp::RADIATOR: //done
 			return "6";
 		case lmp::BUREAU: //done
 			return "2";
 		default:
-			std::cout<<"ERROR hiero-> "<<lampNumb<<" not a known lamp\n";	
-			break;		
+			std::cout<<"ERROR hiero-> "<<lampNumb<<" not a known lamp\n";
+			break;
 	}
 	return "0";
 }
@@ -214,9 +360,9 @@ inline std::string Lamps::toId(uint8_t lampNumb){
 inline int Lamps::toIntId(uint8_t lampNumb){
 	switch(lampNumb){
 		case lmp::DOOR:
-			return 5;	
+			return 5;
 		case lmp::KITCHEN:
-			return 7;	
+			return 7;
 		case lmp::CEILING:
 			return 4;
 		case lmp::BATHROOM:
@@ -226,10 +372,8 @@ inline int Lamps::toIntId(uint8_t lampNumb){
 		case lmp::BUREAU:
 			return 2;
 		default:
-			std::cout<<"ERROR -> "<<lampNumb<<" not a known lamp\n";	
-			break;				
+			std::cout<<"ERROR -> "<<lampNumb<<" not a known lamp\n";
+			break;
 	}
-
 	return 0;
 }
-
