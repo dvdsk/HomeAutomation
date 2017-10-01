@@ -21,9 +21,12 @@ void Lamps::off(uint8_t n){
 
 	isOn[n] = false;
 	resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)
-		+(std::string)+"/state";
-
+		       +(std::string)+"/state";
 	put(resource, "{\"on\": false, \"transitiontime\": 0}");
+
+	startCheck(n);
+	checkON(n);
+	finishCheck(n);
 }
 
 void Lamps::off(){
@@ -34,8 +37,12 @@ void Lamps::off(){
 	for(int n=0; n<lmp::LEN; n++){
 		isOn[n] = false;
 		resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)
-							 +(std::string)+"/state";
+						 +(std::string)+"/state";
 		put(resource, "{\"on\": false, \"transitiontime\": 0}");
+
+		startCheck(n);
+		checkON(n);
+		finishCheck(n);
 	}
 }
 
@@ -62,7 +69,6 @@ inline void Lamps::saveState(uint8_t n){
 inline void Lamps::saveFullState(uint8_t n){
 	std::string resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n);
 	std::string state = get(resource);
-	std::cout<<"ID:"<<+n<<" "<<state<<"\n";
 
 	int pos1 = state.find("bri");
 	int pos2 = state.find(",",pos1);
@@ -91,6 +97,84 @@ void Lamps::saveState(){
 void Lamps::saveFullState(){
 	for(int n=0; n<lmp::LEN; n++)
 		saveFullState(n);
+}
+
+void Lamps::startCheck(uint8_t n){
+	std::string colormode_;
+	toput = "{";
+
+	std::string resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n);
+	state = get(resource);
+}
+
+void Lamps::checkBri(uint8_t n){
+	int pos1 = state.find("bri");
+	int pos2 = state.find(",",pos1);
+	uint8_t bri_ = stoi(state.substr(pos1+5, pos2-pos1));
+
+	if(bri_ != bri[n])
+		toput += "\"bri\":"+std::to_string(bri[n])+",";
+}
+
+void Lamps::checkON(uint8_t n){
+	bool isOn_ = (state.substr(sizeof("\"state\":{\"on\""), 4) == "true");
+
+	if(isOn_ != isOn[n]){
+		if(isOn[n])
+			toput += "\"on\": true,";
+		else
+			toput += "\"on\": false,";
+	}
+}
+
+void Lamps::checkCt(uint8_t n){
+	int pos1 = state.find("ct", 73)+sizeof("ct\"");
+	uint16_t ct_ = stoi(state.substr(pos1, 3));
+
+	if(ct_ != ct[n]){
+		toput += "\"ct\":"+std::to_string(ct[n])+",";
+	}
+}
+
+void Lamps::checkColor(uint8_t n){
+	int pos1 = state.find("colormode", 103)+sizeof("colormode\":");
+	int pos2 = state.find(",", pos1)-1;
+	std::string colormode_ = state.substr(pos1, pos2-pos1);
+
+	if(colormode_.compare(colormode[n]) != 0){
+		if(colormode_.compare("ct") == 0)
+			toput += "\"ct\":"+std::to_string(ct[n])+",";
+		if(colormode_.compare("xy") == 0)
+			toput += "\"xy\":["+std::to_string(x[n])+","+std::to_string(y[n])+"],";
+		else
+			std::cerr<<"colormodes other then ct and xy not implemented";
+	}//check if colormode set correct
+	else{
+		if(colormode[n].compare("ct") == 0){
+			pos1 = state.find("ct", 73)+sizeof("ct\"");
+			uint16_t ct_ = stoi(state.substr(pos1, 3));
+			if(ct_ != ct[n]){
+				toput += "\"ct\":"+std::to_string(ct[n])+",";
+			}
+		}//check ct
+		else if(colormode[n].compare("xy") == 0){
+			pos1 = state.find("xy", 54)+sizeof("xy\":[");
+			float x_ = stof(state.substr(pos1, 5));
+			float y_ = stof(state.substr(state.find(",", pos1)+sizeof(","), 5));
+			if(x_ != x[n] || y_ != y[n]){
+				toput += "\"xy\":["+std::to_string(x[n])+","+std::to_string(y[n])+"],";
+			}
+		}//check xy
+	}//check xy or ct?
+}
+
+void Lamps::finishCheck(uint8_t n){
+	if(toput.length()>2){
+		toput.pop_back();
+		toput += "}";
+		std::string resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
+		put(resource, toput);
+	}
 }
 
 void Lamps::checkState(uint8_t n){
@@ -133,27 +217,22 @@ void Lamps::checkState(uint8_t n){
 
 	if(colormode_.compare("ct") == 0){
 		if(ct_ != ct[n]){
-			std::cout<<"ct_"<<ct_<<" "<<"ct[n]"<<ct[n]<<"\n";
 			toput += "\"ct\":"+std::to_string(ct[n])+",";
 		}
 	}
 	else{
 		if(x_ != x[n] || y_ != y[n]){
 			toput += "\"xy\":["+std::to_string(x[n])+","+std::to_string(y[n])+"],";
-			std::cout<<"x[n]"<<x[n]<<" "<<"x_"<<x_<<"\n"
-			         <<"y[n]"<<y[n]<<" "<<"y_"<<y_<<"\n";
 		}
 	}
 
 	if(toput.length()>2){
 		toput.pop_back();
 		toput += "}";
-		std::cout<<"correcting mistake with: "<<toput<<"\n";
 		resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
 		put(resource, toput);
 	}
 }
-
 
 void Lamps::checkState(){
 	for(int n=0; n<lmp::LEN; n++)

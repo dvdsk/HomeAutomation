@@ -31,6 +31,13 @@ class Lamps : public HttpSocket
 	void setState(uint8_t n, std::string json);
 	void setState(std::string json);
 
+	void startCheck(uint8_t n);
+	void checkBri(uint8_t n);
+	void checkCt(uint8_t n);
+	void checkON(uint8_t n);
+	void checkColor(uint8_t n);
+	void finishCheck(uint8_t n);
+
 	/* set properties for lamps */
 	void set_ctBri_f(uint8_t n, uint8_t bri_, uint16_t ct_);
 	void set_ctBri_f(uint8_t n, uint8_t bri_, uint16_t ct_, uint8_t transitionTime);
@@ -38,32 +45,58 @@ class Lamps : public HttpSocket
 	/* also check if the properties were set correctly */
 	void set_ctBri(uint8_t n, uint8_t bri_, uint16_t ct_){
 		set_ctBri_f(n, bri_, ct_);
-		checkState(n);
+		startCheck(n);
+		checkBri(n);
+		checkCt(n);
+		finishCheck(n);
 	}
 	void set_ctBri(uint8_t n, uint8_t bri_, uint16_t ct_, uint8_t transitionTime){
 		set_ctBri_f(n, bri_, ct_, transitionTime);
-		checkState(n);
+		startCheck(n);
+		checkBri(n);
+		checkCt(n);
+		finishCheck(n);
 	}
 	void set_ctBri(uint8_t n, uint8_t bri_, uint16_t ct_, uint8_t transitionTime, bool on){
 		set_ctBri_f(n, bri_, ct_, transitionTime, on);
-		checkState(n);
+		startCheck(n);
+		checkBri(n);
+		checkCt(n);
+		checkON(n);
+		finishCheck(n);
 	}
-	
+
 	void setAll_ctBri_f(uint8_t bri_, uint16_t ct_);
 	void setAll_ctBri_f(uint8_t bri_, uint16_t ct_, uint8_t transitionTime);
 	void setAll_ctBri_f(uint8_t bri_, uint16_t ct_, uint8_t transitionTime, bool on);
 	/* also check if the properties were set correctly */
 	void setAll_ctBri(uint8_t bri_, uint16_t ct_){
 		setAll_ctBri_f(bri_, ct_);
-		checkState();
+		for(int n=0; n<lmp::LEN; n++){
+			startCheck(n);
+			checkBri(n);
+			checkCt(n);
+			finishCheck(n);
+		}
 	}
 	void setAll_ctBri(uint8_t bri_, uint16_t ct_, uint8_t transitionTime){
 		setAll_ctBri_f(bri_, ct_, transitionTime);
-		checkState();
+		for(int n=0; n<lmp::LEN; n++){
+			startCheck(n);
+			checkBri(n);
+			checkCt(n);
+			finishCheck(n);
+		}
 	}
 	void setAll_ctBri(uint8_t bri_, uint16_t ct_, uint8_t transitionTime, bool on){
 		setAll_ctBri_f(bri_, ct_, transitionTime, on);
-		checkState();
+		for(int n=0; n<lmp::LEN; n++){
+			startCheck(n);
+			checkBri(n);
+			checkCt(n);
+			checkON(n);
+			finishCheck(n);
+		}
 	}
 
 	/* returns if most lights are on */
@@ -84,6 +117,9 @@ class Lamps : public HttpSocket
 
 	void checkState(uint8_t n);
 	void checkState();
+
+	std::string toput;
+	std::string state;
 
 	std::string colormode[lmp::LEN];
 	uint16_t ct[lmp::LEN];
