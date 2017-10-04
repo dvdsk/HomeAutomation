@@ -55,7 +55,7 @@ private:
 	     uint8_t replyLen);
 
 	uint32_t unix_timestamp();
-	uint32_t timeMicroSec();
+	int32_t timeMicroSec();
 
 	//for threading
 	std::thread* m_thread;
