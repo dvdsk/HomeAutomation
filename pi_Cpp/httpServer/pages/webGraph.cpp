@@ -60,7 +60,58 @@ std::string* WebGraph::plotly_mainPage(){
 	return page;
 }
 
+std::string* WebGraph::bathroomSensors(){
+	float y[MAXPLOTRESOLUTION];
+	uint32_t x[MAXPLOTRESOLUTION];
+	int	len;
 
+	std::string* page = new std::string;
+	plotly::PlotData plotDat(page);
+
+	*page ="\
+	<html>\
+		<head>\
+		  <script src=\"https://cdn.plot.ly/plotly-latest.min.js\"></script>\
+		</head>\
+\
+		<body>\
+			<div id=\"myDiv\" style=\"width: 90vw; height: 90vh;\"/div>\
+			<script>";
+
+
+	uint32_t now = this_unix_timestamp();
+
+	int secondsToPlot = 1*24*3600; //1 day
+	uint32_t t1 = now-secondsToPlot;
+	uint32_t t2 = now;
+
+	len = slowData->fetchSlowData(t1, t2, x, y, TEMP_BATHROOM);
+	std::cout<<"len: "<<len<<"\n";
+	plotly::add_trace(plotDat, x, y, len, plotly::TEMP, "temperature bed");
+
+	len = slowData->fetchSlowData(t1, t2, x, y, HUMIDITY_BATHROOM);
+	plotly::add_trace(plotDat, x, y, len, plotly::HUMID, "humidity bed");
+
+	plotly::setData(plotDat);
+	plotly::setLayout(plotDat);
+
+	*page += "\
+				Plotly.newPlot('myDiv', data, layout);\
+\
+				window.onresize = function reSize(){\
+					var update = {\
+						width: document.getElementById('myDiv').clientWidth,\
+						height: document.getElementById('myDiv').clientHeight\
+					};\
+					Plotly.relayout('myDiv', update);\
+				};\
+\
+			</script>\
+		</body>\
+	</html>";
+
+	return page;
+}
 
 std::string WebGraph::dy_mainPage(){
 

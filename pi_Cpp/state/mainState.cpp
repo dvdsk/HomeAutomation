@@ -105,7 +105,7 @@ void State::lampCheck_Bathroom(){
 		}
 	}
 	else{
-		std::cout<<data->isOn[lmp::BATHROOM]<<"\n";
+		//std::cout<<data->isOn[lmp::BATHROOM]<<"\n";
 		if(data->isOn[lmp::BATHROOM]){
 			ds("Turning bathroom lamps off\n")
 			data->off(lmp::BATHROOM);
@@ -117,7 +117,7 @@ void State::lampCheck_Bathroom(){
 inline void setAlarm(int nMinutes){
 	std::string syscall = "at now +"+std::to_string(nMinutes)+
 	                      " minutes <<< \"curl 192.168.1.10:8080/Scene/evening\"";
-	std::cout<<syscall<<"\n";
+	//std::cout<<syscall<<"\n";
 	system(syscall.c_str() );
 }
 

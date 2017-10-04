@@ -27,7 +27,7 @@ class ConnectionStats{
 		void callSucceeded();
 		uint16_t getSucceeded();
 		uint16_t getFailed();
-		uint16_t getRatio();
+		float getRatio();
 	private:	
 		std::bitset<1000> radioCallFailed; //init as all unset;
 		int nRadioCalls = 0; //goes up to 1000
@@ -43,6 +43,10 @@ public:
 	bool requestNodeInit(bool notshuttingDown, const uint8_t addr[]);
 	void updateNodes();
 private:
+	void checkFast(uint32_t now);
+	void rqSlowBathroom(uint32_t now);
+	void rqSlowBed(uint32_t now);
+
 	bool request_Init(const uint8_t addr[]);
 	bool waitForReply();
 
@@ -55,7 +59,7 @@ private:
 	     uint8_t replyLen);
 
 	uint32_t unix_timestamp();
-	int32_t timeMicroSec();
+	uint32_t timeMicroSec();
 
 	//for threading
 	std::thread* m_thread;
