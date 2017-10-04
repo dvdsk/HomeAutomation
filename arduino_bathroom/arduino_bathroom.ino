@@ -3,6 +3,7 @@
 #include <printf.h>
 #include "fastSensors.h"
 #include "encodingScheme.h"
+#include "libSHT31.h"
 
 namespace NODE_BATHROOM{
 	constexpr uint8_t addr[] = "4Node"; //addr may only diff in first byte
@@ -27,7 +28,6 @@ uint8_t slowMeasurementStatus = 0;
 
 void setup(){ 
   Serial.begin(115200); //Open serial connection to report values to host
-	configure_fast();
 	printf_begin();
 
   radio.begin();
@@ -44,28 +44,40 @@ void setup(){
 
 	radio.printDetails();
 	radio.startListening();            // Start listening  
-	Serial.println("Setup done\n");
+
+	//setup sensors
+	configure_fast();
+	TempHum::begin();
 }
 
 void(* resetFunc) (void) = 0; //declare reset function @ address 0
 
 void reInitVars(){
-	Serial.println("re-initting vars\n");
 	slowMeasurementStatus = 0;
 	reInit = true;
 	slowRdy = false;
+	TempHum::reset();
 
 	radio.stopListening();
-	while(!radio.write(&headers::INIT_DONE, 1)){ }
-	radio.startListening();	
+	unsigned long start = millis();
+	while(!radio.write(&headers::INIT_DONE, 1)){
+		Serial.println("trying to send");
+		if ((unsigned long)(millis() - start) >= 500){
+			Serial.println("re-init failed\n");
+			radio.startListening();
+			return;	//give up after 0.5 seconds
+		}
+	}
+	radio.startListening();
+	Serial.println("re-init complete\n");
 }
 
 bool checkRadio(bool &measureSlow){
 	uint8_t header;
 	if(radio.available()){
 		radio.read(&header, 1);
-		//Serial.print("gotheader: ");
-		//Serial.println(header);
+		Serial.print("gotheader: ");
+		Serial.println(header);
 		switch(header){
 			case headers::RQ_FAST:
 			handle_fast();
@@ -78,6 +90,7 @@ bool checkRadio(bool &measureSlow){
 			return true;
 			break;
 			case headers::RQ_MEASURE_SLOW:
+			Serial.println("got slow data measure rq");
 			measureSlow = true;
 			break;
 		}
@@ -118,26 +131,22 @@ void handle_readSlow(){
 }
 
 void measure_slow(bool (*checkRadio)(void)){
-	float tempC;
-	memset(NODE_BATHROOM::sBuf, 0, NODE_BATHROOM::LEN_sBuf);
+/*	uint16_t temp, hum;*/
 
-/*	Serial.println("sending measure requests to slow non continues sensors");*/
-/*	//send request for data to sensors*/
-/*	TempHumid::requestTemp();*/
+/*	TempHum::request();*/
+/*	memset(NODE_BATHROOM::sBuf, 0, NODE_BATHROOM::LEN_sBuf);*/
 
-/*	while(!TempHumid::readyToRead()){*/
+/*	while(!TempHum::readyToRead()){*/
 /*		if(checkRadio()){return; }*/
+/*		Serial.println("loop loop");*/
 /*	}*/
-/*	tempC = TempHumid::readTemperatureC();*/
-/*	Serial.println(tempC);*/
-/*	encode(NODE_BATHROOM::sBuf, (uint16_t)((tempC*10) +100),*/
+/*	TempHum::read(temp, hum);*/
+/*	Serial.println(temp);*/
+/*	Serial.println(hum);*/
+/*	encode(NODE_BATHROOM::sBuf, temp,*/
 /*	       EncSlowArduino::TEMP_DOOR, EncSlowArduino::LEN_TEMP);*/
-/*	TempHumid::requestHumid();*/
-
-/*	while(!TempHumid::readyToRead()){*/
-/*		if(checkRadio()) return;*/
-/*	}*/
-/*	encode(NODE_BATHROOM::sBuf, (uint16_t)(TempHumid::readHumidity(tempC)*10), */
+/*	encode(NODE_BATHROOM::sBuf, hum, */
 /*	       EncSlowArduino::HUM_DOOR, EncSlowArduino::LEN_HUM);*/
-	slowMeasurementStatus = headers::SLOW_RDY;
+
+/*	slowMeasurementStatus = headers::SLOW_RDY;*/
 }

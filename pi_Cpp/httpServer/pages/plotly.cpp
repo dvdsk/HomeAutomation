@@ -19,7 +19,7 @@ namespace plotly{
 		for(int i=0; i<len; i++){
 			rawtime = (time_t)x[i];
 			timeinfo = localtime(&rawtime);
-			strftime (buffer,24,"\'%F %T\', ",timeinfo); //2013-10-04 22:23:00 =format
+			strftime(buffer,24,"\'%F %T\', ",timeinfo); //2013-10-04 22:23:00 =format
 			data+= buffer;
 		}
 		data[data.length()-2] = ']';
