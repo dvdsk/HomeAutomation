@@ -46,7 +46,6 @@ bool TempHum::readyToRead(){
 	if (Wire.available() != 6) 
 		return false;
 	else{
-		Serial.println("true");
 		return true;
 	}
 }

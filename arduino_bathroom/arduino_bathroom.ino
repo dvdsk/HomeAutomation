@@ -19,7 +19,8 @@ void measure_slow(bool (*checkRadio)(void));
 void reInitVars();
 bool checkRadio(bool &measureSlow);
 
-
+//TODO debug
+uint32_t prevRQ, now, start, end, thisMessage, lastMessage;
 
 RF24 radio(pin::RADIO_CE, pin::RADIO_CS);
 bool reInit = false;
@@ -34,8 +35,8 @@ void setup(){
   //radio.setAutoAck(true);               // Ensure autoACK is enabled
   //radio.setPayloadSize(5);                
 
-  radio.setRetries(1,5);            // Smallest time between retries, max no. of retries
-	radio.setPALevel(RF24_PA_LOW);	  
+  radio.setRetries(1,15);            // Smallest time between retries, max no. of retries
+	radio.setPALevel(RF24_PA_HIGH);	  
   radio.setDataRate(RF24_250KBPS);
 	radio.setChannel(108);	            // 2.508 Ghz - Above most Wifi Channels
 
@@ -72,8 +73,10 @@ void reInitVars(){
 }
 
 bool checkRadio(bool &measureSlow){
+	start = millis(); //TODO remove this check
 	uint8_t header;
 	if(radio.available()){
+		thisMessage = millis();		
 		radio.read(&header, 1);
 		switch(header){
 			case headers::RQ_FAST:
@@ -87,10 +90,19 @@ bool checkRadio(bool &measureSlow){
 			return true;
 			break;
 			case headers::RQ_MEASURE_SLOW:
-			//Serial.println("got slow data measure rq");
+			if((uint32_t)(start-prevRQ) > 6000){
+				Serial.print((uint32_t)(start-prevRQ));
+				Serial.println(" - got slow data measure rq");		
+			}
+			prevRQ = start;
 			measureSlow = true;
 			break;
 		}
+/*		if((uint32_t)(thisMessage - lastMessage) > 25){*/
+/*			Serial.print(thisMessage - lastMessage);*/
+/*			Serial.println(" - time between messages");*/
+/*		}*/
+		lastMessage = thisMessage;
 	}
 	return false;
 }
@@ -116,11 +128,19 @@ void handle_fast(){
 	radio.stopListening();
 	radio.write(fBuf, NODE_BATHROOM::LEN_fBuf);
 	radio.startListening();
+
+	end = millis(); //TODO remove this check
+	if(end-start > 25){	
+		Serial.print((uint32_t)(end-start));	
+		Serial.println(" - trying to send fastdata");
+	}
 }
 
 void handle_readSlow(){
 	//no header in slow package
-	Serial.println("trying to send slowdata\n");
+/*	end = millis(); //TODO remove this check*/
+/*	Serial.print((uint32_t)(end-start));	*/
+/*	Serial.println(" - trying to send slowdata");*/
 	radio.stopListening();
 	if(radio.write(NODE_BATHROOM::sBuf, NODE_BATHROOM::LEN_sBuf))
 		slowMeasurementStatus = 0; //reset slowMeasurementStatus only if slow deliverd succesfully
@@ -128,7 +148,6 @@ void handle_readSlow(){
 }
 
 void measure_slow(bool (*checkRadio)(void)){
-
 	uint16_t temp, hum;
 
 	TempHum::request();
@@ -136,11 +155,8 @@ void measure_slow(bool (*checkRadio)(void)){
 
 	while(!TempHum::readyToRead()){
 		if(checkRadio()){return; }
-		Serial.println("loop loop");
 	}
 	TempHum::read(temp, hum);
-	Serial.println(temp);
-	Serial.println(hum);
 	encode(NODE_BATHROOM::sBuf, temp,
 	       EncSlowArduino::TEMP_DOOR, EncSlowArduino::LEN_TEMP);
 	encode(NODE_BATHROOM::sBuf, hum, 
