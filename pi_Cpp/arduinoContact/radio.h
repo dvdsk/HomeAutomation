@@ -42,7 +42,7 @@ namespace NODE_BATHROOM{
 }
 
 //time in which node must reply through awk package.
-constexpr int MAXDURATION = 500*1000*1000;//500*1000; //milliseconds
+constexpr uint32_t MAXDURATION = 10*1000*1000;//500*1000; //milliseconds
 
 namespace pin{
 	constexpr int RADIO_CE = 22;

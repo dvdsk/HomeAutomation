@@ -19,18 +19,15 @@ namespace NODE_BATHROOM{
 
 bool NodeMaster::requestNodeInit(bool notshuttingDown, const uint8_t addr[]){
  	bool succes = true;
-	uint32_t start_t = timeMicroSec();
-	do{
-		succes = succes && request_Init(addr);
-		if(succes){
-			NODE_BED::conStats.callSucceeded();
-			break;
-		}
-		else{
-			NODE_BED::conStats.callFailed(); 
-		}
+	int64_t start_t, now;
 
-		if(timeMicroSec()-start_t > MAXDURATION) {
+	start_t = timeMicroSec();
+	do{
+		succes = request_Init(addr);
+		if(succes){NODE_BED::conStats.callSucceeded(); break;	}
+		else NODE_BED::conStats.callFailed(); 
+
+		if((uint32_t)(timeMicroSec()-start_t) >= MAXDURATION) {
 			std::cerr<<"COULD NOT INIT NODE AT ADDR: '"<<addr<<"'"
 							 <<", check if node is online\n";
 			break;
@@ -43,11 +40,11 @@ bool NodeMaster::requestNodeInit(bool notshuttingDown, const uint8_t addr[]){
 		succes = false;
 		do{
 			succes = waitForReply();
-			if(timeMicroSec()-start_t > MAXDURATION) {
-				std::cerr<<"NO REPLY FROM NODE AT ADDR: '"<<addr<<"'"
-					       <<", something might be wrong with the program on it\n";
-				break;
-			}	
+//			if((uint32_t)(timeMicroSec()-start_t) >= MAXDURATION) { //TODO re-enable max wait
+//				std::cerr<<"NO REPLY FROM NODE AT ADDR: '"<<addr<<"'"
+//					       <<", something might be wrong with the program on it\n";
+//				break;
+//			}	
 		} while(!succes && notshuttingDown);
 	}
 	return succes;
@@ -178,6 +175,7 @@ void NodeMaster::updateNodes(){
 				succes = false;
 				do{
 					succes = request_slowMeasure(addr);
+					std::cout<<"requested node slowmeasure\n";
 					if(succes){
 						conStats.callSucceeded();
 						break;
@@ -208,7 +206,7 @@ bool NodeMaster::waitForReply(){
   start_t = timeMicroSec();
   bool gotreply = true;
 	while ( !available() ){
-		if (timeMicroSec() - start_t > MAXDURATION ){
+		if((uint32_t)(timeMicroSec()-start_t) >= MAXDURATION) {
       gotreply = false;
 			break;
 		}
@@ -272,7 +270,8 @@ uint32_t NodeMaster::unix_timestamp() {
   return now;
 }
 
-uint32_t NodeMaster::timeMicroSec(){
+//only works for half a second (500 millisec) then overflow happens
+int32_t NodeMaster::timeMicroSec(){
 	timeval tv;	
 	gettimeofday(&tv, nullptr);
 	return tv.tv_usec;
