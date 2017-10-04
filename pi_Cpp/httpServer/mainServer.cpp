@@ -125,6 +125,11 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 					response = MHD_create_response_from_buffer(pageString.length(), 
              	       (void *) pageString.c_str(), MHD_RESPMEM_MUST_COPY);
 				}
+				else if(0 == strcmp(url, "/graph4")){
+					pageString = *webGraph->bathroomSensors();	
+					response = MHD_create_response_from_buffer(pageString.length(), 
+             	       (void *) pageString.c_str(), MHD_RESPMEM_MUST_COPY);
+				}
 				else{
 					response = MHD_create_response_from_buffer(strlen (unknown_page), 
 					           (void *) unknown_page, MHD_RESPMEM_PERSISTENT);

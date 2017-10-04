@@ -9,7 +9,9 @@
 constexpr uint8_t COMPLETE_BED_NODE 		 = 0b00000001;
 constexpr uint8_t COMPLETE_KITCHEN_NODE  = 0b00000010;
 constexpr uint8_t COMPLETE_BATHROOM_NODE = 0b00000100;
-constexpr uint8_t ALL_COMPLETE = COMPLETE_BED_NODE;// | 
+
+constexpr uint8_t ALL_COMPLETE = COMPLETE_BATHROOM_NODE;
+/*constexpr uint8_t ALL_COMPLETE = COMPLETE_BED_NODE | */
 /*                                 COMPLETE_KITCHEN_NODE | */
 /*                                 COMPLETE_BATHROOM_NODE;*/
 
@@ -20,7 +22,7 @@ namespace NODE_BED{
 	constexpr uint8_t LEN_sBuf = EncSlowArduino::LEN_BED_NODE;
 
 	constexpr uint8_t start  	 = EncSlowFile::START_BEDNODE;
-	constexpr uint8_t complete = COMPLETE_BED_NODE; //from decode.h
+	constexpr uint8_t complete = COMPLETE_BED_NODE;
 }
 
 namespace NODE_KITCHEN{
@@ -29,7 +31,7 @@ namespace NODE_KITCHEN{
 	constexpr uint8_t LEN_sBuf = EncSlowArduino::LEN_KITCHEN_NODE;
 
 	constexpr uint8_t start  	 = EncSlowFile::START_KITCHEN;
-	constexpr uint8_t complete = COMPLETE_KITCHEN_NODE; //from decode.h
+	constexpr uint8_t complete = COMPLETE_KITCHEN_NODE;
 }
 
 namespace NODE_BATHROOM{
@@ -38,11 +40,11 @@ namespace NODE_BATHROOM{
 	constexpr uint8_t LEN_sBuf = EncSlowArduino::LEN_KITCHEN_NODE;
 
 	constexpr uint8_t start  	 = EncSlowFile::START_BATHROOM;
-	constexpr uint8_t complete = COMPLETE_BATHROOM_NODE; //from decode.h
+	constexpr uint8_t complete = COMPLETE_BATHROOM_NODE;
 }
 
 //time in which node must reply through awk package.
-constexpr uint32_t MAXDURATION = 10*1000*1000;//500*1000; //milliseconds
+constexpr uint32_t MAXDURATION = 20*1000;// 20 = milliseconds
 
 namespace pin{
 	constexpr int RADIO_CE = 22;

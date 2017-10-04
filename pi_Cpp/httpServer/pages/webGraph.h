@@ -24,6 +24,7 @@ class WebGraph{
 	~WebGraph();
 	std::string dy_mainPage(); //uses dygraphs 
 	std::string* plotly_mainPage();
+	std::string* bathroomSensors();
 
 	char* dyCss;
 	char* dyjs;
