@@ -25,7 +25,8 @@ uint8_t readPIRs(){
 }
 
 void configure_fast(){
-	DDRD &= !PIR_SHOWER;
-	DDRD &= !PIR_WC;
-
+	pinMode(PIR_SHOWER, INPUT);
+	pinMode(PIR_WC, INPUT);
+//	DDRD &= !PIR_SHOWER;
+//	DDRD &= !PIR_WC;
 }

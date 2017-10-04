@@ -61,7 +61,6 @@ void reInitVars(){
 	radio.stopListening();
 	unsigned long start = millis();
 	while(!radio.write(&headers::INIT_DONE, 1)){
-		Serial.println("trying to send");
 		if ((unsigned long)(millis() - start) >= 500){
 			Serial.println("re-init failed\n");
 			radio.startListening();
@@ -76,8 +75,6 @@ bool checkRadio(bool &measureSlow){
 	uint8_t header;
 	if(radio.available()){
 		radio.read(&header, 1);
-		Serial.print("gotheader: ");
-		Serial.println(header);
 		switch(header){
 			case headers::RQ_FAST:
 			handle_fast();
@@ -90,7 +87,7 @@ bool checkRadio(bool &measureSlow){
 			return true;
 			break;
 			case headers::RQ_MEASURE_SLOW:
-			Serial.println("got slow data measure rq");
+			//Serial.println("got slow data measure rq");
 			measureSlow = true;
 			break;
 		}
@@ -131,22 +128,23 @@ void handle_readSlow(){
 }
 
 void measure_slow(bool (*checkRadio)(void)){
-/*	uint16_t temp, hum;*/
 
-/*	TempHum::request();*/
-/*	memset(NODE_BATHROOM::sBuf, 0, NODE_BATHROOM::LEN_sBuf);*/
+	uint16_t temp, hum;
 
-/*	while(!TempHum::readyToRead()){*/
-/*		if(checkRadio()){return; }*/
-/*		Serial.println("loop loop");*/
-/*	}*/
-/*	TempHum::read(temp, hum);*/
-/*	Serial.println(temp);*/
-/*	Serial.println(hum);*/
-/*	encode(NODE_BATHROOM::sBuf, temp,*/
-/*	       EncSlowArduino::TEMP_DOOR, EncSlowArduino::LEN_TEMP);*/
-/*	encode(NODE_BATHROOM::sBuf, hum, */
-/*	       EncSlowArduino::HUM_DOOR, EncSlowArduino::LEN_HUM);*/
+	TempHum::request();
+	memset(NODE_BATHROOM::sBuf, 0, NODE_BATHROOM::LEN_sBuf);
 
-/*	slowMeasurementStatus = headers::SLOW_RDY;*/
+	while(!TempHum::readyToRead()){
+		if(checkRadio()){return; }
+		Serial.println("loop loop");
+	}
+	TempHum::read(temp, hum);
+	Serial.println(temp);
+	Serial.println(hum);
+	encode(NODE_BATHROOM::sBuf, temp,
+	       EncSlowArduino::TEMP_DOOR, EncSlowArduino::LEN_TEMP);
+	encode(NODE_BATHROOM::sBuf, hum, 
+	       EncSlowArduino::HUM_DOOR, EncSlowArduino::LEN_HUM);
+
+	slowMeasurementStatus = headers::SLOW_RDY;
 }
