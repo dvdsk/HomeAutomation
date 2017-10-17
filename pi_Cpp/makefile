@@ -55,7 +55,7 @@ $(ODIR)/SlowData.o: dataStorage/SlowData.cpp dataStorage/SlowData.h dataStorage/
 	compression.h compression.h encodingScheme.h
 	$(CXX) $(CXXFLAGS) -o$@ -c dataStorage/SlowData.cpp
 
-$(ODIR)/decode.o: arduinoContact/decode.cpp arduinoContact/decode.h \
+$(ODIR)/decode.o: arduinoContact/decode.cpp arduinoContact/decode.h arduinoContact/radio.h\
 	compression.h encodingScheme.h
 	$(CXX) $(CXXFLAGS) -o$@ -c arduinoContact/decode.cpp		
 $(ODIR)/nodeMaster.o: arduinoContact/nodeMaster.cpp arduinoContact/nodeMaster.h\

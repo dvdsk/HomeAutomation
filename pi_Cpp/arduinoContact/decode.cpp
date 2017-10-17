@@ -20,7 +20,6 @@ void Decode::append_Slow(const uint32_t now, const uint8_t sBuf[],
 
 	bufferStatus |= completionPart;
 	if(bufferStatus == ALL_COMPLETE){
-		std::cout<<"writing to file\n";
 		slowData->process(writeBufS, now);
 		memset(writeBufS, 0, EncSlowFile::LEN_ENCODED);
 		bufferStatus = 0;
@@ -44,7 +43,7 @@ void Decode::process_Slow_BED(const uint32_t now, const uint8_t sBuf[])
 //	         <<", "<<sensorState->humidityValues[hum::BED]<<", "
 //	         <<sensorState->Pressure<<"\n";
 
-	append_Slow(now, sBuf, NODE_BED::start, 
+	append_Slow(now, sBuf, roundUp(EncSlowFile::START_BEDNODE,8), 
 	            NODE_BED::LEN_sBuf, NODE_BED::complete);	
 }
 
@@ -59,7 +58,7 @@ void Decode::process_Slow_KITCHEN(const uint32_t now, const uint8_t sBuf[])
 	sensorState->humidityValues_updated = true;
 	signalState->runUpdate();
 
-	append_Slow(now, sBuf, NODE_KITCHEN::start, 
+	append_Slow(now, sBuf, roundUp(EncSlowFile::START_KITCHEN,8), 
 	            NODE_KITCHEN::LEN_sBuf, NODE_KITCHEN::complete);
 }
 
@@ -69,17 +68,17 @@ void Decode::process_Slow_BATHROOM(const uint32_t now, const uint8_t sBuf[])
 	sensorState->tempValues[temp::BATHROOM] 
 	= decode(sBuf, EncSlowArduino::TEMP_BATHROOM, EncSlowArduino::LEN_TEMP);
 	sensorState->tempValues_updated = true;
-	std::cout<<sensorState->tempValues[temp::BATHROOM]<<"\n";
+	//std::cout<<sensorState->tempValues[temp::BATHROOM]<<"\n";
 
 
 	sensorState->humidityValues[hum::BATHROOM] 
 	= decode(sBuf, EncSlowArduino::HUM_BATHROOM, EncSlowArduino::LEN_HUM);
 	sensorState->humidityValues_updated = true;
-	std::cout<<sensorState->humidityValues[hum::BATHROOM]<<"\n";
+	//std::cout<<sensorState->humidityValues[hum::BATHROOM]<<"\n";
 
 	signalState->runUpdate();
 
-	append_Slow(now, sBuf, NODE_BATHROOM::start, 
+	append_Slow(now, sBuf, roundUp(EncSlowFile::START_BATHROOM,8), 
 	            NODE_BATHROOM::LEN_sBuf, NODE_BATHROOM::complete);
 }
 
@@ -146,6 +145,10 @@ void Decode::process_Fast_BATHROOM(const uint32_t now, const uint8_t fBuf[])
 		active = (fBuf[0] & (1<<i))>>i;
 		//std::cout<<"active: "<<+active<<" "<<(1<<i)<<" "<<i<<"\n";
 		sensorState->movement[j] = !active*sensorState->movement[j] + active*now;
+		//TODO
+		if((fBuf[0] & (1<<i))>>i)
+			std::cout<<sensorState->movement[j]<<"\n";
+
 	}
 //	std::cout<<"BATHROOM_WC: "<<sensorState->movement[mov::BATHROOM_WC]
 //	         <<" BATHROOM_SHOWER: "<<sensorState->movement[mov::BATHROOM_SHOWER]<<"\n";

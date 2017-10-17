@@ -81,7 +81,7 @@ FILE* Data::getFileP(){
 void Data::append(const uint8_t line[], const uint32_t Tstamp){
   uint8_t towrite[MAXPACKAGESIZE];
   uint16_t timeLow;
-  
+
   //we need to put a full timestamp package in front of this package if
   //we have just started again, time < halfAday and we have not set the first
   //timestamp, or time > halfAday and we have not set the second timestamp.
@@ -776,7 +776,6 @@ double Data::meanT(uint32_t* array, int len){
   uint32_t Mean = 0;
   uint32_t first = *(array+0);
   for(int i = 1; i<len; i++){ Mean = Mean+*(array+i)-first;}
-	std::cout<<len<<", "<<Mean<<"\n";
   Mean /= len;
   Mean += first;
   return (double)Mean;

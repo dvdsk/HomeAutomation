@@ -112,8 +112,10 @@ void Lamps::checkBri(uint8_t n){
 	int pos2 = state.find(",",pos1);
 	uint8_t bri_ = stoi(state.substr(pos1+5, pos2-pos1));
 
-	if(bri_ != bri[n])
+	if(bri_ != bri[n]){
 		toput += "\"bri\":"+std::to_string(bri[n])+",";
+		std::cout<<"bri: "<<bri_<<"\n";
+	}
 }
 
 void Lamps::checkON(uint8_t n){
@@ -252,6 +254,12 @@ void Lamps::on(uint8_t n){
 	+ ",\"xy\":["+std::to_string(x[n])+","+std::to_string(y[n])+"]}";
 
 	put(resource, toput);
+
+	startCheck(n);
+	checkON(n);
+	checkBri(n);
+	checkColor(n);
+	finishCheck(n);
 }
 
 void Lamps::on(){
@@ -267,6 +275,14 @@ void Lamps::on(){
 		+ ",\"xy\":["+std::to_string(x[n])+","+std::to_string(y[n])+"]}";
 
 		put(resource, toput);
+	}
+
+	for(int n=0; n<lmp::LEN; n++){
+		startCheck(n);
+		checkON(n);
+		checkBri(n);
+		checkColor(n);
+		finishCheck(n);
 	}
 }
 
