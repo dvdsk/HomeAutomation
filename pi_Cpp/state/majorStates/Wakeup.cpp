@@ -120,4 +120,5 @@ bool WakeUp::stillValid(){
 
 void WakeUp::updateOnSensors(){
 	//std::cout<<"updated based on sensor values and stuff\n";
+	lampCheck_Bathroom();
 }

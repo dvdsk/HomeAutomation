@@ -24,6 +24,7 @@
  #include "WProgram.h"
 #endif
 #include "Wire.h"
+#include "config.h"
 
 //#define SHT31_DEFAULT_ADDR    0x44
 /*#define SHT31_MEAS_HIGHREP_STRETCH 0x2C06*/

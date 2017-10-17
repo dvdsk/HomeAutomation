@@ -113,6 +113,47 @@ std::string* WebGraph::bathroomSensors(){
 	return page;
 }
 
+std::string* WebGraph::bathRoomJS(){
+	float y[MAXPLOTRESOLUTION];
+	uint32_t x[MAXPLOTRESOLUTION];
+	int	len;
+
+	std::string* page = new std::string;
+	plotly::PlotData plotDat(page);
+
+	*page ="<script>";
+
+	uint32_t now = this_unix_timestamp();
+
+	int secondsToPlot = 1*24*3600; //1 day
+	uint32_t t1 = now-secondsToPlot;
+	uint32_t t2 = now;
+
+	len = slowData->fetchSlowData(t1, t2, x, y, TEMP_BATHROOM);
+	std::cout<<"len: "<<len<<"\n";
+	plotly::add_trace(plotDat, x, y, len, plotly::TEMP, "temperature bed");
+
+	len = slowData->fetchSlowData(t1, t2, x, y, HUMIDITY_BATHROOM);
+	plotly::add_trace(plotDat, x, y, len, plotly::HUMID, "humidity bed");
+
+	plotly::setData(plotDat);
+	plotly::setLayout(plotDat);
+
+	*page += "\
+				Plotly.newPlot('myDiv', data, layout);\
+\
+				window.onresize = function reSize(){\
+					var update = {\
+						width: document.getElementById('myDiv').clientWidth,\
+						height: document.getElementById('myDiv').clientHeight\
+					};\
+					Plotly.relayout('myDiv', update);\
+				};\
+\
+			</script>;
+
+	return page;
+}
 std::string WebGraph::dy_mainPage(){
 
 	uint32_t now = this_unix_timestamp();

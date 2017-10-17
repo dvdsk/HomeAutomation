@@ -18,6 +18,7 @@ bool GoingToSleep::stillValid(){
 
 void GoingToSleep::updateOnSensors(){
 	//std::cout<<"updated based on sensor values and stuff"<<"\n";
+	lampCheck_Bathroom();
 }
 
 

@@ -51,6 +51,7 @@ bool TempHum::readyToRead(){
 }
 
 void TempHum::read(uint16_t &temp, uint16_t &hum){
+	db("in readTempHumid") 
   uint8_t readbuffer[6];
 
 	for (uint8_t i=0; i<6; i++) {
