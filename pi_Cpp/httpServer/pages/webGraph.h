@@ -26,6 +26,7 @@ class WebGraph{
 	std::string* plotly_mainPage();
 	std::string* bathroomSensors();
 	std::string* listSensors();
+	std::string* bathRoomJS();
 
 	char* dyCss;
 	char* dyjs;

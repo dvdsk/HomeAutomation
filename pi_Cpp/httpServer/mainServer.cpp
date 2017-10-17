@@ -131,7 +131,10 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
              	       (void *) pageString.c_str(), MHD_RESPMEM_MUST_COPY);
 				}
 				else if(0 == strcmp(url, "/listData")){
-					pageString = *webGraph->listSensors();	
+					pageString = *webGraph->listSensors();
+				}	
+				else if(0 == strcmp(url, "/bathRoomJS")){
+					pageString = *webGraph->bathRoomJS();	
 					response = MHD_create_response_from_buffer(pageString.length(), 
              	       (void *) pageString.c_str(), MHD_RESPMEM_MUST_COPY);
 				}

@@ -1,6 +1,14 @@
 #ifndef CONFIG
 #define CONFIG
 
+#define DEBUG //turn on off as needed
+
+#ifdef PRINT_DEBUGLINES
+#define db(x) Serial.println(x);
+#else
+#define db(x)
+#endif
+
 #include <Arduino.h> //needed for Serial.print
 
 //note also change this in config of decoder class (USED FOR DECODING/ENCODING AIRPRESSURE)
