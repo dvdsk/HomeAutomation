@@ -81,7 +81,7 @@ std::string* WebGraph::bathroomSensors(){
 
 	uint32_t now = this_unix_timestamp();
 
-	int secondsToPlot = 1*24*3600; //1 day
+	int secondsToPlot = 2*3600; //1 day
 	uint32_t t1 = now-secondsToPlot;
 	uint32_t t2 = now;
 
@@ -109,6 +109,40 @@ std::string* WebGraph::bathroomSensors(){
 			</script>\
 		</body>\
 	</html>";
+
+	return page;
+}
+
+std::string* WebGraph::listSensors(){
+	float y[MAXPLOTRESOLUTION];
+	uint32_t x[MAXPLOTRESOLUTION];
+	int	len;
+
+	std::string* page = new std::string;
+	uint32_t now = this_unix_timestamp();
+
+	int secondsToPlot = 1*3600; //1 uur
+	uint32_t t1 = now-secondsToPlot;
+	uint32_t t2 = now;
+
+	int i = 4;
+	len = slowData->fetchSlowData(t1, t2, x, y, HUMIDITY_DOORHIGH);
+	std::cout<<y[i]<<"\n";
+	len = slowData->fetchSlowData(t1, t2, x, y, HUMIDITY_BATHROOM);
+	std::cout<<y[i]<<"\n";
+	len = slowData->fetchSlowData(t1, t2, x, y, HUMIDITY_BED);
+	std::cout<<y[i]<<"\n";
+	len = slowData->fetchSlowData(t1, t2, x, y, TEMP_DOORHIGH);
+	std::cout<<y[i]<<"\n";
+	len = slowData->fetchSlowData(t1, t2, x, y, TEMP_BATHROOM);
+	std::cout<<y[i]<<"\n";
+	len = slowData->fetchSlowData(t1, t2, x, y, TEMP_BED);
+	std::cout<<y[i]<<"\n";
+	std::cout<<"len: "<<len<<"\n";
+//	for(int i =0; i<len; i++){
+//		std::cout<<x[i]<<", "<<y[i]<<"\n";
+//	}
+
 
 	return page;
 }
@@ -154,6 +188,7 @@ std::string* WebGraph::bathRoomJS(){
 
 	return page;
 }
+>>>>>>> 5e3b742e73f396b3cf2b5a5ca17c275b7c931628
 std::string WebGraph::dy_mainPage(){
 
 	uint32_t now = this_unix_timestamp();

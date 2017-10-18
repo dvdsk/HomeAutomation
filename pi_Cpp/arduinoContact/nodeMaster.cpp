@@ -52,7 +52,8 @@ bool NodeMaster::requestNodeInit(bool notshuttingDown, const uint8_t addr[]){
 
 NodeMaster::NodeMaster(PirData* pirData, SlowData* slowData,
 	                     SensorState* sensorState, SignalState* signalState) 
-	: RF24(pin::RADIO_CE, pin::RADIO_CS), 
+	//: RF24(pin::RADIO_CE, pin::RADIO_CS), 
+	: RF24(pin::RADIO_CE, 0*10+0),
 		Decode(pirData, slowData, sensorState, signalState)
 {
 	bool succes = true;
@@ -180,7 +181,7 @@ void NodeMaster::rqSlowBed(uint32_t now){
 				checkFast(now);			
 			}
 			if( (uint32_t)(timeMicroSec()-startedRq) > MAXDURATION*10){
-				std::cout<<"SLOWBED TIMEOUT\n";
+				//std::cout<<"SLOWBED TIMEOUT\n";
 				break;
 			}
 
@@ -203,12 +204,8 @@ void NodeMaster::updateNodes(){
 
 		//instruct nodes to start there low freq measurements
 		now = unix_timestamp();	
-		if(now-last >= 5){//every 5 seconds do this loop
-			std::cout<<"numFailed: "<<NODE_BATHROOM::conStats.getFailed()<<"\n";		
-			std::cout<<"numSucceeded: "<<NODE_BATHROOM::conStats.getSucceeded()<<"\n";
-			std::cout<<"ratio: "<<NODE_BATHROOM::conStats.getRatio()<<"\n";		
+		if(now-last >= 5){//every 5 seconds do this loop	
 			last = now;
-			std::cout<<"trying to request measurement\n";	
 
 			//take max 3*MAXDURATION << 1 second so now need not be fetched again
 			rqSlowBathroom(now); 

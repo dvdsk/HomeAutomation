@@ -18,7 +18,7 @@ SlowData::SlowData(const std::string filePath, uint8_t* cache, const int cacheLe
 }
 
 bool SlowData::newData(const uint8_t raw[EncSlowArduino::LEN_ENCODED], uint16_t light_Mean[3]){
-	for(int i = 1; i<9; i++){
+	for(int i = 1; i<EncSlowFile::LEN_ENCODED+1; i++){//the +1 accounts for the timestamp
     if(raw[i] != prevRaw[i]){ return true;}
   }
 	if(light_Mean[lght::BED] 		 != prevLight_Mean[lght::BED]){ return true;}

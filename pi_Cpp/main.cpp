@@ -75,9 +75,10 @@ void updateVSlow_thread(StateData* stateData){
 }
 
 void interruptHandler(int s){
+  printf("Caught signal %d\n",s);
   fflush(file1);
   fflush(file2);
-  printf("Caught signal %d\n",s);
+	printf("Flushing files\n");
   exit(1); 
 }
 

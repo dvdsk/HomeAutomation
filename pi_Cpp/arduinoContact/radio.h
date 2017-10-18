@@ -18,29 +18,29 @@ constexpr uint8_t ALL_COMPLETE = COMPLETE_BATHROOM_NODE;
 
 namespace NODE_BED{
 	constexpr uint8_t addr[] = "2Node"; //addr may only diff in first byte
-	constexpr uint8_t LEN_fBuf = EncFastArduino::LEN_BED_NODE;
-	constexpr uint8_t LEN_sBuf = EncSlowArduino::LEN_BED_NODE;
+	constexpr int LEN_fBuf = EncFastArduino::LEN_BED_NODE;
+	constexpr int LEN_sBuf = EncSlowArduino::LEN_BED_NODE;
 
-	constexpr uint8_t start  	 = EncSlowFile::START_BEDNODE;
-	constexpr uint8_t complete = COMPLETE_BED_NODE;
+	constexpr int start  	 = EncSlowFile::START_BEDNODE;
+	constexpr int complete = COMPLETE_BED_NODE;
 }
 
 namespace NODE_KITCHEN{
 	constexpr uint8_t addr[] = "3Node"; //addr may only diff in first byte
-	constexpr uint8_t LEN_fBuf = EncFastArduino::LEN_KITCHEN_NODE;
-	constexpr uint8_t LEN_sBuf = EncSlowArduino::LEN_KITCHEN_NODE;
+	constexpr int LEN_fBuf = EncFastArduino::LEN_KITCHEN_NODE;
+	constexpr int LEN_sBuf = EncSlowArduino::LEN_KITCHEN_NODE;
 
-	constexpr uint8_t start  	 = EncSlowFile::START_KITCHEN;
-	constexpr uint8_t complete = COMPLETE_KITCHEN_NODE;
+	constexpr int start  	 = EncSlowFile::START_KITCHEN;
+	constexpr int complete = COMPLETE_KITCHEN_NODE;
 }
 
 namespace NODE_BATHROOM{
 	constexpr uint8_t addr[] = "4Node"; //addr may only diff in first byte
-	constexpr uint8_t LEN_fBuf = EncFastArduino::LEN_KITCHEN_NODE;
-	constexpr uint8_t LEN_sBuf = EncSlowArduino::LEN_KITCHEN_NODE;
+	constexpr int LEN_fBuf = EncFastArduino::LEN_BATHROOM_NODE;
+	constexpr int LEN_sBuf = EncSlowArduino::LEN_BATHROOMNODE;
 
-	constexpr uint8_t start  	 = EncSlowFile::START_BATHROOM;
-	constexpr uint8_t complete = COMPLETE_BATHROOM_NODE;
+	constexpr int start  	 = EncSlowFile::START_BATHROOM;
+	constexpr int complete = COMPLETE_BATHROOM_NODE;
 }
 
 //time in which node must reply through awk package.
