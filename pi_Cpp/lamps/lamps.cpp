@@ -114,7 +114,6 @@ void Lamps::checkBri(uint8_t n){
 
 	if(bri_ != bri[n]){
 		toput += "\"bri\":"+std::to_string(bri[n])+",";
-		std::cout<<"bri: "<<bri_<<"\n";
 	}
 }
 
@@ -303,14 +302,14 @@ void Lamps::setState(std::string json){
 }
 
 void Lamps::set_ctBri_f(uint8_t n, uint8_t bri_, uint16_t ct_){
+	ct[n] = ct_;
+	bri[n] = bri_;
+	colormode[n] = "ct";
+
 	if(isOn[n]){
 		std::string resource;
 		std::string json;
 		std::lock_guard<std::mutex> guard(lamp_mutex);
-
-		ct[n] = ct_;
-		bri[n] = bri_;
-		colormode[n] = "ct";
 
 		json = "{\"bri\": "+std::to_string(bri_)+", \"ct\": "+std::to_string(ct_)+"}";
 		resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
@@ -319,14 +318,14 @@ void Lamps::set_ctBri_f(uint8_t n, uint8_t bri_, uint16_t ct_){
 }
 
 void Lamps::set_ctBri_f(uint8_t n, uint8_t bri_, uint16_t ct_, uint8_t transitionTime){
+	ct[n] = ct_;
+	bri[n] = bri_;
+	colormode[n] = "ct";
+
 	if(isOn[n]){
 		std::string resource;
 		std::string json;
 		std::lock_guard<std::mutex> guard(lamp_mutex);
-
-		ct[n] = ct_;
-		bri[n] = bri_;
-		colormode[n] = "ct";
 
 		json = "{\"bri\": "+std::to_string(bri_)+", \"ct\": "+std::to_string(ct_)
 		+", \"transitiontime\": "+std::to_string(transitionTime)+"}";
@@ -365,11 +364,11 @@ void Lamps::setAll_ctBri_f(uint8_t bri_, uint16_t ct_){
 	std::lock_guard<std::mutex> guard(lamp_mutex);
 
 	for(int n=0; n<lmp::LEN; n++){
-		if(isOn[n]){
-			ct[n] = ct_;
-			bri[n] = bri_;
-			colormode[n] = "ct";
+		ct[n] = ct_;
+		bri[n] = bri_;
+		colormode[n] = "ct";
 
+		if(isOn[n]){
 			json = "{\"bri\": "+std::to_string(bri_)+", \"ct\": "+std::to_string(ct_)+"}";
 			resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";
 			put(resource, json);
@@ -383,11 +382,11 @@ void Lamps::setAll_ctBri_f(uint8_t bri_, uint16_t ct_, uint8_t transitionTime){
 	std::lock_guard<std::mutex> guard(lamp_mutex);
 
 	for(int n=0; n<lmp::LEN; n++){
-		if(isOn[n]){
-			ct[n] = ct_;
-			bri[n] = bri_;
-			colormode[n] = "ct";
+		ct[n] = ct_;
+		bri[n] = bri_;
+		colormode[n] = "ct";
 
+		if(isOn[n]){
 			json = "{\"bri\": "+std::to_string(bri_)+", \"ct\": "+std::to_string(ct_)
 			+", \"transitiontime\": "+std::to_string(transitionTime)+"}";
 			resource = (std::string)BASE_URL+(std::string)"/lights/"+toId(n)+"/state";

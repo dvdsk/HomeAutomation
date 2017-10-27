@@ -74,7 +74,7 @@ void Decode::process_Slow_BATHROOM(const uint32_t now, const uint8_t sBuf[])
 	sensorState->humidityValues[hum::BATHROOM] 
 	= decode(sBuf, EncSlowArduino::HUM_BATHROOM, EncSlowArduino::LEN_HUM);
 	sensorState->humidityValues_updated = true;
-	//std::cout<<sensorState->humidityValues[hum::BATHROOM]<<"\n";
+	std::cout<<sensorState->humidityValues[hum::BATHROOM]<<"\n";
 
 	signalState->runUpdate();
 
