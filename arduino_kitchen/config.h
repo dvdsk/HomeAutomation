@@ -1,6 +1,14 @@
 #ifndef CONFIG
 #define CONFIG
 
+#define DEBUG //turn on off as needed
+
+#ifdef PRINT_DEBUGLINES
+#define db(x) Serial.println(x);
+#else
+#define db(x)
+#endif
+
 #include <Arduino.h> //needed for Serial.print
 
 //note also change this in config of decoder class (USED FOR DECODING/ENCODING AIRPRESSURE)
@@ -17,7 +25,6 @@ namespace pin {
 	constexpr int TERM_DATA = A4; //PA2 (hard coded register banks)
 	constexpr int TERM_CLOCK = A5; //PA0 (hard coded register banks)
 
-	constexpr int LIGHT_BED = 6; //anolog in
 	constexpr int PIR_BED_NORTH = 26; //PA4
 	constexpr int PIR_BED_SOUTH = 28; //PA6
 

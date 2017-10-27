@@ -10,22 +10,15 @@
 
 
 //set both pins to locations on a bank that match this mask
-constexpr int PIR_SHOES_WEST = 0b00000100;
-constexpr int PIR_SHOES_EAST = 0b00001000;
-constexpr int PIR_DOOR =       0b00010000;
-constexpr int PIR_KITCHEN =    0b00100000;
+constexpr int PIR_SHOES_WEST = 0b00000100; //D2
+constexpr int PIR_SHOES_EAST = 0b00001000; //D3
+constexpr int PIR_DOOR =       0b00010000; //D4
+constexpr int PIR_KITCHEN =    0b00100000; //D5
 
-class FastSensors{
+void readAndEncode(uint8_t buffer[]);
+uint8_t readPIRs();
+void configure_fast();
 
-	public:
-	FastSensors();
-	void readAndEncode(uint8_t buffer[]);
-	uint8_t readPIRs();
-	void begin();
-
-	private:
-	BH1750 lightSens1;
-	BH1750 lightSens2;
-};	
+	
 #endif
 

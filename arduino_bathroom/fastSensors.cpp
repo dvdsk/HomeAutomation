@@ -15,7 +15,6 @@ uint8_t readPIRs(){
 	//read registery of pin bank L (fast way to read state), 
 	//returns byte on is high bit off is low. See this chart for which bit in the 
 	//byte corrosponds to which pin http://forum.arduino.cc/index.php?topic=45329.0
-	//delay(1);//crashes if removed  TODO checkthis!!!
 	pirStat =  (PIND & PIR_SHOWER) >> 3; 
 	pirStat |= (PIND & PIR_WC) >> 3;
 	
