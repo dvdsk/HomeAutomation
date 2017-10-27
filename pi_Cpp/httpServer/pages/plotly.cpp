@@ -6,7 +6,16 @@ namespace plotly{
 		httpStr = httpStr_;
 		nAxis = 0;
 		nLines = 1;
-		layout = "var layout = {";
+		layout = "var layout = {\
+					showlegend: true,\
+					legend: {\"orientation\": \"h\"},\
+					margin: {\
+						l: 42,\
+						r: 20,\
+						b: 0,\
+						t: 0,\
+						pad: 0\
+					},";
 		traces = "var data = [";
 	}
 

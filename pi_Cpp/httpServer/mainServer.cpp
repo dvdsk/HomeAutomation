@@ -87,6 +87,17 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
     return MHD_YES;
   }
   
+	//password less test pages:
+	if(0 == strcmp(url, "/bathRoomJS.js")){
+		pageString = *webGraph->bathRoomJS();	
+		response = MHD_create_response_from_buffer(pageString.length(), 
+       	       (void *) pageString.c_str(), MHD_RESPMEM_MUST_COPY);	
+		ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+		MHD_destroy_response(response); //free memory of the respons
+		std::cout<<"HERE\n";
+		return ret;
+	}
+
   //correct password, repond dependig on url
   if (authorised_connection(connection)){
     
@@ -132,11 +143,6 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 				}
 				else if(0 == strcmp(url, "/listData")){
 					pageString = *webGraph->listSensors();
-				}	
-				else if(0 == strcmp(url, "/bathRoomJS")){
-					pageString = *webGraph->bathRoomJS();	
-					response = MHD_create_response_from_buffer(pageString.length(), 
-             	       (void *) pageString.c_str(), MHD_RESPMEM_MUST_COPY);
 				}
 				else{
 					response = MHD_create_response_from_buffer(strlen (unknown_page), 

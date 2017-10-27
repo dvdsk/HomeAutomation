@@ -122,10 +122,10 @@ class Lamps : public HttpSocket
 	std::string state;
 
 	std::string colormode[lmp::LEN];
-	uint16_t ct[lmp::LEN];
-	uint8_t bri[lmp::LEN];
-	float x[lmp::LEN];
-	float y[lmp::LEN];
+	std::atomic<uint16_t> ct[lmp::LEN];
+	std::atomic<uint8_t> bri[lmp::LEN];
+	std::atomic<float> x[lmp::LEN];
+	std::atomic<float> y[lmp::LEN];
 
 	/* translates between lampNumb and lampId */
 	std::string toId(uint8_t lampNumb);

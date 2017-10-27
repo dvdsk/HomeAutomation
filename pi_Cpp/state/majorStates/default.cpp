@@ -69,7 +69,6 @@ static void lightColor_thread(Default* currentState){
 			ct = CT_NIGHT;
 			bri = BRI_NIGHT;
 		}
-
 		currentState->data->setAll_ctBri(bri, ct);	
 		cv_default.wait_for(lk, 60*1s, [currentState](){return currentState->stop.load();});
 	}

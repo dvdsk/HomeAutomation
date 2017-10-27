@@ -155,7 +155,7 @@ std::string* WebGraph::bathRoomJS(){
 	std::string* page = new std::string;
 	plotly::PlotData plotDat(page);
 
-	*page ="<script>";
+	*page ="var div = document.getElementById('myDiv');";
 
 	uint32_t now = this_unix_timestamp();
 
@@ -173,22 +173,23 @@ std::string* WebGraph::bathRoomJS(){
 	plotly::setData(plotDat);
 	plotly::setLayout(plotDat);
 
+
+
 	*page += "\
-				Plotly.newPlot('myDiv', data, layout);\
+				Plotly.newPlot(div, data, layout);\
 \
-				window.onresize = function reSize(){\
-					var update = {\
-						width: document.getElementById('myDiv').clientWidth,\
-						height: document.getElementById('myDiv').clientHeight\
+				window.addEventListener('resize', function(){\
+				  div = document.getElementById('myDiv');\
+				 	var update = {\
+						width: document.getElementById(div).clientWidth,\
+						height: document.getElementById(div).clientHeight\
 					};\
-					Plotly.relayout('myDiv', update);\
-				};\
-\
-			</script>;
+					Plotly.relayout(div, update);}\
+				, true);";
 
 	return page;
 }
->>>>>>> 5e3b742e73f396b3cf2b5a5ca17c275b7c931628
+
 std::string WebGraph::dy_mainPage(){
 
 	uint32_t now = this_unix_timestamp();
