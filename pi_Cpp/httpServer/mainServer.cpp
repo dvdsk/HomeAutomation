@@ -3,6 +3,11 @@
 const char* orderRecieved = "<html><body>Order recieved.</body></html>";
 const char* unknown_page = "<html><body>A secret.</body></html>";
 const char* ok = "OK";
+TelegramBot* bot;
+HttpState* httpState;
+SignalState* signalState;
+WebGraph* webGraph; 
+StateData* stateData;														
 
 int print_out_key (void *cls, enum MHD_ValueKind kind, 
                    const char *key, const char *value)
@@ -24,44 +29,14 @@ inline int authorised_connection(struct MHD_Connection* connection){
   return !fail;
 }
 
-
-inline void convert_arguments(void* cls, TelegramBot*& bot, HttpState*& httpState, 
-	SignalState*& signalState, WebGraph*& webGraph){
-	void** arrayOfPointers;
-	void* element1;
-	void* element2;
-	void* element3;
-	void* element4;
-
-	//convert arguments back (hope this optimises well),
-	//this gives us access to all the classes below with all threads
-	//having the same functions and variables availible.
-	arrayOfPointers = (void**)cls;
-	element1 = (void*)*(arrayOfPointers+0);
-	element2 = (void*)*(arrayOfPointers+1);
-	element3 = (void*)*(arrayOfPointers+2);
-	element4 = (void*)*(arrayOfPointers+3);
-	bot = (TelegramBot*)element1;
-	httpState = (HttpState*)element2;
-	signalState = (SignalState*)element3;
-	webGraph = (WebGraph*)element4; 
-	return;																		 
-}
-
 int answer_to_connection(void* cls,struct MHD_Connection* connection, const char* url,
 		                     const char* method, const char* version, const char* upload_data,
 		                     size_t* upload_data_size, void** con_cls) {
   int ret;
   struct MHD_Response* response;  
 	struct connection_info_struct* con_info;
-	std::string pageString; //TODO change plotting platforms to get rid of this
+	std::string pageString = "";
 	char* page;
-
-	TelegramBot* bot;
-	HttpState* httpState;
-	SignalState* signalState;
-	WebGraph* webGraph;
-	convert_arguments(cls, bot, httpState, signalState, webGraph);
 
 	#ifdef DEBUG
 	printf ("New %s request for %s using version %s\n", method, url, version);
@@ -114,35 +89,11 @@ int answer_to_connection(void* cls,struct MHD_Connection* connection, const char
 
 					response = MHD_create_response_from_buffer(strlen (unknown_page), 
 					           (void *) orderRecieved, MHD_RESPMEM_PERSISTENT); 
-				}
-				//else request for data
-				else if(0 == strcmp(url, "/dygraph.css")){
-					page = webGraph->dyCss;
-					response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
-				             MHD_RESPMEM_PERSISTENT);
-				}
-				else if(0 == strcmp(url, "/dygraph.js")){
-					page = webGraph->dyjs;
-					response = MHD_create_response_from_buffer(strlen (page), (void *) page, 
-									   MHD_RESPMEM_PERSISTENT);
-				}				
-				else if(0 == strcmp(url, "/graph2")){
-					pageString = webGraph->dy_mainPage();
+				}	
+				else if(0 == strcmp(url, "/")){
+					mainPage(stateData, pageString);	
 					response = MHD_create_response_from_buffer(pageString.length(), 
              	       (void *) pageString.c_str(), MHD_RESPMEM_MUST_COPY);
-				}
-				else if(0 == strcmp(url, "/graph3")){
-					pageString = *webGraph->plotly_mainPage();	
-					response = MHD_create_response_from_buffer(pageString.length(), 
-             	       (void *) pageString.c_str(), MHD_RESPMEM_MUST_COPY);
-				}
-				else if(0 == strcmp(url, "/graph4")){
-					pageString = *webGraph->bathroomSensors();	
-					response = MHD_create_response_from_buffer(pageString.length(), 
-             	       (void *) pageString.c_str(), MHD_RESPMEM_MUST_COPY);
-				}
-				else if(0 == strcmp(url, "/listData")){
-					pageString = *webGraph->listSensors();
 				}
 				else{
 					response = MHD_create_response_from_buffer(strlen (unknown_page), 
@@ -295,11 +246,12 @@ char* load_file(const char* filename) {
 
 
 int thread_Https_serv(std::mutex* stop, 
-											TelegramBot* bot,
-											HttpState* httpState,
-											SignalState* signalState,
+											TelegramBot* bot_,
+											HttpState* httpState_,
+											SignalState* signalState_,
 											PirData* pirData,
-											SlowData* slowData){
+											SlowData* slowData,
+											StateData* stateData_){
 												
   struct MHD_Daemon* daemon;
   char *key_pem, *cert_pem;
@@ -314,21 +266,21 @@ int thread_Https_serv(std::mutex* stop,
     return 1;
   }
 
-	//create a shared memory space for webpage functions
-		std::shared_ptr<WebGraph> webGraph = std::make_shared<WebGraph>(pirData, slowData);
-
 
 	//make an array of pointers used to pass through to the
 	//awnser to connection function (the default handler). This array
 	//is read only. The pointers better be in shared memory space for 
 	//the awnser function to be able to reach them
-	void* arrayOfPointers[4] = {bot, httpState, signalState, webGraph.get()};
-
+	bot = bot_;
+	httpState = httpState_;
+	signalState = signalState_;
+	webGraph = new WebGraph(pirData, slowData);
+	stateData = stateData_;
 
 
   daemon = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY | MHD_USE_SSL | MHD_USE_DEBUG,
 														 config::HTTPSERVER_PORT, NULL, NULL,
-                             &answer_to_connection, (void*)arrayOfPointers,
+                             &answer_to_connection, NULL,
 														 MHD_OPTION_NOTIFY_COMPLETED, &request_completed, NULL,
                              MHD_OPTION_HTTPS_MEM_KEY, key_pem,
                              MHD_OPTION_HTTPS_MEM_CERT, cert_pem,

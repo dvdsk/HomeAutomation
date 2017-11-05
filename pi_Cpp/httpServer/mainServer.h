@@ -7,14 +7,15 @@
 #include <stdio.h>
 #include <mutex>
 #include <memory>
-
 #include <iostream>
 
 #include "../state/mainState.h"
 #include "../telegramBot/telegramBot.h"
 #include "pages/webGraph.h"
+#include "pages/mainPage.h"
 #include "../config.h"
 #include "../smallFunct/minimalShell.h"
+
 
 //following this tutorial:
 //https://www.gnu.org/software/libmicrohttpd/tutorial.html
@@ -57,14 +58,12 @@ int print_out_key (void *cls, enum MHD_ValueKind kind,
 									 const char *key, const char *value);
 
 int thread_Https_serv(std::mutex* stop, 
-											TelegramBot* bot,
-											HttpState* httpState,
-											SignalState* signalState,
-											PirData* pirData,
-											SlowData* slowData);
-
-inline void convert_arguments(void* cls, TelegramBot*& bot, HttpState*& httpState, 
-	SignalState*& signalState, WebGraph*& webGraph);
+											TelegramBot* bot_,
+											HttpState* httpState_,
+											SignalState* signalState_,
+											PirData* pirData_,
+											SlowData* slowData_,
+											StateData* stateData_);
 
 #endif
 

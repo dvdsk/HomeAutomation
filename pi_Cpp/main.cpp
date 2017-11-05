@@ -138,7 +138,8 @@ int main(int argc, char* argv[])
 	/*start the http server that serves the telegram bot and
 	  custom http protocol. NOTE: each connection spawns its 
 	  own thread.*/	
-	std::thread t1(thread_Https_serv, stopHttpServ, bot, httpState, signalState, pirDat, slowDat);
+	std::thread t1(thread_Https_serv, stopHttpServ, bot, httpState, 
+	               signalState, pirDat, slowDat, stateData);
 	std::cout<<"Https-Server started\n";
 
 	std::thread t2(updateVSlow_thread, stateData);
