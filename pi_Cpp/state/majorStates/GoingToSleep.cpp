@@ -3,7 +3,7 @@
 GoingToSleep::GoingToSleep(StateData* stateData)
 	: State(stateData)
 {
-	stateName = GOINGTOSLEEP_S;	
+	data->stateName = GOINGTOSLEEP_S;	
 	std::cout<<"Ran GoingToSleep state constructor"<<"\n";
 }
 

@@ -83,7 +83,7 @@ static void* threadFunction(WakeUp* currentState){
 WakeUp::WakeUp(StateData* stateData)
 	: State(stateData)
 {
-	stateName = WAKEUP_S;
+	data->stateName = WAKEUP_S;
 	data->newState = DEFAULT_S;
 
 	stateData->mpd->saveAndClearCP();

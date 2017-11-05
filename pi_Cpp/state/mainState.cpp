@@ -8,39 +8,39 @@ bool State::updateOnHttp(){
 	data->httpState->m.unlock();//unlock to indicate url has been read
 
 	if(url == "/|lamps/evening"){
-		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
+		if(data->stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		data->setAll_ctBri(254, 320, 10);
 	}
 	else if(url == "/|lamps/night"){
-		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
+		if(data->stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		data->setAll_ctBri(220, 500, 10);
 	}
 	else if(url == "/|lamps/bedlight"){
-		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
+		if(data->stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		data->setAll_ctBri(1, 500, 10);
 	}
 	else if(url == "/|lamps/normal"){
-		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
+		if(data->stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		data->setAll_ctBri(254, 220, 10);
 	}
 	else if(url == "/|lamps/alloff"){
-		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
+		if(data->stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		std::cout<<"should be turning lamps off\n";
 		data->Lamps::off();
 	}
 	else if(url == "/|lamps/allon"){
-		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
+		if(data->stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		data->Lamps::on();
 	}
 	else if(url == "/|lamps/toggle"){
-		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
+		if(data->stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		if(data->avgOn())
 			data->Lamps::off();
 		else
 			data->Lamps::on();
 	}
 	else if(url == "/|lamps/flicker"){
-		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
+		if(data->stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		for(int i=0; i<20; i++){
 			std::cout<<"test0\n";
 			data->Lamps::on(lmp::BUREAU);
@@ -54,7 +54,7 @@ bool State::updateOnHttp(){
 //		else{updateState=false;}
 //	}
 	else if(url == "/|state/default"){
-		if(stateName != DEFAULT_S){data->newState = DEFAULT_S;}
+		if(data->stateName != DEFAULT_S){data->newState = DEFAULT_S;}
 		else{updateState=false;}
 	}
 //	else if(url == "/|state/goingToSleep"){
@@ -66,11 +66,11 @@ bool State::updateOnHttp(){
 //		else{updateState=false;}
 //	}
 	else if(url == "/|state/minimal"){
-		if(stateName != MINIMAL_S){data->newState = MINIMAL_S;}
+		if(data->stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		else{updateState=false;}
 	}
 	else if(url == "/|state/wakeup"){
-		if(stateName != WAKEUP_S){data->newState = WAKEUP_S;}
+		if(data->stateName != WAKEUP_S){data->newState = WAKEUP_S;}
 		else{updateState=false;}
 	}
 

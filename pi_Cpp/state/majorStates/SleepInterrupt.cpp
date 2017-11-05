@@ -3,7 +3,7 @@
 SleepInterrupt::SleepInterrupt(StateData* stateData)
 	: State(stateData)
 {
-	stateName = SLEEPINTERRUPT_S;
+	data->stateName = SLEEPINTERRUPT_S;
 	std::cout<<"Ran SleepInterrupt state constructor"<<"\n";
 }
 

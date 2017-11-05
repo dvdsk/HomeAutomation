@@ -3,7 +3,7 @@
 Minimal::Minimal(StateData* stateData)
 	: State(stateData)
 {
-	stateName = MINIMAL_S;
+	data->stateName = MINIMAL_S;
 	std::cout<<"Ran Minimal state constructor"<<"\n";
 }
 

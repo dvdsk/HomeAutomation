@@ -76,7 +76,7 @@ static void lightColor_thread(Default* currentState){
 
 Default::Default(StateData* stateData)
 	: State(stateData){
-	stateName = DEFAULT_S;
+	data->stateName = DEFAULT_S;
 
 	stop = false;
 	m_thread = new std::thread(lightColor_thread, this);

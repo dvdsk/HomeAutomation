@@ -165,6 +165,7 @@ class StateData : public Lamps
 		uint32_t timeStateStarted;
 		
 		//stateBookKeeping
+		std::atomic<MajorStates> stateName;
 		std::atomic<MajorStates> newState;		
 		std::atomic<MajorStates> lastState;
 		MinorStates minorState;
@@ -182,7 +183,7 @@ class State
 	virtual ~State() = default;
 	bool updateOnHttp();	
 
-	std::atomic<MajorStates> stateName;//FIXME (atomic needed??)
+	//std::atomic<MajorStates> stateName;//TODO (moving to state data)
 	StateData* data;
 
 	protected:
