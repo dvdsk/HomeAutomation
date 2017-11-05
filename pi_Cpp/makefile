@@ -18,7 +18,7 @@ ifeq ($(RASPBERRYPI),$(IFRASPBERRY))
 endif
 
 ODIR = .BUILD
-OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o nodeMaster.o MainHeader.o  mainServer.o mainState.o telegramBot.o HttpSocket.o HttpsSocket.o commandline.o webGraph.o plotly.o dygraphs.o mpd.o lamps.o default.o SleepInterrupt.o GoingToSleep.o Minimal.o Wakeup.o sunSetRise.o minimalShell.o)
+OBJS = $(addprefix $(ODIR)/,main.o decode.o Cache.o MainData.o PirData.o SlowData.o nodeMaster.o MainHeader.o  mainServer.o mainState.o telegramBot.o HttpSocket.o HttpsSocket.o commandline.o webGraph.o mainPage.o plotly.o dygraphs.o mpd.o lamps.o default.o SleepInterrupt.o GoingToSleep.o Minimal.o Wakeup.o sunSetRise.o minimalShell.o)
 
 
 #these 3 lines allow 'make debug' to have debug prints and 'make' not
@@ -90,6 +90,9 @@ $(ODIR)/dygraphs.o: httpServer/pages/dygraphs.h httpServer/pages/dygraphs.cpp
 $(ODIR)/webGraph.o: httpServer/pages/webGraph.cpp httpServer/pages/webGraph.h \
 	httpServer/pages/dygraphs.h httpServer/pages/plotly.h config.h
 	$(CXX) $(CXXFLAGS) -o$@ -c httpServer/pages/webGraph.cpp
+$(ODIR)/mainPage.o: httpServer/pages/mainPage.cpp httpServer/pages/mainPage.h \
+	httpServer/pages/webStrings.h config.h
+	$(CXX) $(CXXFLAGS) -o$@ -c httpServer/pages/mainPage.cpp
 
 $(ODIR)/sunSetRise.o: smallFunct/sunSetRise.h smallFunct/sunSetRise.cpp 
 	$(CXX) $(CXXFLAGS) -o$@ -c smallFunct/sunSetRise.cpp
