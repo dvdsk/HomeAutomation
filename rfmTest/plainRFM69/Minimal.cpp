@@ -82,48 +82,44 @@ void receiver(){
 
 int main(){
     bareRFM69::reset(RESET_PIN); // sent the RFM69 a hard-reset.
-    /*
+
     rfm.setRecommended(); // set recommended paramters in RFM69.
 		rfm.setAES(false);
-		rfm.bareRFM69::setAesKey((void*)KEY, (int)sizeof(KEY));
+		//rfm.bareRFM69::setAesKey((void*)KEY, (int)sizeof(KEY));
     rfm.setPacketType(false, false); // set the used packet type.
 
     rfm.setBufferSize(2);   // set the internal buffer size.
-    rfm.setPacketLength(16); // set the packet length.
+    rfm.setPacketLength(4); // set the packet length.
 		rfm.setNodeAddress(99);
     
-		rfm.setFrequency((uint32_t) 433*1000*1000); // set the frequency.
-		rfm.baud300000(); // set the modulation parameters.
+		rfm.setFrequency((uint32_t) 434*1000*1000); // set the frequency.
+		//rfm.setFrf(433*1000*1000/61.03515625);
+		//rfm.baud9600(); // set the modulation parameters.
     rfm.receive();
-		*/
-
+		sender();
+    /*		
 		uint32_t freqHz = 433*1000*1000;
 		freqHz /= 61; // divide down by FSTEP to get FRF
-		/*
-		#define REG_FRFMSB        0x07
-		#define REG_FRFMID        0x08
-		#define REG_FRFLSB        0x09
-		rfm.writeRegister(REG_FRFMSB, freqHz >> 16);
-		rfm.writeRegister(REG_FRFMID, freqHz >> 8);
-		rfm.writeRegister(REG_FRFLSB, freqHz);
-		*/
-		//rfm.setFrequency((uint32_t) 433*1000*1000); // set the frequency.
+		rfm.setFrequency((uint32_t) 433*1000*1000); // set the frequency.
 		std::cout<<freqHz<<"\t\t"<<std::bitset<32>(freqHz)<<std::endl;
-		rfm.writeMultiple(RFM69_FRF_MSB, &freqHz, 3);
 		rfm.readMultiple(RFM69_FRF_MSB, &freqHz, 3);
 		std::cout<<freqHz<<"\t\t"<<std::bitset<32>(freqHz)<<std::endl;
-		//uint32_t freqHz2 = ((uint32_t)rfm.readRegister(REG_FRFMSB)<< 16) + ((uint16_t)rfm.readRegister(REG_FRFMID)<< 8) + rfm.readRegister(REG_FRFLSB);
-																 
+		std::cout<<rfm.readRegister24(RFM69_FRF_MSB)*61<<std::endl;
 
-		
-		//std::cout<<rfm.readRegister24(RFM69_FRF_MSB)*61<<std::endl;
-		//std::cout<<freqHz<<"\t\t"<<std::bitset<32>(freqHz)<<std::endl;
-
-				#define REG_FRFLSB        0x09
+		#define REG_FRFLSB        0x09
 		rfm.writeRegister(REG_FRFLSB, 22);
 		std::cout<<+rfm.readRegister(REG_FRFLSB)<<std::endl;
+
+		const char* test = "HELLO WORLD\0";
+		char testres[10];
+		rfm.writeFIFO((void*)test, sizeof(test));
+		rfm.readFIFO((void*)testres, sizeof(test));
+		for(unsigned int i; i<sizeof(test); i++)
+			std::cout<<testres[i];
+		std::cout<<std::endl;
 		//receiver();
     // set it to receiving mode.
+		*/
 }
 
 

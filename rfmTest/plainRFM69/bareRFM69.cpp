@@ -26,32 +26,15 @@ uint8_t bareRFM69::readRegister(uint8_t reg){
     return foo[1];
 }
 
-/*void bareRFM69::writeMultiple(uint8_t reg, void* data, uint8_t len){
-		reg = RFM69_WRITE_REG_MASK | (reg & RFM69_READ_REG_MASK);
-    spiWrite(spi_handle, (char*)&reg, 1); 
-    char* r = reinterpret_cast<char*>(data);
-    for (uint8_t i=0; i < len ; i++){
-        spiWrite(spi_handle, &r[len - i - 1], 1);
-    }
-}*/
 void bareRFM69::writeMultiple(uint8_t reg, void* data, uint8_t len){
 		char* buf = new char[len+1]; 
 		buf[0] = reg | RFM69_WRITE_REG_MASK;
 		for(int i=0, j=len; i<len; i++, j--)
 			buf[j] = ((char*)data)[i];
 		
-    spiXfer(spi_handle, buf, buf, len+1); 
-    //spiWrite(spi_handle, &r[len - i - 1], &r[len - i - 1], 1);
+    spiWrite(spi_handle, buf, len+1); 
 }
-/*
-void bareRFM69::readMultiple(uint8_t reg, void* data, uint8_t len){   
-		reg = reg % RFM69_READ_REG_MASK;
-    spiWrite(spi_handle, (char*)&reg, 1); 
-    char* r = reinterpret_cast<char*>(data);
-    for (uint8_t i=0; i < len ; i++){
-        spiRead(spi_handle, &r[len - i - 1], 1);
-    }
-}*/
+
 void bareRFM69::readMultiple(uint8_t reg, void* data, uint8_t len){   
 		char* buf = new char[len+1]; 
 		buf[0] = reg & RFM69_READ_REG_MASK; 
@@ -78,17 +61,19 @@ uint16_t bareRFM69::readRegister16(uint8_t reg){
 }
 
 void bareRFM69::writeFIFO(void* buffer, uint8_t len){
-    char* r = reinterpret_cast<char*>(buffer);
-		char reg = RFM69_WRITE_REG_MASK | (RFM69_FIFO & RFM69_READ_REG_MASK);
-    spiWrite(spi_handle, &reg, 1); 
-		spiWrite(spi_handle, r, len);
+    char* buf = new char[len+1]; 
+		buf[0] = RFM69_FIFO | RFM69_WRITE_REG_MASK;
+    memcpy(buf+1, buffer, len);
+		spiXfer(spi_handle, buf, buf, len+1);
+		std::cout<<+buf[1]<<std::endl;
 }
 
 void bareRFM69::readFIFO(void* buffer, uint8_t len){
-    char* r = reinterpret_cast<char*>(buffer);
-		char reg = RFM69_FIFO % RFM69_READ_REG_MASK;
-		spiWrite(spi_handle, &reg, 1); 
-		spiRead(spi_handle, r, len);
+    char* buf = new char[len+1]; 
+		buf[0] = RFM69_FIFO & RFM69_READ_REG_MASK; 
+		spiXfer(spi_handle, buf, buf, len+1);	
+		memcpy(buffer, buf+1, len);
+		std::cout<<+buf[1]<<std::endl;
 }
 
 uint8_t bareRFM69::readVariableFIFO(void* buffer, uint8_t max_length){
