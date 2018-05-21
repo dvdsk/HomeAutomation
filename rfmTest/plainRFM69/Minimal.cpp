@@ -6,6 +6,7 @@
 #include "plainRFM69.h"
 #include "bareRFM69.h"
 #include <iostream>
+#include <bitset>
 
 // slave select pin.
 #define SLAVE_SELECT_PIN 10     
@@ -95,29 +96,31 @@ int main(){
 		rfm.baud300000(); // set the modulation parameters.
     rfm.receive();
 		*/
-		/*
+
 		uint32_t freqHz = 433*1000*1000;
 		freqHz /= 61; // divide down by FSTEP to get FRF
+		/*
 		#define REG_FRFMSB        0x07
 		#define REG_FRFMID        0x08
 		#define REG_FRFLSB        0x09
 		rfm.writeRegister(REG_FRFMSB, freqHz >> 16);
 		rfm.writeRegister(REG_FRFMID, freqHz >> 8);
 		rfm.writeRegister(REG_FRFLSB, freqHz);
-		
-		uint32_t freqHz2 = ((uint32_t)rfm.readRegister(REG_FRFMSB)<< 16) + ((uint16_t)rfm.readRegister(REG_FRFMID)<< 8) + rfm.readRegister(REG_FRFLSB);
-																 
-		std::cout<<freqHz2*61<<std::endl;
-		rfm.readMultiple(RFM69_FRF_MSB, &freqHz, 3);
-		std::cout<<rfm.readRegister24(RFM69_FRF_MSB)*61<<std::endl;
-		std::cout<<freqHz*61<<std::endl;
 		*/
-				#define REG_FRFLSB        0x09
-		rfm.writeRegister(REG_FRFLSB, 0);
-		std::cout<<+rfm.readRegister(REG_FRFLSB)<<std::endl;
+		//rfm.setFrequency((uint32_t) 433*1000*1000); // set the frequency.
+		std::cout<<freqHz<<"\t\t"<<std::bitset<32>(freqHz)<<std::endl;
+		rfm.writeMultiple(RFM69_FRF_MSB, &freqHz, 3);
+		rfm.readMultiple(RFM69_FRF_MSB, &freqHz, 3);
+		std::cout<<freqHz<<"\t\t"<<std::bitset<32>(freqHz)<<std::endl;
+		//uint32_t freqHz2 = ((uint32_t)rfm.readRegister(REG_FRFMSB)<< 16) + ((uint16_t)rfm.readRegister(REG_FRFMID)<< 8) + rfm.readRegister(REG_FRFLSB);
+																 
+
 		
-		rfm.writeReg(REG_FRFLSB, 20);
-		//std::cout<<+rfm.readReg(REG_FRFLSB)<<std::endl;
+		//std::cout<<rfm.readRegister24(RFM69_FRF_MSB)*61<<std::endl;
+		//std::cout<<freqHz<<"\t\t"<<std::bitset<32>(freqHz)<<std::endl;
+
+				#define REG_FRFLSB        0x09
+		rfm.writeRegister(REG_FRFLSB, 22);
 		std::cout<<+rfm.readRegister(REG_FRFLSB)<<std::endl;
 		//receiver();
     // set it to receiving mode.
