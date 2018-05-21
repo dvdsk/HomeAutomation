@@ -23,7 +23,7 @@ Written by Christopher Laws, March, 2013.
 #endif
 #include "Wire.h"
 
-#define BH1750_DEBUG 1
+//#define BH1750_DEBUG 1
 
 constexpr uint8_t BH1750_I2CADDR_H = 0x5C;
 constexpr uint8_t BH1750_I2CADDR_L = 0x23;

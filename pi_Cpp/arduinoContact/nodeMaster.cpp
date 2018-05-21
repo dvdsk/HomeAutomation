@@ -65,11 +65,11 @@ NodeMaster::NodeMaster(PirData* pirData, SlowData* slowData,
   //setPayloadSize(5);                
 
   setRetries(1,15);            // Smallest time between retries, max no. of retries
-	setPALevel(RF24_PA_LOW);	  
-  setDataRate(RF24_250KBPS);
+	//setPALevel(RF24_PA_LOW);	  
+	setPALevel(RF24_PA_HIGH);	
+  setDataRate(RF24_250KBPS);	//RF24_250KBPS
 	setChannel(108);	           // 2.508 Ghz - Above most Wifi Channels
-
-	openWritingPipe(NODE_BED::addr);	
+	
 	openReadingPipe(PIPE, NODE_CENTRAL::addr);	
 
   printDetails();              // Dump the configuration of the rf unit for debugging
@@ -79,7 +79,8 @@ NodeMaster::NodeMaster(PirData* pirData, SlowData* slowData,
 	//request all nodes to reinitialise, setting all theire variables to the
 	//default values.
 	//TODO renable:	succes &= requestNodeInit(notshuttingDown, NODE_BED::addr);
-	succes &= requestNodeInit(notshuttingDown, NODE_BATHROOM::addr);
+	//succes &= requestNodeInit(notshuttingDown, NODE_BATHROOM::addr);
+	succes &= requestNodeInit(notshuttingDown, NODE_KITCHEN::addr);
 
 	if(succes){
 		std::cout<<"ALL NODES (RE-) INIT SUCCESFULLY\n";
@@ -129,6 +130,23 @@ void NodeMaster::checkFast(uint32_t now){
 				if(succes){
 					conStats.callSucceeded();
 					process_Slow_BATHROOM(now, sBuf);
+				}
+				else conStats.callFailed();
+			}
+		}
+		else conStats.callFailed();
+	}
+	{
+	using namespace NODE_KITCHEN;		
+		succes = requestAndListen_fast(fBuf, addr, LEN_fBuf);
+		if(succes){
+			conStats.callSucceeded();
+			process_Fast_KITCHEN(now, fBuf); 	
+			if(slowRdy(fBuf)){
+				succes = requestAndListen_slowValue(sBuf, addr, LEN_sBuf);
+				if(succes){
+					conStats.callSucceeded();
+					process_Slow_KITCHEN(now, sBuf);
 				}
 				else conStats.callFailed();
 			}

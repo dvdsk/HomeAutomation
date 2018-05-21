@@ -15,6 +15,14 @@ bool State::updateOnHttp(){
 		if(data->stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		data->setAll_ctBri(220, 500, 10);
 	}
+	else if(url == "/|lamps/bab"){
+		if(data->stateName != MINIMAL_S){data->newState = MINIMAL_S;}
+		data->setAll_ctBri(50, 500, 10);
+	}
+	else if(url == "/|lamps/bab2"){
+		if(data->stateName != MINIMAL_S){data->newState = MINIMAL_S;}
+		data->setAll_ctBri(25, 500, 10);
+	}
 	else if(url == "/|lamps/bedlight"){
 		if(data->stateName != MINIMAL_S){data->newState = MINIMAL_S;}
 		data->setAll_ctBri(1, 500, 10);
