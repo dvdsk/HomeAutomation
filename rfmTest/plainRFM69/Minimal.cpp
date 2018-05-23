@@ -84,20 +84,29 @@ int main(){
     bareRFM69::reset(RESET_PIN); // sent the RFM69 a hard-reset.
 
     rfm.setRecommended(); // set recommended paramters in RFM69.
-		rfm.setAES(false);
+	rfm.setAES(false);
 		//rfm.bareRFM69::setAesKey((void*)KEY, (int)sizeof(KEY));
     rfm.setPacketType(false, false); // set the used packet type.
 
     rfm.setBufferSize(2);   // set the internal buffer size.
     rfm.setPacketLength(4); // set the packet length.
-		rfm.setNodeAddress(99);
+	rfm.setNodeAddress(99);
     
-		rfm.setFrequency((uint32_t) 434*1000*1000); // set the frequency.
+	rfm.setFrequency((uint32_t) 434*1000*1000); // set the frequency.
 		//rfm.setFrf(433*1000*1000/61.03515625);
 		//rfm.baud9600(); // set the modulation parameters.
+	rfm.baud4800();
     rfm.receive();
-		sender();
-    /*		
+	//sender();	
+	//while(1){
+	//	rfm.startRssi();
+	//	while(!rfm.completedRssi());
+	//	std::cout<<rfm.getRssiValue()<<std::endl;
+	//	delayMicroseconds(1000000);
+	//}
+	
+	sender();
+    	/*	
 		uint32_t freqHz = 433*1000*1000;
 		freqHz /= 61; // divide down by FSTEP to get FRF
 		rfm.setFrequency((uint32_t) 433*1000*1000); // set the frequency.
@@ -110,7 +119,7 @@ int main(){
 		rfm.writeRegister(REG_FRFLSB, 22);
 		std::cout<<+rfm.readRegister(REG_FRFLSB)<<std::endl;
 
-		const char* test = "HELLO WORLD\0";
+		const char* test = "ELLO WORLD";
 		char testres[10];
 		rfm.writeFIFO((void*)test, sizeof(test));
 		rfm.readFIFO((void*)testres, sizeof(test));
@@ -118,8 +127,9 @@ int main(){
 			std::cout<<testres[i];
 		std::cout<<std::endl;
 		//receiver();
-    // set it to receiving mode.
 		*/
+    // set it to receiving mode.
+		
 }
 
 

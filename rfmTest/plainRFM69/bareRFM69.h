@@ -911,5 +911,6 @@ class bareRFM69 {
 uint32_t timeMicroSec();
 uint32_t millis();
 void delayMicroseconds(int dt);
+void delayMilleseconds(int dt);
 //BARE_RFM69_H
 #endif
