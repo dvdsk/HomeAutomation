@@ -1,7 +1,16 @@
+#include "RFM69HubNetwork.h"
+
+int main(){
+	RFM69HubNetwork RFM69HubNetwork("test", 99, 434*1000*1000);
+}
+
+
+
+
+
+
 /*
- *  Copyright (c) 2014, Ivor Wanders
- *  MIT License, see the LICENSE.md file in the root folder.
-*/
+
 
 #include "plainRFM69.h"
 #include "bareRFM69.h"
@@ -17,12 +26,9 @@
 // tie this pin down on the receiver.
 #define SENDER_DETECT_PIN 15
 
-/*
-    This is very minimal, it does not use the interrupt.
 
-    Using the interrupt is recommended.
-*/
 #define KEY "sampleEncryptKey"
+
 plainRFM69 rfm = plainRFM69();
 
 void sender(){
@@ -46,7 +52,7 @@ void sender(){
 
             // send the number of bytes equal to that set with setPacketLength.
             // read those bytes from memory where counter starts.
-            rfm.send(&counter);
+            rfm.sendAddressed(98, &counter);
             
             counter++; // increase the counter.
         }
@@ -54,13 +60,26 @@ void sender(){
     }
 }
 
-void receiver(){
-	uint32_t counter = 0; // to count the messages.
+inline void receiveOnce_withAwk(uint8_t* buffer){
+	rfm.poll(); // poll as often as possible.
 
-	while(true){
+	if(rfm.available()){ // for all available messages:
+		uint8_t len = rfm.read(buffer); // read the packet into the new_counter.
+		
+	}
+}
 
-		rfm.poll(); // poll as often as possible.
+void receiveWithAwk(){
+	
+}
 
+bool sendWithAwk(){
+	
+}
+
+bool reciever(){
+    while(true){
+		rfm.poll();
 		while(rfm.available()){ // for all available messages:
 			uint32_t received_count = 0; // temporary for the new counter.
 			uint8_t len = rfm.read(&received_count); // read the packet into the new_counter.
@@ -77,8 +96,8 @@ void receiver(){
 			// assign the received counter to our counter.
 			counter = received_count;
 		}
-	}
 }
+
 
 int main(){
     bareRFM69::reset(RESET_PIN); // sent the RFM69 a hard-reset.
@@ -86,50 +105,17 @@ int main(){
     rfm.setRecommended(); // set recommended paramters in RFM69.
 	rfm.setAES(false);
 		//rfm.bareRFM69::setAesKey((void*)KEY, (int)sizeof(KEY));
-    rfm.setPacketType(false, false); // set the used packet type.
+    rfm.setPacketType(false, true); // set the used packet type.
 
     rfm.setBufferSize(2);   // set the internal buffer size.
     rfm.setPacketLength(4); // set the packet length.
 	rfm.setNodeAddress(99);
     
 	rfm.setFrequency((uint32_t) 434*1000*1000); // set the frequency.
-		//rfm.setFrf(433*1000*1000/61.03515625);
-		//rfm.baud9600(); // set the modulation parameters.
-	rfm.baud4800();
-    rfm.receive();
-	//sender();	
-	//while(1){
-	//	rfm.startRssi();
-	//	while(!rfm.completedRssi());
-	//	std::cout<<rfm.getRssiValue()<<std::endl;
-	//	delayMicroseconds(1000000);
-	//}
-	
+	rfm.setPALevel(RFM69_PA_LEVEL_PA0_ON, 31);
+	rfm.baud9600();
+    rfm.receive();	
 	sender();
-    	/*	
-		uint32_t freqHz = 433*1000*1000;
-		freqHz /= 61; // divide down by FSTEP to get FRF
-		rfm.setFrequency((uint32_t) 433*1000*1000); // set the frequency.
-		std::cout<<freqHz<<"\t\t"<<std::bitset<32>(freqHz)<<std::endl;
-		rfm.readMultiple(RFM69_FRF_MSB, &freqHz, 3);
-		std::cout<<freqHz<<"\t\t"<<std::bitset<32>(freqHz)<<std::endl;
-		std::cout<<rfm.readRegister24(RFM69_FRF_MSB)*61<<std::endl;
-
-		#define REG_FRFLSB        0x09
-		rfm.writeRegister(REG_FRFLSB, 22);
-		std::cout<<+rfm.readRegister(REG_FRFLSB)<<std::endl;
-
-		const char* test = "ELLO WORLD";
-		char testres[10];
-		rfm.writeFIFO((void*)test, sizeof(test));
-		rfm.readFIFO((void*)testres, sizeof(test));
-		for(unsigned int i; i<sizeof(test); i++)
-			std::cout<<testres[i];
-		std::cout<<std::endl;
-		//receiver();
-		*/
-    // set it to receiving mode.
-		
 }
 
-
+*/
