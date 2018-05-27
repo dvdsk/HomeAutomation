@@ -60,11 +60,13 @@ void receiver(){
 
         while(rfm.available()){ // for all available messages:
 
-            uint32_t received_count = 0; // temporary for the new counter.
-            uint8_t len = rfm.read(&received_count); // read the packet into the new_counter.
+            uint8_t received_count[17];
+            *(uint32_t*)&received_count[1] = 0;
+            uint8_t len = rfm.read(received_count); // read the packet into the new_counter.
 
             // print verbose output.
-            Serial.print("Packet ("); Serial.print(len); Serial.print("): "); Serial.println(received_count);
+            //Serial.print("Packet ("); Serial.print(len); Serial.print("): "); Serial.println(*(uint32_t*)&received_count[1]);
+             Serial.print("Packet ("); Serial.print(len); Serial.print("): "); Serial.println(received_count[1]);
 
             if (counter+1 != received_count){
                 // if the increment is larger than one, we lost one or more packets.
@@ -84,16 +86,16 @@ void setup(){
     bareRFM69::reset(RESET_PIN); // sent the RFM69 a hard-reset.
 
     rfm.setRecommended(); // set recommended paramters in RFM69.
-    rfm.setPacketType(false, false); // set the used packet type.
+    rfm.setPacketType(true, true); // set the used packet type.
 
     rfm.setBufferSize(2);   // set the internal buffer size.
-    rfm.setPacketLength(4); // set the packet length.
+    //rfm.setPacketLength(16); // set the packet length.
     rfm.setNodeAddress(98);
     
     rfm.setFrequency((uint32_t) 434*1000*1000); // set the frequency.
     Serial.println("setup done!");
     // baudrate is default, 4800 bps now.
-    rfm.baud4800();
+    rfm.baud9600();
     rfm.receive();
     // set it to receiving mode.
 
@@ -102,12 +104,6 @@ void setup(){
 
 void loop(){
     receiver(); 
-    //while(1){
-    //  rfm.startRssi();
-    //  while(!rfm.completedRssi());
-    //  Serial.println(rfm.getRssiValue());
-    //  delay(5);
-  //}
 }
 
 
