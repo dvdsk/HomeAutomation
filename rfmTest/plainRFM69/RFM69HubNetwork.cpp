@@ -22,12 +22,17 @@ __attribute__((always_inline)) bool RFM69HubNetwork::receive_tryOnce(uint8_t* bu
 	return result;
 }
 
-RFM69HubNetwork::RFM69HubNetwork(const char* encryptionKey, uint8_t hubAddr, uint32_t freq)
-	: plainRFM69(){
+RFM69HubNetwork::RFM69HubNetwork(const char* _encryptionKey, uint8_t _hubAddr, uint32_t _freq)
+	: plainRFM69(), encryptionKey(_encryptionKey), hubAddr(_hubAddr), freq(_freq){
+}
+
+void RFM69HubNetwork::init(){
+	
+	bareRFM69::reset(10);
 	setRecommended();
 	setAES(false);
-	setAesKey((void*)encryptionKey, (int)sizeof(encryptionKey));
-	setPacketType(false, true);
+	//setAesKey((void*)encryptionKey, (int)sizeof(encryptionKey));
+	setPacketType(true, true);
 	//AES is enabled, length below 16 results in zero padding
 	//lengths shorter than 16 bytes not faster.
 	setBufferSize(10);	
@@ -35,6 +40,7 @@ RFM69HubNetwork::RFM69HubNetwork(const char* encryptionKey, uint8_t hubAddr, uin
 	
 	setNodeAddress(hubAddr);
 	setFrequency(freq);
+	receive();
 }
 
 /* void RFM69HubNetwork::receive_tryForever_withAwk(uint8_t* buffer, uint8_t awkAddr){

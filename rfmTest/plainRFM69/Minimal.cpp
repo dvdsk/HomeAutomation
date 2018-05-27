@@ -1,7 +1,77 @@
-#include "RFM69HubNetwork.h"
 
+#include "RFM69HubNetwork.h"
+#include <iostream>
+
+RFM69HubNetwork sensorNet("test", 99, 434*1000*1000);
+/*
+plainRFM69 rfm = plainRFM69();
+
+void sender(){
+
+    uint32_t start_time = millis();
+
+    uint32_t counter = 0; // the counter which we are going to send.
+	uint8_t test[16] = {1};
+    while(true){
+        rfm.poll(); // run poll as often as possible.
+
+        if (!rfm.canSend()){
+            continue; // sending is not possible, already sending.
+        }
+
+        if ((millis() - start_time) > 500){ // every 500 ms. 
+            start_time = millis();
+
+            // be a little bit verbose.
+            std::cout<<"Send:"<<counter<<std::endl;
+
+            // send the number of bytes equal to that set with setPacketLength.
+            // read those bytes from memory where counter starts.
+            //rfm.sendAddressed(98, &counter);
+            //rfm.sendAddressedVariable(98, &counter, 4);
+			rfm.sendAddressedVariable(98, test, 16);
+			
+            counter++; // increase the counter.
+        }
+       
+    }
+}
+*/
 int main(){
-	RFM69HubNetwork RFM69HubNetwork("test", 99, 434*1000*1000);
+	sensorNet.init();
+	sensorNet.baud9600();
+	//sensorNet.SendCommandUntilAnswered_withTimeout(command, address, buffer, timeOut);
+	
+	uint32_t start_time = millis();
+
+    uint32_t counter = 0; // the counter which we are going to send.
+	uint8_t test[16] = {1};
+    while(true){
+        sensorNet.poll(); // run poll as often as possible.
+
+        if (!sensorNet.canSend()){
+            continue; // sending is not possible, already sending.
+        }
+
+        if ((millis() - start_time) > 500){ // every 500 ms. 
+            start_time = millis();
+
+            // be a little bit verbose.
+            std::cout<<"Send:"<<counter<<std::endl;
+
+            // send the number of bytes equal to that set with setPacketLength.
+            // read those bytes from memory where counter starts.
+            //rfm.sendAddressed(98, &counter);
+            //rfm.sendAddressedVariable(98, &counter, 4);
+			sensorNet.sendAddressedVariable(98, test, 16);
+			
+            counter++; // increase the counter.
+        }
+       
+    }
+	
+	
+	//*/
 }
 
 
@@ -60,44 +130,6 @@ void sender(){
     }
 }
 
-inline void receiveOnce_withAwk(uint8_t* buffer){
-	rfm.poll(); // poll as often as possible.
-
-	if(rfm.available()){ // for all available messages:
-		uint8_t len = rfm.read(buffer); // read the packet into the new_counter.
-		
-	}
-}
-
-void receiveWithAwk(){
-	
-}
-
-bool sendWithAwk(){
-	
-}
-
-bool reciever(){
-    while(true){
-		rfm.poll();
-		while(rfm.available()){ // for all available messages:
-			uint32_t received_count = 0; // temporary for the new counter.
-			uint8_t len = rfm.read(&received_count); // read the packet into the new_counter.
-
-			// print verbose output.
-			std::cout<<"Packet ("<<len<<"): "<<received_count<<std::endl;
-			//Serial.print("Packet ("); Serial.print(len); Serial.print("): "); Serial.println(received_count);
-
-			if (counter+1 != received_count){
-				// if the increment is larger than one, we lost one or more packets.
-				std::cout<<"Packetloss detected!"<<std::endl;
-			}
-
-			// assign the received counter to our counter.
-			counter = received_count;
-		}
-}
-
 
 int main(){
     bareRFM69::reset(RESET_PIN); // sent the RFM69 a hard-reset.
@@ -105,7 +137,7 @@ int main(){
     rfm.setRecommended(); // set recommended paramters in RFM69.
 	rfm.setAES(false);
 		//rfm.bareRFM69::setAesKey((void*)KEY, (int)sizeof(KEY));
-    rfm.setPacketType(false, true); // set the used packet type.
+    rfm.setPacketType(false, false); // set the used packet type.
 
     rfm.setBufferSize(2);   // set the internal buffer size.
     rfm.setPacketLength(4); // set the packet length.
@@ -117,5 +149,4 @@ int main(){
     rfm.receive();	
 	sender();
 }
-
 */

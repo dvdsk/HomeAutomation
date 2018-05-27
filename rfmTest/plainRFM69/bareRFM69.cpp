@@ -63,7 +63,7 @@ void bareRFM69::writeFIFO(void* buffer, uint8_t len){
 	buf[0] = RFM69_FIFO | RFM69_WRITE_REG_MASK;
     memcpy(buf+1, buffer, len);
 	spiXfer(spi_handle, buf, buf, len+1);
-	std::cout<<+buf[1]<<std::endl;
+	//std::cout<<+buf[1]<<std::endl;
 }
 
 void bareRFM69::readFIFO(void* buffer, uint8_t len){
@@ -71,7 +71,7 @@ void bareRFM69::readFIFO(void* buffer, uint8_t len){
 	buf[0] = RFM69_FIFO & RFM69_READ_REG_MASK; 
 	spiXfer(spi_handle, buf, buf, len+1);	
 	memcpy(buffer, buf+1, len);
-	std::cout<<+buf[1]<<std::endl;
+	//std::cout<<+buf[1]<<std::endl;
 }
 
 uint8_t bareRFM69::readVariableFIFO(void* buffer, uint8_t max_length){

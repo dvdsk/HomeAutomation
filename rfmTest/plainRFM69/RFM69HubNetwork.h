@@ -4,13 +4,15 @@
 #include <bitset>
 #include "plainRFM69.h"
 #include <stdint.h>
+#include <iostream>
 
 constexpr uint8_t RFM69_CTL_SENDACK = 0x80;
 constexpr uint8_t RFM69_PACKAGE_LEN = 16;
 
 class RFM69HubNetwork : public plainRFM69 {
 	public:
-		RFM69HubNetwork(const char* encryptionKey, uint8_t hubAddr, uint32_t freq);
+		RFM69HubNetwork(const char* _encryptionKey, uint8_t _hubAddr, uint32_t _freq);
+		void init();
 		bool tryReceiveWithTimeout_sendAwk(uint8_t* buffer, uint32_t timeOut, uint8_t awkAddr);
 		bool tryReceiveWithTimeout(uint8_t* buffer, uint32_t timeOut);
 		
@@ -22,6 +24,10 @@ class RFM69HubNetwork : public plainRFM69 {
 		float getRatio();		
 
 	private:
+		const char* encryptionKey;
+		uint8_t hubAddr;
+		uint32_t freq;
+	
 		std::bitset<1000> radioCallFailed; //init as all unset;
 		uint16_t pos = 0;//check if needed
 		uint16_t nRadioCalls = 0;
