@@ -4,13 +4,18 @@
 */
 
 #include <SPI.h>
-#include <plainRFM69.h>
+#include "plainRFM69.h"
 
 // slave select pin.
-#define SLAVE_SELECT_PIN 8     
+#define SLAVE_SELECT_PIN 8
 
-// connected to the reset pin of the RFM69.
-#define RESET_PIN 23
+// Pin DIO 2 on the RFM69 is attached to this digital pin.
+// Pin should have interrupt capability.
+#define DIO2_PIN 2
+
+// on Arduino UNO the the pin number is not what's given to attachInterrupt(..)
+#define INTERRUPT_NUMBER 0
+// On the Arduino UNO pin 2 has interrupt number 0.
 
 
 
@@ -29,7 +34,7 @@ void sender(){
     uint32_t counter = 0; // the counter which we are going to send.
 
     while(true){
-        rfm.poll(); // run poll as often as possible.
+        //rfm.poll(); // run poll as often as possible.
 
         if (!rfm.canSend()){
             continue; // sending is not possible, already sending.
@@ -55,9 +60,7 @@ void receiver(){
     uint32_t counter = 0; // to count the messages.
 
     while(true){
-
-        rfm.poll(); // poll as often as possible.
-
+        //rfm.poll(); // poll as often as possible.
         while(rfm.available()){ // for all available messages:
 
             uint8_t received_count[17];
@@ -65,12 +68,12 @@ void receiver(){
             uint8_t len = rfm.read(received_count); // read the packet into the new_counter.
 
             // print verbose output.
-            //Serial.print("Packet ("); Serial.print(len); Serial.print("): "); Serial.println(*(uint32_t*)&received_count[1]);
-             Serial.print("Packet ("); Serial.print(len); Serial.print("): "); Serial.println(received_count[1]);
+              Serial.print("Packet ("); Serial.print(len); Serial.print("): "); Serial.println(*(uint32_t*)&received_count[1]);
+             //Serial.print("Packet ("); Serial.print(len); Serial.print("): "); Serial.println(received_count[1]);
 
             if (counter+1 != received_count){
                 // if the increment is larger than one, we lost one or more packets.
-                Serial.println("Packetloss detected!");
+                //Serial.println("Packetloss detected!");
             }
 
             // assign the received counter to our counter.
@@ -79,27 +82,53 @@ void receiver(){
     }
 }
 
+void interrupt_RFM(){
+    //Serial.println("ttttt");
+    rfm.poll(); // in the interrupt, call the poll function.
+}
+
 void setup(){
-    Serial.begin(9600);
+    Serial.begin(115200);
     SPI.begin();
 
-    bareRFM69::reset(RESET_PIN); // sent the RFM69 a hard-reset.
+    if(rfm.isConnected()) Serial.println("radio is connected");
 
     rfm.setRecommended(); // set recommended paramters in RFM69.
+    rfm.setAES(false);
     rfm.setPacketType(true, true); // set the used packet type.
-
-    rfm.setBufferSize(2);   // set the internal buffer size.
-    //rfm.setPacketLength(16); // set the packet length.
+    rfm.setBufferSize(10);   // set the internal buffer size.
+    rfm.setPacketLength(16); // set the packet length.
     rfm.setNodeAddress(98);
     
     rfm.setFrequency((uint32_t) 434*1000*1000); // set the frequency.
-    Serial.println("setup done!");
+    
     // baudrate is default, 4800 bps now.
     rfm.baud9600();
     rfm.receive();
     // set it to receiving mode.
+    // rfm.setDioMapping1(0);
+    /*
+        setup up interrupts such that we don't have to call poll() in a loop.
+    */
+    ///*
+    // tell the RFM to represent whether we are in automode on DIO 2.
+    rfm.setDioMapping1(RFM69_PACKET_DIO_2_AUTOMODE);
+
+    // set pinmode to input.
+    pinMode(DIO2_PIN, INPUT);
+
+    // Tell the SPI library we're going to use the SPI bus from an interrupt.
+    SPI.usingInterrupt(INTERRUPT_NUMBER);
+
+    // hook our interrupt function to any edge.
+    attachInterrupt(INTERRUPT_NUMBER, interrupt_RFM, CHANGE);
+
+    // start receiving.
+    rfm.receive();
+    
 
     delay(5);
+    //*/
 }
 
 void loop(){
