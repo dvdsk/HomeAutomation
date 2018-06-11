@@ -82,12 +82,13 @@ void receiver(){
 }
 
 void interrupt_RFM(){
-    //Serial.println("ttttt");
+    Serial.println("ttttt");
     sensorNet.poll(); // in the interrupt, call the poll function.
 }
 
 void setup(){
     Serial.begin(115200);
+    delay(2000);
     SPI.begin();
     
     sensorNet.init();
@@ -107,7 +108,7 @@ void setup(){
 
     // start receiving.
     sensorNet.receive();
-    
+    Serial.print("setup done");
     delay(5);
 }
 
