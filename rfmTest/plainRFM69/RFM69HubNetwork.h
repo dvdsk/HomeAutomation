@@ -3,6 +3,7 @@
 
 #include <bitset>
 #include "plainRFM69.h"
+#include "bareRFM69_const.h"
 #include <stdint.h>
 #include <iostream>
 
@@ -17,7 +18,7 @@ class RFM69HubNetwork : public plainRFM69 {
 		bool tryReceiveWithTimeout(uint8_t* buffer, uint32_t timeOut);
 		
 		bool SendCommandUntilAwknowledged_withTimeout(uint8_t command, uint8_t address, uint32_t timeOut);
-		bool SendCommandUntilAnswered_withTimeout(uint8_t command, uint8_t address, uint8_t* buffer, uint32_t timeOut);
+		bool SendCommandUntilAnswered_withTimeout(uint8_t command, uint8_t address, uint8_t* buffer, uint32_t timeOutInBetween, uint8_t nTries);
 		
 		uint16_t getSucceeded();
 		uint16_t getFailed();

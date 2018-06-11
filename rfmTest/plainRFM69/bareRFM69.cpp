@@ -104,7 +104,7 @@ uint32_t timeMicroSec(){
 }
 
 uint32_t millis(){
-	return timeMicroSec()*1000;
+	return timeMicroSec()/1000;
 }
 
 void delayMicroseconds(int dt){

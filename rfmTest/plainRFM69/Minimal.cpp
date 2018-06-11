@@ -40,10 +40,25 @@ void sender(){
 int main(){
 	sensorNet.init();
 	sensorNet.baud9600();
-	//sensorNet.SendCommandUntilAnswered_withTimeout(command, address, buffer, timeOut);
+	/*
+	uint8_t buffer[16] = {1};
+	uint8_t command = 1, address = 98;
+	uint32_t timeOutInBetween = 15;
 	
 	uint32_t start_time = millis();
+	int i=0;
+    while( i<10){
+		if(sensorNet.SendCommandUntilAnswered_withTimeout(command, address, buffer, timeOutInBetween, 10)){
+			i++;
+			std::cout<<"---"<<std::endl;
+		} else{}
 
+	}
+	std::cout<<(uint32_t)(millis() - start_time)<<std::endl;
+	*/
+	
+	/*
+	uint32_t start_time = millis();
     uint32_t counter = 0; // the counter which we are going to send.
 	uint8_t test[16] = {1};
     while(true){
@@ -51,9 +66,7 @@ int main(){
 
         if (!sensorNet.canSend()){
             continue; // sending is not possible, already sending.
-        }
-
-        if ((millis() - start_time) > 500){ // every 500 ms. 
+        } else if ((millis() - start_time) > 1){ // every 500 ms. 
             start_time = millis();
 
             // be a little bit verbose.
@@ -69,8 +82,35 @@ int main(){
         }
        
     }
+	*/
 	
-	
+	///*	
+	uint32_t start_time = millis();
+    uint32_t counter = 0; // the counter which we are going to send.
+	uint8_t test[16] = {1};
+	int i=0;
+    while( i<100){
+        sensorNet.poll(); // run poll as often as possible.
+
+        if (!sensorNet.canSend()){
+            continue; // sending is not possible, already sending.
+        } else if ((millis() - start_time) > 1){ // every 500 ms. 
+            start_time = millis();
+
+            // be a little bit verbose.
+            std::cout<<"Send:"<<counter<<std::endl;
+
+            // send the number of bytes equal to that set with setPacketLength.
+            // read those bytes from memory where counter starts.
+            //rfm.sendAddressed(98, &counter);
+            //rfm.sendAddressedVariable(98, &counter, 4);
+			sensorNet.sendAddressedVariable(98, test, 16);
+			i++;
+			
+            counter++; // increase the counter.
+        }
+       
+    }
 	//*/
 }
 

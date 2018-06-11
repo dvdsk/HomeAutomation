@@ -29,6 +29,7 @@ RFM69HubNetwork::RFM69HubNetwork(const char* _encryptionKey, uint8_t _hubAddr, u
 void RFM69HubNetwork::init(){
 	
 	bareRFM69::reset(10);
+	if(!isConnected()) std::cout<<"Radio not connected\n";
 	setRecommended();
 	setAES(false);
 	//setAesKey((void*)encryptionKey, (int)sizeof(encryptionKey));
@@ -37,9 +38,11 @@ void RFM69HubNetwork::init(){
 	//lengths shorter than 16 bytes not faster.
 	setBufferSize(10);	
 	setPacketLength(RFM69_PACKAGE_LEN); //bytes (16)
-	
 	setNodeAddress(hubAddr);
+	
 	setFrequency(freq);
+	setPALevel(RFM69_PA_LEVEL_PA0_ON, 31);
+	
 	receive();
 }
 
@@ -52,16 +55,16 @@ bool RFM69HubNetwork::tryReceiveWithTimeout_sendAwk(uint8_t* buffer, uint32_t ti
 	uint32_t T_start = timeMicroSec();
 	bool result = receive_tryOnce_withAwk(buffer, awkAddr);
 	while(!result)
-		result = receive_tryOnce_withAwk(buffer, awkAddr) and ((uint32_t)(timeMicroSec()-T_start) < timeOut);
+		result = receive_tryOnce_withAwk(buffer, awkAddr) or ((uint32_t)(timeMicroSec()-T_start) > timeOut);
 	return result;	
 }
 
 bool RFM69HubNetwork::tryReceiveWithTimeout(uint8_t* buffer, uint32_t timeOut){
 	uint32_t T_start = timeMicroSec();
-	bool result = receive_tryOnce(buffer);
-	while(!result)
-		result = receive_tryOnce(buffer) and ((uint32_t)(timeMicroSec()-T_start) < timeOut);
-	return result;	
+	do {
+		if(receive_tryOnce(buffer)) return true;
+	} while((uint32_t)(timeMicroSec()-T_start) < timeOut);
+	return false;	
 }
 
 //bool RFM69HubNetwork::
@@ -71,19 +74,17 @@ bool RFM69HubNetwork::SendCommandUntilAwknowledged_withTimeout(uint8_t command, 
 	bool result = waitForAwk(10);
 	while(!result){
 		sendAddressedVariable(address, &command, 1);
-		result = waitForAwk(10) and (uint32_t)(timeMicroSec()-T_start) < timeOut;
+		result = waitForAwk(10) or (uint32_t)(timeMicroSec()-T_start) > timeOut;
 	}
 	return result;	
 }
 
-bool RFM69HubNetwork::SendCommandUntilAnswered_withTimeout(uint8_t command, uint8_t address, uint8_t* buffer, uint32_t timeOut){
-	uint32_t T_start = timeMicroSec();
-	bool result = false;
-	while(!result){
+bool RFM69HubNetwork::SendCommandUntilAnswered_withTimeout(uint8_t command, uint8_t address, uint8_t* buffer, uint32_t timeOutInBetween, uint8_t nTries){
+	for(int i=0; i<nTries; i++){
 		sendAddressedVariable(address, &command, 1);
-		result = tryReceiveWithTimeout(buffer, timeOut) and (uint32_t)(timeMicroSec()-T_start) < timeOut;
+		if(tryReceiveWithTimeout(buffer, timeOutInBetween)) return true;
 	}
-	return result;	
+	return false;	
 }
 
 void RFM69HubNetwork::sendAwk(uint8_t address){
@@ -97,7 +98,7 @@ bool RFM69HubNetwork::waitForAwk(uint32_t timeOut){
 	bool result = receive_tryOnce(buffer);
 	while(!result)
 		receive_tryOnce(buffer);
-		result = (buffer[0] == RFM69_CTL_SENDACK) and ((uint32_t)(timeMicroSec()-T_start) < timeOut);
+		result = (buffer[0] == RFM69_CTL_SENDACK) or ((uint32_t)(timeMicroSec()-T_start) > timeOut);
 	return result;	
 }
 

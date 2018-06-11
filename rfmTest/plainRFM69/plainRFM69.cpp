@@ -359,9 +359,18 @@ void plainRFM69::setRawPacketLength(){
     this->tx_buffer = (uint8_t*) malloc(this->packet_length + this->use_variable_length);
     // set the length in the hardware.
     this->setPayloadLength(this->packet_length); // packet length byte is not included in length count. So NOT +1
+}
 
-    
-
+bool plainRFM69::isConnected(){
+    uint8_t org;
+    bool isWorking;
+    org = readRegister(RFM69_BITRATE_MSB);
+    writeRegister(RFM69_BITRATE_MSB, 20);
+    isWorking = (readRegister(RFM69_BITRATE_MSB) == 20);
+    writeRegister(RFM69_BITRATE_MSB, 40);
+    isWorking &= (readRegister(RFM69_BITRATE_MSB) == 40);
+    writeRegister(RFM69_BITRATE_MSB, org);
+    return isWorking;
 }
 
 void plainRFM69::readPacket(){

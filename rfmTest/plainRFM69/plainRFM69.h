@@ -121,6 +121,8 @@ class plainRFM69 : public bareRFM69{
             rfm.receive(); // set the radio to receive.
         */
 
+		bool isConnected();
+		
         void setRecommended();
         /*
             Sets various parameters in the radio module to the recommended
