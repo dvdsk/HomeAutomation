@@ -44,3 +44,4 @@ class RFM69HubNetwork : public plainRFM69 {
 	};
 
 #endif
+
