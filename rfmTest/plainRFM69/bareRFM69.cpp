@@ -9,39 +9,37 @@
 // Most functions are implemented in the header file.
 
 void bareRFM69::writeRegister(uint8_t reg, uint8_t data){
-		//printf("%x %x\n", addr, value);
-		uint8_t rawDATA[2];
-		rawDATA[0] = reg | RFM69_WRITE_REG_MASK;
-		rawDATA[1] = data;
+	uint8_t rawDATA[2];
+	rawDATA[0] = reg | RFM69_WRITE_REG_MASK;
+	rawDATA[1] = data;
 
-		//spiXfer(spi_handle, (char*)rawDATA, (char*)rawDATA, sizeof(rawDATA) );
-		spiWrite(spi_handle, (char*)rawDATA, sizeof(rawDATA) );
+	spiWrite(spi_handle, (char*)rawDATA, sizeof(rawDATA) );
 }
 
 uint8_t bareRFM69::readRegister(uint8_t reg){
     uint8_t foo[] = {0,0};
-		foo[0] = reg & RFM69_READ_REG_MASK; 
+	foo[0] = reg & RFM69_READ_REG_MASK; 
 		
-		spiXfer(spi_handle, (char*)foo, (char*)foo, sizeof(foo) );
+	spiXfer(spi_handle, (char*)foo, (char*)foo, sizeof(foo) );
     return foo[1];
 }
 
 void bareRFM69::writeMultiple(uint8_t reg, void* data, uint8_t len){
-		char* buf = new char[len+1]; 
-		buf[0] = reg | RFM69_WRITE_REG_MASK;
-		for(int i=0, j=len; i<len; i++, j--)
-			buf[j] = ((char*)data)[i];
+	char* buf = new char[len+1]; 
+	buf[0] = reg | RFM69_WRITE_REG_MASK;
+	for(int i=0, j=len; i<len; i++, j--)
+	buf[j] = ((char*)data)[i];
 		
     spiWrite(spi_handle, buf, len+1); 
 }
 
 void bareRFM69::readMultiple(uint8_t reg, void* data, uint8_t len){   
-		char* buf = new char[len+1]; 
-		buf[0] = reg & RFM69_READ_REG_MASK; 
-		memcpy(buf+1, data, len);
+	char* buf = new char[len+1]; 
+	buf[0] = reg & RFM69_READ_REG_MASK; 
+	memcpy(buf+1, data, len);
     spiXfer(spi_handle, buf, buf, len+1);	
-		for(int i=0, j=len; i<len; i++, j--)
-			((char*)data)[i] = buf[j];
+	for(int i=0, j=len; i<len; i++, j--)
+		((char*)data)[i] = buf[j];
 }
 
 uint32_t bareRFM69::readRegister32(uint8_t reg){
@@ -62,18 +60,18 @@ uint16_t bareRFM69::readRegister16(uint8_t reg){
 
 void bareRFM69::writeFIFO(void* buffer, uint8_t len){
     char* buf = new char[len+1]; 
-		buf[0] = RFM69_FIFO | RFM69_WRITE_REG_MASK;
+	buf[0] = RFM69_FIFO | RFM69_WRITE_REG_MASK;
     memcpy(buf+1, buffer, len);
-		spiXfer(spi_handle, buf, buf, len+1);
-		std::cout<<+buf[1]<<std::endl;
+	spiXfer(spi_handle, buf, buf, len+1);
+	std::cout<<+buf[1]<<std::endl;
 }
 
 void bareRFM69::readFIFO(void* buffer, uint8_t len){
     char* buf = new char[len+1]; 
-		buf[0] = RFM69_FIFO & RFM69_READ_REG_MASK; 
-		spiXfer(spi_handle, buf, buf, len+1);	
-		memcpy(buffer, buf+1, len);
-		std::cout<<+buf[1]<<std::endl;
+	buf[0] = RFM69_FIFO & RFM69_READ_REG_MASK; 
+	spiXfer(spi_handle, buf, buf, len+1);	
+	memcpy(buffer, buf+1, len);
+	std::cout<<+buf[1]<<std::endl;
 }
 
 uint8_t bareRFM69::readVariableFIFO(void* buffer, uint8_t max_length){
@@ -111,4 +109,8 @@ uint32_t millis(){
 
 void delayMicroseconds(int dt){
 	std::this_thread::sleep_for (std::chrono::microseconds(dt));
+}
+
+void delayMilleseconds(int dt){
+	std::this_thread::sleep_for (std::chrono::milliseconds(dt));
 }
