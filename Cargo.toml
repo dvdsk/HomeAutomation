@@ -1,0 +1,17 @@
+[package]
+name = "HomeAutomation"
+version = "0.1.0"
+authors = ["David Kleingeld <dskleingeld@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+actix-web = { version = "0.7.15", features = ["rust-tls"] }
+actix = "0.7.5"
+serde = "1.0"
+serde_yaml = "0.8"
+log = "0.4"
+
+philipshue = { git = "https://github.com/dskleingeld/philipshue", branch = "master" }
+
+#dataserver = { git = "https://github.com/dskleingeld/dataserver", branch = "as_lib" }
+dataserver = { path = "../dataserver"}
