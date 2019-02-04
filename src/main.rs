@@ -34,7 +34,7 @@ pub fn start(signed_cert: &str, private_key: &str,
      sessions: Arc<RwLock<HashMap<u16, dataserver::httpserver::Session>>>,
      lighting: Arc<RwLock<lamps::Lighting>>) -> (DataHandle, ServerHandle) {
 
-	let tls_config = httpserver::make_tls_config(signed_cert, private_key);
+	let tls_config = httpserver::make_tls_config(signed_cert, private_key, false);
 	let cookie_key = httpserver::make_random_cookie_key();
 
   let free_session_ids = Arc::new(AtomicUsize::new(0));
@@ -65,10 +65,11 @@ pub fn start(signed_cert: &str, private_key: &str,
 			App::with_state(state2)
 				.prefix("/commands")
 				.resource(r"/lamps/toggle", |r| r.method(Method::GET).f(lamps::toggle))
-				.resource(r"/lamps/evening", |r| r.method(Method::GET).f(lamps::toggle))
-				.resource(r"/lamps/night", |r| r.method(Method::GET).f(lamps::toggle))
-				.resource(r"/lamps/dimmest", |r| r.method(Method::GET).f(lamps::toggle))
-				.resource(r"/lamps/dim", |r| r.method(Method::GET).f(lamps::toggle))
+				.resource(r"/lamps/evening", |r| r.method(Method::GET).f(lamps::evening))
+				.resource(r"/lamps/night", |r| r.method(Method::GET).f(lamps::night))
+				.resource(r"/lamps/day", |r| r.method(Method::GET).f(lamps::day))
+				.resource(r"/lamps/dimmest", |r| r.method(Method::GET).f(lamps::dimmest))
+				.resource(r"/lamps/dim", |r| r.method(Method::GET).f(lamps::dim))
 				.boxed(),
 
 			App::with_state(state)

@@ -44,7 +44,36 @@ fn register(ip: &str) -> Result<String, ()>{
 pub fn toggle(req: &HttpRequest<CommandServerState>) -> HttpResponse {
 	let mut lighting = req.state().lighting.write().unwrap();
 	lighting.toggle();
+	HttpResponse::Ok().finish()
+}
 
+pub fn dim(req: &HttpRequest<CommandServerState>) -> HttpResponse {
+	let mut lighting = req.state().lighting.write().unwrap();
+	lighting.set_all_to(50,500);
+	HttpResponse::Ok().finish()
+}
+
+pub fn dimmest(req: &HttpRequest<CommandServerState>) -> HttpResponse {
+	let mut lighting = req.state().lighting.write().unwrap();
+	lighting.set_all_to(1,500);
+	HttpResponse::Ok().finish()
+}
+
+pub fn normal(req: &HttpRequest<CommandServerState>) -> HttpResponse {
+	let mut lighting = req.state().lighting.write().unwrap();
+	lighting.set_all_to(254,220);
+	HttpResponse::Ok().finish()
+}
+
+pub fn evening(req: &HttpRequest<CommandServerState>) -> HttpResponse {
+	let mut lighting = req.state().lighting.write().unwrap();
+	lighting.set_all_to(254,320);
+	HttpResponse::Ok().finish()
+}
+
+pub fn night(req: &HttpRequest<CommandServerState>) -> HttpResponse {
+	let mut lighting = req.state().lighting.write().unwrap();
+	lighting.set_all_to(220,500);
 	HttpResponse::Ok().finish()
 }
 
@@ -53,7 +82,7 @@ fn find_bridge_ip() -> Result<String, ()> {
 	if discovered.len() == 0 {
 		error!("No bridge found!");
 		return Err(());
-	} else if discovered.len() > 0 {
+	} else if discovered.len() > 1 {
 		error!("Found multiple hue bridges: {:?}, continueing with first one in list", discovered);
 	}
 
@@ -95,7 +124,11 @@ fn get_bridge_and_status() -> Result<(Bridge, BTreeMap<usize, philipshue::hue::L
 			let bridge = Bridge::new(&ip, &login);
 			match bridge.get_all_lights(){
 				Ok(lights_info) => {
-					if update_ip_or_login {update_saved_bridge_info(&ip, &login);}
+					if update_ip_or_login {
+						if update_saved_bridge_info(&ip, &login).is_err() {
+							error!("Could not save new bridge ip and login, next run will fail without user intervention")
+						}
+					}
 					return Ok((bridge, lights_info));
 				},
 				//cant find bridge on given ip
@@ -117,7 +150,9 @@ fn get_bridge_and_status() -> Result<(Bridge, BTreeMap<usize, philipshue::hue::L
 	} else {
 		let ip = find_bridge_ip().map_err(|e| ())?;
 		let login = register(&ip).map_err(|e| ())?;
-		update_saved_bridge_info(&ip, &login);
+		if update_saved_bridge_info(&ip, &login).is_err() {
+			error!("Could not save new bridge ip and login, next run will fail without user intervention")
+		};
 
 		let bridge = Bridge::new(&ip, &login);
 		let lights_info = bridge.get_all_lights().map_err(|e| ())?;
@@ -184,4 +219,17 @@ impl Lighting {
 
 		Ok(())
 	}
+
+	//how to deal with errors?
+	fn set_all_to(&mut self, bri: u8, ct: u16) -> Result<(),()>{
+		let command = LightCommand::default();
+		let command = command.on();
+		let command = command.with_bri(bri);
+		let command = command.with_ct(ct);
+		self.bridge.set_group_state(0, &command).map_err(|x| ())?;
+		self.lamps.values_mut().for_each(|lamp| {lamp.bri =bri; lamp.ct =Some(ct)});
+
+		Ok(())
+	}
+
 }
