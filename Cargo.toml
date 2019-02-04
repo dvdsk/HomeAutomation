@@ -11,7 +11,10 @@ serde = "1.0"
 serde_yaml = "0.8"
 log = "0.4"
 
+#dont forget to run cargo update when these change
 philipshue = { git = "https://github.com/dskleingeld/philipshue", branch = "master" }
+dataserver = { git = "https://github.com/dskleingeld/dataserver", branch = "as_lib" }
 
-#dataserver = { git = "https://github.com/dskleingeld/dataserver", branch = "as_lib" }
-dataserver = { path = "../dataserver"}
+#for local dev purpose we use below targets
+#dataserver = { path = "../dataserver"}
+#philipshue = { path = "../philipshue"}
