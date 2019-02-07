@@ -13,8 +13,9 @@ use std::thread;
 
 use dataserver::{certificate_manager, httpserver};
 use dataserver::helper;
-use dataserver::httpserver::{secure_database::PasswordDatabase, timeseries_interface, ServerHandle, DataHandle, WebServerData, CheckLogin};
+use dataserver::httpserver::{secure_database::PasswordDatabase, timeseries_interface, ServerHandle, DataHandle, CheckLogin};
 use dataserver::httpserver::{ws_index, index, logout, newdata, plot_data, list_data, login_get_and_check, login_page, serve_file};
+use dataserver::httpserver::{InnerState, DataServerState};
 
 use std::sync::{Arc, RwLock};
 use std::io::stdin;
@@ -24,17 +25,24 @@ mod lamps;
 
 pub struct CommandServerState {
 	lighting: Arc<RwLock<lamps::Lighting>>,
+	dataserver_state: DataServerState,
+}
+
+impl InnerState for CommandServerState {
+	fn inner_state(&self) -> &DataServerState {
+		&self.dataserver_state
+	}
 }
 
 const FORCE_CERT_REGEN: bool =	false;
 
 pub fn start(signed_cert: &str, private_key: &str,
-     data: Arc<RwLock<timeseries_interface::Data>>, //
-     passw_db: Arc<RwLock<PasswordDatabase>>,
-     sessions: Arc<RwLock<HashMap<u16, dataserver::httpserver::Session>>>,
-     lighting: Arc<RwLock<lamps::Lighting>>) -> (DataHandle, ServerHandle) {
+	data: Arc<RwLock<timeseries_interface::Data>>,
+	passw_db: Arc<RwLock<PasswordDatabase>>,
+	sessions: Arc<RwLock<HashMap<u16, dataserver::httpserver::Session>>>,
+	lighting: Arc<RwLock<lamps::Lighting>>) -> (DataHandle, ServerHandle) {
 
-	let tls_config = httpserver::make_tls_config(signed_cert, private_key, false);
+	let tls_config = httpserver::make_tls_config(signed_cert, private_key);
 	let cookie_key = httpserver::make_random_cookie_key();
 
   let free_session_ids = Arc::new(AtomicUsize::new(0));
@@ -49,7 +57,7 @@ pub fn start(signed_cert: &str, private_key: &str,
 
 		let web_server = server::new(move || {
 			// data the webservers functions have access to
-			let state = WebServerData {
+			let dataserver_state = DataServerState {
 			  passw_db: passw_db.clone(),
 			  websocket_addr: data_server_clone.clone(),
 			  data: data.clone(),
@@ -57,20 +65,10 @@ pub fn start(signed_cert: &str, private_key: &str,
 			  free_session_ids: free_session_ids.clone(),
 			  free_ws_session_ids: free_ws_session_ids.clone(),
 		  };
-			let state2 = CommandServerState {
+			let state = CommandServerState {
 			  lighting: lighting.clone(),
+				dataserver_state,
 		  };
-
-			vec![ //vector of different prefixes, matched from first to last
-			App::with_state(state2)
-				.prefix("/commands")
-				.resource(r"/lamps/toggle", |r| r.method(Method::GET).f(lamps::toggle))
-				.resource(r"/lamps/evening", |r| r.method(Method::GET).f(lamps::evening))
-				.resource(r"/lamps/night", |r| r.method(Method::GET).f(lamps::night))
-				.resource(r"/lamps/day", |r| r.method(Method::GET).f(lamps::day))
-				.resource(r"/lamps/dimmest", |r| r.method(Method::GET).f(lamps::dimmest))
-				.resource(r"/lamps/dim", |r| r.method(Method::GET).f(lamps::dim))
-				.boxed(),
 
 			App::with_state(state)
 		    .middleware(IdentityService::new(
@@ -80,7 +78,17 @@ pub fn start(signed_cert: &str, private_key: &str,
 		      .path("/")
 		      .secure(true),
 		    ))
-				.middleware(CheckLogin)
+				.middleware(CheckLogin{
+					public_roots: vec!(String::from("/commands")),
+					..CheckLogin::default()
+				})
+				// homeautomation actions activated by https calls
+				.resource(r"/commands/lamps/toggle", |r| r.method(Method::GET).f(lamps::toggle))
+				.resource(r"/commands/lamps/evening", |r| r.method(Method::GET).f(lamps::evening))
+				.resource(r"/commands/lamps/night", |r| r.method(Method::GET).f(lamps::night))
+				.resource(r"/commands/lamps/day", |r| r.method(Method::GET).f(lamps::normal))
+				.resource(r"/commands/lamps/dimmest", |r| r.method(Method::GET).f(lamps::dimmest))
+				.resource(r"/commands/lamps/dim", |r| r.method(Method::GET).f(lamps::dim))
 				// websocket route
 				// note some browsers need already existing http connection to
 				// this server for the upgrade to wss to work
@@ -99,7 +107,6 @@ pub fn start(signed_cert: &str, private_key: &str,
 				})
 				//for all other urls we try to resolve to static files in the "web" dir
 				.resource(r"/{tail:.*}", |r| r.f(serve_file))
-				.boxed(), ]
     })
     .bind_rustls("0.0.0.0:8080", tls_config).unwrap()
     //.bind("0.0.0.0:8080").unwrap() //without tcp use with debugging (note: https -> http, wss -> ws)

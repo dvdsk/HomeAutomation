@@ -15,11 +15,6 @@ use std::collections::{HashMap, BTreeMap};
 use super::CommandServerState;
 use super::actix_web::{HttpResponse, HttpRequest};
 
-pub fn discover() -> Vec<String> {
-    use philipshue::hue::Discovery;
-    bridge::discover().unwrap().into_iter().map(Discovery::into_ip).collect()
-}
-
 fn register(ip: &str) -> Result<String, ()>{
 	for _ in 0..5 {//try 5 times to connect
 		match bridge::register_user(ip, "homeAutomationSys") {
@@ -96,7 +91,7 @@ fn saved_bridge_info() -> Result<(String, String),()> {
 		Ok(f) => {
 			match serde_yaml::from_reader(f){
 				Ok((ip, login))=> return Ok((ip, login)),
-				Err(e) => error!("could not read ip and login from file"),
+				Err(_) => error!("could not read ip and login from file"),
 			}
 		},
 	}
@@ -133,12 +128,12 @@ fn get_bridge_and_status() -> Result<(Bridge, BTreeMap<usize, philipshue::hue::L
 				},
 				//cant find bridge on given ip
 				Err(HueError(HueErrorKind::BridgeError{error: DeviceIsUnreachable, ..}, _)) => {
-					ip = find_bridge_ip().map_err(|e| ())?;
+					ip = find_bridge_ip().map_err(|_| ())?;
 					update_ip_or_login = true;
 				},
 				//cant register as button was not pressed in time
 				Err(HueError(HueErrorKind::BridgeError{error: LinkButtonNotPressed, ..}, _)) => {
-					login = register(&ip).map_err(|e| ())?;
+					login = register(&ip).map_err(|_| ())?;
 					update_ip_or_login = true;
 				},
 				Err(e) => {
@@ -148,14 +143,14 @@ fn get_bridge_and_status() -> Result<(Bridge, BTreeMap<usize, philipshue::hue::L
 			}
 		}
 	} else {
-		let ip = find_bridge_ip().map_err(|e| ())?;
-		let login = register(&ip).map_err(|e| ())?;
+		let ip = find_bridge_ip().map_err(|_| ())?;
+		let login = register(&ip).map_err(|_| ())?;
 		if update_saved_bridge_info(&ip, &login).is_err() {
 			error!("Could not save new bridge ip and login, next run will fail without user intervention")
 		};
 
 		let bridge = Bridge::new(&ip, &login);
-		let lights_info = bridge.get_all_lights().map_err(|e| ())?;
+		let lights_info = bridge.get_all_lights().map_err(|_| ())?;
 		return Ok((bridge, lights_info));
 	}
 }
@@ -209,11 +204,11 @@ impl Lighting {
 		//group ID 0 is a special group containing all lights known to the bridge
 		if numb_on > numb_off {
 			let command = LightCommand::off(LightCommand::default() );
-			self.bridge.set_group_state(0, &command).map_err(|x| ())?;
+			self.bridge.set_group_state(0, &command).map_err(|_| ())?;
 			self.lamps.values_mut().for_each(|lamp| lamp.on = false);
 		} else {
 			let command = LightCommand::on(LightCommand::default() );
-			self.bridge.set_group_state(0, &command).map_err(|x| ())?;
+			self.bridge.set_group_state(0, &command).map_err(|_| ())?;
 			self.lamps.values_mut().for_each(|lamp| lamp.on = true);
 		}
 
@@ -226,7 +221,7 @@ impl Lighting {
 		let command = command.on();
 		let command = command.with_bri(bri);
 		let command = command.with_ct(ct);
-		self.bridge.set_group_state(0, &command).map_err(|x| ())?;
+		self.bridge.set_group_state(0, &command).map_err(|_| ())?;
 		self.lamps.values_mut().for_each(|lamp| {lamp.bri =bri; lamp.ct =Some(ct)});
 
 		Ok(())
