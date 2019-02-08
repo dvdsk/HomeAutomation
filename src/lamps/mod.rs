@@ -14,6 +14,7 @@ use std::collections::{HashMap, BTreeMap};
 
 use super::CommandServerState;
 use super::actix_web::{HttpResponse, HttpRequest};
+use super::command_server_logins;
 
 fn register(ip: &str) -> Result<String, ()>{
 	for _ in 0..5 {//try 5 times to connect
@@ -36,40 +37,93 @@ fn register(ip: &str) -> Result<String, ()>{
 	return Err(());
 }
 
+extern crate actix_web_httpauth;
+use actix_web::FromRequest;
+use actix_web_httpauth::extractors::basic::{BasicAuth, Config};
+use actix_web_httpauth::headers::www_authenticate::basic::Basic;
+use actix_web_httpauth::headers::www_authenticate::{WWWAuthenticate};
+use actix_web::http::StatusCode;
+
+fn authenticated(req: &HttpRequest<CommandServerState>) -> bool {
+	let mut config = Config::default();
+  config.realm("Restricted area");
+
+	if let Ok(auth) = BasicAuth::from_request(&req, &config){
+		let username = auth.username();
+		if let Some(password) = auth.password(){
+		command_server_logins::LIST.into_iter()
+			.filter(|x| x.username==username)
+			.filter(|x| x.password==password)
+			.next().is_some()
+		} else {false }
+	} else {false }
+}
+
+fn makeAuthError(req: &HttpRequest<CommandServerState>) -> HttpResponse {
+	let challenge = Basic {realm: Some("Restricted area".to_string()),};
+	req.build_response(StatusCode::UNAUTHORIZED)
+	    .set(WWWAuthenticate(challenge))
+	    .finish()
+}
+
 pub fn toggle(req: &HttpRequest<CommandServerState>) -> HttpResponse {
-	let mut lighting = req.state().lighting.write().unwrap();
-	lighting.toggle();
-	HttpResponse::Ok().finish()
+	if authenticated(req) {
+		let mut lighting = req.state().lighting.write().unwrap();
+		lighting.toggle();
+		HttpResponse::Ok().finish()
+	} else {
+		makeAuthError(req)
+	}
 }
 
 pub fn dim(req: &HttpRequest<CommandServerState>) -> HttpResponse {
-	let mut lighting = req.state().lighting.write().unwrap();
-	lighting.set_all_to(50,500);
-	HttpResponse::Ok().finish()
+	if authenticated(req) {
+		let mut lighting = req.state().lighting.write().unwrap();
+		lighting.set_all_to(50,500);
+		HttpResponse::Ok().finish()
+	} else {
+		makeAuthError(req)
+	}
 }
 
 pub fn dimmest(req: &HttpRequest<CommandServerState>) -> HttpResponse {
-	let mut lighting = req.state().lighting.write().unwrap();
-	lighting.set_all_to(1,500);
-	HttpResponse::Ok().finish()
+	if authenticated(req) {
+		let mut lighting = req.state().lighting.write().unwrap();
+		lighting.set_all_to(1,500);
+		HttpResponse::Ok().finish()
+	} else {
+		makeAuthError(req)
+	}
 }
 
 pub fn normal(req: &HttpRequest<CommandServerState>) -> HttpResponse {
-	let mut lighting = req.state().lighting.write().unwrap();
-	lighting.set_all_to(254,220);
-	HttpResponse::Ok().finish()
+	if authenticated(req) {
+		let mut lighting = req.state().lighting.write().unwrap();
+		lighting.set_all_to(254,100);
+		HttpResponse::Ok().finish()
+	} else {
+		makeAuthError(req)
+	}
 }
 
 pub fn evening(req: &HttpRequest<CommandServerState>) -> HttpResponse {
-	let mut lighting = req.state().lighting.write().unwrap();
-	lighting.set_all_to(254,320);
-	HttpResponse::Ok().finish()
+	if authenticated(req) {
+		let mut lighting = req.state().lighting.write().unwrap();
+		lighting.set_all_to(254,320);
+		HttpResponse::Ok().finish()
+	} else {
+		makeAuthError(req)
+	}
 }
 
 pub fn night(req: &HttpRequest<CommandServerState>) -> HttpResponse {
-	let mut lighting = req.state().lighting.write().unwrap();
-	lighting.set_all_to(220,500);
-	HttpResponse::Ok().finish()
+	if authenticated(req) {
+		let mut lighting = req.state().lighting.write().unwrap();
+		lighting.set_all_to(220,500);
+		HttpResponse::Ok().finish()
+	} else {
+		makeAuthError(req)
+	}
 }
 
 fn find_bridge_ip() -> Result<String, ()> {

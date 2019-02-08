@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 actix-web = { version = "0.7.15", features = ["rust-tls"] }
+actix-web-httpauth = "0.1.0"
 actix = "0.7.5"
 serde = "1.0"
 serde_yaml = "0.8"

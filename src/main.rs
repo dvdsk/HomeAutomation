@@ -22,6 +22,7 @@ use std::io::stdin;
 use std::collections::HashMap;
 
 mod lamps;
+mod command_server_logins;
 
 pub struct CommandServerState {
 	lighting: Arc<RwLock<lamps::Lighting>>,
