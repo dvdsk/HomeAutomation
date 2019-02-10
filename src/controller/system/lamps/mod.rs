@@ -158,7 +158,7 @@ impl Lighting {
 	}
 
 	//how to deal with errors?
-	fn toggle(&mut self) -> Result<(),()>{
+	pub fn toggle(&mut self) -> Result<(),()>{
 		let numb_on: u8 = self.lamps.values().map(|lamp| lamp.on as u8).sum();
 		let numb_off =	self.lamps.len() as u8 - numb_on;
 
@@ -177,7 +177,7 @@ impl Lighting {
 	}
 
 	//how to deal with errors?
-	fn set_all_to(&mut self, bri: u8, ct: u16) -> Result<(),()>{
+	pub fn set_all_to(&mut self, bri: u8, ct: u16) -> Result<(),()>{
 		let command = LightCommand::default();
 		let command = command.on();
 		let command = command.with_bri(bri);

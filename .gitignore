@@ -58,3 +58,17 @@ sensorConfig.py
 *.swp
 *.swo
 __pycache__
+
+# Project specific #
+#####################
+debugToRemoteHost.sh
+hueBridgeLogin
+keys/
+data/
+releaseToRemoteHost.sh
+specs/
+userdb.hm
+
+# Rust #
+#####################
+target/

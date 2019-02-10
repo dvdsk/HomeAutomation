@@ -24,8 +24,11 @@ use std::collections::HashMap;
 mod controller;
 use controller::Event;
 
+mod input;
+use input::web_api;
+
 pub struct ServerState {
-	controller_addr: mpsc::Sender,
+	controller_addr: mpsc::Sender<Event>,
 	dataserver_state: DataServerState,
 }
 
@@ -41,7 +44,7 @@ pub fn start(signed_cert: &str, private_key: &str,
 	data: Arc<RwLock<timeseries_interface::Data>>,
 	passw_db: Arc<RwLock<PasswordDatabase>>,
 	sessions: Arc<RwLock<HashMap<u16, dataserver::httpserver::Session>>>,
-	controller_tx: mpsc::Sender) -> (DataHandle, ServerHandle) {
+	controller_tx: mpsc::Sender<Event>) -> (DataHandle, ServerHandle) {
 
 	let tls_config = httpserver::make_tls_config(signed_cert, private_key);
 	let cookie_key = httpserver::make_random_cookie_key();
@@ -67,7 +70,7 @@ pub fn start(signed_cert: &str, private_key: &str,
 			  free_ws_session_ids: free_ws_session_ids.clone(),
 		  };
 			let state = ServerState {
-			  controller_addr: controller_tx,
+			  controller_addr: controller_tx.clone(),
 				dataserver_state,
 		  };
 
@@ -84,12 +87,12 @@ pub fn start(signed_cert: &str, private_key: &str,
 					..CheckLogin::default()
 				})
 				// homeautomation actions activated by https calls
-				.resource(r"/commands/lamps/toggle", |r| r.method(Method::GET).f(lamps::toggle))
-				.resource(r"/commands/lamps/evening", |r| r.method(Method::GET).f(lamps::evening))
-				.resource(r"/commands/lamps/night", |r| r.method(Method::GET).f(lamps::night))
-				.resource(r"/commands/lamps/day", |r| r.method(Method::GET).f(lamps::normal))
-				.resource(r"/commands/lamps/dimmest", |r| r.method(Method::GET).f(lamps::dimmest))
-				.resource(r"/commands/lamps/dim", |r| r.method(Method::GET).f(lamps::dim))
+				.resource(r"/commands/lamps/toggle", |r| r.method(Method::GET).f(web_api::toggle))
+				.resource(r"/commands/lamps/evening", |r| r.method(Method::GET).f(web_api::evening))
+				.resource(r"/commands/lamps/night", |r| r.method(Method::GET).f(web_api::night))
+				.resource(r"/commands/lamps/day", |r| r.method(Method::GET).f(web_api::normal))
+				.resource(r"/commands/lamps/dimmest", |r| r.method(Method::GET).f(web_api::dimmest))
+				.resource(r"/commands/lamps/dim", |r| r.method(Method::GET).f(web_api::dim))
 				// websocket route
 				// note some browsers need already existing http connection to
 				// this server for the upgrade to wss to work
@@ -142,10 +145,9 @@ fn main() {
 	let passw_db = Arc::new(RwLock::new(PasswordDatabase::load("").unwrap()));
 	let data = Arc::new(RwLock::new(timeseries_interface::init("data").unwrap()));
 	let sessions = Arc::new(RwLock::new(HashMap::new()));
-	let lighting = Arc::new(RwLock::new(lamps::Lighting::init().unwrap()));
 
 	let (controller_tx, controller_rx) = mpsc::channel();
-	controller::start(controller_rx);
+	controller::start(controller_rx).unwrap();
 
 	let (_data_handle, web_handle) = //starts webserver
 	start("keys/cert.key", "keys/cert.cert", data.clone(), passw_db.clone(), sessions.clone(), controller_tx.clone());
