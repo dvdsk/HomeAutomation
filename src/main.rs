@@ -21,15 +21,15 @@ use std::sync::{Arc, RwLock};
 use std::io::stdin;
 use std::collections::HashMap;
 
-mod lamps;
-mod command_server_logins;
+mod controller;
+use controller::Event;
 
-pub struct CommandServerState {
-	lighting: Arc<RwLock<lamps::Lighting>>,
+pub struct ServerState {
+	controller_addr: mpsc::Sender,
 	dataserver_state: DataServerState,
 }
 
-impl InnerState for CommandServerState {
+impl InnerState for ServerState {
 	fn inner_state(&self) -> &DataServerState {
 		&self.dataserver_state
 	}
@@ -41,7 +41,7 @@ pub fn start(signed_cert: &str, private_key: &str,
 	data: Arc<RwLock<timeseries_interface::Data>>,
 	passw_db: Arc<RwLock<PasswordDatabase>>,
 	sessions: Arc<RwLock<HashMap<u16, dataserver::httpserver::Session>>>,
-	lighting: Arc<RwLock<lamps::Lighting>>) -> (DataHandle, ServerHandle) {
+	controller_tx: mpsc::Sender) -> (DataHandle, ServerHandle) {
 
 	let tls_config = httpserver::make_tls_config(signed_cert, private_key);
 	let cookie_key = httpserver::make_random_cookie_key();
@@ -66,8 +66,8 @@ pub fn start(signed_cert: &str, private_key: &str,
 			  free_session_ids: free_session_ids.clone(),
 			  free_ws_session_ids: free_ws_session_ids.clone(),
 		  };
-			let state = CommandServerState {
-			  lighting: lighting.clone(),
+			let state = ServerState {
+			  controller_addr: controller_tx,
 				dataserver_state,
 		  };
 
@@ -144,8 +144,12 @@ fn main() {
 	let sessions = Arc::new(RwLock::new(HashMap::new()));
 	let lighting = Arc::new(RwLock::new(lamps::Lighting::init().unwrap()));
 
-	let (_data_handle, web_handle) =
-	start("keys/cert.key", "keys/cert.cert", data.clone(), passw_db.clone(), sessions.clone(), lighting.clone() );
+	let (controller_tx, controller_rx) = mpsc::channel();
+	controller::start(controller_rx);
+
+	let (_data_handle, web_handle) = //starts webserver
+	start("keys/cert.key", "keys/cert.cert", data.clone(), passw_db.clone(), sessions.clone(), controller_tx.clone());
+
 	println!("press: t to send test data, n: to add a new user, q to quit, a to add new dataset");
 	loop {
 		let mut input = String::new();
@@ -161,4 +165,5 @@ fn main() {
 	}
 	println!("shutting down");
 	httpserver::stop(web_handle);
+	controller_tx.send(Event::Stop);
 }
