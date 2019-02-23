@@ -9,6 +9,7 @@ mod states;
 mod commands;
 use commands::handle_cmd;
 
+#[derive(Copy, Clone)]
 pub enum Command {
   LampsToggle,
   LampsDim,
@@ -29,6 +30,7 @@ pub enum Event {
   Stop,
 }
 
+#[derive(Copy, Clone)]
 pub enum State {
   Normal,
   Other, //TODO GET OUT OF STATE, replace vec with small vec

@@ -9,23 +9,23 @@ use std::thread;
 
 use crate::controller::{Command, Event};
 
-fn stream(pin_nums: Vec<u64>, tx: Sender<Event>) -> sysfs_gpio::Result<()> {
+fn stream(mut pin_numb_command_pairs: Vec<(u64, Command)>, tx: Sender<Event>) -> sysfs_gpio::Result<()> {
     // NOTE: this currently runs forever and as such if
     // the app is stopped (Ctrl-C), no cleanup will happen
     // and the GPIO will be left exported.  Not much
     // can be done about this as Rust signal handling isn't
     // really present at the moment.  Revisit later.
-    let pins: Vec<_> = pin_nums.iter().map(|&p| (p, Pin::new(p))).collect();
     let task = lazy(move || {
-        for &(i, ref pin) in pins.iter() {
+        for (pin_numb, command) in pin_numb_command_pairs.drain(..) {
+        		let pin = Pin::new(pin_numb);
             pin.export().unwrap();
             pin.set_direction(Direction::In).unwrap();
-            pin.set_edge(Edge::BothEdges).unwrap();
+            pin.set_edge(Edge::RisingEdge).unwrap();
             let tx = tx.clone();
             tokio::spawn(pin.get_value_stream().unwrap()
                 .for_each(move |val| {
-                    println!("Pin {} changed value to {}", i, val);
-                    tx.send(Event::Command(Command::LampsToggle));
+                		dbg!(pin_numb);
+                    tx.send(Event::Command(command.clone()));
                     Ok(())
                 })
                 .map_err(|_| ()));
@@ -38,7 +38,9 @@ fn stream(pin_nums: Vec<u64>, tx: Sender<Event>) -> sysfs_gpio::Result<()> {
 
 pub fn start(tx: Sender<Event>) {
   thread::spawn(move || {
-		let pins = vec!(22,23,24); //BCM pin number
-		stream(pins, tx).unwrap();
+		let pin_numb_command_pairs = vec!((22, Command::LampsDim),
+		                                  (23, Command::LampsDimmest),
+		                                  (24, Command::LampsToggle)); //BCM pin number
+		stream(pin_numb_command_pairs, tx).unwrap();
 	});
 }
