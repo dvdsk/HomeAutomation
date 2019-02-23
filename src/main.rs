@@ -148,6 +148,7 @@ fn main() {
 
 	let (controller_tx, controller_rx) = mpsc::channel();
 	controller::start(controller_rx).unwrap();
+	input::attached_sensors::buttons::start(controller_tx.clone());
 
 	let (_data_handle, web_handle) = //starts webserver
 	start("keys/cert.key", "keys/cert.cert", data.clone(), passw_db.clone(), sessions.clone(), controller_tx.clone());

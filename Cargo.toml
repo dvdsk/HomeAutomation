@@ -12,6 +12,12 @@ serde = "1.0"
 serde_yaml = "0.8"
 log = "0.4"
 
+#sysfs_gpio = { version = "0.5.3", features = ["use_tokio"] }
+sysfs_gpio = { git = "https://github.com/rust-embedded/rust-sysfs-gpio", branch = "master", features = ["use_tokio"] }
+
+tokio = "0.1.15"
+futures = { version = "0.1"}
+
 #dont forget to run cargo update when these change
 philipshue = { git = "https://github.com/dskleingeld/philipshue", branch = "master" }
 dataserver = { git = "https://github.com/dskleingeld/dataserver", branch = "as_lib" }
