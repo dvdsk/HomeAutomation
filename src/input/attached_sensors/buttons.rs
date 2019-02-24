@@ -29,10 +29,13 @@ fn stream(mut pin_numb_command_pairs: Vec<(u64, Command)>, tx: Sender<Event>) ->
             pin.set_edge(Edge::RisingEdge).unwrap();
             let tx = tx.clone();
             tokio::spawn(pin.get_value_stream().unwrap()
-                .for_each(move |val| {
-                		if last_press.elapsed() > Duration::from_millis(300) {
-                			dbg!(pin_numb);
-                    	tx.send(Event::Command(command.clone()));
+                .for_each(move |val| { //TODO refactor
+                		if val ==	1 {
+		              		if last_press.elapsed() > Duration::from_millis(300) {
+		              			dbg!(pin_numb);
+		              			dbg!(val);
+		                  	//tx.send(Event::Command(command.clone()));
+		                  }
                     }
                     Ok(())
                 })
