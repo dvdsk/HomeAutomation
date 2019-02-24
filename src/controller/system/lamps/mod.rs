@@ -183,7 +183,7 @@ impl Lighting {
 		let command = command.with_bri(bri);
 		let command = command.with_ct(ct);
 		self.bridge.set_group_state(0, &command).map_err(|_| ())?;
-		self.lamps.values_mut().for_each(|lamp| {lamp.bri =bri; lamp.ct =Some(ct)});
+		self.lamps.values_mut().for_each(|lamp| {lamp.bri =bri; lamp.ct =Some(ct); lamp.on =true});
 
 		Ok(())
 	}

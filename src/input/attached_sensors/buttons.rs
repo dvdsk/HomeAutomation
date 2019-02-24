@@ -6,8 +6,13 @@ use futures::{Future, lazy, Stream};
 use sysfs_gpio::{Direction, Edge, Pin};
 use std::sync::mpsc::Sender;
 use std::thread;
+use std::time::{Duration, Instant};
 
 use crate::controller::{Command, Event};
+
+// when pressing 22, 24 is often activated
+// 23 works perfectly
+// 24 also works perfectly
 
 fn stream(mut pin_numb_command_pairs: Vec<(u64, Command)>, tx: Sender<Event>) -> sysfs_gpio::Result<()> {
     // NOTE: this currently runs forever and as such if
@@ -17,6 +22,7 @@ fn stream(mut pin_numb_command_pairs: Vec<(u64, Command)>, tx: Sender<Event>) ->
     // really present at the moment.  Revisit later.
     let task = lazy(move || {
         for (pin_numb, command) in pin_numb_command_pairs.drain(..) {
+        		let last_press = Instant::now();
         		let pin = Pin::new(pin_numb);
             pin.export().unwrap();
             pin.set_direction(Direction::In).unwrap();
@@ -24,8 +30,10 @@ fn stream(mut pin_numb_command_pairs: Vec<(u64, Command)>, tx: Sender<Event>) ->
             let tx = tx.clone();
             tokio::spawn(pin.get_value_stream().unwrap()
                 .for_each(move |val| {
-                		dbg!(pin_numb);
-                    tx.send(Event::Command(command.clone()));
+                		if last_press.elapsed() > Duration::from_millis(300) {
+                			dbg!(pin_numb);
+                    	tx.send(Event::Command(command.clone()));
+                    }
                     Ok(())
                 })
                 .map_err(|_| ()));
