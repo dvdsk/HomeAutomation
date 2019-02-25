@@ -22,7 +22,7 @@ fn stream(mut pin_numb_command_pairs: Vec<(u64, Command)>, tx: Sender<Event>) ->
     // really present at the moment.  Revisit later.
     let task = lazy(move || {
         for (pin_numb, command) in pin_numb_command_pairs.drain(..) {
-        		let last_press = Instant::now();
+        		let mut last_press = Instant::now();
         		let pin = Pin::new(pin_numb);
             pin.export().unwrap();
             pin.set_direction(Direction::In).unwrap();
@@ -31,10 +31,11 @@ fn stream(mut pin_numb_command_pairs: Vec<(u64, Command)>, tx: Sender<Event>) ->
             tokio::spawn(pin.get_value_stream().unwrap()
                 .for_each(move |val| { //TODO refactor
                 		if val ==	1 {
-		              		if last_press.elapsed() > Duration::from_millis(300) {
+		              		if last_press.elapsed() > Duration::from_millis(50) {
+		              			last_press = Instant::now();
 		              			dbg!(pin_numb);
 		              			dbg!(val);
-		                  	//tx.send(Event::Command(command.clone()));
+		                  	tx.send(Event::Command(command.clone()));
 		                  }
                     }
                     Ok(())
