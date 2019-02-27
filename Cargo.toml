@@ -25,3 +25,10 @@ dataserver = { git = "https://github.com/dskleingeld/dataserver", branch = "as_l
 #for local dev purpose we use below targets
 #dataserver = { path = "../dataserver"}
 #philipshue = { path = "../philipshue"}
+
+linux-embedded-hal = "0.2.2"
+bme280 = "0.1.1"
+
+smallvec = "0.6.6"
+chrono = { version = "0.4.6", features = ["serde"] }
+bytes = "0.4.11"

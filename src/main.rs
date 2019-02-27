@@ -13,7 +13,7 @@ use std::thread;
 
 use dataserver::{certificate_manager, httpserver};
 use dataserver::helper;
-use dataserver::httpserver::{secure_database::PasswordDatabase, timeseries_interface, ServerHandle, DataHandle, CheckLogin};
+use dataserver::httpserver::{secure_database::PasswordDatabase, timeseries_interface, ServerHandle, DataRouterHandle, CheckLogin};
 use dataserver::httpserver::{ws_index, index, logout, newdata, plot_data, list_data, login_get_and_check, login_page, serve_file};
 use dataserver::httpserver::{InnerState, DataServerState};
 
@@ -44,7 +44,7 @@ pub fn start(signed_cert: &str, private_key: &str,
 	data: Arc<RwLock<timeseries_interface::Data>>,
 	passw_db: Arc<RwLock<PasswordDatabase>>,
 	sessions: Arc<RwLock<HashMap<u16, dataserver::httpserver::Session>>>,
-	controller_tx: mpsc::Sender<Event>) -> (DataHandle, ServerHandle) {
+	controller_tx: mpsc::Sender<Event>) -> (DataRouterHandle, ServerHandle) {
 
 	let tls_config = httpserver::make_tls_config(signed_cert, private_key);
 	let cookie_key = httpserver::make_random_cookie_key();
@@ -143,25 +143,25 @@ fn main() {
 	helper::setup_logging(2).expect("could not set up debugging");
 
 	let passw_db = Arc::new(RwLock::new(PasswordDatabase::load("").unwrap()));
-	let data = Arc::new(RwLock::new(timeseries_interface::init("data").unwrap()));
+	let dataset_handle = Arc::new(RwLock::new(timeseries_interface::init("data").unwrap()));
 	let sessions = Arc::new(RwLock::new(HashMap::new()));
-
 	let (controller_tx, controller_rx) = mpsc::channel();
-	controller::start(controller_rx).unwrap();
-	input::attached_sensors::buttons::start(controller_tx.clone());
 
-	let (_data_handle, web_handle) = //starts webserver
-	start("keys/cert.key", "keys/cert.cert", data.clone(), passw_db.clone(), sessions.clone(), controller_tx.clone());
+	let (data_router_handle, web_handle) = //starts webserver
+	start("keys/cert.key", "keys/cert.cert", dataset_handle.clone(), passw_db.clone(), sessions.clone(), controller_tx.clone());
+
+	controller::start(controller_rx).unwrap();
+	input::attached_sensors::start_monitoring(controller_tx.clone(), data_router_handle, dataset_handle.clone());
 
 	println!("press: t to send test data, n: to add a new user, q to quit, a to add new dataset");
 	loop {
 		let mut input = String::new();
 		stdin().read_line(&mut input).unwrap();
 		match input.as_str() {
-			"t\n" => helper::send_test_data(data.clone()),
+			"t\n" => helper::send_test_data(dataset_handle.clone()),
 			//"x\n" => httpserver::signal_newdata(data_handle.clone(),0),
 			"n\n" => helper::add_user(& passw_db),
-			"a\n" => helper::add_dataset(&passw_db, &data),
+			"a\n" => helper::add_dataset(&passw_db, &dataset_handle),
 			"q\n" => break,
 			_ => println!("unhandled"),
 		};
