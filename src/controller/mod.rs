@@ -82,7 +82,6 @@ pub fn start(rx: mpsc::Receiver<Event>) -> Result<(),()>{
 		let mut mods = Modifications::default();
 		// TODO guess best init state from statefile or lamps+mpd+time
 	  
-		
 		loop {
 			
 			//wait for next update or an incoming event

@@ -1,8 +1,15 @@
 use super::super::{Modifications, System};
+use super::{RoomState};
 
-pub fn update(_mods: &Modifications, _system: &System){
-    //dbg!("updating normal state");
-}
-pub fn enter(){
-    dbg!("making everything rdy for the normal state");
+#[derive(Default)]
+pub struct Normal {}
+
+impl RoomState for Normal {
+    fn update(&mut self, mods: &Modifications, system: &mut System){
+        //dbg!("updating normal state");
+    }
+    fn enter(mods: &mut Modifications, system: &mut System) -> Self {
+        dbg!("making everything rdy for the normal state");
+        Self::default()
+    }
 }
