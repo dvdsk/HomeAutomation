@@ -7,7 +7,8 @@ use actix_web::http::StatusCode;
 
 use crate::ServerState;
 use crate::actix_web::{HttpResponse, HttpRequest};
-use crate::controller::{Command, Event};
+use crate::controller::{Command, State, Event};
+
 
 mod command_logins;
 
@@ -32,6 +33,8 @@ fn make_auth_error(req: &HttpRequest<ServerState>) -> HttpResponse {
 	    .set(WWWAuthenticate(challenge))
 	    .finish()
 }
+
+///////////////////// lamp commands ///////////////////////////////
 
 pub fn toggle(req: &HttpRequest<ServerState>) -> HttpResponse {
 	if authenticated(req) {
@@ -81,6 +84,17 @@ pub fn evening(req: &HttpRequest<ServerState>) -> HttpResponse {
 pub fn night(req: &HttpRequest<ServerState>) -> HttpResponse {
 	if authenticated(req) {
 		req.state().controller_addr.send(Event::Command(Command::LampsNight)).unwrap();
+		HttpResponse::Ok().finish()
+	} else {
+		make_auth_error(req)
+	}
+}
+
+//////////////////////// go to state commands /////////////////////////////////
+
+pub fn lightloop(req: &HttpRequest<ServerState>) -> HttpResponse {
+	if authenticated(req) {
+		req.state().controller_addr.send(Event::Command(Command::ChangeState(State::LightLoop))).unwrap();
 		HttpResponse::Ok().finish()
 	} else {
 		make_auth_error(req)

@@ -1,6 +1,6 @@
-use super::super::{Modification, System};
+use super::super::{Modifications, System};
 
-pub fn update(_mods: &Vec<Modification>, _system: &System){
+pub fn update(_mods: &Modifications, _system: &System){
     //dbg!("updating normal state");
 }
 pub fn enter(){
