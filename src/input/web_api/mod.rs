@@ -7,7 +7,7 @@ use actix_web::http::StatusCode;
 
 use crate::ServerState;
 use crate::actix_web::{HttpResponse, HttpRequest};
-use crate::controller::{Command, State, Event};
+use crate::controller::{Command, TargetState, Event};
 
 
 mod command_logins;
@@ -94,7 +94,7 @@ pub fn night(req: &HttpRequest<ServerState>) -> HttpResponse {
 
 pub fn lightloop(req: &HttpRequest<ServerState>) -> HttpResponse {
 	if authenticated(req) {
-		req.state().controller_addr.send(Event::Command(Command::ChangeState(State::LightLoop))).unwrap();
+		req.state().controller_addr.send(Event::Command(Command::ChangeState(TargetState::LightLoop))).unwrap();
 		HttpResponse::Ok().finish()
 	} else {
 		make_auth_error(req)

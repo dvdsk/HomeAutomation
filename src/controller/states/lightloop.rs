@@ -1,17 +1,17 @@
 use super::super::{Modifications, System};
-use super::{RoomState};
+use super::{RoomState, State};
 
 use std::time::{Duration, Instant};
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct LightLoop {}
 
 impl RoomState for LightLoop {
-    fn update(&mut self, _mods: &Modifications, sys: &mut System){
+    fn update(self, _mods: &Modifications, sys: &mut System) -> State {
         dbg!("updating lightloop state");
         sys.lights.set_all_to(100, 100);
+        State::LightLoop(self)
     }
-
     fn enter(mods: &mut Modifications, sys: &mut System) -> Self {
         dbg!("making everything rdy for the lightloop state");
 

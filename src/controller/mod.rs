@@ -6,34 +6,16 @@ mod system;
 use system::lamps::Lighting;
 
 mod states;
+use states::{State, RoomState};
 mod commands;
-use commands::handle_cmd;
-
-#[derive(Copy, Clone)]
-pub enum Command {
-  LampsToggle,
-  LampsDim,
-  LampsDimmest,
-  LampsEvening,
-  LampsNight,
-  LampsDay,
-  LampsOff,
-  LampsOn,
-
-  ChangeState(State),
-}
+use commands::{handle_cmd};
+pub use commands::{Command, TargetState};
 
 pub enum Event {
   Update,
+	Test,
   Command(Command),
   Stop,
-}
-
-#[derive(Copy, Clone)]
-pub enum State {
-  Normal,
-	LightLoop,
-  Other, //TODO GET OUT OF STATE, replace vec with small vec
 }
 
 pub struct Modifications { //change name to: alteration, deviation, overrides or something else?
@@ -78,10 +60,11 @@ pub fn start(rx: mpsc::Receiver<Event>) -> Result<(),()>{
 	};
 
 	thread::spawn(move || {
-		let mut state = State::Normal; //initial state
 		let mut mods = Modifications::default();
 		// TODO guess best init state from statefile or lamps+mpd+time
 	  
+		let mut state = State::Normal(states::normal::Normal::enter(&mut mods, &mut system)); //initial state
+
 		loop {
 			
 			//wait for next update or an incoming event
@@ -95,12 +78,15 @@ pub fn start(rx: mpsc::Receiver<Event>) -> Result<(),()>{
 			};
 			
 			state = match (event, state) {
-			    (Event::Update, State::Normal) => {states::normal::update(&mods, &mut system); State::Normal},
+					//specific test code for normal state
+			    (Event::Test, State::Normal(state)) => {dbg!("a test happend while in normal state"); State::Normal(state)},
 
-
+					//general code that is the same for all functions, unless specific handlers exist above
 			    (Event::Command(cmd), state) => {handle_cmd(cmd, state, &mut mods, &mut system)},
-			    (Event::Update, state) => {println!("default update funct"); state},
-			    (Event::Stop, _) => break,
+			    (Event::Update, state) => {println!("default update funct"); state.update(&mut mods, &mut system)},	    
+					(Event::Test, state) => {dbg!("a test happend"); state},
+					
+					(Event::Stop, _) => break,
 			};
 		}
 	});
