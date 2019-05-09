@@ -1,5 +1,5 @@
-use super::{State, Modifications, System};
-use crate::controller::states;
+use super::{ActiveState, Modifications, System};
+use crate::controller::states::*;
 use crate::controller::states::RoomState;
 
 #[derive(Copy, Clone)]
@@ -22,7 +22,7 @@ pub enum Command {
   ChangeState(TargetState),
 }
 
-pub fn handle_cmd(cmd: Command, state: State, mods: &mut Modifications, sys: &mut System) -> State {
+pub fn handle_cmd(cmd: Command, state: ActiveState, mods: &mut Modifications, sys: &mut System) -> ActiveState {
     println!("handled a command");
     match cmd {
       Command::ChangeState(target_state) => {
@@ -42,9 +42,9 @@ pub fn handle_cmd(cmd: Command, state: State, mods: &mut Modifications, sys: &mu
     state
 }
 
-fn handle_changestate_cmd(target_state: TargetState, mods: &mut Modifications, sys: &mut System) -> State {
+fn handle_changestate_cmd(target_state: TargetState, mods: &mut Modifications, sys: &mut System) -> ActiveState {
   match target_state {
-      TargetState::Normal => State::Normal(states::normal::Normal::enter(mods, sys)),
-      TargetState::LightLoop => State::LightLoop(states::lightloop::LightLoop::enter(mods, sys)),
+      TargetState::Normal => ActiveState::Normal(Normal::enter(mods, sys)),
+      TargetState::LightLoop => ActiveState::LightLoop(LightLoop::enter(mods, sys)),
   }
 }

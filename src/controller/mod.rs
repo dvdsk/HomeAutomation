@@ -6,7 +6,7 @@ mod system;
 use system::lamps::Lighting;
 
 mod states;
-use states::{State, RoomState};
+use states::{ActiveState, RoomState};
 mod commands;
 use commands::{handle_cmd};
 pub use commands::{Command, TargetState};
@@ -63,7 +63,7 @@ pub fn start(rx: mpsc::Receiver<Event>) -> Result<(),()>{
 		let mut mods = Modifications::default();
 		// TODO guess best init state from statefile or lamps+mpd+time
 	  
-		let mut state = State::Normal(states::normal::Normal::enter(&mut mods, &mut system)); //initial state
+		let mut state = ActiveState::Normal(states::Normal::enter(&mut mods, &mut system)); //initial state
 
 		loop {
 			
@@ -79,11 +79,11 @@ pub fn start(rx: mpsc::Receiver<Event>) -> Result<(),()>{
 			
 			state = match (event, state) {
 					//specific test code for normal state
-			    (Event::Test, State::Normal(state)) => {dbg!("a test happend while in normal state"); State::Normal(state)},
+			    (Event::Test, ActiveState::Normal(state)) => {dbg!("a test happend while in normal state"); ActiveState::Normal(state)},
 
 					//general code that is the same for all functions, unless specific handlers exist above
 			    (Event::Command(cmd), state) => {handle_cmd(cmd, state, &mut mods, &mut system)},
-			    (Event::Update, state) => {println!("default update funct"); state.update(&mut mods, &mut system)},	    
+			    (Event::Update, state) => {state.update(&mut mods, &mut system)},	    
 					(Event::Test, state) => {dbg!("a test happend"); state},
 					
 					(Event::Stop, _) => break,

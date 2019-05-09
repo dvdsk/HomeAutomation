@@ -1,24 +1,28 @@
 use super::{System, Modifications};
 
-pub mod normal;
-pub mod lightloop;
+mod normal;
+mod lightloop;
+
+pub use normal::Normal;
+pub use lightloop::LightLoop;
+
 
 #[derive(Copy, Clone)]
-pub enum State {
+pub enum ActiveState {
     Normal(normal::Normal),
     LightLoop(lightloop::LightLoop)
 }
 
-impl State {
-    pub fn update(self, mods: &Modifications, system: &mut System) -> State {
+impl ActiveState {
+    pub fn update(self, mods: &mut Modifications, system: &mut System) -> ActiveState {
         match self {
-            State::Normal(state) => state.update(mods, system),
-            State::LightLoop(state) => state.update(mods, system),           
+            ActiveState::Normal(state) => state.update(mods, system),
+            ActiveState::LightLoop(state) => state.update(mods, system),           
         }
     }
 }
 
 pub trait RoomState {
     fn enter(mods: &mut Modifications, system: &mut System) -> Self;
-    fn update(self, mods: &Modifications, system: &mut System) -> State;
+    fn update(self, mods: &mut Modifications, system: &mut System) -> ActiveState;
 }

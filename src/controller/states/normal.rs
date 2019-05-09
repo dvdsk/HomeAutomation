@@ -1,16 +1,21 @@
 use super::super::{Modifications, System};
-use super::{RoomState, State};
+use super::{RoomState, ActiveState};
+
+use std::time::{Duration, Instant};
 
 #[derive(Default, Clone, Copy)]
 pub struct Normal {}
 
 impl RoomState for Normal {
-    fn update(self, mods: &Modifications, system: &mut System) -> State {
+    fn update(self, mods: &mut Modifications, sys: &mut System) -> ActiveState {
         //dbg!("updating normal state");
-        State::Normal(self)
+        ActiveState::Normal(self)
     }
-    fn enter(mods: &mut Modifications, system: &mut System) -> Self {
+    fn enter(mods: &mut Modifications, sys: &mut System) -> Self {
         dbg!("making everything rdy for the normal state");
+        sys.update_period = Duration::from_secs(5);
+        sys.next_update = Instant::now()+sys.update_period;
+
         Self::default()
     }
 }

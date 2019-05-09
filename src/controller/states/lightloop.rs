@@ -1,27 +1,36 @@
 use super::super::{Modifications, System};
-use super::{RoomState, State};
+use super::{RoomState, ActiveState};
+use super::normal;
 
 use std::time::{Duration, Instant};
 
 #[derive(Default, Clone, Copy)]
-pub struct LightLoop {}
+pub struct LightLoop {
+    counter: u8,
+}
 
 impl RoomState for LightLoop {
-    fn update(self, _mods: &Modifications, sys: &mut System) -> State {
+    fn update(mut self, mods: &mut Modifications, sys: &mut System) -> ActiveState {
         dbg!("updating lightloop state");
-        sys.lights.set_all_to(100, 100);
-        State::LightLoop(self)
+        if (self.counter == 0){
+            ActiveState::Normal(normal::Normal::enter(mods, sys))
+        } else {
+            dbg!(self.counter);
+            sys.lights.set_all_to(self.counter, 200);
+            self.counter -= 1;
+            ActiveState::LightLoop(self)
+        }
     }
     fn enter(mods: &mut Modifications, sys: &mut System) -> Self {
         dbg!("making everything rdy for the lightloop state");
 
-        sys.lights.set_all_to(100, 100);
+        sys.lights.set_all_to(0, 200);
         mods.lighting = false;
 
-        sys.update_period = Duration::from_millis(100);
+        sys.update_period = Duration::from_millis(500);
         sys.next_update = Instant::now()+sys.update_period;
 
-        Self::default()
+        Self {counter: 100, }
     }
 }
 
