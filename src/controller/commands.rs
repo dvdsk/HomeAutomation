@@ -1,12 +1,32 @@
-use super::{Command, State, Modifications, System};
-use crate::controller::states;
+use super::{ActiveState, Modifications, System};
+use crate::controller::states::*;
+use crate::controller::states::RoomState;
 
-pub fn handle_cmd(cmd: Command, state: State, mods: &mut Modifications, sys: &mut System) -> State {
+#[derive(Copy, Clone)]
+pub enum TargetState {
+    Normal,
+    LightLoop,
+}
+
+#[derive(Copy, Clone)]
+pub enum Command {
+  LampsToggle,
+  LampsDim,
+  LampsDimmest,
+  LampsEvening,
+  LampsNight,
+  LampsDay,
+  LampsOff,
+  LampsOn,
+
+  ChangeState(TargetState),
+}
+
+pub fn handle_cmd(cmd: Command, state: ActiveState, mods: &mut Modifications, sys: &mut System) -> ActiveState {
     println!("handled a command");
     match cmd {
       Command::ChangeState(target_state) => {
-          handle_changestate_cmd(&target_state, mods, sys);
-          return target_state
+        return handle_changestate_cmd(target_state, mods, sys)
       }
       //Command::PauseMpd => {unimplemented!(); state},
 
@@ -22,10 +42,9 @@ pub fn handle_cmd(cmd: Command, state: State, mods: &mut Modifications, sys: &mu
     state
 }
 
-fn handle_changestate_cmd(target_state: &State, mods: &mut Modifications, sys: &mut System){
-    match target_state {
-        State::Normal => states::normal::enter(),
-        State::LightLoop => states::lightloop::enter(mods, sys),
-        State::Other => println!("setting up other state"),
-    }
+fn handle_changestate_cmd(target_state: TargetState, mods: &mut Modifications, sys: &mut System) -> ActiveState {
+  match target_state {
+      TargetState::Normal => ActiveState::Normal(Normal::enter(mods, sys)),
+      TargetState::LightLoop => ActiveState::LightLoop(LightLoop::enter(mods, sys)),
+  }
 }
