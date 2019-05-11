@@ -13,6 +13,7 @@ pub use commands::{Command, TargetState};
 
 pub enum Event {
   Update,
+	Alarm,
 	Test,
   Command(Command),
   Stop,
@@ -84,6 +85,7 @@ pub fn start(rx: mpsc::Receiver<Event>) -> Result<(),()>{
 					//general code that is the same for all functions, unless specific handlers exist above
 			    (Event::Command(cmd), state) => {handle_cmd(cmd, state, &mut mods, &mut system)},
 			    (Event::Update, state) => {state.update(&mut mods, &mut system)},	    
+					(Event::Alarm, state) => {dbg!("ALARM ALARM"); state},
 					(Event::Test, state) => {dbg!("a test happend"); state},
 					
 					(Event::Stop, _) => break,
