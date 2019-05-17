@@ -67,15 +67,19 @@ pub fn start(rx: mpsc::Receiver<Event>) -> Result<(),()>{
 		let mut state = ActiveState::Normal(states::Normal::enter(&mut mods, &mut system)); //initial state
 
 		loop {
-			
 			//wait for next update or an incoming event
-			let start_recv = Instant::now();
 			let time_till_update = saturating_duration_till(system.next_update);
-			let event = if let Ok(event) =	rx.recv_timeout(time_till_update){
-				event
-			} else {
-				system.next_update = Instant::now()+system.update_period;
-				Event::Update
+			dbg!(("waiting!"));
+			let event = match	rx.recv_timeout(time_till_update){
+				Ok(event) => event,
+				Err(error) => match error {
+					mpsc::RecvTimeoutError::Timeout => {
+						dbg!(("timeout!"));
+						system.next_update = Instant::now()+system.update_period;
+						Event::Update
+					},
+					mpsc::RecvTimeoutError::Disconnected => return (()),
+				}
 			};
 			
 			state = match (event, state) {
@@ -88,7 +92,7 @@ pub fn start(rx: mpsc::Receiver<Event>) -> Result<(),()>{
 					(Event::Alarm, state) => {dbg!("ALARM ALARM"); state},
 					(Event::Test, state) => {dbg!("a test happend"); state},
 					
-					(Event::Stop, _) => break,
+					(Event::Stop, _) => return (()),
 			};
 		}
 	});

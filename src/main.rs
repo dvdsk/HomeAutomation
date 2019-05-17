@@ -2,10 +2,13 @@ extern crate dataserver;
 extern crate actix_web;
 #[macro_use]
 extern crate log;
+extern crate chrono;
 
 use crate::actix_web::actix::Arbiter;
 use crate::actix_web::{server,App,http::Method};
 use crate::actix_web::middleware::identity::{CookieIdentityPolicy, IdentityService};
+
+use crate::chrono::Duration;
 
 use std::sync::mpsc;
 use std::sync::atomic::{AtomicUsize};
@@ -27,8 +30,11 @@ use controller::Event;
 mod input;
 use input::web_api;
 
+mod errors;
+
 pub struct ServerState {
 	controller_addr: mpsc::Sender<Event>,
+	alarms: input::alarms::Alarms,
 	dataserver_state: DataServerState,
 }
 
@@ -44,7 +50,8 @@ pub fn start(signed_cert: &str, private_key: &str,
 	data: Arc<RwLock<timeseries_interface::Data>>,
 	passw_db: Arc<RwLock<PasswordDatabase>>,
 	sessions: Arc<RwLock<HashMap<u16, dataserver::httpserver::Session>>>,
-	controller_tx: mpsc::Sender<Event>) -> (DataRouterHandle, ServerHandle) {
+	controller_tx: mpsc::Sender<Event>,
+	alarms: input::alarms::Alarms) -> (DataRouterHandle, ServerHandle) {
 
 	let tls_config = httpserver::make_tls_config(signed_cert, private_key);
 	let cookie_key = httpserver::make_random_cookie_key();
@@ -71,6 +78,7 @@ pub fn start(signed_cert: &str, private_key: &str,
 		  };
 			let state = ServerState {
 			  controller_addr: controller_tx.clone(),
+				alarms: alarms.clone(),
 				dataserver_state,
 		  };
 
@@ -80,6 +88,7 @@ pub fn start(signed_cert: &str, private_key: &str,
 		      .domain("deviousd.duckdns.org")
 		      .name("auth-cookie")
 		      .path("/")
+					.max_age(Duration::weeks(1))
 		      .secure(true),
 		    ))
 				.middleware(CheckLogin{
@@ -93,6 +102,10 @@ pub fn start(signed_cert: &str, private_key: &str,
 				.resource(r"/commands/lamps/day", |r| r.method(Method::GET).f(web_api::normal))
 				.resource(r"/commands/lamps/dimmest", |r| r.method(Method::GET).f(web_api::dimmest))
 				.resource(r"/commands/lamps/dim", |r| r.method(Method::GET).f(web_api::dim))
+
+				.resource(r"/commands/lightLoop", |r| r.method(Method::GET).f(web_api::lightloop))
+
+				.resource(r"/commands/set/wakeup_alarm", |r| r.method(Method::POST).with(web_api::set_alarm))
 				// websocket route
 				// note some browsers need already existing http connection to
 				// this server for the upgrade to wss to work
@@ -112,8 +125,8 @@ pub fn start(signed_cert: &str, private_key: &str,
 				//for all other urls we try to resolve to static files in the "web" dir
 				.resource(r"/{tail:.*}", |r| r.f(serve_file))
     })
-    .bind_rustls("0.0.0.0:8080", tls_config).unwrap()
-    //.bind("0.0.0.0:8080").unwrap() //without tcp use with debugging (note: https -> http, wss -> ws)
+    //.bind_rustls("0.0.0.0:8080", tls_config).unwrap()
+    .bind("0.0.0.0:8080").unwrap() //without tcp use with debugging (note: https -> http, wss -> ws)
     .shutdown_timeout(5)    // shut down 5 seconds after getting the signal to shut down
     .start();
 
@@ -147,21 +160,26 @@ fn main() {
 	let sessions = Arc::new(RwLock::new(HashMap::new()));
 	let (controller_tx, controller_rx) = mpsc::channel();
 
-	let (data_router_handle, web_handle) = //starts webserver
-	start("keys/cert.key", "keys/cert.cert", dataset_handle.clone(), passw_db.clone(), sessions.clone(), controller_tx.clone());
-
 	controller::start(controller_rx).unwrap();
+	input::attached_sensors::check_local_sensing_dataset(&dataset_handle).unwrap();
+	let (Alarms, waker_thread) = input::alarms::Alarms::setup(controller_tx.clone()).unwrap();
+
+	let (data_router_handle, web_handle) = //starts webserver
+	start("keys/cert.key", "keys/cert.cert", dataset_handle.clone(), passw_db.clone(), sessions.clone(), controller_tx.clone(), Alarms.clone());
+
+	#[cfg(feature = "sensors_connected")]
 	input::attached_sensors::start_monitoring(controller_tx.clone(), data_router_handle, dataset_handle.clone());
 
-	println!("press: t to send test data, n: to add a new user, q to quit, a to add new dataset");
+	println!("press: t to send test data, n: to add a new user, q to quit, a to add new dataset, u to add fields to a user");
 	loop {
 		let mut input = String::new();
 		stdin().read_line(&mut input).unwrap();
 		match input.as_str() {
-			"t\n" => helper::send_test_data(dataset_handle.clone()),
+			"t\n" => helper::send_test_data_over_http(dataset_handle.clone(), 8080),
 			//"x\n" => httpserver::signal_newdata(data_handle.clone(),0),
 			"n\n" => helper::add_user(& passw_db),
 			"a\n" => helper::add_dataset(&passw_db, &dataset_handle),
+			"u\n" => helper::add_fields_to_user(&passw_db),
 			"q\n" => break,
 			_ => println!("unhandled"),
 		};

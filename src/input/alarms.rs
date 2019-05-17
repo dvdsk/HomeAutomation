@@ -14,56 +14,53 @@ use crate::errors::Error;
 
 //TODO, move alarms to input? then backup waker/trigger/speaker/alarm moves to arduino
 
-struct AlarmList {
-    memory: BTreeSet<DateTime<Utc>>,
-    file: File,
-}
-
-enum WakerMessage {
-    RemoveAlarm(DateTime<Utc>),
-    AddAlarm(DateTime<Utc>),
-}
-
 #[derive(Debug)]
-struct Alarms {
-    waker_tx: mpsc::Sender<WakerMessage>,
-    waker_thread: thread::JoinHandle<()>,
+struct RawList {
+    memory: BTreeSet<DateTime<Utc>>,
+    file: File,   
 }
 
-fn waker(mut alarm_list: AlarmList, event_tx: mpsc::Sender<Event>, waker_rx: mpsc::Receiver<WakerMessage>) {
+#[derive(Debug, Clone)]
+struct AlarmList {
+    rawlist: Arc<Mutex<RawList>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Alarms {
+    waker_tx: mpsc::Sender<()>,
+    alarm_list: AlarmList,
+}
+
+fn waker(mut alarm_list: AlarmList, event_tx: mpsc::Sender<Event>, waker_rx: mpsc::Receiver<()>) {
     
     loop { 
         if let Some(current_alarm) = alarm_list.get_next_alarm() {
-            loop { //we have an alarm time, keep waiting until is should go off, handle instructions in the mean time
-                let now = Utc::now();
-                let timeout = (now - current_alarm).to_std().unwrap();
+            let now = Utc::now();
+            let timeout = (now - current_alarm).to_std().unwrap();
+            
+            //do we sound the an alarm or should we add or remove one?
+            match waker_rx.recv_timeout(timeout) {
+                //do not set off alarm
+                Ok(_) => (),//should recheck if "current alarm" is still the right one as we removed one
+                    
                 
-                //do we sound the an alarm or should we add or remove one?
-                match waker_rx.recv_timeout(timeout) {
-                    Ok(message) => match message {//the alarm should not go off
-                        WakerMessage::RemoveAlarm(at_time) => alarm_list.remove_alarm(&at_time),
-                        WakerMessage::AddAlarm(at_time) => alarm_list.add_alarm(at_time),
-                    },
-                    Err(error) => match error {//should the alarm go off or should we stop?
-                        mpsc::RecvTimeoutError::Timeout => {
-                            event_tx.send(Event::Alarm); //set 
-                            alarm_list.remove_alarm(&current_alarm);
-                            break; //get next alarm
-                        }
-                        //we should stop, end the thread by returning
-                        mpsc::RecvTimeoutError::Disconnected => return,                       
+                Err(error) => match error {//should the alarm go off or should we stop?
+                    mpsc::RecvTimeoutError::Timeout => {
+                        event_tx.send(Event::Alarm); //set 
+                        //remove alarm from memory and file
+                        alarm_list.remove_alarm(&current_alarm);
+                        break; //get next alarm
                     }
+                    //we should stop, end the thread by returning
+                    mpsc::RecvTimeoutError::Disconnected => return,                       
                 }
             }
         } else {
-            //we have no alarm to wait on, wait for instructions
+            //no alarm to wait on, wait for instructions
             loop {
+                //A message through the mpsc signals an alarm has been added
                 match waker_rx.recv() {
-                    Ok(message) => match message {
-                        WakerMessage::RemoveAlarm(at_time) => alarm_list.remove_alarm(&at_time),
-                        //should not only add the alarm but go back and start waiting on it
-                        WakerMessage::AddAlarm(at_time) => { alarm_list.add_alarm(at_time); break },
-                    }
+                    Ok(_) => (), //alarms were added or remove, go back and start waiting on it
                     Err(_) => return //cant have timed out thus program should exit
                 }
             }
@@ -74,24 +71,53 @@ fn waker(mut alarm_list: AlarmList, event_tx: mpsc::Sender<Event>, waker_rx: mps
 
 impl Alarms {
 
-    fn setup_alarms(event_tx: mpsc::Sender<Event>) -> Result<Self, Error> {
+    pub fn setup(event_tx: mpsc::Sender<Event>) -> Result<(Self, thread::JoinHandle<()>), Error> {
+        dbg!(("hoi"));
         let mut alarm_list = AlarmList::load()?;
-    
         let (waker_tx, waker_rx) = mpsc::channel();
-        let waker_thread = thread::spawn(move || { waker(alarm_list, event_tx, waker_rx)});
+        let mut alarm_list_for_waker = alarm_list.clone();
+        let waker_thread = thread::spawn(move || { waker(alarm_list_for_waker, event_tx, waker_rx)});
 
-        Ok(Self {waker_tx, waker_thread})
+        Ok((Self {alarm_list, waker_tx}, waker_thread))
     }
 
-    fn add_alarm(&mut self, at_time: DateTime<Utc>){
-        self.waker_tx.send(WakerMessage::AddAlarm(at_time));
+    pub fn add_alarm(&self, at_time: DateTime<Utc>) -> Result<(), Error> {
+        self.alarm_list.remove_alarm(&at_time)?;
+        self.waker_tx.send(());
+        Ok(())
     }
-    fn remove_alarm(&mut self, at_time: DateTime<Utc>){
-        self.waker_tx.send(WakerMessage::RemoveAlarm(at_time));
+    pub fn remove_alarm(&self, at_time: DateTime<Utc>) -> Result<(), Error> {
+        self.alarm_list.remove_alarm(&at_time)?;
+        self.waker_tx.send(());
+        Ok(())
     }
 }
 
 impl AlarmList {
+
+    fn load() -> Result<Self, Error> {
+        let list = RawList::load()?;
+        Ok(Self {rawlist: Arc::new(Mutex::new(list)) })
+    }
+
+    fn add_alarm(&self, at_time: DateTime<Utc>) -> Result<(), Error> {
+        let mut list = self.rawlist.lock().unwrap();
+        list.add_alarm(at_time)
+    }
+    fn remove_alarm(&self, at_time: &DateTime<Utc>) -> Result<(), Error> {
+        let mut list = self.rawlist.lock().unwrap();
+        list.remove_alarm(at_time)
+    }
+
+    /// calculate time to the earliest alarm, remove it from the list if the current time is later
+    /// then the alarm
+    fn get_next_alarm(&mut self) -> Option<DateTime<Utc>> {
+        let mut list = self.rawlist.lock().unwrap();
+        list.get_next_alarm()
+    }
+}
+
+impl RawList {
 
     fn load() -> Result<Self, Error> {
         let path = Path::new("alarms.yaml");
@@ -100,23 +126,27 @@ impl AlarmList {
         let memory;
         if path.exists() {
             file = File::open(path)?;
-            memory = serde_yaml::from_reader(&mut file)?
+            memory = serde_yaml::from_reader(&mut file)?;
         } else {
             file = File::create(path)?;
             memory = BTreeSet::new();
+            serde_yaml::to_writer(&file, &memory)?;
         }
-        Ok(Self {memory, file })
+
+        Ok(Self {memory, file})
     }
 
-    fn add_alarm(&mut self, at_time: DateTime<Utc>) {
+    fn add_alarm(&mut self, at_time: DateTime<Utc>) -> Result<(), Error>{
         self.memory.insert(at_time);
-        self.file.set_len(0); //truncate file
-        serde_yaml::to_writer(&mut self.file, &self.memory);
+        self.file.set_len(0)?; //truncate file
+        serde_yaml::to_writer(&mut self.file, &self.memory)?;
+        Ok(())
     }
-    fn remove_alarm(&mut self, at_time: &DateTime<Utc>) {
+    fn remove_alarm(&mut self, at_time: &DateTime<Utc>) -> Result<(), Error>{
         self.memory.remove(at_time);
-        self.file.set_len(0); //truncate file
-        serde_yaml::to_writer(&mut self.file, &self.memory);
+        self.file.set_len(0)?; //truncate file
+        serde_yaml::to_writer(&mut self.file, &self.memory)?;
+        Ok(())
     }
 
     /// calculate time to the earliest alarm, remove it from the list if the current time is later
