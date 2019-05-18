@@ -4,11 +4,19 @@ version = "0.1.0"
 authors = ["David Kleingeld <dskleingeld@gmail.com>"]
 edition = "2018"
 
+[features]
+default = ["sensors_connected"]
+
+# Enable code that expects sensor hardware to be present. Will stop execution
+# if hardware is not present,
+# on by default for testing use cargo flag: --no-default-features
+sensors_connected = []
+
 [dependencies]
 actix-web = { version = "0.7.15", features = ["rust-tls"] }
 actix-web-httpauth = "0.1.0"
 actix = "0.7.5"
-serde = "1.0"
+serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.8"
 log = "0.4"
 
@@ -20,7 +28,7 @@ futures = { version = "0.1"}
 
 #dont forget to run cargo update when these change
 philipshue = { git = "https://github.com/dskleingeld/philipshue", branch = "master" }
-dataserver = { git = "https://github.com/dskleingeld/dataserver", branch = "as_lib" }
+dataserver = { git = "https://github.com/dskleingeld/dataserver", branch = "master" }
 
 #for local dev purpose we use below targets
 #dataserver = { path = "../dataserver"}
@@ -32,3 +40,5 @@ bme280 = "0.1.1"
 smallvec = "0.6.6"
 chrono = { version = "0.4.6", features = ["serde"] }
 bytes = "0.4.11"
+
+crossbeam-channel = "0.3"

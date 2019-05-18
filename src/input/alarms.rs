@@ -1,11 +1,11 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use std::sync::{Arc, Mutex, mpsc};
+use crossbeam_channel;
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 use chrono::{DateTime, Utc};
-use serde::{Serialize, Deserialize};
 use std::fs::File;
 use serde_yaml;
 
@@ -27,11 +27,11 @@ struct AlarmList {
 
 #[derive(Debug, Clone)]
 pub struct Alarms {
-    waker_tx: mpsc::Sender<()>,
+    waker_tx: crossbeam_channel::Sender<()>,
     alarm_list: AlarmList,
 }
 
-fn waker(mut alarm_list: AlarmList, event_tx: mpsc::Sender<Event>, waker_rx: mpsc::Receiver<()>) {
+fn waker(mut alarm_list: AlarmList, event_tx: crossbeam_channel::Sender<Event>, waker_rx: crossbeam_channel::Receiver<()>) {
     
     loop { 
         if let Some(current_alarm) = alarm_list.get_next_alarm() {
@@ -45,14 +45,18 @@ fn waker(mut alarm_list: AlarmList, event_tx: mpsc::Sender<Event>, waker_rx: mps
                     
                 
                 Err(error) => match error {//should the alarm go off or should we stop?
-                    mpsc::RecvTimeoutError::Timeout => {
-                        event_tx.send(Event::Alarm); //set 
+                    crossbeam_channel::RecvTimeoutError::Timeout => {
+                        if let Err(error) = event_tx.send(Event::Alarm){ 
+                            error!("could not set off alarm: {:?}", error);
+                        }; //set 
                         //remove alarm from memory and file
-                        alarm_list.remove_alarm(&current_alarm);
+                        if let Err(error) = alarm_list.remove_alarm(&current_alarm){
+                            error!("could not remove alarm after its trigger time: {:?}", error);
+                        };
                         break; //get next alarm
                     }
                     //we should stop, end the thread by returning
-                    mpsc::RecvTimeoutError::Disconnected => return,                       
+                    crossbeam_channel::RecvTimeoutError::Disconnected => return,                       
                 }
             }
         } else {
@@ -71,10 +75,10 @@ fn waker(mut alarm_list: AlarmList, event_tx: mpsc::Sender<Event>, waker_rx: mps
 
 impl Alarms {
 
-    pub fn setup(event_tx: mpsc::Sender<Event>) -> Result<(Self, thread::JoinHandle<()>), Error> {
+    pub fn setup(event_tx: crossbeam_channel::Sender<Event>) -> Result<(Self, thread::JoinHandle<()>), Error> {
         dbg!(("hoi"));
         let mut alarm_list = AlarmList::load()?;
-        let (waker_tx, waker_rx) = mpsc::channel();
+        let (waker_tx, waker_rx) = crossbeam_channel::unbounded();
         let mut alarm_list_for_waker = alarm_list.clone();
         let waker_thread = thread::spawn(move || { waker(alarm_list_for_waker, event_tx, waker_rx)});
 
@@ -83,12 +87,12 @@ impl Alarms {
 
     pub fn add_alarm(&self, at_time: DateTime<Utc>) -> Result<(), Error> {
         self.alarm_list.remove_alarm(&at_time)?;
-        self.waker_tx.send(());
+        self.waker_tx.send(())?;
         Ok(())
     }
     pub fn remove_alarm(&self, at_time: DateTime<Utc>) -> Result<(), Error> {
         self.alarm_list.remove_alarm(&at_time)?;
-        self.waker_tx.send(());
+        self.waker_tx.send(())?;
         Ok(())
     }
 }
@@ -160,7 +164,9 @@ impl RawList {
                 if alarm > now {
                     return Some(alarm.clone());
                 } else {
-                    self.remove_alarm(&alarm);
+                    if self.remove_alarm(&alarm).is_err() {
+                        error!("could not remove alarm after it fired!"); 
+                    }
                 }
             } else {
                 return None;

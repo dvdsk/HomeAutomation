@@ -1,4 +1,3 @@
-use std::sync::mpsc;
 use std::time::{Duration, Instant};
 use std::thread;
 
@@ -50,7 +49,7 @@ fn saturating_duration_till(target: std::time::Instant) -> std::time::Duration{
 	}
 }
 
-pub fn start(rx: mpsc::Receiver<Event>) -> Result<(),()>{
+pub fn start(rx: crossbeam_channel::Receiver<Event>) -> Result<thread::JoinHandle<()>,()>{
 
 	let mut system = System {
 		update_period: Duration::from_secs(5),
@@ -60,7 +59,7 @@ pub fn start(rx: mpsc::Receiver<Event>) -> Result<(),()>{
 		//mpd init?
 	};
 
-	thread::spawn(move || {
+	let handle = thread::spawn(move || {
 		let mut mods = Modifications::default();
 		// TODO guess best init state from statefile or lamps+mpd+time
 	  
@@ -69,16 +68,14 @@ pub fn start(rx: mpsc::Receiver<Event>) -> Result<(),()>{
 		loop {
 			//wait for next update or an incoming event
 			let time_till_update = saturating_duration_till(system.next_update);
-			dbg!(("waiting!"));
 			let event = match	rx.recv_timeout(time_till_update){
 				Ok(event) => event,
 				Err(error) => match error {
-					mpsc::RecvTimeoutError::Timeout => {
-						dbg!(("timeout!"));
+					crossbeam_channel::RecvTimeoutError::Timeout => {
 						system.next_update = Instant::now()+system.update_period;
 						Event::Update
 					},
-					mpsc::RecvTimeoutError::Disconnected => return (()),
+					crossbeam_channel::RecvTimeoutError::Disconnected => return (),
 				}
 			};
 			
@@ -92,10 +89,10 @@ pub fn start(rx: mpsc::Receiver<Event>) -> Result<(),()>{
 					(Event::Alarm, state) => {dbg!("ALARM ALARM"); state},
 					(Event::Test, state) => {dbg!("a test happend"); state},
 					
-					(Event::Stop, _) => return (()),
+					(Event::Stop, _) => return (),
 			};
 		}
 	});
-	Ok(())
+	Ok(handle)
 }
 

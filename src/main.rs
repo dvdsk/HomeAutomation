@@ -10,7 +10,6 @@ use crate::actix_web::middleware::identity::{CookieIdentityPolicy, IdentityServi
 
 use crate::chrono::Duration;
 
-use std::sync::mpsc;
 use std::sync::atomic::{AtomicUsize};
 use std::thread;
 
@@ -33,7 +32,7 @@ use input::web_api;
 mod errors;
 
 pub struct ServerState {
-	controller_addr: mpsc::Sender<Event>,
+	controller_addr: crossbeam_channel::Sender<Event>,
 	alarms: input::alarms::Alarms,
 	dataserver_state: DataServerState,
 }
@@ -50,7 +49,7 @@ pub fn start(signed_cert: &str, private_key: &str,
 	data: Arc<RwLock<timeseries_interface::Data>>,
 	passw_db: Arc<RwLock<PasswordDatabase>>,
 	sessions: Arc<RwLock<HashMap<u16, dataserver::httpserver::Session>>>,
-	controller_tx: mpsc::Sender<Event>,
+	controller_tx: crossbeam_channel::Sender<Event>,
 	alarms: input::alarms::Alarms) -> (DataRouterHandle, ServerHandle) {
 
 	let tls_config = httpserver::make_tls_config(signed_cert, private_key);
@@ -59,7 +58,7 @@ pub fn start(signed_cert: &str, private_key: &str,
   let free_session_ids = Arc::new(AtomicUsize::new(0));
 	let free_ws_session_ids = Arc::new(AtomicUsize::new(0));
 
-	let (tx, rx) = mpsc::channel();
+	let (tx, rx) = crossbeam_channel::unbounded();
 	thread::spawn(move || {
 		// Start data server actor in separate thread
 		let sys = actix::System::new("http-server");
@@ -105,7 +104,7 @@ pub fn start(signed_cert: &str, private_key: &str,
 
 				.resource(r"/commands/lightLoop", |r| r.method(Method::GET).f(web_api::lightloop))
 
-				.resource(r"/commands/set/wakeup_alarm", |r| r.method(Method::POST).with(web_api::set_alarm))
+				.resource(r"/commands/set/wakeup_alarm", |r| r.method(Method::POST).with(web_api::set_alarm_minutes_from_now))
 				// websocket route
 				// note some browsers need already existing http connection to
 				// this server for the upgrade to wss to work
@@ -116,6 +115,8 @@ pub fn start(signed_cert: &str, private_key: &str,
 				.resource("/plot", |r| r.f(plot_data))
 				.resource(r"/list_data.html", |r| r.method(Method::GET).f(list_data))
 
+				.resource(r"/set_alarm", |r| r.method(Method::POST).with(web_api::set_alarm_unix_timestamp))
+
 				//login route, every uri starting "/login" will be forwarded to the adress
 				//after "/login" once the client has been authenticated
 				.resource(r"/login/{tail:.*}", |r| {
@@ -125,8 +126,8 @@ pub fn start(signed_cert: &str, private_key: &str,
 				//for all other urls we try to resolve to static files in the "web" dir
 				.resource(r"/{tail:.*}", |r| r.f(serve_file))
     })
-    //.bind_rustls("0.0.0.0:8080", tls_config).unwrap()
-    .bind("0.0.0.0:8080").unwrap() //without tcp use with debugging (note: https -> http, wss -> ws)
+    .bind_rustls("0.0.0.0:8070", tls_config).unwrap()
+    //.bind("0.0.0.0:8070").unwrap() //without tcp use with debugging (note: https -> http, wss -> ws)
     .shutdown_timeout(5)    // shut down 5 seconds after getting the signal to shut down
     .start();
 
@@ -158,14 +159,14 @@ fn main() {
 	let passw_db = Arc::new(RwLock::new(PasswordDatabase::load("").unwrap()));
 	let dataset_handle = Arc::new(RwLock::new(timeseries_interface::init("data").unwrap()));
 	let sessions = Arc::new(RwLock::new(HashMap::new()));
-	let (controller_tx, controller_rx) = mpsc::channel();
+	let (controller_tx, controller_rx) = crossbeam_channel::unbounded();
 
-	controller::start(controller_rx).unwrap();
+	let _controller_thread = controller::start(controller_rx).unwrap();
 	input::attached_sensors::check_local_sensing_dataset(&dataset_handle).unwrap();
-	let (Alarms, waker_thread) = input::alarms::Alarms::setup(controller_tx.clone()).unwrap();
+	let (alarms, _waker_thread) = input::alarms::Alarms::setup(controller_tx.clone()).unwrap();
 
 	let (data_router_handle, web_handle) = //starts webserver
-	start("keys/cert.key", "keys/cert.cert", dataset_handle.clone(), passw_db.clone(), sessions.clone(), controller_tx.clone(), Alarms.clone());
+	start("keys/cert.key", "keys/cert.cert", dataset_handle.clone(), passw_db.clone(), sessions.clone(), controller_tx.clone(), alarms.clone());
 
 	#[cfg(feature = "sensors_connected")]
 	input::attached_sensors::start_monitoring(controller_tx.clone(), data_router_handle, dataset_handle.clone());
@@ -186,5 +187,5 @@ fn main() {
 	}
 	println!("shutting down");
 	httpserver::stop(web_handle);
-	controller_tx.send(Event::Stop);
+	controller_tx.send(Event::Stop).unwrap();
 }

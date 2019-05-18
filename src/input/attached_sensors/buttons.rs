@@ -4,9 +4,9 @@ extern crate tokio;
 
 use futures::{Future, lazy, Stream};
 use sysfs_gpio::{Direction, Edge, Pin};
-use std::sync::mpsc::Sender;
 use std::thread;
 use std::time::{Duration, Instant};
+use crossbeam_channel;
 
 use crate::controller::{Command, Event};
 
@@ -14,7 +14,7 @@ use crate::controller::{Command, Event};
 // 23 works perfectly
 // 24 also works perfectly
 
-fn stream(mut pin_numb_command_pairs: Vec<(u64, Command)>, tx: Sender<Event>) -> sysfs_gpio::Result<()> {
+fn stream(mut pin_numb_command_pairs: Vec<(u64, Command)>, tx: crossbeam_channel::Sender<Event>) -> sysfs_gpio::Result<()> {
     // NOTE: this currently runs forever and as such if
     // the app is stopped (Ctrl-C), no cleanup will happen
     // and the GPIO will be left exported.  Not much
@@ -24,13 +24,13 @@ fn stream(mut pin_numb_command_pairs: Vec<(u64, Command)>, tx: Sender<Event>) ->
         for (pin_numb, command) in pin_numb_command_pairs.drain(..) {
         		let mut last_press = Instant::now();
         		let pin = Pin::new(pin_numb);
-            pin.export().unwrap();
-            pin.set_direction(Direction::In).unwrap();
-            pin.set_edge(Edge::RisingEdge).unwrap();
+            pin.export().expect("could not export pin");
+            pin.set_direction(Direction::In).expect("could not set direction for pin");
+            pin.set_edge(Edge::RisingEdge).expect("could not set interrupt to rising edge for pin");
             let tx = tx.clone();
             tokio::spawn(pin.get_value_stream().unwrap()
                 .for_each(move |val| { //TODO refactor
-                		if val ==	1 {
+                		if val == 1 {
 		              		if last_press.elapsed() > Duration::from_millis(50) {
 		              			last_press = Instant::now();
 		              			dbg!(pin_numb);
@@ -48,11 +48,38 @@ fn stream(mut pin_numb_command_pairs: Vec<(u64, Command)>, tx: Sender<Event>) ->
     Ok(())
 }
 
-pub fn start(tx: Sender<Event>) {
+pub fn start(tx: crossbeam_channel::Sender<Event>) {
   thread::spawn(move || {
-		let pin_numb_command_pairs = vec!((22, Command::LampsDim),
-		                                  (23, Command::LampsDimmest),
-		                                  (24, Command::LampsToggle)); //BCM pin number
+		let pin_numb_command_pairs = vec!((16, Command::LampsDim),
+		                                  (12, Command::LampsDimmest),
+		                                  (13, Command::LampsToggle),
+                                          
+ 		                                  (27, Command::LampsToggle), //left 3, left
+                                          (22, Command::LampsToggle), //left 3, middle
+                                          (18, Command::LampsToggle), //left 3, right
+                                          
+                                          (23, Command::LampsNight), //right 4, left most
+                                          (24, Command::LampsEvening), //right 4, left 
+                                          (26, Command::LampsDay), //right 4, right
+                                          (17, Command::LampsToggle), //right 4, right most
+                                          ); //BCM pin number
+		
+        /*let pin_numb_command_pairs = vec!((4, Command::Test), //pin 4 is broken and will give sporadic highs if connected
+		                                  (17, Command::Test),
+		                                  (27, Command::Test),
+                                          
+                                          (22, Command::Test),
+                                          (5, Command::Test),
+                                          (6, Command::Test),
+                                          (13, Command::Test),
+                                          (26, Command::Test),
+                                          (18, Command::Test),
+                                          (23, Command::Test),
+                                          (24, Command::Test),
+                                          (25, Command::Test),
+                                          (12, Command::Test),
+                                          (16, Command::Test),
+                                          ); //BCM pin number */
 		stream(pin_numb_command_pairs, tx).unwrap();
 	});
 }

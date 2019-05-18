@@ -3,10 +3,11 @@ extern crate chrono;
 extern crate smallvec;
 extern crate bytes;
 
-use bytes::Bytes;
-use dataserver::{httpserver, httpserver::timeseries_interface, httpserver::DataRouterHandle};
+use dataserver::{httpserver::timeseries_interface, httpserver::DataRouterHandle};
 use timeseries_interface::specifications::{MetaDataSpec, FieldSpec, FieldLength, FieldResolution};
 use self::chrono::{Utc};
+
+use crossbeam_channel;
 
 mod buttons;
 mod bme280;
@@ -15,12 +16,11 @@ use std::thread;
 use std::time::{Duration};
 use std::sync::{RwLock, Arc};
 
-use std::sync::mpsc::Sender;
-use crate::controller::{Command, Event};
+use crate::controller::{Event};
 
 const LOCAL_SENSING_ID: timeseries_interface::DatasetId = 0;
 //TODO mechanisme for shutdown
-pub fn start_monitoring(tx: Sender<Event>, data_router_handle: DataRouterHandle, dataset_handle: Arc<RwLock<timeseries_interface::Data>>) {
+pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>, data_router_handle: DataRouterHandle, dataset_handle: Arc<RwLock<timeseries_interface::Data>>) {
 
 	buttons::start(tx.clone());
 
@@ -49,10 +49,6 @@ pub fn start_monitoring(tx: Sender<Event>, data_router_handle: DataRouterHandle,
 			//encode all data
 			//dbg!(fields);
 			let mut line: Vec<u8> = vec!(0;64);
-
-			dbg!(&humidity);
-			dbg!(&temperature);
-			dbg!(&pressure);
 
 			fields[0].encode::<f32>(humidity, &mut line);
 			fields[1].encode::<f32>(temperature, &mut line);
@@ -112,7 +108,7 @@ pub fn check_local_sensing_dataset(data: &Arc<RwLock<timeseries_interface::Data>
 	} else {
 		//TODO write specification that we can use
 		let spec = make_local_sensing_spec();
-		data.add_specific_set(spec);
+		data.add_specific_set(spec).expect("could not create the dataset for the given spec");
 		info!("created home automation dataset");
 		Ok(())
 	}

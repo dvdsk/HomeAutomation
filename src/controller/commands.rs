@@ -16,8 +16,12 @@ pub enum Command {
   LampsEvening,
   LampsNight,
   LampsDay,
-  LampsOff,
-  LampsOn,
+
+  PauseMpd,
+  GoToLinux,
+  GoToWindows,
+  
+  Test, //prints a test message
 
   ChangeState(TargetState),
 }
@@ -36,8 +40,13 @@ pub fn handle_cmd(cmd: Command, state: ActiveState, mods: &mut Modifications, sy
         Command::LampsEvening => {sys.lights.set_all_to(254,320).unwrap(); mods.lighting = true},
         Command::LampsNight => {sys.lights.set_all_to(220,500).unwrap(); mods.lighting = true},
         Command::LampsDay => {sys.lights.set_all_to(254,240).unwrap(); mods.lighting = true},
-        Command::LampsOff => {unimplemented!(); mods.lighting = true},
-        Command::LampsOn => {unimplemented!(); mods.lighting = true},
+
+        Command::GoToLinux => println!("should go to linux"),
+        Command::GoToWindows => println!("should go to windows"),
+        
+        Command::PauseMpd => println!("should pause mpd"),
+
+        Command::Test => { warn!("The Test command was just send")},
     }
     state
 }

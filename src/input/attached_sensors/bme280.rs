@@ -16,7 +16,6 @@ pub fn init() -> BME280<I2cdev, Delay> {
 
 pub fn measure_and_record(bme: &mut BME280<I2cdev, Delay> ) -> (f32, f32, f32) {
 	// measure temperature, pressure, and humidity
-	dbg!("");
 	let measurements = bme.measure().unwrap();
 
 	(measurements.humidity, measurements.temperature, measurements.pressure)
