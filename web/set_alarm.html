@@ -4,7 +4,7 @@
 <html>
 <body>
 
-    <input type="time" id="alarm_time" name="alarm time" value="00:00:00">
+    <input type="time" id="alarm_time" name="alarm time" value="09:00:00">
     <input type="date" id="alarm_date" name="alarm date" value="2018-07-22">
 
     <input type="button" id="set_alarm" value="set alarm">
@@ -84,8 +84,7 @@
             var shouldBeAsync = true;
             request.open("POST", "/set_alarm", shouldBeAsync);
             request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-            request.send("timestamp=12");
-
+            request.send("timestamp="+unix_time);
         }
 
         document.getElementById("alarm_date").valueAsDate = getDefaultAlarmDate();

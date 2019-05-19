@@ -116,6 +116,7 @@ pub fn start(signed_cert: &str, private_key: &str,
 				.resource(r"/list_data.html", |r| r.method(Method::GET).f(list_data))
 
 				.resource(r"/set_alarm", |r| r.method(Method::POST).with(web_api::set_alarm_unix_timestamp))
+				.resource(r"/list_alarms", |r| r.method(Method::GET).f(web_api::list_alarms))
 
 				//login route, every uri starting "/login" will be forwarded to the adress
 				//after "/login" once the client has been authenticated

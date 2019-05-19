@@ -5,10 +5,12 @@ mod system;
 use system::lamps::Lighting;
 
 mod states;
-use states::{ActiveState, RoomState};
+use states::{ActiveState, RoomState, change_state};
 mod commands;
 use commands::{handle_cmd};
-pub use commands::{Command, TargetState};
+
+pub use commands::Command;
+pub use states::TargetState;
 
 pub enum Event {
   Update,
@@ -86,8 +88,8 @@ pub fn start(rx: crossbeam_channel::Receiver<Event>) -> Result<thread::JoinHandl
 					//general code that is the same for all functions, unless specific handlers exist above
 			    (Event::Command(cmd), state) => {handle_cmd(cmd, state, &mut mods, &mut system)},
 			    (Event::Update, state) => {state.update(&mut mods, &mut system)},	    
-					(Event::Alarm, state) => {dbg!("ALARM ALARM"); state},
-					(Event::Test, state) => {dbg!("a test happend"); state},
+					(Event::Alarm, state) => {dbg!("ALARM ALARM"); info!("Alarm went off"); state},
+					(Event::Test, state) => {dbg!("a test happend"); change_state(TargetState::WakeUp, &mut mods, &mut system)},
 					
 					(Event::Stop, _) => return (),
 			};

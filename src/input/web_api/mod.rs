@@ -142,22 +142,34 @@ pub struct AlarmDataUnixTS {
 }
 
 pub fn set_alarm_unix_timestamp((req, params): (HttpRequest<ServerState>, Form<AlarmDataUnixTS>)) -> HttpResponse {
-	if authenticated(&req) {
-		//Code to parse alarm time
-		dbg!(&params);
+	//Code to parse alarm time
+	dbg!(&params);
 
-		if let Ok(ts) = params.timestamp.parse(){
-			let time = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(ts, 0), Utc);
-			if time>Utc::now() {
-				req.state().alarms.add_alarm(time).unwrap();
+	if let Ok(ts) = params.timestamp.parse(){
+		let time = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(ts, 0), Utc);
+		if time>Utc::now() {
+			if req.state().alarms.add_alarm(time).is_ok() {
+				dbg!(("done setting alarm"));
 				HttpResponse::Ok().finish()
 			} else {
-				make_error(&req, StatusCode::UNPROCESSABLE_ENTITY)
+				make_error(&req, StatusCode::INTERNAL_SERVER_ERROR)
 			}
 		} else {
-			make_error(&req, StatusCode::INTERNAL_SERVER_ERROR)
+			make_error(&req, StatusCode::UNPROCESSABLE_ENTITY)
 		}
 	} else {
-		make_auth_error(&req)
+		make_error(&req, StatusCode::INTERNAL_SERVER_ERROR)
 	}
+}
+
+pub fn list_alarms(req: &HttpRequest<ServerState>) -> HttpResponse {
+	//Code to parse alarm time
+	
+	let alarms = req.state().alarms.list();
+	let mut list = String::with_capacity(alarms.len()*30);
+	for alarm in alarms {
+		list.push_str(&alarm.to_rfc2822());
+	}
+	dbg!(&list);
+	HttpResponse::Ok().body(list)
 }

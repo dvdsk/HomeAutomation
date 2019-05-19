@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use chrono::{DateTime, Utc};
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use serde_yaml;
 
 use crate::controller::Event;
@@ -76,7 +76,6 @@ fn waker(mut alarm_list: AlarmList, event_tx: crossbeam_channel::Sender<Event>, 
 impl Alarms {
 
     pub fn setup(event_tx: crossbeam_channel::Sender<Event>) -> Result<(Self, thread::JoinHandle<()>), Error> {
-        dbg!(("hoi"));
         let mut alarm_list = AlarmList::load()?;
         let (waker_tx, waker_rx) = crossbeam_channel::unbounded();
         let mut alarm_list_for_waker = alarm_list.clone();
@@ -86,7 +85,7 @@ impl Alarms {
     }
 
     pub fn add_alarm(&self, at_time: DateTime<Utc>) -> Result<(), Error> {
-        self.alarm_list.remove_alarm(&at_time)?;
+        self.alarm_list.add_alarm(at_time)?;
         self.waker_tx.send(())?;
         Ok(())
     }
@@ -94,6 +93,10 @@ impl Alarms {
         self.alarm_list.remove_alarm(&at_time)?;
         self.waker_tx.send(())?;
         Ok(())
+    }
+
+    pub fn list(&self) -> Vec<DateTime<Utc>> {
+        self.alarm_list.list()
     }
 }
 
@@ -113,6 +116,11 @@ impl AlarmList {
         list.remove_alarm(at_time)
     }
 
+    fn list(&self) -> Vec<DateTime<Utc>> {
+        let mut list = self.rawlist.lock().unwrap();
+        list.memory.iter().cloned().collect()
+    }
+
     /// calculate time to the earliest alarm, remove it from the list if the current time is later
     /// then the alarm
     fn get_next_alarm(&mut self) -> Option<DateTime<Utc>> {
@@ -129,12 +137,14 @@ impl RawList {
         let mut file;
         let memory;
         if path.exists() {
-            file = File::open(path)?;
+            file = OpenOptions::new().write(true).read(true).open(path)?;
             memory = serde_yaml::from_reader(&mut file)?;
+            info!("loaded alarms from file");
         } else {
             file = File::create(path)?;
             memory = BTreeSet::new();
             serde_yaml::to_writer(&file, &memory)?;
+            info!("alarm file did not exist, created new");
         }
 
         Ok(Self {memory, file})
@@ -144,12 +154,14 @@ impl RawList {
         self.memory.insert(at_time);
         self.file.set_len(0)?; //truncate file
         serde_yaml::to_writer(&mut self.file, &self.memory)?;
+        self.file.sync_data()?;
         Ok(())
     }
     fn remove_alarm(&mut self, at_time: &DateTime<Utc>) -> Result<(), Error>{
         self.memory.remove(at_time);
         self.file.set_len(0)?; //truncate file
         serde_yaml::to_writer(&mut self.file, &self.memory)?;
+        self.file.sync_data()?;
         Ok(())
     }
 

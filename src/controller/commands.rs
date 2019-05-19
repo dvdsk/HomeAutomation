@@ -3,12 +3,6 @@ use crate::controller::states::*;
 use crate::controller::states::RoomState;
 
 #[derive(Copy, Clone)]
-pub enum TargetState {
-    Normal,
-    LightLoop,
-}
-
-#[derive(Copy, Clone)]
 pub enum Command {
   LampsToggle,
   LampsDim,
@@ -30,7 +24,7 @@ pub fn handle_cmd(cmd: Command, state: ActiveState, mods: &mut Modifications, sy
     println!("handled a command");
     match cmd {
       Command::ChangeState(target_state) => {
-        return handle_changestate_cmd(target_state, mods, sys)
+        return change_state(target_state, mods, sys)
       }
       //Command::PauseMpd => {unimplemented!(); state},
 
@@ -49,11 +43,4 @@ pub fn handle_cmd(cmd: Command, state: ActiveState, mods: &mut Modifications, sy
         Command::Test => { warn!("The Test command was just send")},
     }
     state
-}
-
-fn handle_changestate_cmd(target_state: TargetState, mods: &mut Modifications, sys: &mut System) -> ActiveState {
-  match target_state {
-      TargetState::Normal => ActiveState::Normal(Normal::enter(mods, sys)),
-      TargetState::LightLoop => ActiveState::LightLoop(LightLoop::enter(mods, sys)),
-  }
 }
