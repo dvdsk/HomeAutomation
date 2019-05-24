@@ -10,6 +10,8 @@ use crate::actix_web::middleware::identity::{CookieIdentityPolicy, IdentityServi
 
 use crate::chrono::Duration;
 
+use sled;
+
 use std::sync::atomic::{AtomicUsize};
 use std::thread;
 
@@ -157,6 +159,13 @@ fn main() {
 
 	helper::setup_logging(2).expect("could not set up debugging");
 
+	let config = sled::ConfigBuilder::new()
+			.path("database".to_owned())
+			.flush_every_ms(None) //do not flush to disk unless explicitly asked
+			.build();
+
+	let db = sled::Db::start(config).unwrap();
+
 	let passw_db = Arc::new(RwLock::new(PasswordDatabase::load("").unwrap()));
 	let dataset_handle = Arc::new(RwLock::new(timeseries_interface::init("data").unwrap()));
 	let sessions = Arc::new(RwLock::new(HashMap::new()));
@@ -164,7 +173,7 @@ fn main() {
 
 	let _controller_thread = controller::start(controller_rx).unwrap();
 	input::attached_sensors::check_local_sensing_dataset(&dataset_handle).unwrap();
-	let (alarms, _waker_thread) = input::alarms::Alarms::setup(controller_tx.clone()).unwrap();
+	let (alarms, _waker_thread) = input::alarms::Alarms::setup(controller_tx.clone(), db.clone()).unwrap();
 
 	let (data_router_handle, web_handle) = //starts webserver
 	start("keys/cert.key", "keys/cert.cert", dataset_handle.clone(), passw_db.clone(), sessions.clone(), controller_tx.clone(), alarms.clone());

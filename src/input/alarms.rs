@@ -5,35 +5,36 @@ use crossbeam_channel;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use std::fs::{File, OpenOptions};
-use serde_yaml;
+use sled;
+use byteorder::{ByteOrder, BigEndian};
 
 use crate::controller::Event;
 use crate::errors::Error;
 
-//TODO, move alarms to input? then backup waker/trigger/speaker/alarm moves to arduino
+//TODO, what to do on multiple alarms at the same time?
+// -add one a second later
+// -store in millisec to lower collision chance?
 
-#[derive(Debug)]
-struct RawList {
-    memory: BTreeSet<DateTime<Utc>>,
-    file: File,   
-}
 
-#[derive(Debug, Clone)]
-struct AlarmList {
-    rawlist: Arc<Mutex<RawList>>,
-}
 
-#[derive(Debug, Clone)]
+
+#[derive(Clone)]
 pub struct Alarms {
     waker_tx: crossbeam_channel::Sender<()>,
-    alarm_list: AlarmList,
+    alarm_db: AlarmList,
+}
+
+#[derive(Clone)]
+pub struct AlarmList {
+    db: Arc<sled::Tree>,
 }
 
 fn waker(mut alarm_list: AlarmList, event_tx: crossbeam_channel::Sender<Event>, waker_rx: crossbeam_channel::Receiver<()>) {
     
     loop { 
+        //This can fail #TODO make sure an non waking error alarm is send to the user
         if let Some(current_alarm) = alarm_list.get_next_alarm() {
             let now = Utc::now();
             let timeout = (now - current_alarm).to_std().unwrap();
@@ -50,7 +51,7 @@ fn waker(mut alarm_list: AlarmList, event_tx: crossbeam_channel::Sender<Event>, 
                             error!("could not set off alarm: {:?}", error);
                         }; //set 
                         //remove alarm from memory and file
-                        if let Err(error) = alarm_list.remove_alarm(&current_alarm){
+                        if let Err(error) = alarm_list.remove_alarm(current_alarm){
                             error!("could not remove alarm after its trigger time: {:?}", error);
                         };
                         break; //get next alarm
@@ -75,93 +76,58 @@ fn waker(mut alarm_list: AlarmList, event_tx: crossbeam_channel::Sender<Event>, 
 
 impl Alarms {
 
-    pub fn setup(event_tx: crossbeam_channel::Sender<Event>) -> Result<(Self, thread::JoinHandle<()>), Error> {
-        let mut alarm_list = AlarmList::load()?;
-        let (waker_tx, waker_rx) = crossbeam_channel::unbounded();
-        let mut alarm_list_for_waker = alarm_list.clone();
-        let waker_thread = thread::spawn(move || { waker(alarm_list_for_waker, event_tx, waker_rx)});
+    pub fn setup(event_tx: crossbeam_channel::Sender<Event>, db: sled::Db) -> Result<(Self, thread::JoinHandle<()>), Error> {
 
-        Ok((Self {alarm_list, waker_tx}, waker_thread))
+        let alarm_db = AlarmList { db: db.open_tree("alarms")? };
+
+        let (waker_tx, waker_rx) = crossbeam_channel::unbounded();
+        let waker_db_copy = alarm_db.clone();
+        let waker_thread = thread::spawn(move || { waker(waker_db_copy, event_tx, waker_rx)});
+
+        Ok((Self {alarm_db, waker_tx}, waker_thread))
     }
 
+    // we decrease the time till the alarm until there is a place in the database
+    // as only one alarm can fire at the time, after an alarm gets a timeslot it is never changed
     pub fn add_alarm(&self, at_time: DateTime<Utc>) -> Result<(), Error> {
-        self.alarm_list.add_alarm(at_time)?;
+        let mut timestamp = at_time.timestamp();
+        
+        self.alarm_db.add_alarm(at_time);
+        //signal waker to update its next alarm
         self.waker_tx.send(())?;
         Ok(())
     }
     pub fn remove_alarm(&self, at_time: DateTime<Utc>) -> Result<(), Error> {
-        self.alarm_list.remove_alarm(&at_time)?;
-        self.waker_tx.send(())?;
+        self.alarm_db.remove_alarm(at_time)?;
+        self.waker_tx.send(())?; //signal waker to update its next alarm
         Ok(())
     }
 
     pub fn list(&self) -> Vec<DateTime<Utc>> {
-        self.alarm_list.list()
+        //self.alarm_list.iter().keys().map(|k| DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(k, 0), Utc);)
+        Vec::new() //TODO placeholder
     }
 }
 
 impl AlarmList {
+    // we decrease the time till the alarm until there is a place in the database
+    // as only one alarm can fire at the time, after an alarm gets a timeslot it is never changed
+    pub fn add_alarm(&self, at_time: DateTime<Utc>) -> Result<(), Error> {
+        let mut timestamp = at_time.timestamp() as u64;
+        let mut timestamp_array = timestamp.to_be_bytes();
 
-    fn load() -> Result<Self, Error> {
-        let list = RawList::load()?;
-        Ok(Self {rawlist: Arc::new(Mutex::new(list)) })
-    }
-
-    fn add_alarm(&self, at_time: DateTime<Utc>) -> Result<(), Error> {
-        let mut list = self.rawlist.lock().unwrap();
-        list.add_alarm(at_time)
-    }
-    fn remove_alarm(&self, at_time: &DateTime<Utc>) -> Result<(), Error> {
-        let mut list = self.rawlist.lock().unwrap();
-        list.remove_alarm(at_time)
-    }
-
-    fn list(&self) -> Vec<DateTime<Utc>> {
-        let mut list = self.rawlist.lock().unwrap();
-        list.memory.iter().cloned().collect()
-    }
-
-    /// calculate time to the earliest alarm, remove it from the list if the current time is later
-    /// then the alarm
-    fn get_next_alarm(&mut self) -> Option<DateTime<Utc>> {
-        let mut list = self.rawlist.lock().unwrap();
-        list.get_next_alarm()
-    }
-}
-
-impl RawList {
-
-    fn load() -> Result<Self, Error> {
-        let path = Path::new("alarms.yaml");
-        
-        let mut file;
-        let memory;
-        if path.exists() {
-            file = OpenOptions::new().write(true).read(true).open(path)?;
-            memory = serde_yaml::from_reader(&mut file)?;
-            info!("loaded alarms from file");
-        } else {
-            file = File::create(path)?;
-            memory = BTreeSet::new();
-            serde_yaml::to_writer(&file, &memory)?;
-            info!("alarm file did not exist, created new");
+        //create alarm entry if there is no alarm at this timestamp yet
+        //if there is already an alarm schedualed, postpone this one until there is a spot free
+        //self.db.cas(&[1], None as Option<&[u8]>, Some(&[10])
+        while let Err(old_event) = self.db.cas(&timestamp_array, None as Option<&[u8]>, Some(&[0]))? {//cas unique creation
+            timestamp -= 1;
+            timestamp_array = timestamp.to_be_bytes();
         }
-
-        Ok(Self {memory, file})
-    }
-
-    fn add_alarm(&mut self, at_time: DateTime<Utc>) -> Result<(), Error>{
-        self.memory.insert(at_time);
-        self.file.set_len(0)?; //truncate file
-        serde_yaml::to_writer(&mut self.file, &self.memory)?;
-        self.file.sync_data()?;
         Ok(())
     }
-    fn remove_alarm(&mut self, at_time: &DateTime<Utc>) -> Result<(), Error>{
-        self.memory.remove(at_time);
-        self.file.set_len(0)?; //truncate file
-        serde_yaml::to_writer(&mut self.file, &self.memory)?;
-        self.file.sync_data()?;
+    pub fn remove_alarm(&self, at_time: DateTime<Utc>) -> Result<(), Error> {
+        let timestamp = at_time.timestamp() as u64;
+        self.db.del(timestamp.to_be_bytes())?;
         Ok(())
     }
 
@@ -170,19 +136,23 @@ impl RawList {
     fn get_next_alarm(&mut self) -> Option<DateTime<Utc>> {
         let now = Utc::now();
         
-        loop {
-            let next_alarm = self.memory.iter().cloned().next();
-            if let Some(alarm) = next_alarm {
-                if alarm > now {
-                    return Some(alarm.clone());
-                } else {
-                    if self.remove_alarm(&alarm).is_err() {
-                        error!("could not remove alarm after it fired!"); 
-                    }
+        //the greater then is applied to the integer representation
+        let timestamp = (now.timestamp()-10) as u64;
+        match self.db.get_gt(timestamp.to_be_bytes()) {
+            Ok(entry) => {
+                if let Some(entry) = entry {
+                    let (timestamp, action) = entry;
+                    let timestamp = BigEndian::read_u64(&timestamp);
+                    let alarm = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(61, 0), Utc);
+                    Some(alarm)
+                } else { 
+                    None
                 }
-            } else {
-                return None;
+            },
+            Err(error) => {
+                error!("Could not retrieve next alarm");
+                None
             }
-        } 
+        }
     }
 }

@@ -6,6 +6,7 @@ pub enum Error {
     GPIO(sysfs_gpio::Error),
     YamlParsing(serde_yaml::Error),
     Channel(crossbeam_channel::SendError<()>),
+    DataBase(sled::Error),
 }
 
 impl From<serde_yaml::Error> for Error {
@@ -31,6 +32,17 @@ impl From<crossbeam_channel::SendError<()>> for Error {
     }
 }
 
+//impl From<sled::IVec> for Error {
+//    fn from(error: crossbeam_channel::SendError<()>) -> Self {
+//        Error::Channel(error)
+//    }
+//}
+
+impl From<sled::Error> for Error {
+    fn from(error: sled::Error) -> Self {
+        Error::DataBase(error)
+    }
+}
 
 /*impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
