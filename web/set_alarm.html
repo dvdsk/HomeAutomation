@@ -4,9 +4,7 @@
 <html>
 <body>
 
-    <input type="time" id="alarm_time" name="alarm time" value="09:00:00">
-    <input type="date" id="alarm_date" name="alarm date" value="2018-07-22">
-
+    <input type="datetime-local" id="alarm_date_time" name="alarm time and date time">
     <input type="button" id="set_alarm" value="set alarm">
 
     <script>
@@ -19,18 +17,9 @@
             return new Date(today().getTime() + 24 * 60 * 60 * 1000);
         }
 
-        // Get formatted date YYYY-MM-DD
-        function getFormattedDate(date) {
-            return date.getFullYear()
-                + "-"
-                + ("0" + (date.getMonth() + 1)).slice(-2)
-                + "-"
-                + ("0" + date.getDate()).slice(-2);
-        }      
-
         function getDefaultAlarmDate() {
             var now = new Date();
-            if (now.getHours < 6) {
+            if (now.getHours() < 6) {
                 return today();
             } else {
                 return tomorrow();
@@ -44,16 +33,18 @@
         function display_alarm_fail() {
             document.write("alarm set failed!!!!");
         }
+        function display_alarm_fail_incorrect_time() {
+            document.write("alarm set failed!!!!, something wrong with alarm time");
+        }
 
         function setAlarm() {
 
-            var alarm_date = document.getElementById("alarm_date").valueAsDate;
-            var alarm_time = document.getElementById("alarm_time").valueAsDate;
+            var alarm_date_time = new Date(document.getElementById("alarm_date_time").value);
 
-            alarm_date.setHours(alarm_time.getHours());
-            alarm_date.setMinutes(alarm_time.getMinutes());
-            alarm_date.setSeconds(alarm_time.getSeconds());
-            var unix_time = alarm_date.getTime()/1000;
+            var offset = new Date().getTimezoneOffset(); //in minutes
+            console.log(alarm_date_time);
+
+            var unix_time = alarm_date_time.getTime()/1000;// + offset * 60;
             console.log(unix_time);
             
             //var formData = new FormData();
@@ -73,9 +64,12 @@
                 var data = request.responseText; // Returned data, e.g., an HTML document.
                 if (status == 200) {
                     console.log(status)
-                    display_alarm_success();
+                    display_alarm_success()
+                } else if (status == 500) {
+                    console.log(status)
+                    display_alarm_fail_incorrect_time()
                 } else {
-                    console.log(status);
+                    display_alarm_fail()
                 }
             }
 
@@ -87,7 +81,20 @@
             request.send("timestamp="+unix_time);
         }
 
-        document.getElementById("alarm_date").valueAsDate = getDefaultAlarmDate();
+        Number.prototype.AddZero= function(b,c){
+            var  l= (String(b|| 10).length - String(this).length)+1;
+            return l> 0? new Array(l).join(c|| '0')+this : this;
+        }//to add zero to less than 10,
+
+
+        var d = getDefaultAlarmDate(),
+        localDateTime= [(d.getMonth()+1).AddZero(),
+            d.getDate().AddZero(),
+            d.getFullYear()].join('/') +', ' +
+            "09:00";
+        var elem=document.getElementById("alarm_date_time"); 
+        elem.value = localDateTime;
+
         document.getElementById("set_alarm").onclick = setAlarm;
 
     </script>
