@@ -32,17 +32,18 @@ pub struct AlarmList {
 }
 
 fn waker(mut alarm_list: AlarmList, event_tx: crossbeam_channel::Sender<Event>, waker_rx: crossbeam_channel::Receiver<()>) {
-    
+    dbg!();
     loop { 
         //This can fail #TODO make sure an non waking error alarm is send to the user
-        if let Some(current_alarm) = alarm_list.get_next_alarm() {
+        if let Some(current_alarm) = alarm_list.get_next() {
             let now = Utc::now();
-            let timeout = (now - current_alarm).to_std().unwrap();
-            
+            let timeout = (current_alarm - now ).to_std().unwrap();//TODO handle alarm in past
+            info!("next alarm is in: {} seconds", timeout.as_secs());
+
             //do we sound the an alarm or should we add or remove one?
             match waker_rx.recv_timeout(timeout) {
                 //do not set off alarm
-                Ok(_) => (),//should recheck if "current alarm" is still the right one as we removed one
+                Ok(_) => {dbg!(); ()},//should recheck if "current alarm" is still the right one as we removed one
                     
                 
                 Err(error) => match error {//should the alarm go off or should we stop?
@@ -62,11 +63,12 @@ fn waker(mut alarm_list: AlarmList, event_tx: crossbeam_channel::Sender<Event>, 
             }
         } else {
             //no alarm to wait on, wait for instructions
+            info!("no alarm in the future");
             loop {
                 //A message through the mpsc signals an alarm has been added
                 match waker_rx.recv() {
-                    Ok(_) => (), //alarms were added or remove, go back and start waiting on it
-                    Err(_) => return //cant have timed out thus program should exit
+                    Ok(_) => break, //alarms were added or remove, go back and start waiting on it
+                    Err(_) => return, //cant have timed out thus program should exit
                 }
             }
         }
@@ -78,7 +80,8 @@ impl Alarms {
 
     pub fn setup(event_tx: crossbeam_channel::Sender<Event>, db: sled::Db) -> Result<(Self, thread::JoinHandle<()>), Error> {
 
-        let alarm_db = AlarmList { db: db.open_tree("alarms")? };
+        let mut alarm_db = AlarmList { db: db.open_tree("alarms")? };
+        alarm_db.remove_old();
 
         let (waker_tx, waker_rx) = crossbeam_channel::unbounded();
         let waker_db_copy = alarm_db.clone();
@@ -89,10 +92,8 @@ impl Alarms {
 
     // we decrease the time till the alarm until there is a place in the database
     // as only one alarm can fire at the time, after an alarm gets a timeslot it is never changed
-    pub fn add_alarm(&self, at_time: DateTime<Utc>) -> Result<(), Error> {
-        let mut timestamp = at_time.timestamp();
-        
-        self.alarm_db.add_alarm(at_time);
+    pub fn add_alarm(&self, at_time: DateTime<Utc>) -> Result<(), Error> {      
+        self.alarm_db.add_alarm(at_time)?;
         //signal waker to update its next alarm
         self.waker_tx.send(())?;
         Ok(())
@@ -105,21 +106,30 @@ impl Alarms {
 
     pub fn list(&self) -> Vec<DateTime<Utc>> {
         //self.alarm_list.iter().keys().map(|k| DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(k, 0), Utc);)
-        Vec::new() //TODO placeholder
+        let start: &[u8] = &[0];
+        let alarms = self.alarm_db.db.range(start..);
+
+        let mut list = Vec::new(); //TODO placeholder
+        for (timestamp, _events) in alarms.filter_map(Result::ok) {
+            let timestamp = BigEndian::read_u64(&timestamp) as i64;
+            let alarm = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
+            list.push(alarm);
+        }
+        list
     }
 }
 
 impl AlarmList {
     // we decrease the time till the alarm until there is a place in the database
     // as only one alarm can fire at the time, after an alarm gets a timeslot it is never changed
-    pub fn add_alarm(&self, at_time: DateTime<Utc>) -> Result<(), Error> {
+    fn add_alarm(&self, at_time: DateTime<Utc>) -> Result<(), Error> {
         let mut timestamp = at_time.timestamp() as u64;
         let mut timestamp_array = timestamp.to_be_bytes();
 
         //create alarm entry if there is no alarm at this timestamp yet
         //if there is already an alarm schedualed, postpone this one until there is a spot free
         //self.db.cas(&[1], None as Option<&[u8]>, Some(&[10])
-        while let Err(old_event) = self.db.cas(&timestamp_array, None as Option<&[u8]>, Some(&[0]))? {//cas unique creation
+        while let Err(_old_event) = self.db.cas(&timestamp_array, None as Option<&[u8]>, Some(&[0]))? {//cas unique creation
             timestamp -= 1;
             timestamp_array = timestamp.to_be_bytes();
         }
@@ -131,9 +141,20 @@ impl AlarmList {
         Ok(())
     }
 
+    fn remove_old(&mut self) -> Result<(), Error> {
+        let now = Utc::now();
+        let timestamp = now.timestamp() as u64;
+        let mut timestamp_array = timestamp.to_be_bytes();
+        for old_alarm in self.db.range(..timestamp_array).keys() {
+            if let Ok(old_alarm) = old_alarm {
+                self.db.del(old_alarm)?;
+            }
+        }
+        Ok(())
+    }
     /// calculate time to the earliest alarm, remove it from the list if the current time is later
     /// then the alarm
-    fn get_next_alarm(&mut self) -> Option<DateTime<Utc>> {
+    fn get_next(&mut self) -> Option<DateTime<Utc>> {
         let now = Utc::now();
         
         //the greater then is applied to the integer representation
@@ -142,8 +163,8 @@ impl AlarmList {
             Ok(entry) => {
                 if let Some(entry) = entry {
                     let (timestamp, action) = entry;
-                    let timestamp = BigEndian::read_u64(&timestamp);
-                    let alarm = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(61, 0), Utc);
+                    let timestamp = BigEndian::read_u64(&timestamp) as i64;
+                    let alarm = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
                     Some(alarm)
                 } else { 
                     None

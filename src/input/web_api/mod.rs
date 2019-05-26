@@ -147,17 +147,23 @@ pub fn set_alarm_unix_timestamp((req, params): (HttpRequest<ServerState>, Form<A
 
 	if let Ok(ts) = params.timestamp.parse(){
 		let time = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(ts, 0), Utc);
+		dbg!(time);
+		dbg!(Utc::now());
+
 		if time>Utc::now() {
 			if req.state().alarms.add_alarm(time).is_ok() {
 				dbg!(("done setting alarm"));
 				HttpResponse::Ok().finish()
 			} else {
+				dbg!();
 				make_error(&req, StatusCode::INTERNAL_SERVER_ERROR)
 			}
 		} else {
+			dbg!();
 			make_error(&req, StatusCode::UNPROCESSABLE_ENTITY)
 		}
 	} else {
+		dbg!();
 		make_error(&req, StatusCode::INTERNAL_SERVER_ERROR)
 	}
 }
@@ -169,6 +175,7 @@ pub fn list_alarms(req: &HttpRequest<ServerState>) -> HttpResponse {
 	let mut list = String::with_capacity(alarms.len()*30);
 	for alarm in alarms {
 		list.push_str(&alarm.to_rfc2822());
+		list.push_str("\n");
 	}
 	dbg!(&list);
 	HttpResponse::Ok().body(list)
