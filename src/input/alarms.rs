@@ -1,12 +1,8 @@
-use std::collections::BTreeSet;
-use std::path::Path;
-
 use crossbeam_channel;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
 use std::thread;
 
 use chrono::{DateTime, NaiveDateTime, Utc};
-use std::fs::{File, OpenOptions};
 use sled;
 use byteorder::{ByteOrder, BigEndian};
 
@@ -144,7 +140,7 @@ impl AlarmList {
     fn remove_old(&mut self) -> Result<(), Error> {
         let now = Utc::now();
         let timestamp = now.timestamp() as u64;
-        let mut timestamp_array = timestamp.to_be_bytes();
+        let timestamp_array = timestamp.to_be_bytes();
         for old_alarm in self.db.range(..timestamp_array).keys() {
             if let Ok(old_alarm) = old_alarm {
                 self.db.del(old_alarm)?;
@@ -162,7 +158,7 @@ impl AlarmList {
         match self.db.get_gt(timestamp.to_be_bytes()) {
             Ok(entry) => {
                 if let Some(entry) = entry {
-                    let (timestamp, action) = entry;
+                    let (timestamp, _action) = entry;
                     let timestamp = BigEndian::read_u64(&timestamp) as i64;
                     let alarm = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
                     Some(alarm)
@@ -171,7 +167,7 @@ impl AlarmList {
                 }
             },
             Err(error) => {
-                error!("Could not retrieve next alarm");
+                error!("Could not retrieve next alarm: {:?}",error);
                 None
             }
         }

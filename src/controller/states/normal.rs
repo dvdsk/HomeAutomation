@@ -7,11 +7,11 @@ use std::time::{Duration, Instant};
 pub struct Normal {}
 
 impl RoomState for Normal {
-    fn update(self, mods: &mut Modifications, sys: &mut System) -> ActiveState {
+    fn update(self, _mods: &mut Modifications, _sys: &mut System) -> ActiveState {
         //dbg!("updating normal state");
         ActiveState::Normal(self)
     }
-    fn enter(mods: &mut Modifications, sys: &mut System) -> Self {
+    fn enter(_mods: &mut Modifications, sys: &mut System) -> Self {
         dbg!("making everything rdy for the normal state");
         sys.update_period = Duration::from_secs(5);
         sys.next_update = Instant::now()+sys.update_period;

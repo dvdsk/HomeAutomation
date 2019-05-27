@@ -82,16 +82,16 @@ pub fn start(rx: crossbeam_channel::Receiver<Event>) -> Result<thread::JoinHandl
 			};
 			
 			state = match (event, state) {
-					//specific test code for normal state
+				//specific test code for normal state
 			    (Event::Test, ActiveState::Normal(state)) => {dbg!("a test happend while in normal state"); ActiveState::Normal(state)},
 
-					//general code that is the same for all functions, unless specific handlers exist above
+				//general code that is the same for all functions, unless specific handlers exist above
 			    (Event::Command(cmd), state) => {handle_cmd(cmd, state, &mut mods, &mut system)},
 			    (Event::Update, state) => {state.update(&mut mods, &mut system)},	    
-					(Event::Alarm, state) => {dbg!("ALARM ALARM"); info!("Alarm went off"); state},
-					(Event::Test, state) => {dbg!("a test happend"); change_state(TargetState::WakeUp, &mut mods, &mut system)},
+				(Event::Alarm, _) => {change_state(TargetState::WakeUp, &mut mods, &mut system)},
+				(Event::Test, _) => {dbg!("a test happend"); change_state(TargetState::WakeUp, &mut mods, &mut system)},
 					
-					(Event::Stop, _) => return (),
+				(Event::Stop, _) => return (),
 			};
 		}
 	});

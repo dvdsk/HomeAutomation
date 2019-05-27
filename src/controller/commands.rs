@@ -1,6 +1,5 @@
 use super::{ActiveState, Modifications, System};
 use crate::controller::states::*;
-use crate::controller::states::RoomState;
 
 #[derive(Copy, Clone)]
 pub enum Command {

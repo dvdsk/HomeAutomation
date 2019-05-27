@@ -39,7 +39,7 @@ fn make_auth_error(req: &HttpRequest<ServerState>) -> HttpResponse {
 	    .finish()
 }
 
-fn make_error(req: &HttpRequest<ServerState>, header: StatusCode) -> HttpResponse {
+fn make_error(req: &HttpRequest<ServerState>, _header: StatusCode) -> HttpResponse {
 	req.build_response(StatusCode::INTERNAL_SERVER_ERROR)
 	    .finish()
 }
