@@ -37,6 +37,7 @@ pub struct ServerState {
 	controller_addr: crossbeam_channel::Sender<Event>,
 	alarms: input::alarms::Alarms,
 	dataserver_state: DataServerState,
+	youtube_dl: input::YoutubeDownloader,
 }
 
 impl InnerState for ServerState {
@@ -47,12 +48,14 @@ impl InnerState for ServerState {
 
 const FORCE_CERT_REGEN: bool =	false;
 
-pub fn start(signed_cert: &str, private_key: &str,
+pub fn start_webserver(signed_cert: &str, private_key: &str,
 	data: Arc<RwLock<timeseries_interface::Data>>,
 	passw_db: Arc<RwLock<PasswordDatabase>>,
 	sessions: Arc<RwLock<HashMap<u16, dataserver::httpserver::Session>>>,
 	controller_tx: crossbeam_channel::Sender<Event>,
-	alarms: input::alarms::Alarms) -> (DataRouterHandle, ServerHandle) {
+	alarms: input::alarms::Alarms,
+	youtube_dl: input::YoutubeDownloader,
+		) -> (DataRouterHandle, ServerHandle) {
 
 	let tls_config = httpserver::make_tls_config(signed_cert, private_key);
 	let cookie_key = httpserver::make_random_cookie_key();
@@ -81,6 +84,7 @@ pub fn start(signed_cert: &str, private_key: &str,
 			  controller_addr: controller_tx.clone(),
 				alarms: alarms.clone(),
 				dataserver_state,
+				youtube_dl: youtube_dl.clone(),
 		  };
 
 			App::with_state(state)
@@ -106,7 +110,9 @@ pub fn start(signed_cert: &str, private_key: &str,
 
 				.resource(r"/commands/lightLoop", |r| r.method(Method::GET).f(web_api::lightloop))
 
-				.resource(r"/commands/set/wakeup_alarm", |r| r.method(Method::POST).with(web_api::set_alarm_minutes_from_now))
+				//currently not used
+				//.resource(r"/commands/set/wakeup_alarm", |r| r.method(Method::POST).with(web_api::set_alarm_minutes_from_now))
+				
 				// websocket route
 				// note some browsers need already existing http connection to
 				// this server for the upgrade to wss to work
@@ -117,6 +123,7 @@ pub fn start(signed_cert: &str, private_key: &str,
 				.resource("/plot", |r| r.f(plot_data))
 				.resource(r"/list_data.html", |r| r.method(Method::GET).f(list_data))
 
+				.resource(r"/add_song", |r| r.method(Method::POST).with(web_api::add_song_from_url))
 				.resource(r"/set_alarm", |r| r.method(Method::POST).with(web_api::set_alarm_unix_timestamp))
 				.resource(r"/list_alarms", |r| r.method(Method::GET).f(web_api::list_alarms))
 
@@ -130,7 +137,7 @@ pub fn start(signed_cert: &str, private_key: &str,
 				.resource(r"/{tail:.*}", |r| r.f(serve_file))
     })
     .bind_rustls("0.0.0.0:8070", tls_config).unwrap()
-    //.bind("0.0.0.0:8070").unwrap() //without tcp use with debugging (note: https -> http, wss -> ws)
+    //.bind("0.0.0.0:8080").unwrap() //without tcp use with debugging (note: https -> http, wss -> ws)
     .shutdown_timeout(5)    // shut down 5 seconds after getting the signal to shut down
     .start();
 
@@ -172,12 +179,21 @@ fn main() {
 	let (controller_tx, controller_rx) = crossbeam_channel::unbounded();
 
 	let _controller_thread = controller::start(controller_rx).unwrap();
-	input::attached_sensors::check_local_sensing_dataset(&dataset_handle).unwrap();
 	let (alarms, _waker_thread) = input::alarms::Alarms::setup(controller_tx.clone(), db.clone()).unwrap();
+	let (youtube_dl, _downloader_thread) = input::YoutubeDownloader::init().unwrap();
 
-	let (data_router_handle, web_handle) = //starts webserver
-	start("keys/cert.key", "keys/cert.cert", dataset_handle.clone(), passw_db.clone(), sessions.clone(), controller_tx.clone(), alarms.clone());
+	//verify dataset integrity
+	input::attached_sensors::check_local_sensing_dataset(&dataset_handle).unwrap();
 
+	//start the webserver
+	let (data_router_handle, web_handle) = start_webserver("keys/cert.key", "keys/cert.cert", 
+		dataset_handle.clone(), passw_db.clone(), sessions.clone(), 
+		controller_tx.clone(), alarms.clone(), youtube_dl.clone());
+
+	//TODO start the telegram server
+	//TODO
+
+	//start monitoring local sensors
 	#[cfg(feature = "sensors_connected")]
 	input::attached_sensors::start_monitoring(controller_tx.clone(), data_router_handle, dataset_handle.clone());
 
@@ -197,5 +213,5 @@ fn main() {
 	}
 	println!("shutting down");
 	httpserver::stop(web_handle);
-	controller_tx.send(Event::Stop).unwrap();
+	controller_tx.send(Event::Stop).unwrap(); //TODO cant we do this by dropping the mpsc?
 }

@@ -1,8 +1,12 @@
 use std::process::Command;
 use std::io::copy;
+
 use std::fs;
+use std::os::unix::fs::OpenOptionsExt;
+
 use std::time::Duration;
-use std::sync::{Arc, Mutex, Condvar}
+use std::thread;
+use crossbeam_channel::{unbounded, Receiver, Sender};
 
 use std::path::Path;
 use reqwest::{IntoUrl, get};
@@ -10,19 +14,57 @@ use reqwest::{IntoUrl, get};
 use crate::errors::Error;
 
 fn download_file<U: IntoUrl>(url: U, save_path: &Path) -> Result<(), Error> {
-    let mut response = reqwest::get(url)?;
-    let mut dest = fs::File::create(save_path)?;
+    
+    let mut dest = fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .mode(0o770)
+        .open(save_path)?;
+
+    let mut response = reqwest::get(url)?;    
     copy(&mut response, &mut dest)?;
+    
     Ok(())
 }
 
 #[derive(Clone)]
 pub struct YoutubeDownloader {
-    guard: Arc<(Mutex<bool>, Condvar)>,
+    url_tx: crossbeam_channel::Sender<String>,
 }
 
+fn download_song(url: &str) -> Result<(), Error> {
+    let full_path = Path::new("temp/youtube-dl");
+    let output = Command::new(full_path)
+                .arg("--format")
+                .arg("bestaudio/best")
+                .arg("--extract-audio")
+                //.arg("--embed-thumbnail")
+                .arg(url)
+                .output()?;
+
+    dbg!(output);
+    Ok(())
+}
+
+fn song_downloader(url_rx: crossbeam_channel::Receiver<String>) {
+    loop {
+        match url_rx.recv() {
+            Ok(url) => {
+                dbg!(&url);
+                match download_song(&url) {
+                    Ok(_) => dbg!(),
+                    Err(error) => error!("error during song download: {:?}", error),
+                };
+            },
+            // return without url means YoutubeDownloader was dropped and we should stop
+            Err(_) => return,
+        }   
+    }    
+}
+
+
 impl YoutubeDownloader {
-    pub fn init() -> Result<Self, Error>{
+    pub fn init() -> Result<(Self, thread::JoinHandle<()>), Error>{
         let dir_path = Path::new("temp");
         let full_path = Path::new("temp/youtube-dl");
         
@@ -30,41 +72,28 @@ impl YoutubeDownloader {
             if !dir_path.exists() {
                 fs::create_dir(dir_path)?;
             }
-
             download_file("https://yt-dl.org/downloads/latest/youtube-dl", full_path)?;
         }
-        Ok(Self {guard: Arc::new(Mutex::new(false), Condvar::new()) })
+
+        let (url_tx, url_rx) = crossbeam_channel::bounded(10);
+        let downloader_thread = thread::spawn(move || song_downloader(url_rx) );
+
+        Ok((Self {url_tx}, downloader_thread))
     }
 
-    fn download(url: &str) -> Result<(), Error> {
-        let full_path = Path::new("temp/youtube-dl");
-        let output = Command::new(full_path)
-                    .arg("-F")
-                    .arg(url)
-                    .output()?;
+    //TODO use youtube downloader to stream audio from youtube!!!
 
-        dbg!(output);
-        Ok(())
-    }
-
-    fn download_song_timeout(&mut self, url: &str, timeout: Duration) -> Result<(), Error> {
+    /// checks if a song can be downloaded, if so sends the command to start download to 
+    /// a seperate thread
+    pub fn add_song_to_queue(&self, url: String) -> Result<(), ()> {
         
-        let (free, waker) = self.guard.lock(x);
-        if !free.lock.unwrap() {
-            waker.wait_timeout(free, timeout)
+        if self.url_tx.try_send(url).is_err(){
+            error!("could not add song to downlaod list");
+            Err(())
+        } else {
+            dbg!();
+            Ok(())
         }
-        
-
-        let full_path = Path::new("temp/youtube-dl");
-        let output = Command::new(full_path)
-                    .arg("-F")
-                    .arg(url)
-                    .output()?;
-
-        dbg!(output);
-
-        waker.notify_one();
-        Ok(())
     }
 
 }
