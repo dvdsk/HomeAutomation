@@ -125,6 +125,7 @@ impl AlarmList {
         //create alarm entry if there is no alarm at this timestamp yet
         //if there is already an alarm schedualed, postpone this one until there is a spot free
         //self.db.cas(&[1], None as Option<&[u8]>, Some(&[10])
+        //TODO check how this works and expand sled documentation for fail cases
         while let Err(_old_event) = self.db.cas(&timestamp_array, None as Option<&[u8]>, Some(&[0]))? {//cas unique creation
             timestamp -= 1;
             timestamp_array = timestamp.to_be_bytes();

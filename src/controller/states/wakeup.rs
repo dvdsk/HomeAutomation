@@ -4,7 +4,7 @@ use super::Normal;
 
 use std::time::{Duration, Instant};
 
-const WAKEUP_DURATION: u64 = 600; //in seconds
+const WAKEUP_DURATION: u64 = 900; //in seconds
 const BRI_PER_SECOND: f32 = 254./(WAKEUP_DURATION as f32); //in seconds
 
 const CT_BEGIN: u16 = 500; const CT_END: u16 = 280;

@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 use std::thread;
 
 mod system;
-use system::lamps::Lighting;
+use system::{Lighting};
 
 mod states;
 use states::{ActiveState, RoomState, change_state};
@@ -11,6 +11,8 @@ use commands::{handle_cmd};
 
 pub use commands::Command;
 pub use states::TargetState;
+
+use crate::errors::Error;
 
 pub enum Event {
   Update,
@@ -39,6 +41,7 @@ pub struct System {
 
 	lights: Lighting,
 	//mpd
+
 	//etc
 }
 
@@ -51,7 +54,7 @@ fn saturating_duration_till(target: std::time::Instant) -> std::time::Duration{
 	}
 }
 
-pub fn start(rx: crossbeam_channel::Receiver<Event>) -> Result<thread::JoinHandle<()>,()>{
+pub fn start(rx: crossbeam_channel::Receiver<Event>) -> Result<thread::JoinHandle<()>, Error>{
 
 	let mut system = System {
 		update_period: Duration::from_secs(5),
@@ -83,11 +86,11 @@ pub fn start(rx: crossbeam_channel::Receiver<Event>) -> Result<thread::JoinHandl
 			
 			state = match (event, state) {
 				//specific test code for normal state
-			    (Event::Test, ActiveState::Normal(state)) => {dbg!("a test happend while in normal state"); ActiveState::Normal(state)},
+			  (Event::Test, ActiveState::Normal(state)) => {dbg!("a test happend while in normal state"); ActiveState::Normal(state)},
 
 				//general code that is the same for all functions, unless specific handlers exist above
-			    (Event::Command(cmd), state) => {handle_cmd(cmd, state, &mut mods, &mut system)},
-			    (Event::Update, state) => {state.update(&mut mods, &mut system)},	    
+			  (Event::Command(cmd), state) => {handle_cmd(cmd, state, &mut mods, &mut system)},
+			  (Event::Update, state) => {state.update(&mut mods, &mut system)},	    
 				(Event::Alarm, _) => {change_state(TargetState::WakeUp, &mut mods, &mut system)},
 				(Event::Test, _) => {dbg!("a test happend"); change_state(TargetState::WakeUp, &mut mods, &mut system)},
 					

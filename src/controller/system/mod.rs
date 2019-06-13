@@ -1,1 +1,3 @@
-pub mod lamps;
+mod lamps;
+
+pub use lamps::Lighting;

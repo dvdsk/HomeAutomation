@@ -11,6 +11,7 @@ use std::time::Duration;
 use std::fs::File;
 use std::path::Path;
 use std::collections::{HashMap, BTreeMap};
+use crate::errors::Error;
 
 fn register(ip: &str) -> Result<String, ()>{
 	for _ in 0..5 {//try 5 times to connect
@@ -33,11 +34,11 @@ fn register(ip: &str) -> Result<String, ()>{
 	return Err(());
 }
 
-fn find_bridge_ip() -> Result<String, ()> {
-	let mut discovered = bridge::discover().unwrap();
+fn find_bridge_ip() -> Result<String, Error> {
+	let mut discovered = bridge::discover()?;
 	if discovered.len() == 0 {
 		error!("No bridge found!");
-		return Err(());
+		return Err(Error::Lamps(HueError::from_kind(HueErrorKind::Msg("no bridge found".into()))));
 	} else if discovered.len() > 1 {
 		error!("Found multiple hue bridges: {:?}, continueing with first one in list", discovered);
 	}
@@ -72,7 +73,7 @@ fn update_saved_bridge_info(bridge_ip: &str, login: &str) -> Result<(), ()> {
 	Err(())
 }
 
-fn get_bridge_and_status() -> Result<(Bridge, BTreeMap<usize, philipshue::hue::Light>),()> {
+fn get_bridge_and_status() -> Result<(Bridge, BTreeMap<usize, philipshue::hue::Light>), Error> {
 
 	if let Ok((mut ip, mut login)) = saved_bridge_info(){
 		let mut update_ip_or_login =	false;
@@ -89,29 +90,29 @@ fn get_bridge_and_status() -> Result<(Bridge, BTreeMap<usize, philipshue::hue::L
 				},
 				//cant find bridge on given ip
 				Err(HueError(HueErrorKind::BridgeError{error: DeviceIsUnreachable, ..}, _)) => {
-					ip = find_bridge_ip().map_err(|_| ())?;
+					ip = find_bridge_ip()?;
 					update_ip_or_login = true;
 				},
 				//cant register as button was not pressed in time
 				Err(HueError(HueErrorKind::BridgeError{error: LinkButtonNotPressed, ..}, _)) => {
-					login = register(&ip).map_err(|_| ())?;
+					login = register(&ip)?;
 					update_ip_or_login = true;
 				},
 				Err(e) => {
 					error!("Unexpected error occured: {:?}", e);
-		    	return Err(());
+		    	return Err(e.into());
 		    },
 			}
 		}
 	} else {
-		let ip = find_bridge_ip().map_err(|_| ())?;
-		let login = register(&ip).map_err(|_| ())?;
+		let ip = find_bridge_ip()?;
+		let login = register(&ip)?;
 		if update_saved_bridge_info(&ip, &login).is_err() {
 			error!("Could not save new bridge ip and login, next run will fail without user intervention")
 		};
 
 		let bridge = Bridge::new(&ip, &login);
-		let lights_info = bridge.get_all_lights().map_err(|_| ())?;
+		let lights_info = bridge.get_all_lights()?;
 		return Ok((bridge, lights_info));
 	}
 }
@@ -150,7 +151,7 @@ impl From<&philipshue::hue::LightState> for Lamp{
 
 impl Lighting {
 
-	pub fn init() -> Result<Self, ()> {
+	pub fn init() -> Result<Self, Error> {
 		let (bridge, lights_info) = get_bridge_and_status()?;
 		let lamps: HashMap<usize, Lamp> = lights_info.iter().map(|(id,light)| (*id, Lamp::from(&light.state))).collect();
 
@@ -158,18 +159,18 @@ impl Lighting {
 	}
 
 	//how to deal with errors?
-	pub fn toggle(&mut self) -> Result<(),()>{
+	pub fn toggle(&mut self) -> Result<(),Error>{
 		let numb_on: u8 = self.lamps.values().map(|lamp| lamp.on as u8).sum();
 		let numb_off =	self.lamps.len() as u8 - numb_on;
 
 		//group ID 0 is a special group containing all lights known to the bridge
 		if numb_on > numb_off {
 			let command = LightCommand::off(LightCommand::default() );
-			self.bridge.set_group_state(0, &command).map_err(|_| ())?;
+			self.bridge.set_group_state(0, &command)?;
 			self.lamps.values_mut().for_each(|lamp| lamp.on = false);
 		} else {
 			let command = LightCommand::on(LightCommand::default() );
-			self.bridge.set_group_state(0, &command).map_err(|_| ())?;
+			self.bridge.set_group_state(0, &command)?;
 			self.lamps.values_mut().for_each(|lamp| lamp.on = true);
 		}
 
@@ -177,12 +178,12 @@ impl Lighting {
 	}
 
 	//how to deal with errors?
-	pub fn set_all_to(&mut self, bri: u8, ct: u16) -> Result<(),()>{
+	pub fn set_all_to(&mut self, bri: u8, ct: u16) -> Result<(),Error>{
 		let command = LightCommand::default();
 		let command = command.on();
 		let command = command.with_bri(bri);
 		let command = command.with_ct(ct);
-		self.bridge.set_group_state(0, &command).map_err(|_| ())?;
+		self.bridge.set_group_state(0, &command)?;
 		self.lamps.values_mut().for_each(|lamp| {lamp.bri =bri; lamp.ct =Some(ct); lamp.on =true});
 
 		Ok(())
