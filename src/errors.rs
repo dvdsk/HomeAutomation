@@ -9,6 +9,7 @@ pub enum Error {
     DataBase(sled::Error),
     Download(reqwest::Error),
     Lamps(philipshue::errors::HueError),
+    Mpd(mpd::error::Error),
     UnTracked,
 }
 
@@ -62,6 +63,12 @@ impl From<()> for Error {
 impl From<philipshue::errors::HueError> for Error {
     fn from(error: philipshue::errors::HueError) -> Self {
         Error::Lamps(error)
+    }
+}
+
+impl From<mpd::error::Error> for Error {
+    fn from(error: mpd::error::Error) -> Self {
+        Error::Mpd(error)
     }
 }
 

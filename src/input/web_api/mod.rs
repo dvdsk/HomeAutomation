@@ -188,13 +188,13 @@ pub struct SongUrl {
 	url: String,
 }
 
-
 pub fn add_song_from_url((req, params): (HttpRequest<ServerState>, Form<SongUrl>)) -> HttpResponse {
 	let url = params.into_inner().url;
 	dbg!();
 
 	if req.state().youtube_dl.add_song_to_queue(url).is_ok(){
 		dbg!();
+		
 		HttpResponse::Ok().finish()
 	} else {
 		make_error(&req, StatusCode::INTERNAL_SERVER_ERROR)

@@ -55,7 +55,8 @@ pub fn start_webserver(signed_cert: &str, private_key: &str,
 	controller_tx: crossbeam_channel::Sender<Event>,
 	alarms: input::alarms::Alarms,
 	youtube_dl: input::YoutubeDownloader,
-		) -> (DataRouterHandle, ServerHandle) {
+	mpd_status: input::MpdStatus,
+	) -> (DataRouterHandle, ServerHandle) {
 
 	let tls_config = httpserver::make_tls_config(signed_cert, private_key);
 	let cookie_key = httpserver::make_random_cookie_key();
@@ -181,6 +182,7 @@ fn main() {
 	let _controller_thread = controller::start(controller_rx).unwrap();
 	let (alarms, _waker_thread) = input::alarms::Alarms::setup(controller_tx.clone(), db.clone()).unwrap();
 	let (youtube_dl, _downloader_thread) = input::YoutubeDownloader::init().unwrap();
+	let (mpd_status, _mpd_watcher_thread, updater_tx) = input::MpdStatus::start_updating().unwrap();
 
 	//verify dataset integrity
 	input::attached_sensors::check_local_sensing_dataset(&dataset_handle).unwrap();
@@ -188,7 +190,7 @@ fn main() {
 	//start the webserver
 	let (data_router_handle, web_handle) = start_webserver("keys/cert.key", "keys/cert.cert", 
 		dataset_handle.clone(), passw_db.clone(), sessions.clone(), 
-		controller_tx.clone(), alarms.clone(), youtube_dl.clone());
+		controller_tx.clone(), alarms.clone(), youtube_dl.clone(), mpd_status.clone());
 
 	//TODO start the telegram server
 	//TODO
@@ -213,5 +215,5 @@ fn main() {
 	}
 	println!("shutting down");
 	httpserver::stop(web_handle);
-	controller_tx.send(Event::Stop).unwrap(); //TODO cant we do this by dropping the mpsc?
+	input::MpdStatus::stop_updating(updater_tx);
 }

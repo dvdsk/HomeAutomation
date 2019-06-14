@@ -12,6 +12,7 @@ use commands::{handle_cmd};
 pub use commands::Command;
 pub use states::TargetState;
 
+use crate::input;
 use crate::errors::Error;
 
 pub enum Event {
@@ -19,7 +20,6 @@ pub enum Event {
 	Alarm,
 	Test,
   Command(Command),
-  Stop,
 }
 
 pub struct Modifications { //change name to: alteration, deviation, overrides or something else?
@@ -73,7 +73,7 @@ pub fn start(rx: crossbeam_channel::Receiver<Event>) -> Result<thread::JoinHandl
 		loop {
 			//wait for next update or an incoming event
 			let time_till_update = saturating_duration_till(system.next_update);
-			let event = match	rx.recv_timeout(time_till_update){
+			let event = match rx.recv_timeout(time_till_update){
 				Ok(event) => event,
 				Err(error) => match error {
 					crossbeam_channel::RecvTimeoutError::Timeout => {
@@ -91,10 +91,8 @@ pub fn start(rx: crossbeam_channel::Receiver<Event>) -> Result<thread::JoinHandl
 				//general code that is the same for all functions, unless specific handlers exist above
 			  (Event::Command(cmd), state) => {handle_cmd(cmd, state, &mut mods, &mut system)},
 			  (Event::Update, state) => {state.update(&mut mods, &mut system)},	    
-				(Event::Alarm, _) => {change_state(TargetState::WakeUp, &mut mods, &mut system)},
-				(Event::Test, _) => {dbg!("a test happend"); change_state(TargetState::WakeUp, &mut mods, &mut system)},
-					
-				(Event::Stop, _) => return (),
+			  (Event::Alarm, _) => {change_state(TargetState::WakeUp, &mut mods, &mut system)},
+			  (Event::Test, _) => {dbg!("a test happend"); change_state(TargetState::WakeUp, &mut mods, &mut system)},
 			};
 		}
 	});

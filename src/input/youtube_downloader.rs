@@ -33,16 +33,31 @@ pub struct YoutubeDownloader {
 }
 
 fn download_song(url: &str) -> Result<(), Error> {
+    let mut music_dir = dirs::home_dir().unwrap();
+    music_dir.push("Music");
+    let mut output_arg = String::from(music_dir.to_str().unwrap());
+    output_arg.push_str("/%(title)s.%(ext)s");
+
     let full_path = Path::new("temp/youtube-dl");
     let output = Command::new(full_path)
                 .arg("--format")
                 .arg("bestaudio/best")
                 .arg("--extract-audio")
+                .arg("--output")
+                .arg(&output_arg)
                 //.arg("--embed-thumbnail")
                 .arg(url)
                 .output()?;
 
-    dbg!(output);
+    dbg!(&output);
+    if output.status.success() {
+
+        //TODO move to mpd music location
+        //send rescan command to mpd
+    } else {
+        dbg!("HANDLE ERROR");
+    }
+
     Ok(())
 }
 
