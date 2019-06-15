@@ -12,7 +12,6 @@ use commands::{handle_cmd};
 pub use commands::Command;
 pub use states::TargetState;
 
-use crate::input;
 use crate::errors::Error;
 
 pub enum Event {

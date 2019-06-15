@@ -54,7 +54,7 @@ fn download_song(url: &str) -> Result<(), Error> {
     if output.status.success() {
 
         //TODO move to mpd music location
-        mpd::Client::connect("127.0.0.1:6600").and_then(|mut c| c.rescan());
+        mpd::Client::connect("127.0.0.1:6600").and_then(|mut c| c.rescan())?;
     } else {
         dbg!("HANDLE ERROR");
     }

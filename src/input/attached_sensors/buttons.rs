@@ -35,7 +35,7 @@ fn stream(mut pin_numb_command_pairs: Vec<(u64, Command)>, tx: crossbeam_channel
 		              			last_press = Instant::now();
 		              			dbg!(pin_numb);
 		              			dbg!(val);
-		                  	tx.send(Event::Command(command.clone()));
+		                  	tx.send(Event::Command(command.clone())).unwrap();
 		                  }
                     }
                     Ok(())

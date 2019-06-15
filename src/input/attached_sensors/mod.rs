@@ -9,8 +9,11 @@ use self::chrono::{Utc};
 
 use crossbeam_channel;
 
+#[cfg(feature = "sensors_connected")]
 mod buttons;
+#[cfg(feature = "sensors_connected")]
 mod bme280;
+
 
 use std::thread;
 use std::time::{Duration};
@@ -20,6 +23,7 @@ use crate::controller::{Event};
 
 const LOCAL_SENSING_ID: timeseries_interface::DatasetId = 0;
 //TODO mechanisme for shutdown
+#[cfg(feature = "sensors_connected")]
 pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>, data_router_handle: DataRouterHandle, dataset_handle: Arc<RwLock<timeseries_interface::Data>>) {
 
 	buttons::start(tx.clone());
@@ -33,7 +37,7 @@ pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>, data_router_handle
 	//init all sensors
 	let mut bme = bme280::init();
 
-  thread::spawn(move || {//TODO figure out shutdown behaviour
+	thread::spawn(move || {//TODO figure out shutdown behaviour
 
 		loop {
 			//get all measurements

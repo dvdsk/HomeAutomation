@@ -77,7 +77,7 @@ impl Alarms {
     pub fn setup(event_tx: crossbeam_channel::Sender<Event>, db: sled::Db) -> Result<(Self, thread::JoinHandle<()>), Error> {
 
         let mut alarm_db = AlarmList { db: db.open_tree("alarms")? };
-        alarm_db.remove_old();
+        alarm_db.remove_old()?;
 
         let (waker_tx, waker_rx) = crossbeam_channel::unbounded();
         let waker_db_copy = alarm_db.clone();

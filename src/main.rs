@@ -49,9 +49,9 @@ impl InnerState for ServerState {
 const FORCE_CERT_REGEN: bool =	false;
 
 #[cfg(feature = "live_server")]
-const socketaddr: &'static str = "0.0.0.0:8080";
+const SOCKETADDR: &'static str = "0.0.0.0:8080";
 #[cfg(not(feature = "live_server"))]
-const socketaddr: &'static str = "0.0.0.0:8070";
+const SOCKETADDR: &'static str = "0.0.0.0:8070";
 
 pub fn start_webserver(signed_cert: &str, private_key: &str,
 	data: Arc<RwLock<timeseries_interface::Data>>,
@@ -62,8 +62,6 @@ pub fn start_webserver(signed_cert: &str, private_key: &str,
 	youtube_dl: input::YoutubeDownloader,
 	mpd_status: input::MpdStatus,
 	) -> (DataRouterHandle, ServerHandle) {
-
-	dbg!(&socketaddr);
 
 	let tls_config = httpserver::make_tls_config(signed_cert, private_key);
 	let cookie_key = httpserver::make_random_cookie_key();
@@ -144,7 +142,7 @@ pub fn start_webserver(signed_cert: &str, private_key: &str,
 				//for all other urls we try to resolve to static files in the "web" dir
 				.resource(r"/{tail:.*}", |r| r.f(serve_file))
     })
-    .bind_rustls(socketaddr, tls_config).unwrap()
+    .bind_rustls(SOCKETADDR, tls_config).unwrap()
     //.bind("0.0.0.0:8080").unwrap() //without tcp use with debugging (note: https -> http, wss -> ws)
     .shutdown_timeout(5)    // shut down 5 seconds after getting the signal to shut down
     .start();

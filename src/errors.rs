@@ -10,6 +10,7 @@ pub enum Error {
     Download(reqwest::Error),
     Lamps(philipshue::errors::HueError),
     Mpd(mpd::error::Error),
+    RetryLogic(String),
     UnTracked,
 }
 
@@ -42,6 +43,23 @@ impl From<reqwest::Error> for Error {
     }
 }
 
+impl From<retry::Error<Error>> for Error {
+    fn from(error: retry::Error<Error>) -> Self {
+        match error {
+            retry::Error::Operation{error, total_delay: _total_delay, tries: _tries} => error,
+            retry::Error::Internal(error_str) => Error::RetryLogic(error_str),
+        }
+    }
+}
+
+impl From<retry::Error<mpd::error::Error>> for Error {
+    fn from(error: retry::Error<mpd::error::Error>) -> Self {
+        match error {
+            retry::Error::Operation{error, total_delay: _total_delay, tries: _tries} => Error::Mpd(error),
+            retry::Error::Internal(error_str) => Error::RetryLogic(error_str),
+        }
+    }
+}
 //impl From<sled::IVec> for Error {
 //    fn from(error: crossbeam_channel::SendError<()>) -> Self {
 //        Error::Channel(error)

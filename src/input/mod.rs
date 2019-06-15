@@ -1,5 +1,7 @@
-pub mod web_api;
+
 pub mod attached_sensors;
+
+pub mod web_api;
 pub mod alarms;
 pub mod youtube_downloader;
 mod mpd_status;
