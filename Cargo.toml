@@ -5,12 +5,13 @@ authors = ["David Kleingeld <dskleingeld@gmail.com>"]
 edition = "2018"
 
 [features]
-default = ["sensors_connected"]
+default = []
 
 # Enable code that expects sensor hardware to be present. Will stop execution
 # if hardware is not present,
 # on by default for testing use cargo flag: --no-default-features
 sensors_connected = []
+live_server = []
 
 [dependencies]
 actix-web = { version = "0.7.15", features = ["rust-tls"] }

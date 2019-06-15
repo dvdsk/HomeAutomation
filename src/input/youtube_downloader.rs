@@ -33,8 +33,9 @@ pub struct YoutubeDownloader {
 }
 
 fn download_song(url: &str) -> Result<(), Error> {
-    let mut music_dir = dirs::home_dir().unwrap();
-    music_dir.push("Music");
+    //let mut music_dir = dirs::home_dir().unwrap();
+    //music_dir.push("Music");
+    let music_dir = std::path::PathBuf::from("/home/pi/Music");
     let mut output_arg = String::from(music_dir.to_str().unwrap());
     output_arg.push_str("/%(title)s.%(ext)s");
 
@@ -53,7 +54,7 @@ fn download_song(url: &str) -> Result<(), Error> {
     if output.status.success() {
 
         //TODO move to mpd music location
-        //send rescan command to mpd
+        mpd::Client::connect("127.0.0.1:6600").and_then(|mut c| c.rescan());
     } else {
         dbg!("HANDLE ERROR");
     }
