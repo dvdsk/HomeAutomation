@@ -179,7 +179,7 @@ fn main() {
 
 	let db = sled::Db::start(config).unwrap();
 
-	let passw_db = Arc::new(RwLock::new(PasswordDatabase::load("").unwrap()));
+	let passw_db = Arc::new(RwLock::new(PasswordDatabase::load("").unwrap()));//replace with wrapper around db
 	let dataset_handle = Arc::new(RwLock::new(timeseries_interface::init("data").unwrap()));
 	let sessions = Arc::new(RwLock::new(HashMap::new()));
 	let (controller_tx, controller_rx) = crossbeam_channel::unbounded();

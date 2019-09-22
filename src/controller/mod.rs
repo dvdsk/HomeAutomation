@@ -16,21 +16,21 @@ use crate::errors::Error;
 
 pub enum Event {
   Update,
-	Alarm,
-	Test,
+  Alarm,
+  Test,
   Command(Command),
 }
 
 pub struct Modifications { //change name to: alteration, deviation, overrides or something else?
-  lighting: bool
-  //Mpd,
+  lighting: bool,
+  mpd: bool,
   //Desk,
   //Alarm,
 }
 
 impl Default for Modifications {
 	fn default() -> Self {
-		Modifications {lighting: false}
+		Modifications {lighting: false, mpd: false}
 	}
 }
 
@@ -83,15 +83,16 @@ pub fn start(rx: crossbeam_channel::Receiver<Event>) -> Result<thread::JoinHandl
 				}
 			};
 			
+			//state changes may not return errors
 			state = match (event, state) {
 				//specific test code for normal state
-			  (Event::Test, ActiveState::Normal(state)) => {dbg!("a test happend while in normal state"); ActiveState::Normal(state)},
+				(Event::Test, ActiveState::Normal(state)) => {dbg!("a test happend while in normal state"); ActiveState::Normal(state)},
 
 				//general code that is the same for all functions, unless specific handlers exist above
-			  (Event::Command(cmd), state) => {handle_cmd(cmd, state, &mut mods, &mut system)},
-			  (Event::Update, state) => {state.update(&mut mods, &mut system)},	    
-			  (Event::Alarm, _) => {change_state(TargetState::WakeUp, &mut mods, &mut system)},
-			  (Event::Test, _) => {dbg!("a test happend"); change_state(TargetState::WakeUp, &mut mods, &mut system)},
+				(Event::Command(cmd), state) => {handle_cmd(cmd, state, &mut mods, &mut system)},
+				(Event::Update, state) => {state.update(&mut mods, &mut system)},	    
+				(Event::Alarm, _) => {change_state(TargetState::WakeUp, &mut mods, &mut system)},
+				(Event::Test, _) => {dbg!("a test happend"); change_state(TargetState::WakeUp, &mut mods, &mut system)},
 			};
 		}
 	});

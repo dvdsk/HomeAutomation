@@ -56,7 +56,7 @@ fn download_song(url: &str) -> Result<(), Error> {
         //TODO move to mpd music location
         mpd::Client::connect("127.0.0.1:6600").and_then(|mut c| c.rescan())?;
     } else {
-        dbg!("HANDLE ERROR");
+        dbg!("HANDLE ERROR"); //update youtube downloader on fail (once if not recenty updated (check file meta))
     }
 
     Ok(())

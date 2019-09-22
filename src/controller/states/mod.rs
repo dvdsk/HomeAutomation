@@ -33,11 +33,11 @@ impl ActiveState {
 }
 
 pub fn change_state(target_state: TargetState, mods: &mut Modifications, sys: &mut System) -> ActiveState {
-  match target_state {
-      TargetState::Normal => ActiveState::Normal(Normal::enter(mods, sys)),
-      TargetState::LightLoop => ActiveState::LightLoop(LightLoop::enter(mods, sys)),
-      TargetState::WakeUp => ActiveState::WakeUp(WakeUp::enter(mods, sys)),
-  }
+    match target_state {
+        TargetState::Normal => ActiveState::Normal(Normal::enter(mods, sys)),
+        TargetState::LightLoop => ActiveState::LightLoop(LightLoop::enter(mods, sys)),
+        TargetState::WakeUp => ActiveState::WakeUp(WakeUp::enter(mods, sys)),
+    }
 }
 
 pub trait RoomState {
