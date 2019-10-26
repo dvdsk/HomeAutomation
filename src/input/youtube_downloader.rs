@@ -1,15 +1,11 @@
 use std::process::Command;
 use std::io::copy;
-
 use std::fs;
 use std::os::unix::fs::OpenOptionsExt;
-
-use std::time::Duration;
 use std::thread;
-use crossbeam_channel::{unbounded, Receiver, Sender};
 
 use std::path::Path;
-use reqwest::{IntoUrl, get};
+use reqwest::{IntoUrl};
 
 use crate::errors::Error;
 

@@ -2,7 +2,7 @@ use mpd::{idle::Idle, idle::Subsystem, Client};
 use crate::errors::Error;
 use std::thread;
 use std::sync::{Arc, RwLock};
-use crossbeam_channel::{bounded, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender};
 
 //mpd watcher, waits on mpd sys changes and stores in struct/sends updates to whomever needs to know
 //mpd command sender (opens new connection for every command?)

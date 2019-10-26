@@ -1,4 +1,4 @@
-use super::{System, Modifications};
+use super::{System, Modifications, Environment};
 
 mod normal;
 mod lightloop;
@@ -23,11 +23,11 @@ pub enum TargetState {
 }
 
 impl ActiveState {
-    pub fn update(self, mods: &mut Modifications, system: &mut System) -> ActiveState {
+    pub fn update(self, mods: &mut Modifications, system: &mut System, env: &mut Environment) -> ActiveState {
         match self {
-            ActiveState::Normal(state) => state.update(mods, system),
-            ActiveState::LightLoop(state) => state.update(mods, system),           
-            ActiveState::WakeUp(state) => state.update(mods, system),   
+            ActiveState::Normal(state) => state.update(mods, system, env),
+            ActiveState::LightLoop(state) => state.update(mods, system, env),           
+            ActiveState::WakeUp(state) => state.update(mods, system, env),   
         }
     }
 }
@@ -42,5 +42,5 @@ pub fn change_state(target_state: TargetState, mods: &mut Modifications, sys: &m
 
 pub trait RoomState {
     fn enter(mods: &mut Modifications, system: &mut System) -> Self;
-    fn update(self, mods: &mut Modifications, system: &mut System) -> ActiveState;
+    fn update(self, mods: &mut Modifications, system: &mut System, env: &mut Environment) -> ActiveState;
 }

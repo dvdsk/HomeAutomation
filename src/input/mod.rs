@@ -1,5 +1,7 @@
-
-pub mod attached_sensors;
+#[cfg(feature = "sensors_connected")]
+pub mod sensors;
+#[cfg(feature = "sensors_connected")]
+pub mod buttons;
 
 pub mod web_api;
 pub mod alarms;

@@ -4,6 +4,9 @@ use std::thread;
 mod system;
 use system::{Lighting};
 
+mod environment;
+use environment::Environment;
+
 mod states;
 use states::{ActiveState, RoomState, change_state};
 mod commands;
@@ -65,6 +68,7 @@ pub fn start(rx: crossbeam_channel::Receiver<Event>) -> Result<thread::JoinHandl
 
 	let handle = thread::spawn(move || {
 		let mut mods = Modifications::default();
+		let env = Environment::default();
 		// TODO guess best init state from statefile or lamps+mpd+time
 	  
 		let mut state = ActiveState::Normal(states::Normal::enter(&mut mods, &mut system)); //initial state
@@ -90,7 +94,7 @@ pub fn start(rx: crossbeam_channel::Receiver<Event>) -> Result<thread::JoinHandl
 
 				//general code that is the same for all functions, unless specific handlers exist above
 				(Event::Command(cmd), state) => {handle_cmd(cmd, state, &mut mods, &mut system)},
-				(Event::Update, state) => {state.update(&mut mods, &mut system)},	    
+				(Event::Update, state) => {state.update(&mut mods, &mut system, &mut env)},	    
 				(Event::Alarm, _) => {change_state(TargetState::WakeUp, &mut mods, &mut system)},
 				(Event::Test, _) => {dbg!("a test happend"); change_state(TargetState::WakeUp, &mut mods, &mut system)},
 			};

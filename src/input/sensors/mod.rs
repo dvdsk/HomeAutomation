@@ -1,27 +1,11 @@
-extern crate dataserver;
 extern crate chrono;
 extern crate smallvec;
 extern crate bytes;
 
-use dataserver::{httpserver::timeseries_interface, httpserver::DataRouterHandle};
-use timeseries_interface::specifications::{MetaDataSpec, FieldSpec, FieldLength, FieldResolution};
-use self::chrono::{Utc};
-
-use crossbeam_channel;
-
 #[cfg(feature = "sensors_connected")]
-mod buttons;
-#[cfg(feature = "sensors_connected")]
-mod bme280;
+mod local;
 
-
-use std::thread;
-use std::time::{Duration};
-use std::sync::{RwLock, Arc};
-
-use crate::controller::{Event};
-
-const LOCAL_SENSING_ID: timeseries_interface::DatasetId = 0;
+//const LOCAL_SENSING_ID: timeseries_interface::DatasetId = 0;
 //TODO mechanisme for shutdown
 #[cfg(feature = "sensors_connected")]
 pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>, data_router_handle: DataRouterHandle, dataset_handle: Arc<RwLock<timeseries_interface::Data>>) {
@@ -34,44 +18,38 @@ pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>, data_router_handle
 	let fields = dataset.metadata.fields.clone();
 	drop(data);
 
-	//init all sensors
-	let mut bme = bme280::init();
+	//init all local sensors
+	let mut local_sensors = local::init();
+	//subscribe and init remote sensors
+	ble::init();
 
-	thread::spawn(move || {//TODO figure out shutdown behaviour
 
+
+	/*thread::spawn(move || {//TODO figure out shutdown behaviour
 		loop {
 			//get all measurements
 			let (humidity, temperature, pressure) = bme280::measure_and_record(&mut bme);
-
-			//init new slow measurements
-			//TODO
 			let now = Utc::now();
 
-			//process data into events and send off as event
 			//TODO
+			//process data into events and send off as event
 
 			//encode all data
-			//dbg!(fields);
 			let mut line: Vec<u8> = vec!(0;64);
 
 			fields[0].encode::<f32>(humidity, &mut line);
 			fields[1].encode::<f32>(temperature, &mut line);
 			fields[2].encode::<f32>(pressure, &mut line);
-			//store data and send to active web_clients
-			dataserver::httpserver::signal_newdata(&data_router_handle, LOCAL_SENSING_ID, line.clone(), now.timestamp() );
-			let mut data = dataset_handle.write().unwrap();
-			let set = data.sets.get_mut(&LOCAL_SENSING_ID).unwrap();
-			set.timeseries.append(now, &line).unwrap();
-			//dbg!(&line);
+			//send data to dataserver
 			drop(data);
 
 			//sleep until 5 seconds are completed
 			thread::sleep(Duration::from_secs(5));
 		}
-	});
+	});*/
 }
 
-fn make_local_sensing_spec() -> MetaDataSpec {
+/*fn make_local_sensing_spec() -> MetaDataSpec {
 	let humidity_desk = FieldSpec::BitLength( FieldLength {
 		name: String::from("humidity below desk"),
 		min_value: 0.0f32,
@@ -117,3 +95,4 @@ pub fn check_local_sensing_dataset(data: &Arc<RwLock<timeseries_interface::Data>
 		Ok(())
 	}
 }
+*/
