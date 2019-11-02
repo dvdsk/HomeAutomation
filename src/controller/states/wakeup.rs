@@ -1,4 +1,4 @@
-use super::super::{Modifications, System};
+use super::super::{Modifications, System, Environment};
 use super::{RoomState, ActiveState};
 use super::Normal;
 use crate::controller::system;
@@ -54,7 +54,7 @@ impl WakeUp {
 }
 
 impl RoomState for WakeUp {
-    fn update(self, mods: &mut Modifications, sys: &mut System) -> ActiveState {
+    fn update(self, mods: &mut Modifications, sys: &mut System, _env: &mut Environment) -> ActiveState {
         dbg!("updating wakeup state");
         let elapsed = self.start.elapsed().as_secs();
         

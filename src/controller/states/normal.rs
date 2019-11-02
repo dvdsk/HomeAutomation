@@ -1,4 +1,4 @@
-use super::super::{Modifications, System};
+use super::super::{Modifications, System, Environment};
 use super::{RoomState, ActiveState};
 
 use std::time::{Duration, Instant};
@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 pub struct Normal {}
 
 impl RoomState for Normal {
-    fn update(self, _mods: &mut Modifications, _sys: &mut System) -> ActiveState {
+    fn update(self, _mods: &mut Modifications, _sys: &mut System, _env: &mut Environment) -> ActiveState {
         //dbg!("updating normal state");
         ActiveState::Normal(self)
     }

@@ -3,6 +3,29 @@ extern crate bme280;
 
 use hal::{Delay, I2cdev};
 use bme280::BME280;
+use super::fields::Field;
+
+pub const TEMPERATURE: Field<f32> = Field {
+	offset: 5, //bits
+	length: 3, //bits (max 32 bit variables)
+	
+	decode_scale: 1f32,
+	decode_add: 1f32,
+};
+pub const HUMIDITY: Field<f32> = Field {
+	offset: 5,
+	length: 3,
+
+	decode_scale: 1f32,
+	decode_add: 1f32,
+};
+pub const PRESSURE: Field<f32> = Field {
+	offset: 5,
+	length: 3,
+
+	decode_scale: 1f32,
+	decode_add: 1f32,
+};
 
 pub fn init() -> BME280<I2cdev, Delay> {
 	// using Linux I2C Bus #1 in this example

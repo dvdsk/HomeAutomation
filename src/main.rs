@@ -24,6 +24,7 @@ use input::web_api::server;
 use server::{CheckLogin, PasswordDatabase, UserDatabase, index};
 use server::login::{login_get_and_check, login_page, logout};
 
+mod credentials;
 mod errors;
 
 #[cfg(feature = "live_server")]

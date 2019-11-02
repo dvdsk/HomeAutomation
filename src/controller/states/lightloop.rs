@@ -1,4 +1,4 @@
-use super::super::{Modifications, System};
+use super::super::{Modifications, System, Environment};
 use super::{RoomState, ActiveState};
 use super::normal;
 
@@ -10,7 +10,7 @@ pub struct LightLoop {
 }
 
 impl RoomState for LightLoop {
-    fn update(mut self, mods: &mut Modifications, sys: &mut System) -> ActiveState {
+    fn update(mut self, mods: &mut Modifications, sys: &mut System, _env: &mut Environment) -> ActiveState {
         dbg!("updating lightloop state");
         if self.counter == 0 {
             ActiveState::Normal(normal::Normal::enter(mods, sys))

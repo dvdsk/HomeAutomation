@@ -14,13 +14,16 @@ use commands::{handle_cmd};
 
 pub use commands::Command;
 pub use states::TargetState;
-
+#[cfg(feature = "sensors_connected")]
+use crate::input::sensors::SensorValue;
 use crate::errors::Error;
 
 pub enum Event {
   Update,
   Alarm,
   Test,
+  #[cfg(feature = "sensors_connected")]
+  Sensor(SensorValue),
   Command(Command),
 }
 
@@ -68,7 +71,7 @@ pub fn start(rx: crossbeam_channel::Receiver<Event>) -> Result<thread::JoinHandl
 
 	let handle = thread::spawn(move || {
 		let mut mods = Modifications::default();
-		let env = Environment::default();
+		let mut env = Environment::default();
 		// TODO guess best init state from statefile or lamps+mpd+time
 	  
 		let mut state = ActiveState::Normal(states::Normal::enter(&mut mods, &mut system)); //initial state
@@ -97,6 +100,9 @@ pub fn start(rx: crossbeam_channel::Receiver<Event>) -> Result<thread::JoinHandl
 				(Event::Update, state) => {state.update(&mut mods, &mut system, &mut env)},	    
 				(Event::Alarm, _) => {change_state(TargetState::WakeUp, &mut mods, &mut system)},
 				(Event::Test, _) => {dbg!("a test happend"); change_state(TargetState::WakeUp, &mut mods, &mut system)},
+				
+				#[cfg(feature = "sensors_connected")]
+				(Event::Sensor(_), _) => {dbg!("sensor data recieved"); state}
 			};
 		}
 	});
