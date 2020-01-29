@@ -10,7 +10,7 @@ mod controller;
 
 mod input;
 use input::web_api::server;
-use input::web_api::server::PasswordDatabase;
+use input::web_api::server::{PasswordDatabase, State};
 
 mod credentials;
 mod errors;
@@ -24,8 +24,8 @@ struct Opt {
 	// #[structopt(short = "e", long = "external-port")]
 	// external_port: Option<u16>,
 
-    // #[structopt(short = "t", long = "token")]
-	// token: String,
+    #[structopt(short = "t", long = "token")]
+	token: String,
 	
     // #[structopt(short = "d", long = "domain")]
 	// domain: String,
@@ -47,17 +47,29 @@ fn main() {
 
 	let (controller_tx, controller_rx) = crossbeam_channel::unbounded();
 
-	let (alarms, _waker_thread) = input::alarms::Alarms::setup(controller_tx.clone(), db.clone()).unwrap();
+	let (alarms, _waker_thread) = input::alarms::Alarms::setup(
+		controller_tx.clone(), 
+		db.clone()).unwrap();
 	let (youtube_dl, _downloader_thread) = input::YoutubeDownloader::init().unwrap();
-	let (mpd_status, _mpd_watcher_thread, updater_tx) = input::MpdStatus::start_updating().unwrap();
+	let (mpd_status, _mpd_watcher_thread, updater_tx) = 
+		input::MpdStatus::start_updating()
+		.unwrap();
 
-	let _controller_thread = controller::start(controller_rx, mpd_status.clone()).unwrap();
+	let _controller_thread = controller::start(
+		controller_rx, 
+		mpd_status.clone()).unwrap();
+
+	let state = State::new(
+		passw_db, 
+		controller_tx,
+		alarms, 
+		youtube_dl, 
+		opt.token.clone());
 
 	//start the webserver
 	let web_handle = server::start_webserver(
-		"keys/cert.key", "keys/cert.cert"
-	    ,passw_db.clone(), controller_tx.clone()
-		,alarms.clone(), youtube_dl.clone(), mpd_status);
+		"keys/cert.key", "keys/cert.cert", state);
+
 
 	//start monitoring local sensors
 	#[cfg(feature = "sensors_connected")]

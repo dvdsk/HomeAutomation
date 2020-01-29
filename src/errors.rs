@@ -1,6 +1,3 @@
-//use std::fmt;
-use std::sync::RwLock;
-
 use crate::input::youtube_downloader;
 
 #[derive(Debug)]

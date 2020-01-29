@@ -44,7 +44,7 @@ fn download_youtube_dl<U: IntoUrl>(url: U) -> Result<(), Error> {
         .mode(0o770)
         .open(YOUTUBE_DL_LOC)?;
 
-    let mut response = reqwest::get(url)?;    
+    let mut response = reqwest::blocking::get(url)?;    
     copy(&mut response, &mut dest)?;
     
     Ok(())

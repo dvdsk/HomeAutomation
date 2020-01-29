@@ -3,6 +3,7 @@ pub mod sensors;
 #[cfg(feature = "sensors_connected")]
 pub mod buttons;
 
+pub mod bot;
 pub mod web_api;
 pub mod alarms;
 pub mod youtube_downloader;

@@ -126,7 +126,8 @@ impl AlarmList {
         //if there is already an alarm schedualed, postpone this one until there is a spot free
         //self.db.cas(&[1], None as Option<&[u8]>, Some(&[10])
         //TODO check how this works and expand sled documentation for fail cases
-        while let Err(_old_event) = self.db.cas(&timestamp_array, None as Option<&[u8]>, Some(&[0]))? {//cas unique creation
+        while let Err(_old_event) = self
+            .db.compare_and_swap(&timestamp_array, None as Option<&[u8]>, Some(&[0]))? {//cas unique creation
             timestamp -= 1;
             timestamp_array = timestamp.to_be_bytes();
         }
@@ -134,7 +135,7 @@ impl AlarmList {
     }
     pub fn remove_alarm(&self, at_time: DateTime<Utc>) -> Result<(), Error> {
         let timestamp = at_time.timestamp() as u64;
-        self.db.del(timestamp.to_be_bytes())?;
+        self.db.remove(timestamp.to_be_bytes())?;
         Ok(())
     }
 
@@ -144,7 +145,7 @@ impl AlarmList {
         let timestamp_array = timestamp.to_be_bytes();
         for old_alarm in self.db.range(..timestamp_array).keys() {
             if let Ok(old_alarm) = old_alarm {
-                self.db.del(old_alarm)?;
+                self.db.remove(old_alarm)?;
             }
         }
         Ok(())

@@ -16,8 +16,10 @@ use std::io::BufReader;
 use std::fs::File;
 
 use crate::input;
+use crate::input::bot;
 use crate::input::web_api;
 use crate::controller::Event;
+
 
 pub mod database;
 pub mod login_redirect;
@@ -34,6 +36,7 @@ const SOCKETADDR: &'static str = "0.0.0.0:8070";
 
 pub struct Session {}//TODO deprecate
 
+#[derive(Clone)]
 pub struct State {
 	pub controller_addr: crossbeam_channel::Sender<Event>,
 	pub alarms: input::alarms::Alarms,
@@ -41,6 +44,29 @@ pub struct State {
 	pub sessions: Arc<RwLock<HashMap<u16, Arc<Mutex<Session>> >>> ,
 	pub free_session_ids: Arc<AtomicUsize>,
 	pub youtube_dl: input::YoutubeDownloader,
+	pub bot_token: String,
+}
+
+impl State {
+	pub fn new(passw_db: PasswordDatabase,
+		controller_tx: crossbeam_channel::Sender<Event>,
+		alarms: input::alarms::Alarms,
+		youtube_dl: input::YoutubeDownloader,
+		bot_token: String) -> Self {
+
+			let free_session_ids = Arc::new(AtomicUsize::new(0));
+			let sessions = Arc::new(RwLock::new(HashMap::new()));
+
+			State {
+				controller_addr: controller_tx,
+				alarms: alarms,
+				passw_db: passw_db,
+				youtube_dl: youtube_dl,
+				sessions: sessions,
+				free_session_ids: free_session_ids,
+				bot_token,
+			}
+		}
 }
 
 pub fn make_tls_config<P: AsRef<Path>>(signed_cert_path: P, private_key_path: P) -> rustls::ServerConfig{
@@ -60,32 +86,17 @@ pub async fn index(_req: HttpRequest) -> impl Responder {
     "Hello world!"
 }
 
-pub fn start_webserver(signed_cert: &str, private_key: &str,
-	passw_db: PasswordDatabase,
-	controller_tx: crossbeam_channel::Sender<Event>,
-	alarms: input::alarms::Alarms,
-	youtube_dl: input::YoutubeDownloader,
-	_mpd_status: input::MpdStatus,
-	) -> actix_web::dev::Server {
+pub fn start_webserver(signed_cert: &str, private_key: &str, state: State)
+ -> actix_web::dev::Server {
 
 	let tls_config = make_tls_config(signed_cert, private_key);
 	let cookie_key = make_random_cookie_key();
-
-  	let free_session_ids = Arc::new(AtomicUsize::new(0));
-	let sessions = Arc::new(RwLock::new(HashMap::new()));
 	let (tx, rx) = crossbeam_channel::unbounded();
 
 	thread::spawn(move || {
 		let web_server = HttpServer::new(move || {		
 				// data the webservers functions have access to
-			let data = actix_web::web::Data::new(State {
-				controller_addr: controller_tx.clone(),
-				alarms: alarms.clone(),
-				passw_db: passw_db.clone(),
-				youtube_dl: youtube_dl.clone(),
-				sessions: sessions.clone(),
-				free_session_ids: free_session_ids.clone(),
-			});
+			let data = actix_web::web::Data::new(state.clone());
 
 			App::new()
 				.app_data(data)
@@ -102,14 +113,23 @@ pub fn start_webserver(signed_cert: &str, private_key: &str,
 							.route(web::post().to(login_get_and_check))
 							.route(web::get().to(login_page))
 				))
-				.service(web::resource("/commands/lamps/toggle").to(web_api::toggle))
-				.service(web::resource("/commands/lamps/evening").to(web_api::evening))
-				.service(web::resource("/commands/lamps/night").to(web_api::night))
-				.service(web::resource("/commands/lamps/day").to(web_api::normal))
-				.service(web::resource("/commands/lamps/dimmest").to(web_api::dimmest))
-				.service(web::resource("/commands/lamps/dim").to(web_api::dim))
-				.service(web::resource("/commands/lightloop").to(web_api::lightloop))
-				
+				.service(web::resource("/commands/lamps/toggle")
+					.to(web_api::toggle))
+				.service(web::resource("/commands/lamps/evening")
+					.to(web_api::evening))
+				.service(web::resource("/commands/lamps/night")
+					.to(web_api::night))
+				.service(web::resource("/commands/lamps/day")
+					.to(web_api::normal))
+				.service(web::resource("/commands/lamps/dimmest")
+					.to(web_api::dimmest))
+				.service(web::resource("/commands/lamps/dim")
+					.to(web_api::dim))
+				.service(web::resource("/commands/lightloop")
+					.to(web_api::lightloop))
+				.service(web::resource(&format!("/{}", &state.bot_token))
+					.to(bot::handle_webhook))
+
 				.service(web::scope("/")
 					.wrap(CheckLogin{})
 					
