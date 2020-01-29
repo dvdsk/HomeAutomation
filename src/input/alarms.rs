@@ -1,5 +1,4 @@
 use crossbeam_channel;
-use std::sync::{Arc};
 use std::thread;
 
 use chrono::{DateTime, NaiveDateTime, Utc};

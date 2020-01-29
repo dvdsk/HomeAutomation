@@ -11,6 +11,7 @@ mod controller;
 mod input;
 use input::web_api::server;
 use input::web_api::server::{PasswordDatabase, State};
+use input::bot;
 
 mod credentials;
 mod errors;
@@ -18,24 +19,26 @@ mod errors;
 #[derive(StructOpt)]
 #[structopt(name = "homeautomation")]
 struct Opt {
-    // #[structopt(short = "p", long = "port", default_value = "8080")]
-	// port: u16,
+    #[structopt(short = "p", long = "port", default_value = "8080")]
+	port: u16,
 
-	// #[structopt(short = "e", long = "external-port")]
-	// external_port: Option<u16>,
+	#[structopt(short = "e", long = "external-port")]
+	external_port: Option<u16>,
 
     #[structopt(short = "t", long = "token")]
 	token: String,
 	
-    // #[structopt(short = "d", long = "domain")]
-	// domain: String,
+    #[structopt(short = "d", long = "domain")]
+	domain: String,
 	
     #[structopt(short = "p", long = "admin-password")]
     password: String,
 }
 
-fn main() {
+#[actix_rt::main]
+async fn main() {
 	let opt = Opt::from_args();
+	
 	let db = sled::Config::default() //651ms
 			.path("database")
 			.flush_every_ms(None) //do not flush to disk unless explicitly asked
@@ -68,8 +71,12 @@ fn main() {
 
 	//start the webserver
 	let web_handle = server::start_webserver(
-		"keys/cert.key", "keys/cert.cert", state);
+		"keys/cert.key", "keys/cert.cert", state, opt.port, &opt.domain);
+	
 
+	bot::set_webhook(
+		&opt.domain, &opt.token, 
+		opt.external_port.unwrap_or_else(|| opt.port)).await.unwrap();
 
 	//start monitoring local sensors
 	#[cfg(feature = "sensors_connected")]

@@ -1,4 +1,3 @@
-use chrono::{DateTime, Utc};
 use rustls::{NoClientAuth, ServerConfig};
 use rustls::internal::pemfile::{certs, pkcs8_private_keys};
 
@@ -20,7 +19,6 @@ use crate::input::bot;
 use crate::input::web_api;
 use crate::controller::Event;
 
-
 pub mod database;
 pub mod login_redirect;
 pub mod login;
@@ -28,11 +26,6 @@ pub mod login;
 pub use database::PasswordDatabase;
 pub use login::{make_random_cookie_key, login_page, login_get_and_check, logout};
 pub use login_redirect::CheckLogin;
-
-#[cfg(feature = "live_server")]
-const SOCKETADDR: &'static str = "0.0.0.0:8080";
-#[cfg(not(feature = "live_server"))]
-const SOCKETADDR: &'static str = "0.0.0.0:8070";
 
 pub struct Session {}//TODO deprecate
 
@@ -86,8 +79,8 @@ pub async fn index(_req: HttpRequest) -> impl Responder {
     "Hello world!"
 }
 
-pub fn start_webserver(signed_cert: &str, private_key: &str, state: State)
- -> actix_web::dev::Server {
+pub fn start_webserver(signed_cert: &str, private_key: &str, 
+	state: State, port: u16, domain: &str) -> actix_web::dev::Server {
 
 	let tls_config = make_tls_config(signed_cert, private_key);
 	let cookie_key = make_random_cookie_key();
@@ -142,7 +135,7 @@ pub fn start_webserver(signed_cert: &str, private_key: &str, state: State)
 					.service(fs::Files::new("", "./web/"))
 				)
 		})
-		.bind_rustls(SOCKETADDR, tls_config).unwrap()
+		.bind_rustls(&format!("0.0.0.0:{}", port), tls_config).unwrap()
 		//.bind("0.0.0.0:8080").unwrap() //without tcp use with debugging (note: https -> http, wss -> ws)
 		.shutdown_timeout(5)    // shut down 5 seconds after getting the signal to shut down
 		.run();
