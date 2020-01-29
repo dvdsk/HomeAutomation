@@ -1,5 +1,6 @@
 use super::{ActiveState, Modifications, System};
 use crate::controller::states::*;
+use crate::controller::system::mpd_control;
 
 #[derive(Copy, Clone)]
 pub enum Command {
@@ -10,7 +11,10 @@ pub enum Command {
   LampsNight,
   LampsDay,
 
-  PauseMpd,
+  MpdPause,
+  MpdDecreaseVolume,
+  MpdIncreaseVolume,
+
   GoToLinux,
   GoToWindows,
   
@@ -19,6 +23,7 @@ pub enum Command {
   ChangeState(TargetState),
 }
 
+//TODO handle error on command
 pub fn handle_cmd(cmd: Command, state: ActiveState, mods: &mut Modifications, sys: &mut System) -> ActiveState {
     println!("handled a command");
     match cmd {
@@ -37,7 +42,9 @@ pub fn handle_cmd(cmd: Command, state: ActiveState, mods: &mut Modifications, sy
         Command::GoToLinux => println!("should go to linux"),
         Command::GoToWindows => println!("should go to windows"),
         
-        Command::PauseMpd => println!("should pause mpd"),
+        Command::MpdPause => {mpd_control::toggle_playback(&mut sys.mpd).unwrap(); mods.mpd = true },
+        Command::MpdDecreaseVolume => {mpd_control::increase_volume(&mut sys.mpd).unwrap(); mods.mpd = true },
+        Command::MpdIncreaseVolume => {mpd_control::decrease_volume(&mut sys.mpd).unwrap(); mods.mpd = true },
 
         Command::Test => { warn!("The Test command was just send")},
     }

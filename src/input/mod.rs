@@ -6,7 +6,7 @@ pub mod buttons;
 pub mod web_api;
 pub mod alarms;
 pub mod youtube_downloader;
-mod mpd_status;
+pub mod mpd_status;
 
 pub use youtube_downloader::YoutubeDownloader;
 pub use mpd_status::MpdStatus;

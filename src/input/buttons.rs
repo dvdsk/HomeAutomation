@@ -51,13 +51,15 @@ fn stream(mut pin_numb_command_pairs: Vec<(u64, Command)>, tx: crossbeam_channel
 pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>) {
   thread::spawn(move || {
 		let pin_numb_command_pairs = vec!(
+            //buttons near lamp
             (16, Command::LampsDim),
             (12, Command::LampsDimmest),
             (13, Command::LampsToggle),
             
-            (27, Command::LampsToggle), //left 3, left
-            (22, Command::LampsToggle), //left 3, middle
-            (18, Command::LampsToggle), //left 3, right
+            //buttons on desk
+            (27, Command::MpdIncreaseVolume), //left 3, left
+            (22, Command::MpdPause), //left 3, middle
+            (18, Command::MpdDecreaseVolume), //left 3, right
             
             (23, Command::LampsNight), //right 4, left most
             (24, Command::LampsEvening), //right 4, left 

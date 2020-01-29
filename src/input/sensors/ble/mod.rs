@@ -1,7 +1,7 @@
 //use secure_ble::{connect_to_adapter, connect_to_node, authenticate_node, StreamCipher, subscribe, printvalues};
 
-mod node_credentials;
-use node_credentials::*;
+mod ble_credentials;
+use ble_credentials::*;
 
 
 pub fn init(){

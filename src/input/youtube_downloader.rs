@@ -4,18 +4,45 @@ use std::fs;
 use std::os::unix::fs::OpenOptionsExt;
 use std::thread;
 
+use std::time::Duration;
 use std::path::Path;
 use reqwest::{IntoUrl};
 
-use crate::errors::Error;
 
-fn download_file<U: IntoUrl>(url: U, save_path: &Path) -> Result<(), Error> {
+const DIR: &str = "temp";
+const YOUTUBE_DL_LOC: &str = "temp/youtube-dl";
+
+#[derive(Debug)]
+pub enum Error{
+    CouldNotDownloadExecutable(reqwest::Error),
+    CouldNotStoreExecutable(std::io::Error),
+    CouldNotDownloadSong,
+    CouldNotUpdateMpd(mpd::error::Error),
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(err: reqwest::Error) -> Self {
+        Error::CouldNotDownloadExecutable(err)
+    }
+}
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        Error::CouldNotStoreExecutable(err)
+    }
+}
+impl From<mpd::error::Error> for Error {
+    fn from(err: mpd::error::Error) -> Self {
+        Error::CouldNotUpdateMpd(err)
+    }
+}
+
+fn download_youtube_dl<U: IntoUrl>(url: U) -> Result<(), Error> {
     
     let mut dest = fs::OpenOptions::new()
         .create(true)
         .write(true)
         .mode(0o770)
-        .open(save_path)?;
+        .open(YOUTUBE_DL_LOC)?;
 
     let mut response = reqwest::get(url)?;    
     copy(&mut response, &mut dest)?;
@@ -28,33 +55,59 @@ pub struct YoutubeDownloader {
     url_tx: crossbeam_channel::Sender<String>,
 }
 
+fn run_youtube_dl(output_arg: &String, url: &str)
+ -> std::io::Result<std::process::Output> {
+
+    let full_path = Path::new(YOUTUBE_DL_LOC);
+    Command::new(full_path)
+        .arg("--geo-bypass")
+        .arg("--ignore-config")
+        .arg("--add-metadata")
+        .arg("--metadata-from-title \"%(artist)s - %(title)s\"")
+
+        .arg("--embed-thumbnail")
+        .arg("--audio-format")
+        .arg("m4a")
+        .arg("--audio-quality")
+        .arg("257")
+        .arg("--postprocessor-args")
+        .arg("\"-ar 44100\"")
+        .arg("--extract-audio")
+        .arg("--format")
+        .arg("bestaudio[acodec=opus]/bestaudio/best")
+
+        .arg(&output_arg)
+        .arg(url)
+        .output()
+}
+
 fn download_song(url: &str) -> Result<(), Error> {
-    //let mut music_dir = dirs::home_dir().unwrap();
-    //music_dir.push("Music");
     let music_dir = std::path::PathBuf::from("/home/pi/Music");
     let mut output_arg = String::from(music_dir.to_str().unwrap());
     output_arg.push_str("/%(title)s.%(ext)s");
 
-    let full_path = Path::new("temp/youtube-dl");
-    let output = Command::new(full_path)
-                .arg("--format")
-                .arg("bestaudio/best")
-                .arg("--extract-audio")
-                .arg("--output")
-                .arg(&output_arg)
-                //.arg("--embed-thumbnail")
-                .arg(url)
-                .output()?;
-
+    let output = run_youtube_dl(&output_arg, url)?;
     dbg!(&output);
-    if output.status.success() {
 
-        //TODO move to mpd music location
-        mpd::Client::connect("127.0.0.1:6600").and_then(|mut c| c.rescan())?;
-    } else {
-        dbg!("HANDLE ERROR"); //update youtube downloader on fail (once if not recenty updated (check file meta))
+    if !output.status.success() {
+        let since_last_updated = fs::metadata(YOUTUBE_DL_LOC).unwrap()
+            .created().unwrap()
+            .elapsed().unwrap_or(Duration::from_secs(0));
+        
+        if since_last_updated > Duration::from_secs(60*60*24){
+            return Err(Error::CouldNotDownloadSong);
+        } 
+        
+        download_youtube_dl("https://yt-dl.org/downloads/latest/youtube-dl")?;
+        let output = run_youtube_dl(&output_arg, url)?;
+        dbg!(&output);
+
+        if !output.status.success() {
+            return Err(Error::CouldNotDownloadSong);
+        }
     }
 
+    mpd::Client::connect("127.0.0.1:6600").and_then(|mut c| c.rescan())?;
     Ok(())
 }
 
@@ -65,10 +118,14 @@ fn song_downloader(url_rx: crossbeam_channel::Receiver<String>) {
                 dbg!(&url);
                 match download_song(&url) {
                     Ok(_) => dbg!(),
-                    Err(error) => error!("error during song download: {:?}", error),
+                    Err(error) => {
+                        error!("warn error during song download: {:?} \
+                        trying with updated youtube-dl", error);
+                    },
                 };
             },
-            // return without url means YoutubeDownloader was dropped and we should stop
+            // Err means YoutubeDownloader 
+            // was dropped and this thread should stop
             Err(_) => return,
         }   
     }    
@@ -77,14 +134,14 @@ fn song_downloader(url_rx: crossbeam_channel::Receiver<String>) {
 
 impl YoutubeDownloader {
     pub fn init() -> Result<(Self, thread::JoinHandle<()>), Error>{
-        let dir_path = Path::new("temp");
-        let full_path = Path::new("temp/youtube-dl");
-        
+        let full_path = Path::new(YOUTUBE_DL_LOC);
+        let dir_path = Path::new(DIR);
+
         if !full_path.exists() {
             if !dir_path.exists() {
                 fs::create_dir(dir_path)?;
             }
-            download_file("https://yt-dl.org/downloads/latest/youtube-dl", full_path)?;
+            download_youtube_dl("https://yt-dl.org/downloads/latest/youtube-dl")?;
         }
 
         let (url_tx, url_rx) = crossbeam_channel::bounded(10);

@@ -24,7 +24,7 @@ pub struct Alarms {
 
 #[derive(Clone)]
 pub struct AlarmList {
-    db: Arc<sled::Tree>,
+    db: sled::Tree,
 }
 
 fn waker(mut alarm_list: AlarmList, event_tx: crossbeam_channel::Sender<Event>, waker_rx: crossbeam_channel::Receiver<()>) {

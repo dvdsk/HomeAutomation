@@ -1,4 +1,7 @@
 //use std::fmt;
+use std::sync::RwLock;
+
+use crate::input::youtube_downloader;
 
 #[derive(Debug)]
 pub enum Error {
@@ -11,7 +14,14 @@ pub enum Error {
     Lamps(philipshue::errors::HueError),
     Mpd(mpd::error::Error),
     RetryLogic(String),
+    YoutubeDownloader(youtube_downloader::Error),
     UnTracked,
+}
+
+impl From<youtube_downloader::Error> for Error {
+    fn from(err: youtube_downloader::Error) -> Self {
+        Error::YoutubeDownloader(err)
+    }
 }
 
 impl From<serde_yaml::Error> for Error {

@@ -12,6 +12,16 @@ pub struct MpdStatus {
     inner: Arc<RwLock<mpd::status::Status>>,
 }
 
+impl MpdStatus {
+    pub fn get_volume(&mut self) -> i8 {
+        self.inner.read().unwrap().volume
+    }
+
+    pub fn is_playing(&mut self) -> mpd::status::State {
+        self.inner.read().unwrap().state
+    }
+}
+
 fn mpd_watcher(mut client: Client, status: MpdStatus, rx: Receiver<()>) {
     client.wait(&[Subsystem::Player, Subsystem::Mixer]).unwrap();
     loop {

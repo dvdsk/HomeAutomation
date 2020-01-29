@@ -64,7 +64,7 @@
     //println!("used_bits: {}", used_bits);
     let stop_mask = !(!0 >> used_bits);
     //println!("stop_mask: {}", stop_mask);
-    let stop_byte = div_up(bit_offset+length, 8) as usize;//starts at 0
+	let stop_byte = div_up(bit_offset+length, 8) as usize;//starts at 0
     line[stop_byte-1] |= (to_encode >> (bits_written-(8-used_bits))) as u8 & stop_mask;
 }
 

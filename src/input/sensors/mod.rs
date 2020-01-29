@@ -1,7 +1,7 @@
 extern crate chrono;
 extern crate smallvec;
 extern crate bytes;
-use byteorder::{LittleEndian, WriteBytesExt};
+use byteorder::{LittleEndian, ByteOrder};
 
 #[cfg(feature = "sensors_connected")]
 mod local;
@@ -14,7 +14,7 @@ use chrono::Utc;
 
 use crate::credentials;
 use crate::controller::Event;
-use local::{TEMPERATURE, HUMIDITY, PRESSURE};
+use local::{TEMPERATURE, HUMIDITY, PRESSURE, STOP_ENCODE};
 
 pub enum SensorValue {
 	Temperature(f32),
@@ -41,24 +41,28 @@ pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>) {
 			//TODO
 			//process data into events and send off as event
 			tx.send(Event::Sensor(SensorValue::Temperature(temp)));
-			tx.send(Event::Sensor(SensorValue::Humidity(hum)));
-			tx.send(Event::Sensor(SensorValue::Pressure(pressure)));			
+			tx.send(Event::Sensor(SensorValue::Humidity(hum)));	
+			tx.send(Event::Sensor(SensorValue::Pressure(pressure)));
 
 			//encode all data
-			let mut line: Vec<u8> = vec!(0;64);
-			
-			line.write_u16::<LittleEndian>(credentials::NODE_ID).unwrap();
-			line.write_u64::<LittleEndian>(credentials::DATASERVER_KEY).unwrap();
+			let mut line = vec!(0u8; (STOP_ENCODE+8-1)/8);
+			LittleEndian::write_u16(&mut line[0..2], credentials::NODE_ID);
+			LittleEndian::write_u64(&mut line[2..10], credentials::DATASERVER_KEY);
 
-			HUMIDITY.encode::<f32>(hum, &mut line);
 			TEMPERATURE.encode::<f32>(temp, &mut line);
+			HUMIDITY.encode::<f32>(hum, &mut line);
 			PRESSURE.encode::<f32>(pressure, &mut line);
+
+			dbg!(&line);
 			
 			//send data to dataserver
 			let client = reqwest::Client::new();
-			client.post("http://www.deviousd.duckdns.org:8080/post_data")
+			if let Err(e) = client.post("https://www.deviousd.duckdns.org:38972/post_data")
 				.body(line)
-				.send().unwrap();
+				.send(){
+
+				error!("could not send data to dataserver, error: {:?}", e);
+			}
 
 			//sleep until 5 seconds are completed
 			thread::sleep(Duration::from_secs(5));

@@ -29,7 +29,7 @@ pub struct Logindata {
 }
 
 /// State and POST Params
-pub fn login_get_and_check(
+pub async fn login_get_and_check(
 		id: Identity,
 		state: Data<State>,
 		req: HttpRequest,
@@ -48,14 +48,7 @@ pub fn login_get_and_check(
         .body("incorrect password or username"));
 	} else { info!("user logged in");}
 	
-	//copy userinfo into new session
-	let _userinfo = state.user_db.get_userdata(&params.u).unwrap();
-	//userinfo.last_login = Utc::now();
-	//passw_db.set_userdata(params.u.as_str().as_bytes(), userinfo.clone());
-	
-    let session = Session {
-		last_login: chrono::Utc::now(), //TODO write back to database
-	};
+    let session = Session {};//kept in case we want it back in the future
 	//find free session_numb, set new session number and store new session
 	let session_id = state.free_session_ids.fetch_add(1, Ordering::Acquire);
 	let mut sessions = state.sessions.write().unwrap();

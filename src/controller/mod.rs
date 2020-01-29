@@ -16,6 +16,7 @@ pub use commands::Command;
 pub use states::TargetState;
 #[cfg(feature = "sensors_connected")]
 use crate::input::sensors::SensorValue;
+use crate::input::mpd_status::MpdStatus;
 use crate::errors::Error;
 
 pub enum Event {
@@ -45,6 +46,7 @@ pub struct System {
 	next_update: Instant,
 
 	lights: Lighting,
+	mpd: MpdStatus
 	//mpd
 
 	//etc
@@ -59,14 +61,14 @@ fn saturating_duration_till(target: std::time::Instant) -> std::time::Duration{
 	}
 }
 
-pub fn start(rx: crossbeam_channel::Receiver<Event>) -> Result<thread::JoinHandle<()>, Error>{
+pub fn start(rx: crossbeam_channel::Receiver<Event>, mpd_status: MpdStatus) -> Result<thread::JoinHandle<()>, Error>{
 
 	let mut system = System {
 		update_period: Duration::from_secs(5),
 		next_update: Instant::now()+Duration::from_secs(5),
 
 		lights: Lighting::init()?,
-		//mpd init?
+		mpd: mpd_status,
 	};
 
 	let handle = thread::spawn(move || {
@@ -102,7 +104,7 @@ pub fn start(rx: crossbeam_channel::Receiver<Event>) -> Result<thread::JoinHandl
 				(Event::Test, _) => {dbg!("a test happend"); change_state(TargetState::WakeUp, &mut mods, &mut system)},
 				
 				#[cfg(feature = "sensors_connected")]
-				(Event::Sensor(_), _) => {dbg!("sensor data recieved"); state}
+				(Event::Sensor(_), _) => {dbg!("a sensor happend"); state}
 			};
 		}
 	});
