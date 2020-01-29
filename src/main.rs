@@ -13,7 +13,6 @@ use input::web_api::server;
 use input::web_api::server::{PasswordDatabase, State};
 use input::bot;
 
-mod credentials;
 mod errors;
 
 #[derive(StructOpt)]
@@ -71,7 +70,8 @@ async fn main() {
 
 	//start the webserver
 	let web_handle = server::start_webserver(
-		"keys/cert.key", "keys/cert.cert", state, opt.port, &opt.domain);
+		"keys/cert.key", "keys/cert.cert", 
+		state, opt.port, opt.domain.clone());
 	
 
 	bot::set_webhook(
@@ -95,6 +95,6 @@ async fn main() {
 		};
 	}
 	println!("shutting down");
-	web_handle.stop(true);
+	web_handle.stop(true).await;
 	input::MpdStatus::stop_updating(updater_tx);
 }

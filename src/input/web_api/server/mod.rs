@@ -80,7 +80,7 @@ pub async fn index(_req: HttpRequest) -> impl Responder {
 }
 
 pub fn start_webserver(signed_cert: &str, private_key: &str, 
-	state: State, port: u16, domain: &str) -> actix_web::dev::Server {
+	state: State, port: u16, domain: String) -> actix_web::dev::Server {
 
 	let tls_config = make_tls_config(signed_cert, private_key);
 	let cookie_key = make_random_cookie_key();
@@ -95,7 +95,7 @@ pub fn start_webserver(signed_cert: &str, private_key: &str,
 				.app_data(data)
 				.wrap(IdentityService::new(
 					CookieIdentityPolicy::new(&cookie_key[..])
-					.domain("deviousd.duckdns.org")
+					.domain(&domain)
 					.name("auth-cookie")
 					.path("/")
 					.secure(true), 
@@ -142,7 +142,7 @@ pub fn start_webserver(signed_cert: &str, private_key: &str,
 
 		let _ = tx.send(web_server.clone());
 		let mut rt = Runtime::new().unwrap();
-		rt.block_on(web_server);
+		rt.block_on(web_server).unwrap();
 	});
 
 	let web_handle = rx.recv().unwrap();

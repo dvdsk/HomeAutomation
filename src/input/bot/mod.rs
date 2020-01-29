@@ -45,7 +45,7 @@ fn to_string_and_ids(update: Update) -> Result<(String, ChatId, UserId),Error>{
 	}
 }
 
-async fn handle_command(mut text: String, chat_id: ChatId, user_id: UserId, 
+async fn handle_command(mut text: String, chat_id: ChatId,
 	state: &State) -> Result<(), Error>{
 	
 	let token = &state.bot_token;
@@ -99,7 +99,7 @@ async fn handle_command(mut text: String, chat_id: ChatId, user_id: UserId,
 
 const INT_ERR_TEXT: &str = "apologies, an internal error happend this has been reported and will be fixed as soon as possible";
 const UNHANDLED: &str = "sorry I can not understand your input";
-async fn handle_error(error: Error, chat_id: ChatId, user_id: UserId, token: &str) {
+async fn handle_error(error: Error, chat_id: ChatId, token: &str) {
 	let error_message = match error {
         Error::UnknownCommand(input) => 
             format!("Unknown command: {}", input),
@@ -123,9 +123,9 @@ async fn handle_error(error: Error, chat_id: ChatId, user_id: UserId, token: &st
 
 async fn handle(update: Update, state: State){
 	let token = &state.bot_token;
-	if let Ok((text, chat_id, user_id)) = to_string_and_ids(update){
-		if let Err(error) = handle_command(text, chat_id, user_id, &state).await{
-			handle_error(error, chat_id, user_id, token).await;
+	if let Ok((text, chat_id, _user_id)) = to_string_and_ids(update){
+		if let Err(error) = handle_command(text, chat_id, &state).await{
+			handle_error(error, chat_id, token).await;
 		}
 	}
 }
