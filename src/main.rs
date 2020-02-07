@@ -30,8 +30,14 @@ struct Opt {
     #[structopt(short = "d", long = "domain")]
 	domain: String,
 	
-    #[structopt(short = "p", long = "admin-password")]
-    password: String,
+    #[structopt(short = "a", long = "admin-password")]
+	password: String,
+	
+    #[structopt(short = "n", long = "node-id", default_value= "3")]
+	node_id: u16,
+	
+    #[structopt(short = "k", long = "dataserver-key")]
+    dataserver_key: u64,
 }
 
 #[actix_rt::main]
@@ -63,7 +69,7 @@ async fn main() {
 
 	let state = State::new(
 		passw_db, 
-		controller_tx,
+		controller_tx.clone(),
 		alarms, 
 		youtube_dl, 
 		opt.token.clone());
@@ -80,9 +86,10 @@ async fn main() {
 
 	//start monitoring local sensors
 	#[cfg(feature = "sensors_connected")]
-	input::sensors::start_monitoring(controller_tx.clone());
+	input::sensors::start_monitoring(controller_tx.clone(), opt.node_id, 
+		opt.dataserver_key);
 	#[cfg(feature = "sensors_connected")]
-	input::buttons::start_monitoring(controller_tx.clone());
+	input::buttons::start_monitoring(controller_tx.clone()).unwrap();
 
 	println!("press: q to quit");
 	loop {

@@ -45,7 +45,7 @@ fn to_string_and_ids(update: Update) -> Result<(String, ChatId, UserId),Error>{
 	}
 }
 
-async fn handle_command(mut text: String, chat_id: ChatId,
+async fn handle_command(text: String, chat_id: ChatId,
 	state: &State) -> Result<(), Error>{
 	
 	let token = &state.bot_token;
@@ -58,39 +58,9 @@ async fn handle_command(mut text: String, chat_id: ChatId,
             send_text_reply(chat_id, token, "hi").await?; 
             return Ok(());
         }
-        /*"/help" => {
-            help::send(chat_id, &user, token).await?; 
-            break;
-        }
-        "/plotables" => {
-            plotables::send(chat_id, &user, state, token).await?;
-            break;
-        }
-        "/show" => {
-            show::send(chat_id, state, token, args, &user).await?;
-            break;
-        }
-        "/keyboard" => {
-            keyboard::show(chat_id, token, user).await?;
-            break;
-        }
-        "/keyboard_add" => {
-            keyboard::add_button(chat_id, state, token, args, user).await?;
-            break;
-        }
-        "/keyboard_remove" => {
-            keyboard::remove_button(chat_id, state, token, args, user).await?;
-            break;
-        }
-        "/alarm" => {
-            alarms::handle(chat_id, token, args, user, state).await?;
-            break;
-        }	
-        "/alias" => {
-            alias::send(chat_id, state, token, args, user).await?;
-            break;
-        }*/
-        &_ => {}
+        &_ => {
+			
+		}
     }
 		
 	warn!("no known command or alias: {:?}", &command);
@@ -186,6 +156,7 @@ pub fn send_text_reply_blocking<T: Into<String>>(chat_id: ChatId, token: &str, t
 	}
 }
 
+//Ports currently supported for Webhooks: 443, 80, 88, 8443.
 pub async fn set_webhook(domain: &str, token: &str, port: u16) -> Result<(), Error> {
 	let url = format!("https://api.telegram.org/bot{}/setWebhook", token);
 	let webhook_url = format!("{}:{}/{}",domain, port, token);
@@ -197,6 +168,7 @@ pub async fn set_webhook(domain: &str, token: &str, port: u16) -> Result<(), Err
 	      .form(&params)
 		  .send().await?;
 	
+	dbg!(&res);
 	if res.status() != reqwest::StatusCode::OK {
 		Err(Error::CouldNotSetWebhook)
 	} else {

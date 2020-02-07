@@ -4,6 +4,8 @@ use crate::controller::system::mpd_control;
 
 #[derive(Copy, Clone)]
 pub enum Command {
+  None,
+
   LampsToggle,
   LampsDim,
   LampsDimmest,
@@ -47,6 +49,7 @@ pub fn handle_cmd(cmd: Command, state: ActiveState, mods: &mut Modifications, sy
         Command::MpdIncreaseVolume => {mpd_control::decrease_volume(&mut sys.mpd).unwrap(); mods.mpd = true },
 
         Command::Test => { warn!("The Test command was just send")},
+        Command::None => { error!("None command was issued, this should not happen")},
     }
     state
 }

@@ -2,6 +2,7 @@ use rustls::{NoClientAuth, ServerConfig};
 use rustls::internal::pemfile::{certs, pkcs8_private_keys};
 
 use actix_rt::Runtime;
+use actix_rt::System;
 use actix_web::{HttpServer,App, web, Responder};
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_files as fs;
@@ -87,6 +88,7 @@ pub fn start_webserver(signed_cert: &str, private_key: &str,
 	let (tx, rx) = crossbeam_channel::unbounded();
 
 	thread::spawn(move || {
+		let sys = System::new("HttpServer");
 		let web_server = HttpServer::new(move || {		
 				// data the webservers functions have access to
 			let data = actix_web::web::Data::new(state.clone());
@@ -141,10 +143,12 @@ pub fn start_webserver(signed_cert: &str, private_key: &str,
 		.run();
 
 		let _ = tx.send(web_server.clone());
-		let mut rt = Runtime::new().unwrap();
-		rt.block_on(web_server).unwrap();
+		sys.run()
+		//let mut rt = Runtime::new().unwrap();
+		//rt.block_on(web_server).unwrap();
 	});
 
 	let web_handle = rx.recv().unwrap();
+	
 	web_handle
 }

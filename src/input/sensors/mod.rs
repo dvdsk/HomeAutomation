@@ -1,7 +1,5 @@
-extern crate chrono;
-extern crate smallvec;
-extern crate bytes;
 use byteorder::{LittleEndian, ByteOrder};
+use futures::future;
 
 #[cfg(feature = "sensors_connected")]
 mod local;
@@ -11,11 +9,13 @@ mod ble;
 use std::thread;
 use std::time::Duration;
 use chrono::Utc;
+use async_std::task;
+use actix_rt;
 
-use crate::credentials;
 use crate::controller::Event;
 use local::{TEMPERATURE, HUMIDITY, PRESSURE, STOP_ENCODE};
 
+#[derive(Debug, Clone, Copy)]
 pub enum SensorValue {
 	Temperature(f32),
 	Humidity(f32),
@@ -25,7 +25,8 @@ pub enum SensorValue {
 //const LOCAL_SENSING_ID: timeseries_interface::DatasetId = 0;
 //TODO mechanisme for shutdown
 #[cfg(feature = "sensors_connected")]
-pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>) {
+pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>, 
+	node_id: u16, dataserver_key: u64) {
 
 	//init all local sensors
 	let mut local_sensors = local::init();
@@ -33,6 +34,8 @@ pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>) {
 	ble::init();
 
 	thread::spawn(move || {//TODO figure out shutdown behaviour
+		
+		
 		loop {
 			//get all measurements
 			let (hum, temp, pressure) = local::measure_and_record(&mut local_sensors);
@@ -40,32 +43,37 @@ pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>) {
 
 			//TODO
 			//process data into events and send off as event
-			tx.send(Event::Sensor(SensorValue::Temperature(temp)));
-			tx.send(Event::Sensor(SensorValue::Humidity(hum)));	
-			tx.send(Event::Sensor(SensorValue::Pressure(pressure)));
+			tx.send(Event::Sensor(SensorValue::Temperature(temp))).unwrap();
+			tx.send(Event::Sensor(SensorValue::Humidity(hum))).unwrap();	
+			tx.send(Event::Sensor(SensorValue::Pressure(pressure))).unwrap();
 
 			//encode all data
 			let mut line = vec!(0u8; (STOP_ENCODE+8-1)/8);
-			LittleEndian::write_u16(&mut line[0..2], credentials::NODE_ID);
-			LittleEndian::write_u64(&mut line[2..10], credentials::DATASERVER_KEY);
+			LittleEndian::write_u16(&mut line[0..2], node_id);
+			LittleEndian::write_u64(&mut line[2..10], dataserver_key);
 
 			TEMPERATURE.encode::<f32>(temp, &mut line);
 			HUMIDITY.encode::<f32>(hum, &mut line);
 			PRESSURE.encode::<f32>(pressure, &mut line);
 
 			dbg!(&line);
-			
-			//send data to dataserver
-			let client = reqwest::Client::new();
-			if let Err(e) = client.post("https://www.deviousd.duckdns.org:38972/post_data")
-				.body(line)
-				.send(){
-
-				error!("could not send data to dataserver, error: {:?}", e);
-			}
-
-			//sleep until 5 seconds are completed
 			thread::sleep(Duration::from_secs(5));
+
+			/*task::block_on( async { FIXME TODO RE-ENABLE AND SOLVE RUNTIME ISSUES
+				
+				let client = reqwest::Client::new();
+				let send = client.post("https://www.deviousd.duckdns.org:38972/post_data")
+					.body(line)
+					.send();
+				let sleep = task::sleep(Duration::from_secs(5));
+
+				//send data to dataserver and sleep up to 5 sec
+				let (send_err, _) = future::join(send, sleep).await;
+
+				if let Err(e) = send_err {
+					error!("could not send data to dataserver, error: {:?}", e);
+				}
+			})*/
 		}
 	});
 }

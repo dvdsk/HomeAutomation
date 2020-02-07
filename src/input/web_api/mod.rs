@@ -18,7 +18,7 @@ fn authenticated(auth: BasicAuth) -> bool {
 
 	let username = auth.user_id();
 	if let Some(password) = auth.password(){
-	command_logins::LIST.into_iter()
+	command_logins::LIST.iter()
 		.filter(|x| x.username==username)
 		.filter(|x| x.password==password)
 		.next().is_some()

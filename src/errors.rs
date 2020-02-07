@@ -3,7 +3,8 @@ use crate::input::youtube_downloader;
 #[derive(Debug)]
 pub enum Error {
     IO(std::io::Error),
-    GPIO(sysfs_gpio::Error),
+    GPIO(gpio_cdev::errors::Error),
+    GPIONotFound,
     YamlParsing(serde_yaml::Error),
     Channel(crossbeam_channel::SendError<()>),
     DataBase(sled::Error),
@@ -32,8 +33,8 @@ impl From<std::io::Error> for Error {
     }
 }
 
-impl From<sysfs_gpio::Error> for Error {
-    fn from(error: sysfs_gpio::Error) -> Self {
+impl From<gpio_cdev::errors::Error> for Error {
+    fn from(error: gpio_cdev::errors::Error) -> Self {
         Error::GPIO(error)
     }
 }
