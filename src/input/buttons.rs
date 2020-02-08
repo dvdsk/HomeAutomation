@@ -2,6 +2,7 @@ use gpio_cdev::{Chip, LineRequestFlags, EventRequestFlags, LineEventHandle};
 use nix::poll::{PollFd, PollFlags, poll};
 use std::os::unix::io::{AsRawFd, RawFd};
 use smallvec::{SmallVec, smallvec};
+use log::error;
 
 use std::thread;
 use std::time::{Duration, Instant};
@@ -23,9 +24,10 @@ fn detect_and_handle(chip: &mut Chip, offset_to_command: [Event; 54],
     let (mut evt_handles, mut pollables) = configure_watching(chip, &offsets)?;
     dbg!();
     thread::spawn(move || { 
+        let mut last_high = [0u64; N_LINES];
+        let mut last_state = [0u8; N_LINES];
+        
         loop{
-            let mut last_high = [0u64; N_LINES];
-            let mut last_state = [0u8; N_LINES];
             if poll(&mut pollables, -1).unwrap() !=0 {
                 let key_presses = process_event(&pollables, 
                     &mut evt_handles, &mut last_high, &mut last_state);
@@ -120,9 +122,9 @@ pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>)
         
         dbg!();
         detect_and_handle(&mut chip, offset_to_command, tx)?;
-        
         Ok(())
     } else {
+        error!("could not find gpio chip");
         Err(Error::GPIONotFound)
     }
 }
