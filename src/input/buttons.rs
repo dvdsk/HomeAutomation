@@ -22,7 +22,6 @@ fn detect_and_handle(chip: &mut Chip, offset_to_command: [Event; 54],
 
     let offsets: [u32; 10] = [27,22,18,  23,24,26,17, 16,12,13];   
     let (mut evt_handles, mut pollables) = configure_watching(chip, &offsets)?;
-    dbg!();
     thread::spawn(move || { 
         let mut last_high = [0u64; N_LINES];
         let mut last_state = [0u8; N_LINES];
@@ -32,7 +31,6 @@ fn detect_and_handle(chip: &mut Chip, offset_to_command: [Event; 54],
                 let key_presses = process_event(&pollables, 
                     &mut evt_handles, &mut last_high, &mut last_state);
                 for (offset, down_duration) in key_presses {
-                    dbg!(down_duration);
                     if down_duration > 10*MILLIS {
                         tx.send(offset_to_command[offset]).unwrap();
                     }
@@ -112,15 +110,11 @@ pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>)
     offset_to_command[26] = Event::Command(Command::LampsDay); //right 4, right
     offset_to_command[17] = Event::Command(Command::LampsToggle); //right 4, right most
     
-    for chip in gpio_cdev::chips().unwrap() {dbg!(chip);}
     if let Some(mut chip) = gpio_cdev::chips()?
         .filter_map(Result::ok)
-        .inspect(|x| println!("{:?}",x))
         .filter(|c| c.label() == "pinctrl-bcm2835")
-        .inspect(|x| println!("{:?}",x))
         .next() {
         
-        dbg!();
         detect_and_handle(&mut chip, offset_to_command, tx)?;
         Ok(())
     } else {

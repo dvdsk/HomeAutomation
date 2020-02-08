@@ -22,6 +22,7 @@ pub enum SensorValue {
 	Pressure(f32),
 }
 
+use actix_rt::Runtime;
 //const LOCAL_SENSING_ID: timeseries_interface::DatasetId = 0;
 //TODO mechanisme for shutdown
 #[cfg(feature = "sensors_connected")]
@@ -35,7 +36,8 @@ pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>,
 
 	thread::spawn(move || {//TODO figure out shutdown behaviour
 		
-		
+		let mut rt = Runtime::new().unwrap();
+
 		loop {
 			//get all measurements
 			let (hum, temp, pressure) = local::measure_and_record(&mut local_sensors);
@@ -56,24 +58,21 @@ pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>,
 			HUMIDITY.encode::<f32>(hum, &mut line);
 			PRESSURE.encode::<f32>(pressure, &mut line);
 
-			dbg!(&line);
-			thread::sleep(Duration::from_secs(5));
-
-			/*task::block_on( async { FIXME TODO RE-ENABLE AND SOLVE RUNTIME ISSUES
+			//FIXME TODO RE-ENABLE AND SOLVE RUNTIME ISSUES
 				
-				let client = reqwest::Client::new();
-				let send = client.post("https://www.deviousd.duckdns.org:38972/post_data")
-					.body(line)
-					.send();
-				let sleep = task::sleep(Duration::from_secs(5));
+			let client = reqwest::Client::new();
+			let send = client.post("https://www.deviousd.duckdns.org:38972/post_data")
+				.body(line)
+				.send();
+			let sleep = task::sleep(Duration::from_secs(5));
 
-				//send data to dataserver and sleep up to 5 sec
-				let (send_err, _) = future::join(send, sleep).await;
+			//send data to dataserver and sleep up to 5 sec
+				let (send_err, _) = rt.block_on(future::join(send, sleep));
 
-				if let Err(e) = send_err {
-					error!("could not send data to dataserver, error: {:?}", e);
-				}
-			})*/
+			if let Err(e) = send_err {
+				error!("could not send data to dataserver, error: {:?}", e);
+			}
+			
 		}
 	});
 }

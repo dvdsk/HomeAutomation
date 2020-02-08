@@ -105,7 +105,7 @@ pub fn start(rx: crossbeam_channel::Receiver<Event>, mpd_status: MpdStatus) -> R
 				(Event::Test, _) => {dbg!("a test happend"); change_state(TargetState::WakeUp, &mut mods, &mut system)},
 				
 				#[cfg(feature = "sensors_connected")]
-				(Event::Sensor(_), _) => {dbg!("a sensor happend"); state}
+				(Event::Sensor(_), _) => {state}
 			};
 		}
 	});
