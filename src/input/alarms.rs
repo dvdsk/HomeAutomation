@@ -27,7 +27,6 @@ pub struct AlarmList {
 }
 
 fn waker(mut alarm_list: AlarmList, event_tx: crossbeam_channel::Sender<Event>, waker_rx: crossbeam_channel::Receiver<()>) {
-    dbg!();
     loop { 
         //This can fail #TODO make sure an non waking error alarm is send to the user
         if let Some(current_alarm) = alarm_list.get_next() {

@@ -54,7 +54,6 @@ impl MpdStatus {
     pub fn start_updating() -> Result<(Self, thread::JoinHandle<()>, Sender<()>), Error>{
         let mut client = mpd::Client::connect("127.0.0.1:6600")?;
         let status = client.status()?;
-        dbg!(&status);
 
         let mpd_status = Self { inner: Arc::new(RwLock::new(status))};
         let mpd_status_cloned = mpd_status.clone();
