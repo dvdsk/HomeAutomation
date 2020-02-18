@@ -12,6 +12,7 @@ pub struct Field<T> {
 //TODO do away with generics in favor for speeeeed
 impl<T> Field<T>
 where T: num::cast::NumCast+std::fmt::Display+std::ops::Add+std::ops::SubAssign+std::ops::DivAssign+std::ops::MulAssign+std::marker::Copy {
+	#[allow(dead_code)]
 	pub fn decode<D>(&self, line: &[u8]) -> D
 	where D: num::cast::NumCast+std::fmt::Display+std::ops::Add+std::ops::SubAssign+std::ops::MulAssign+std::ops::AddAssign{
 	//where D: From<T>+From<u32>+From<u16>+std::ops::Add+std::ops::SubAssign+std::ops::DivAssign+std::ops::AddAssign{

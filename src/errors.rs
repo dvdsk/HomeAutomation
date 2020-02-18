@@ -1,4 +1,5 @@
 use crate::input::youtube_downloader;
+use crate::input::web_api::server;
 
 #[derive(Debug)]
 pub enum Error {
@@ -13,7 +14,14 @@ pub enum Error {
     Mpd(mpd::error::Error),
     RetryLogic(String),
     YoutubeDownloader(youtube_downloader::Error),
+    WebServerError(server::Error),
     UnTracked,
+}
+
+impl From<server::Error> for Error {
+    fn from(err: server::Error) -> Self {
+        Error::WebServerError(err)
+    }
 }
 
 impl From<youtube_downloader::Error> for Error {

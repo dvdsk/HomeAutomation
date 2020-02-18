@@ -35,7 +35,6 @@ pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>,
 	ble::init();
 
 	thread::spawn(move || {//TODO figure out shutdown behaviour
-		
 		let mut rt = Runtime::new().unwrap();
 
 		loop {
@@ -58,17 +57,13 @@ pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>,
 			HUMIDITY.encode::<f32>(hum, &mut line);
 			PRESSURE.encode::<f32>(pressure, &mut line);
 
-			//FIXME TODO RE-ENABLE AND SOLVE RUNTIME ISSUES
-				
 			let client = reqwest::Client::new();
 			let send = client.post("https://www.deviousd.duckdns.org:38972/post_data")
 				.body(line)
 				.send();
 			let sleep = task::sleep(Duration::from_secs(5));
-
 			//send data to dataserver and sleep up to 5 sec
-				let (send_err, _) = rt.block_on(future::join(send, sleep));
-
+			let (send_err, _) = rt.block_on(future::join(send, sleep));
 			if let Err(e) = send_err {
 				error!("could not send data to dataserver, error: {:?}", e);
 			}

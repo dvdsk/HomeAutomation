@@ -4,7 +4,7 @@ extern crate chrono;
 
 use structopt::StructOpt;
 use sled;
-use std::io::stdin;
+use std::path::PathBuf;
 
 mod controller;
 
@@ -36,8 +36,11 @@ struct Opt {
     #[structopt(short = "n", long = "node-id", default_value= "3")]
 	node_id: u16,
 	
-    #[structopt(short = "k", long = "dataserver-key")]
-    dataserver_key: u64,
+    #[structopt(short = "s", long = "dataserver-key")]
+	dataserver_key: u64,
+	
+    #[structopt(short = "k", long = "keys", default_value="keys")]
+	key_dir: PathBuf,	
 }
 
 #[actix_rt::main]
@@ -58,7 +61,8 @@ async fn main() {
 	let (alarms, _waker_thread) = input::alarms::Alarms::setup(
 		controller_tx.clone(), 
 		db.clone()).unwrap();
-	let (youtube_dl, _downloader_thread) = input::YoutubeDownloader::init().unwrap();
+	let (youtube_dl, _downloader_thread) = input::YoutubeDownloader::init()
+		.await.unwrap();
 	let (mpd_status, _mpd_watcher_thread, updater_tx) = 
 		input::MpdStatus::start_updating()
 		.unwrap();
@@ -76,8 +80,8 @@ async fn main() {
 
 	//start the webserver
 	let web_handle = server::start_webserver(
-		"keys/cert.key", "keys/cert.cert", 
-		state, opt.port, opt.domain.clone());
+		&opt.key_dir, state, opt.port, 
+		opt.domain.clone()).unwrap();
 	
 
 	bot::set_webhook(
@@ -91,7 +95,9 @@ async fn main() {
 	#[cfg(feature = "sensors_connected")]
 	input::buttons::start_monitoring(controller_tx.clone()).unwrap();
 
-	println!("press: q to quit");
+	loop {}
+
+	/*println!("press: q to quit");
 	loop {
 		let mut input = String::new();
 		stdin().read_line(&mut input).unwrap();
@@ -103,5 +109,5 @@ async fn main() {
 	}
 	println!("shutting down");
 	web_handle.stop(true).await;
-	input::MpdStatus::stop_updating(updater_tx);
+	input::MpdStatus::stop_updating(updater_tx);*/
 }
