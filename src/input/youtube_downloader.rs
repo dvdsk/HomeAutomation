@@ -1,5 +1,5 @@
 use std::process::Command;
-use std::io::copy;
+use std::io::Write;
 use std::fs;
 use std::os::unix::fs::OpenOptionsExt;
 use std::thread;
@@ -7,7 +7,7 @@ use std::thread;
 use std::time::Duration;
 use std::path::Path;
 use reqwest::{IntoUrl};
-
+use actix_rt;
 
 const DIR: &str = "temp";
 const YOUTUBE_DL_LOC: &str = "temp/youtube-dl";
@@ -36,7 +36,7 @@ impl From<mpd::error::Error> for Error {
     }
 }
 
-fn download_youtube_dl<U: IntoUrl>(url: U) -> Result<(), Error> {
+async fn download_youtube_dl<U: IntoUrl>(url: U) -> Result<(), Error> {
     
     let mut dest = fs::OpenOptions::new()
         .create(true)
@@ -44,9 +44,12 @@ fn download_youtube_dl<U: IntoUrl>(url: U) -> Result<(), Error> {
         .mode(0o770)
         .open(YOUTUBE_DL_LOC)?;
 
-    let mut response = reqwest::blocking::get(url)?;    
-    copy(&mut response, &mut dest)?;
+    let response = reqwest::get(url)
+        .await?
+        .bytes()
+        .await?;
     
+    dest.write(&response)?;
     Ok(())
 }
 
@@ -98,7 +101,12 @@ fn download_song(url: &str) -> Result<(), Error> {
             return Err(Error::CouldNotDownloadSong);
         } 
         
-        download_youtube_dl("https://yt-dl.org/downloads/latest/youtube-dl")?;
+        
+        let mut rt = actix_rt::Runtime::new().unwrap();
+        rt.block_on(
+            download_youtube_dl("https://yt-dl.org/downloads/latest/youtube-dl")
+        )?;
+        
         let output = run_youtube_dl(&output_arg, url)?;
         dbg!(&output);
 
@@ -133,7 +141,7 @@ fn song_downloader(url_rx: crossbeam_channel::Receiver<String>) {
 
 
 impl YoutubeDownloader {
-    pub fn init() -> Result<(Self, thread::JoinHandle<()>), Error>{
+    pub async fn init() -> Result<(Self, thread::JoinHandle<()>), Error>{
         let full_path = Path::new(YOUTUBE_DL_LOC);
         let dir_path = Path::new(DIR);
 
@@ -141,7 +149,7 @@ impl YoutubeDownloader {
             if !dir_path.exists() {
                 fs::create_dir(dir_path)?;
             }
-            download_youtube_dl("https://yt-dl.org/downloads/latest/youtube-dl")?;
+            download_youtube_dl("https://yt-dl.org/downloads/latest/youtube-dl").await?;
         }
 
         let (url_tx, url_rx) = crossbeam_channel::bounded(10);

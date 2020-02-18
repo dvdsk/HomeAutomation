@@ -17,7 +17,6 @@ pub enum Error{
 	HttpClientError(reqwest::Error),
 	CouldNotSetWebhook,
 	InvalidServerResponse(reqwest::Response),
-	InvalidServerResponseBlocking(reqwest::blocking::Response),
 	UnhandledUpdateKind,
     UnhandledMessageKind,
     UnknownCommand(String)
@@ -84,7 +83,6 @@ async fn handle_error(error: Error, chat_id: ChatId, token: &str) {
 		Error::UnhandledUpdateKind => {
 			String::from(UNHANDLED)}
 		Error::CouldNotSetWebhook => unreachable!(),
-		Error::InvalidServerResponseBlocking(_) => unreachable!(),
 	};
 	if let Err(error) = send_text_reply(chat_id, token, error_message).await{
 		error!("Could not send text reply to user: {:?}", error);
@@ -102,7 +100,6 @@ async fn handle(update: Update, state: State){
 
 pub async fn handle_webhook(state: Data<State>, raw_update: Bytes)
 	 -> HttpResponse {
-
 	let update: Update = serde_json::from_slice(&raw_update.to_vec()).unwrap();
 	let state_cpy = state.get_ref().clone();
 	handle(update, state_cpy).await;
@@ -128,28 +125,6 @@ pub async fn send_text_reply<T: Into<String>>(chat_id: ChatId, token: &str, text
 	
 	if resp.status() != reqwest::StatusCode::OK {
 		Err(Error::InvalidServerResponse(resp))
-	} else {
-		info!("send message");
-		Ok(())
-	}
-}
-
-pub fn send_text_reply_blocking<T: Into<String>>(chat_id: ChatId, token: &str, text: T)
-	 -> Result<(), Error>{//add as arg generic ToChatRef (should get from Update)
-	//TODO create a SendMessage, serialise it (use member function serialize) 
-	//then use the HttpRequest fields, (url, method, and body) to send to telegram
-	let url = format!("https://api.telegram.org/bot{}/sendMessage", token);	
-	let form = reqwest::blocking::multipart::Form::new()
-		.text("chat_id", chat_id.to_string())
-		.text("text", text.into());
-
-	let client = reqwest::blocking::Client::new();
-	let resp = client.post(&url)
-		.multipart(form).send()?;
-	//https://stackoverflow.com/questions/57540455/error-blockingclientinfuturecontext-when-trying-to-make-a-request-from-within
-	
-	if resp.status() != reqwest::StatusCode::OK {
-		Err(Error::InvalidServerResponseBlocking(resp))
 	} else {
 		info!("send message");
 		Ok(())

@@ -1,19 +1,18 @@
 use rustls::{NoClientAuth, ServerConfig};
 use rustls::internal::pemfile::{certs, pkcs8_private_keys};
 
-use actix_rt::Runtime;
 use actix_rt::System;
 use actix_web::{HttpServer,App, web, Responder};
 use actix_identity::{CookieIdentityPolicy, IdentityService};
-use actix_files as fs;
+use actix_files as axtix_fs;
 use actix_web::HttpRequest;
 
 use std::thread;
 use std::sync::{Arc, Mutex, RwLock, atomic::AtomicUsize};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::io::BufReader;
-use std::fs::File;
+use std::fs;
 
 use crate::input;
 use crate::input::bot;
@@ -63,27 +62,64 @@ impl State {
 		}
 }
 
-pub fn make_tls_config<P: AsRef<Path>>(signed_cert_path: P, private_key_path: P) -> rustls::ServerConfig{
+#[derive(Debug)]
+pub enum Error {
+	NoKeyFound,
+	NoCertFound,
+}
+
+fn get_key_and_cert(domain: &str, dir: &Path) -> Result<(PathBuf, PathBuf), Error> {
+	let mut cert_path = Err(Error::NoCertFound);
+	let mut key_path = Err(Error::NoKeyFound);
+	let domain = domain.replace(".", "_");
+	for path in fs::read_dir(dir).unwrap()
+		.filter_map(Result::ok)
+		.map(|entry| entry.path()) {
+
+		if let Some(stem) = path.file_stem().map(|s| s.to_str()).flatten(){
+			if !stem.contains(&domain){ continue }
+			if let Some(ext) = path.extension().map(|s| s.to_str()).flatten(){
+				match ext {
+					"key" => key_path = Ok(path),
+					"crt" => cert_path = Ok(path),
+					_ => continue,
+				}
+			}
+		}
+	}
+
+	Ok((key_path?, cert_path?))
+}
+
+pub fn make_tls_config(domain: &str, key_dir: &Path) -> Result<rustls::ServerConfig, Error> {
+
+	//find cert and key
+	let (key_path, cert_path) = get_key_and_cert(domain, key_dir)?;
+
 	let mut tls_config = ServerConfig::new(NoClientAuth::new());
-	let cert_file = &mut BufReader::new(File::open(signed_cert_path).unwrap());
-	let key_file = &mut BufReader::new(File::open(private_key_path).unwrap());
+	let cert_file = &mut BufReader::new(fs::File::open(&cert_path)
+		.expect(&format!("could not open certificate file: {:?}", cert_path)));
+	let key_file = &mut BufReader::new(fs::File::open(&key_path)
+		.expect(&format!("could not open key file: {:?}", key_path)));
+
 	let cert_chain = certs(cert_file).unwrap();
 	let mut key = pkcs8_private_keys(key_file).unwrap();
 
 	tls_config
 		.set_single_cert(cert_chain, key.pop().unwrap())
 		.unwrap();
-	tls_config
+	Ok(tls_config)
 }
 
 pub async fn index(_req: HttpRequest) -> impl Responder {
     "Hello world!"
 }
 
-pub fn start_webserver(signed_cert: &str, private_key: &str, 
-	state: State, port: u16, domain: String) -> actix_web::dev::Server {
+pub fn start_webserver(key_dir: &Path, 
+	state: State, port: u16, domain: String)
+	 -> Result<actix_web::dev::Server,Error> {
 
-	let tls_config = make_tls_config(signed_cert, private_key);
+	let tls_config = make_tls_config(&domain, key_dir)?;
 	let cookie_key = make_random_cookie_key();
 	let (tx, rx) = crossbeam_channel::unbounded();
 
@@ -134,7 +170,7 @@ pub fn start_webserver(signed_cert: &str, private_key: &str,
 					.service(web::resource("set_alarm").to(web_api::set_alarm_unix_timestamp))
 					.service(web::resource("list_alarms").to(web_api::list_alarms))
 					//for all other urls we try to resolve to static files in the "web" dir
-					.service(fs::Files::new("", "./web/"))
+					.service(axtix_fs::Files::new("", "./web/"))
 				)
 		})
 		.bind_rustls(&format!("0.0.0.0:{}", port), tls_config).unwrap()
@@ -149,6 +185,5 @@ pub fn start_webserver(signed_cert: &str, private_key: &str,
 	});
 
 	let web_handle = rx.recv().unwrap();
-	
-	web_handle
+	Ok(web_handle)
 }

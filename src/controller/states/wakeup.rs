@@ -82,7 +82,6 @@ impl RoomState for WakeUp {
         }
 
         ActiveState::WakeUp(self)
-
     }
 
     fn enter(mods: &mut Modifications, sys: &mut System) -> Self {

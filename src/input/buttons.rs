@@ -1,11 +1,10 @@
 use gpio_cdev::{Chip, LineRequestFlags, EventRequestFlags, LineEventHandle};
 use nix::poll::{PollFd, PollFlags, poll};
-use std::os::unix::io::{AsRawFd, RawFd};
-use smallvec::{SmallVec, smallvec};
+use std::os::unix::io::{AsRawFd};
+use smallvec::{SmallVec};
 use log::error;
 
 use std::thread;
-use std::time::{Duration, Instant};
 use crossbeam_channel;
 
 use crate::errors::Error;
