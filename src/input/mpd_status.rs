@@ -32,7 +32,6 @@ fn mpd_watcher(mut client: Client, status: MpdStatus, rx: Receiver<()>) {
         //this loop is stopped by sending a change to mpd server
         if let Ok(_) = client.wait(&[Subsystem::Player, Subsystem::Mixer]){
             //update status
-            dbg!("updating mpd status");
             let new_status = client.status().unwrap();
             *(status.inner.write().unwrap()) = new_status;
         } else {

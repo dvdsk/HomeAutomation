@@ -61,8 +61,8 @@ async fn main() {
 	let (alarms, _waker_thread) = input::alarms::Alarms::setup(
 		controller_tx.clone(), 
 		db.clone()).unwrap();
-	let (youtube_dl, _downloader_thread) = input::YoutubeDownloader::init()
-		.await.unwrap();
+	let (youtube_dl, _downloader_thread) = input::YoutubeDownloader::init(
+		opt.token.clone(), db.clone()).await.unwrap();
 	let (mpd_status, _mpd_watcher_thread, updater_tx) = 
 		input::MpdStatus::start_updating()
 		.unwrap();

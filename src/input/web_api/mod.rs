@@ -8,6 +8,8 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::Deserialize;
 
 use actix_web::HttpResponse;
+
+use crate::input::youtube_downloader::FeedbackChannel;
 use crate::controller::{Command, TargetState, Event};
 
 mod command_logins;
@@ -185,7 +187,7 @@ pub fn add_song_from_url(params: Form<SongUrl>, state: Data<State>) -> HttpRespo
 	let url = params.into_inner().url;
 	dbg!();
 
-	if state.youtube_dl.add_song_to_queue(url).is_ok(){
+	if state.youtube_dl.add_song_to_queue(url, FeedbackChannel::None).is_ok(){
 		dbg!();
 		
 		HttpResponse::Ok().finish()

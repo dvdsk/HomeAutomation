@@ -29,6 +29,7 @@ dependencies = [
  "pagecache",
  "philipshue",
  "rand 0.6.5",
+ "regex",
  "reqwest 0.10.1",
  "retry",
  "ring",

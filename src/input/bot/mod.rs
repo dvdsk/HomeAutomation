@@ -10,6 +10,7 @@ use telegram_bot::types::update::UpdateKind;
 use telegram_bot::types::message::MessageKind;
 use telegram_bot::types::refs::{ChatId, UserId};
 
+use crate::input::youtube_downloader::FeedbackChannel;
 use crate::input::web_api::server::{State};
 
 #[derive(Debug)]
@@ -48,10 +49,15 @@ async fn handle_command(text: String, chat_id: ChatId,
 	state: &State) -> Result<(), Error>{
 	
 	let token = &state.bot_token;
+	if text.contains("https://") || text.contains("http://") {
+		state.youtube_dl.add_song_to_queue(text, 
+			FeedbackChannel::Telegram(chat_id)).unwrap();
+		return Ok(());
+	}
 
     let split = text.find(char::is_whitespace);
     let mut command = text;
-    let args = command.split_off(split.unwrap_or(command.len()));
+    //let args = command.split_off(split.unwrap_or(command.len()));
     match command.as_str() {
         "/test" => {
             send_text_reply(chat_id, token, "hi").await?; 
