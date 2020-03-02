@@ -26,16 +26,16 @@ impl TelegramFeedback {
             [{\"text\":\"lookup\", \"callback_data\":\"none\"}]\
         ]";
         let reply_markup = format!("{{\"inline_keyboard\":{} }}", keyboard_json);
-        let text = format!("is _{}_ the title and the {} the artist?", 
+        let text = format!("is _{}_ the title and __{}__ the artist?", 
             metadata.title, metadata.artist);
 
         let url = format!("https://api.telegram.org/bot{}/sendMessage", token);	
         let form = reqwest::multipart::Form::new()
             .text("chat_id", self.chat_id.to_string())
             .text("text", text)
-            .text("parse_mode", "MarkdownV2");
-            //.text("reply_to_message_id", self.message_id.to_string())
-            //.text("reply_markup", reply_markup);
+            .text("parse_mode", "Markdown")
+            .text("reply_to_message_id", self.message_id.to_string())
+            .text("reply_markup", reply_markup);
 
         dbg!();
         let client = reqwest::Client::new();
