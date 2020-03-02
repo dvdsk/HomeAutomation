@@ -1,5 +1,6 @@
 use rustls::{NoClientAuth, ServerConfig};
 use rustls::internal::pemfile::{certs, pkcs8_private_keys};
+use telegram_bot::types::refs::UserId;
 
 use actix_rt::System;
 use actix_web::{HttpServer,App, web, Responder};
@@ -38,6 +39,7 @@ pub struct State {
 	pub free_session_ids: Arc<AtomicUsize>,
 	pub youtube_dl: input::YoutubeDownloader,
 	pub bot_token: String,
+	pub valid_ids: Vec<UserId>,
 }
 
 impl State {
@@ -45,10 +47,15 @@ impl State {
 		controller_tx: crossbeam_channel::Sender<Event>,
 		alarms: input::alarms::Alarms,
 		youtube_dl: input::YoutubeDownloader,
-		bot_token: String) -> Self {
+		bot_token: String,
+		valid_ids: Vec<i64>) -> Self {
 
 			let free_session_ids = Arc::new(AtomicUsize::new(0));
 			let sessions = Arc::new(RwLock::new(HashMap::new()));
+			let valid_ids = valid_ids
+				.into_iter()
+				.map(|id| UserId::from(id))
+				.collect();
 
 			State {
 				controller_addr: controller_tx,
@@ -58,6 +65,7 @@ impl State {
 				sessions: sessions,
 				free_session_ids: free_session_ids,
 				bot_token,
+				valid_ids,
 			}
 		}
 }

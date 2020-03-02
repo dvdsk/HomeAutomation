@@ -1,10 +1,11 @@
 #[macro_use]
 extern crate log;
-extern crate chrono;
+use chrono;
 
 use structopt::StructOpt;
 use sled;
 use std::path::PathBuf;
+use telegram_bot::types::refs::UserId;
 
 mod controller;
 
@@ -40,13 +41,17 @@ struct Opt {
 	dataserver_key: u64,
 	
     #[structopt(short = "k", long = "keys", default_value="keys")]
-	key_dir: PathBuf,	
+	key_dir: PathBuf,
+
+    #[structopt(short = "i", long = "allowed-telegram-ids")]
+	valid_ids: Vec<i64>,
 }
 
 #[actix_rt::main]
 async fn main() {
 	let opt = Opt::from_args();
-	
+	errors::setup_logging(1).unwrap();
+
 	let db = sled::Config::default() //651ms
 			.path("database")
 			.flush_every_ms(None) //do not flush to disk unless explicitly asked
@@ -76,7 +81,8 @@ async fn main() {
 		controller_tx.clone(),
 		alarms, 
 		youtube_dl, 
-		opt.token.clone());
+		opt.token.clone(),
+		opt.valid_ids.clone());
 
 	//start the webserver
 	let web_handle = server::start_webserver(
@@ -95,7 +101,9 @@ async fn main() {
 	#[cfg(feature = "sensors_connected")]
 	input::buttons::start_monitoring(controller_tx.clone()).unwrap();
 
-	loop {}
+	loop {
+		std::thread::park();
+	}
 
 	/*println!("press: q to quit");
 	loop {

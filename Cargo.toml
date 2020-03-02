@@ -16,6 +16,7 @@ live_server = []
 [dependencies]
 futures = "0.3"
 async-std = "1"
+async-trait = "0.1"
 
 actix-web = { version = "2", features = ["rustls"] }
 actix-net = "0.2"
@@ -34,7 +35,9 @@ philipshue = { git = "https://github.com/dskleingeld/philipshue", branch = "mast
 structopt = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.8"
+
 log = "0.4"
+fern = { version = "0.5.6", features = ["colored"] }
 
 gpio-cdev = { git = "https://github.com/rust-embedded/gpio-cdev", branch = "master" }
 nix = "0.17"

@@ -183,11 +183,12 @@ pub struct SongUrl {
 	url: String,
 }
 
-pub fn add_song_from_url(params: Form<SongUrl>, state: Data<State>) -> HttpResponse {
+pub async fn add_song_from_url(params: Form<SongUrl>, state: Data<State>) -> HttpResponse {
 	let url = params.into_inner().url;
 	dbg!();
 
-	if state.youtube_dl.add_song_to_queue(url, FeedbackChannel::None).is_ok(){
+	if state.youtube_dl.add_song_to_queue(url, FeedbackChannel::None)
+		.await.is_ok(){
 		dbg!();
 		
 		HttpResponse::Ok().finish()

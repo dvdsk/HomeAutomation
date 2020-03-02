@@ -12,6 +12,7 @@ dependencies = [
  "actix-web",
  "actix-web-httpauth",
  "async-std",
+ "async-trait",
  "bincode",
  "bme280",
  "byteorder",
@@ -19,6 +20,7 @@ dependencies = [
  "chrono",
  "crossbeam-channel 0.3.9",
  "dirs",
+ "fern",
  "futures 0.3.4",
  "gpio-cdev",
  "linux-embedded-hal",
@@ -795,6 +797,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "colored"
+version = "1.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4ffc801dacf156c5854b9df4f425a626539c3a6ef7893cc0c5084a23f0b6c59"
+dependencies = [
+ "atty",
+ "lazy_static",
+ "winapi 0.3.8",
+]
+
+[[package]]
 name = "constant_time_eq"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1078,6 +1091,17 @@ dependencies = [
  "quote 1.0.2",
  "syn 1.0.14",
  "synstructure",
+]
+
+[[package]]
+name = "fern"
+version = "0.5.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e69ab0d5aca163e388c3a49d284fed6c3d0810700e77c5ae2756a50ec1a4daaa"
+dependencies = [
+ "chrono",
+ "colored",
+ "log",
 ]
 
 [[package]]

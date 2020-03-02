@@ -7,13 +7,14 @@ use std::thread;
 use std::time::Duration;
 use std::path::Path;
 
-use telegram_bot::types::refs::ChatId;
 use reqwest::{IntoUrl};
 use actix_rt;
 use regex::Regex;
 use serde::{Serialize, Deserialize};
 use bincode;
-use crate::input::bot::send_text_reply;
+use async_trait::async_trait;
+
+use crate::input::bot::youtube_dl::TelegramFeedback;
 
 const DIR: &str = "temp";
 const YOUTUBE_DL_LOC: &str = "temp/youtube-dl";
@@ -69,15 +70,20 @@ impl From<mpd::error::Error> for Error {
     }
 }
 
+#[async_trait]
+pub trait Feedback {
+    async fn feedback(&self, status: JobStatus, token: &str);
+}
+
 #[derive(Debug, Clone)]
 pub enum FeedbackChannel{
-    Telegram(ChatId),
+    Telegram(TelegramFeedback),
     None,
     //future expand with ... signal?
 }
 
 #[derive(Debug)]
-enum JobStatus {
+pub enum JobStatus {
     Finished,
     Downloaded,
     Queued(MetaData),
@@ -87,13 +93,7 @@ enum JobStatus {
 impl FeedbackChannel {
     async fn send(self, status: JobStatus, token: &str) {
         match self {
-            Self::Telegram(chat_id) => {
-                let message = format!("{:?}", status);
-                if let Err(e)=send_text_reply(chat_id, token, message).await {
-                    error!("ran into error \
-                    sending text reply to bot user: {:?}", e);
-                };
-            }
+            Self::Telegram(tel) => tel.feedback(status, token).await,
             Self::None => (),
         }
     }
@@ -131,8 +131,8 @@ pub struct YoutubeDownloader {
 
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct MetaData {
-    artist: String,
-    title: String,
+    pub artist: String,
+    pub title: String,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -235,7 +235,7 @@ async fn download_song(url: &str, id: u64) -> Result<(), Error> {
     }
 
     let mut output_arg = String::from(temp_dir.to_str().unwrap());
-    output_arg.push_str(&format!("/{}",id));
+    output_arg.push_str(&format!("/{}.%(ext)s",id));
 
     let output = download_file(&output_arg, url)?;
     dbg!(&output);
@@ -323,7 +323,9 @@ fn song_downloader(url_rx: crossbeam_channel::Receiver<Job>,
     loop {
         match url_rx.recv() {
             Ok(job) => {
-                rt.block_on( handle_job(job, token.clone(), db.clone()));
+                if let Err(e) = rt.block_on( handle_job(job, token.clone(), db.clone())){
+                    error!("could not handle download job: {:?}", e);
+                }
             },
             // Err means YoutubeDownloader 
             // was dropped and this thread should stop
@@ -361,8 +363,8 @@ impl YoutubeDownloader {
 
     /// checks if a song can be downloaded, if so sends the command to start download to 
     /// a seperate thread
-    pub fn add_song_to_queue(&self, url: String, feedback: FeedbackChannel)
-     -> Result<(), Error> {
+    pub async fn add_song_to_queue(&self, url: String, 
+        feedback: FeedbackChannel) -> Result<(), Error> {
         
         //get metadata guess from youtube-dl
         let meta_guess = get_meta(&url)?;
@@ -377,7 +379,8 @@ impl YoutubeDownloader {
 
         let job = Job {id, url: url, feedback: feedback.clone()};
         self.url_tx.try_send(job).unwrap();
-        feedback.send(JobStatus::Queued(meta_guess), &self.token);
+        feedback.send(JobStatus::Queued(meta_guess), &self.token).await;
+        dbg!();
         Ok(())
     }
 }
