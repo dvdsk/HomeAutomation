@@ -14,6 +14,7 @@ use bincode;
 use async_trait::async_trait;
 use async_std::task;
 use sled::Batch;
+use id3;
 
 use crate::input::bot::youtube_dl::TelegramFeedback;
 
@@ -144,12 +145,24 @@ pub struct YoutubeDownloader {
 pub struct MetaData {
     pub artist: String,
     pub title: String,
+    pub source_url: String,
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct MetaGuess {
     pub artist: String,
     pub title: String,
+    pub source_url: String,
+}
+
+impl MetaData {
+    fn to_tag(&self) -> id3::Tag {
+        let mut tag = id3::Tag::new();
+        tag.set_artist(&self.artist);
+        tag.set_title(&self.title);
+        //tag.set_text("source: ",&self.source_url);
+        tag
+    }
 }
 
 // in the future queued an downloaded can be expanded
@@ -209,30 +222,18 @@ fn guess_meta(url: &str) -> Result<MetaGuess, Error> {
         .arg("bestaudio[acodec=opus]/bestaudio/best")
         
         .arg("--output")
-        .arg("%(title)s-#-#-%(artist)s")
+        .arg("%(title)s")
         .arg(url)
         .output()?;
 
     let stdout = String::from_utf8(output.stdout).unwrap();
-    let mut title_artist = stdout.splitn(2, "-#-#-");
-    let artist = title_artist.next()
-            .map(|s| s.trim())
-            .ok_or(Error::UnsupportedSource(stdout.clone()))?;
-    let title = title_artist.next()
-            .map(|s| s.trim())
-            .ok_or(Error::UnsupportedSource(stdout.clone()))?;
-
-    let (artist, title) = if artist.contains("NA"){
-        split(title)
-    } else if title.contains("NA"){
-        split(artist)
-    } else {
-        (artist, title)
-    };
+    dbg!(&stdout);
+    let (artist, title) = split(&stdout);
 
     Ok(MetaGuess {
         artist: artist.to_owned(), 
-        title: title.to_owned()
+        title: title.to_owned(),
+        source_url: url.to_owned(),
     })
 }
 
@@ -315,6 +316,10 @@ fn write_metadata(id: u64, meta: &MetaData) -> Result<PathBuf, Error> {
     dbg!(&old_path);
     dbg!(&new_path);
     fs::rename(old_path, &new_path).unwrap();
+
+    /*meta.to_tag() //not working, corrupts files
+        .write_to_path(&new_path, id3::Version::Id3v24)
+        .unwrap();*/
     mpd::Client::connect("127.0.0.1:6600").and_then(|mut c| c.rescan())?;
 
     Ok(new_path)
@@ -337,6 +342,9 @@ fn update_metadata(old_path: &Path, meta: &MetaData) -> Result<PathBuf, Error> {
         }
     }
 
+    /*meta.to_tag() //not working, corrupts files
+        .write_to_path(&new_path, id3::Version::Id3v24)
+        .unwrap();*/
     mpd::Client::connect("127.0.0.1:6600").and_then(|mut c| c.rescan())?;
     
     Ok(new_path)
@@ -485,15 +493,10 @@ impl YoutubeDownloader {
         Ok(())
     }
 
-    pub async fn set_meta(&self, id: u64, title: &str, artist: &str)
+    pub async fn meta_ok(&self, id: u64)
      -> Result<(), Error> {
     
         let db = self.db.open_tree("youtube_dl").unwrap();
-
-        let new_meta = MetaData {
-            title: title.to_owned(),
-            artist: artist.to_owned(),
-        };
 
         aquire_db_mutex(&db, id).await;
         let job_status = db.get(&status_key(id))
@@ -501,19 +504,78 @@ impl YoutubeDownloader {
             .ok_or(Error::CanNoLongerUpdateMeta)?;
         let job_status = bincode::deserialize(&job_status.to_vec()).unwrap();
         let new_status = match job_status {
-            Status::Queued(_) => {
+            Status::Queued(meta_guess) => {
+                let new_meta = MetaData {
+                    title: meta_guess.title,
+                    artist: meta_guess.artist,
+                    source_url: meta_guess.source_url,
+                };
                 Status::MetaConfirmed(new_meta)
             },
-            Status::MetaConfirmed(_) => {
-                Status::MetaConfirmed(new_meta)
-            },
-            Status::Downloaded(_) => {
+            Status::MetaConfirmed(meta) => Status::MetaConfirmed(meta),
+            Status::Downloaded(meta_guess) => {
+                let new_meta = MetaData {
+                    title: meta_guess.title,
+                    artist: meta_guess.artist,
+                    source_url: meta_guess.source_url,
+                };
                 let new_path = write_metadata(id, &new_meta)?;
                 Status::MetaWritten((new_path, new_meta))
             },
-            Status::MetaWritten((path, _)) => {
-                let new_path = update_metadata(&path, &new_meta)?;
+            Status::MetaWritten(i) => Status::MetaWritten(i),
+        };
+        
+        let mut batch = Batch::default();
+        batch.insert(
+            &status_key(id), 
+            bincode::serialize(&new_status).unwrap()
+        );
+        batch.insert( //unlock file lock
+            &db_mutex_key(id),
+            bincode::serialize(&false).unwrap()
+        );
+        db.apply_batch(batch).unwrap();       
+        Ok(())
+    }
+
+    pub async fn swap_meta(&self, id: u64)
+     -> Result<(), Error> {
+    
+        let db = self.db.open_tree("youtube_dl").unwrap();
+
+        aquire_db_mutex(&db, id).await;
+        let job_status = db.get(&status_key(id))
+            .unwrap()
+            .ok_or(Error::CanNoLongerUpdateMeta)?;
+        let job_status = bincode::deserialize(&job_status.to_vec()).unwrap();
+        let new_status = match job_status {
+            Status::Queued(meta_guess) => {
+                let new_meta = MetaData {
+                    title: meta_guess.artist,
+                    artist: meta_guess.title,
+                    source_url: meta_guess.source_url,
+                };
+                Status::MetaConfirmed(new_meta)
+            },
+            Status::MetaConfirmed(mut meta) => {
+                meta.title = meta.artist.clone();
+                meta.artist = meta.title.clone();
+                Status::MetaConfirmed(meta)
+            },
+            Status::Downloaded(meta_guess) => {
+                let new_meta = MetaData {
+                    title: meta_guess.artist,
+                    artist: meta_guess.title,
+                    source_url: meta_guess.source_url,
+                };
+                let new_path = write_metadata(id, &new_meta)?;
                 Status::MetaWritten((new_path, new_meta))
+            },
+            Status::MetaWritten((path, mut meta)) => {
+                meta.artist = meta.title.clone();
+                meta.title = meta.artist.clone();
+                let new_path = update_metadata(&path, &meta)?;
+                Status::MetaWritten((new_path, meta))
             },
         };
         
@@ -530,8 +592,59 @@ impl YoutubeDownloader {
         Ok(())
     }
 
-    pub async fn no_meta(&self, id: u64, title: &str) -> Result<(), Error> {
-        self.set_meta(id, title, "none").await
+    pub async fn no_meta(&self, id: u64)
+     -> Result<(), Error> {
+    
+        let db = self.db.open_tree("youtube_dl").unwrap();
+
+        aquire_db_mutex(&db, id).await;
+        let job_status = db.get(&status_key(id))
+            .unwrap()
+            .ok_or(Error::CanNoLongerUpdateMeta)?;
+        let job_status = bincode::deserialize(&job_status.to_vec()).unwrap();
+        let new_status = match job_status {
+            Status::Queued(meta) => {
+                let new_meta = MetaData {
+                    title: format!("{} {}",meta.title,meta.artist),
+                    artist: "".to_owned(),
+                    source_url: meta.source_url,
+                };
+                Status::MetaConfirmed(new_meta)
+            },
+            Status::MetaConfirmed(mut meta) => {
+                meta.title = format!("{} {}",meta.title,meta.artist);
+                meta.artist = "".to_owned();
+                Status::MetaConfirmed(meta)
+            },
+            Status::Downloaded(meta) => {
+                let new_meta = MetaData {
+                    title: format!("{} {}",meta.title,meta.artist),
+                    artist: "".to_owned(),
+                    source_url: meta.source_url,
+                };
+                let new_path = write_metadata(id, &new_meta)?;
+                Status::MetaWritten((new_path, new_meta))
+            },
+            Status::MetaWritten((path, mut meta)) => {
+                meta.title = format!("{} {}",meta.title,meta.artist);
+                meta.artist = "".to_owned();
+                let new_path = update_metadata(&path, &meta)?;
+                Status::MetaWritten((new_path, meta))
+            },
+        };
+        
+        let mut batch = Batch::default();
+        batch.insert(
+            &status_key(id), 
+            bincode::serialize(&new_status).unwrap()
+        );
+        batch.insert( //unlock file lock
+            &db_mutex_key(id),
+            bincode::serialize(&false).unwrap()
+        );
+        db.apply_batch(batch).unwrap();
+        
+        Ok(())
     }
 }
 

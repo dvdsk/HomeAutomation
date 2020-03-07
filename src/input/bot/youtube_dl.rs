@@ -23,11 +23,11 @@ impl TelegramFeedback {
     -> Result<(), BotError> {
         dbg!();
         let keyboard_json = format!("[\
-            [{{\"text\":\"swap\", \"callback_data\":\"ytdl:swap:{id}:{title}:{artist}\"}}],\
-            [{{\"text\":\"no\", \"callback_data\":\"ytdl:no:{id}:{title}:{artist}\"}}],\
-            [{{\"text\":\"ok\", \"callback_data\":\"ytdl:ok:{id}:{title}:{artist}\"}}],\
-            [{{\"text\":\"lookup\", \"callback_data\":\"ytdl:lookup:{id}:{title}:{artist}\"}}]\
-        ]",id=id,title=meta.title, artist=meta.artist);
+            [{{\"text\":\"swap\", \"callback_data\":\"ytdl:swap:{id}\"}}],\
+            [{{\"text\":\"no\", \"callback_data\":\"ytdl:no:{id}\"}}],\
+            [{{\"text\":\"ok\", \"callback_data\":\"ytdl:ok:{id}\"}}],\
+            [{{\"text\":\"lookup\", \"callback_data\":\"ytdl:lookup:{id}\"}}]\
+        ]",id=id);
         let reply_markup = format!("{{\"inline_keyboard\":{} }}", keyboard_json);
         let text = format!("is _{}_ the title and _{}_ the artist?", 
             meta.title, meta.artist);
@@ -41,8 +41,8 @@ impl TelegramFeedback {
             .text("chat_id", self.chat_id.to_string())
             .text("text", text)
             .text("parse_mode", "Markdown")
-            .text("reply_to_message_id", self.message_id.to_string());
-            //.text("reply_markup", reply_markup);
+            .text("reply_to_message_id", self.message_id.to_string())
+            .text("reply_markup", reply_markup);
 
         dbg!();
         let client = reqwest::Client::new();
@@ -114,21 +114,16 @@ pub async fn handle_callback(callback: CallbackQuery, state: &State)
     match command {
         Some("swap") => {
             let id = split.next().ok_or(Error::NotEnoughData)?.parse()?;
-            let title = split.next().ok_or(Error::NotEnoughData)?;
-            let artist = split.next().ok_or(Error::NotEnoughData)?;
-            state.youtube_dl.set_meta(id, artist, title).await? //artist an title swapped
+            state.youtube_dl.swap_meta(id).await? //artist an title swapped
         }
         Some("ok") => {
             let id = split.next().ok_or(Error::NotEnoughData)?.parse()?;
-            let title = split.next().ok_or(Error::NotEnoughData)?;
-            let artist = split.next().ok_or(Error::NotEnoughData)?;
             dbg!("handling callback");
-            state.youtube_dl.set_meta(id, title, artist).await?
+            state.youtube_dl.meta_ok(id).await?
         }
         Some("no") => {
             let id = split.next().ok_or(Error::NotEnoughData)?.parse()?;
-            let title = split.next().ok_or(Error::NotEnoughData)?;
-            state.youtube_dl.no_meta(id, title).await?
+            state.youtube_dl.no_meta(id).await?
         }
         Some("lookup") => todo!(),
         _ => {
