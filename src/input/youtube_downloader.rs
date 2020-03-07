@@ -5,21 +5,22 @@ use std::os::unix::fs::OpenOptionsExt;
 use std::thread;
 
 use std::time::Duration;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use reqwest::{IntoUrl};
 use actix_rt;
-use regex::Regex;
 use serde::{Serialize, Deserialize};
 use bincode;
 use async_trait::async_trait;
+use async_std::task;
+use sled::Batch;
 
 use crate::input::bot::youtube_dl::TelegramFeedback;
 
 const DIR: &str = "temp";
 const YOUTUBE_DL_LOC: &str = "temp/youtube-dl";
 const MUSIC_TEMP: &str = "temp/music";
-const MUSIC_DIR: &str = "/home/pi/Music/youtube";
+const MUSIC_DIR: &str = "/home/pi/Music";
 
 #[derive(Debug)]
 pub enum Error{
@@ -30,6 +31,9 @@ pub enum Error{
     CouldNotCreateTempDir(std::io::Error),
     UnexpectedYoutubeDlStdOut(String),
     UnsupportedSource(String),
+    CanNoLongerUpdateMeta,
+    CanNotSwapArtistWithEmptyTitle,
+    IDWasDeleted,
 }
 
 impl std::fmt::Display for Error {
@@ -50,6 +54,13 @@ impl std::fmt::Display for Error {
                 write!(f, "Could not understand output of youtube-dl, output was: {}",s),
             Error::UnsupportedSource(s) => 
                 write!(f, "Could not find something to download: {}", s),
+            Error::CanNoLongerUpdateMeta =>
+                write!(f, "Can no longer update metadata, was already done some time ago"),
+            Error::CanNotSwapArtistWithEmptyTitle => 
+                write!(f, "Can not swap artist and title as the current artist \
+                is empty and the title can not be empty. Not writing metadata"),
+            Error::IDWasDeleted => 
+                write!(f, "Internal error, file not in database"),
         }
     }
 }
@@ -86,7 +97,7 @@ pub enum FeedbackChannel{
 pub enum JobStatus {
     Finished,
     Downloaded,
-    Queued(MetaData),
+    Queued(MetaGuess, u64),
     Error,
 }
 
@@ -135,28 +146,49 @@ pub struct MetaData {
     pub title: String,
 }
 
-#[derive(Serialize, Deserialize, Default)]
-struct DbEntry {
-    downloaded: bool, //default val = false
-    meta: Option<MetaData>
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+pub struct MetaGuess {
+    pub artist: String,
+    pub title: String,
 }
 
-impl DbEntry {
-    fn empty() -> Self {
-        DbEntry {
-            downloaded: false, 
-            meta: None, 
-        }
-    }
-    fn downloaded() -> Self {
-        DbEntry {
-            downloaded: true, 
-            meta: None, 
-        }
-    }
+// in the future queued an downloaded can be expanded
+// with a MetaGuess
+#[derive(Serialize, Deserialize)] 
+enum Status {
+    Queued(MetaGuess), //can go to Downloaded or ConfirmedMeta
+    Downloaded(MetaGuess), // can go to Metawritten (as soon as there is meta we write it to file)
+    MetaConfirmed(MetaData), //can go to MetaWritten (as soon as download is complete meta written to file)
+    MetaWritten((PathBuf, MetaData)), //can only tranfrom to WritingMeta
 }
 
-fn get_meta(url: &str) -> Result<MetaData, Error> {
+fn split(to_split_on: &str) -> (&str, &str){
+    //try splitting on title
+    let new_title;
+    let new_artist;
+
+    if to_split_on.contains("-"){
+        let mut split = to_split_on.splitn(2,"-");
+        new_title = split.next().unwrap();
+        new_artist = split.next().unwrap();
+    } else if to_split_on.contains(":"){
+        let mut split = to_split_on.splitn(2,":");
+        new_title = split.next().unwrap();
+        new_artist = split.next().unwrap();
+    } else if to_split_on.contains("|"){
+        let mut split = to_split_on.splitn(2,"|");
+        new_title = split.next().unwrap();
+        new_artist = split.next().unwrap();
+    } else {
+        new_title = to_split_on;
+        new_artist = "unknown";
+    }
+
+    (new_title.trim(), new_artist.trim())
+}
+
+
+fn guess_meta(url: &str) -> Result<MetaGuess, Error> {
 
     let full_path = Path::new(YOUTUBE_DL_LOC);
     let output = Command::new(full_path)
@@ -177,22 +209,31 @@ fn get_meta(url: &str) -> Result<MetaData, Error> {
         .arg("bestaudio[acodec=opus]/bestaudio/best")
         
         .arg("--output")
-        .arg("/%(title)s-#-#-%(artist)s")
+        .arg("%(title)s-#-#-%(artist)s")
         .arg(url)
         .output()?;
 
     let stdout = String::from_utf8(output.stdout).unwrap();
     let mut title_artist = stdout.splitn(2, "-#-#-");
-    let metadata = MetaData {
-        artist: title_artist.next()
-            .map(|s| s.to_owned())
-            .ok_or(Error::UnsupportedSource(stdout.clone()))?,
-        title: title_artist.next()
-            .map(|s| s.to_owned())
-            .ok_or(Error::UnsupportedSource(stdout.clone()))?,
+    let artist = title_artist.next()
+            .map(|s| s.trim())
+            .ok_or(Error::UnsupportedSource(stdout.clone()))?;
+    let title = title_artist.next()
+            .map(|s| s.trim())
+            .ok_or(Error::UnsupportedSource(stdout.clone()))?;
+
+    let (artist, title) = if artist.contains("NA"){
+        split(title)
+    } else if title.contains("NA"){
+        split(artist)
+    } else {
+        (artist, title)
     };
 
-    Ok(metadata)
+    Ok(MetaGuess {
+        artist: artist.to_owned(), 
+        title: title.to_owned()
+    })
 }
 
 fn download_file(output_arg: &String, url: &str)
@@ -240,7 +281,7 @@ async fn download_song(url: &str, id: u64) -> Result<(), Error> {
     let output = download_file(&output_arg, url)?;
     dbg!(&output);
 
-    let output = if !output.status.success() {
+    if !output.status.success() {
         let since_last_updated = fs::metadata(YOUTUBE_DL_LOC).unwrap()
             .created().unwrap()
             .elapsed().unwrap_or(Duration::from_secs(0));
@@ -255,59 +296,93 @@ async fn download_song(url: &str, id: u64) -> Result<(), Error> {
         if !output.status.success() {
             return Err(Error::CouldNotDownloadSong(output));
         }
-        output
-    } else {output};
-
-    //let title = parse_stdout(output.stdout)?;
-    
-    //mpd::Client::connect("127.0.0.1:6600").and_then(|mut c| c.rescan())?;
-    //Ok(title)
+    }
     Ok(())
 }
 
-fn get_metadata(db: sled::Tree, id: u64)
- -> Result<Option<MetaData>, Error> {
+fn write_metadata(id: u64, meta: &MetaData) -> Result<PathBuf, Error> {
+    let mut old_path = PathBuf::from(MUSIC_TEMP);
+    old_path.push(id.to_string());
+    old_path.set_extension("m4a");
 
-    let modification = db.compare_and_swap(
-        id.to_be_bytes(), 
-        Some(bincode::serialize(&DbEntry::empty()).unwrap() ),
-        Some(bincode::serialize(&DbEntry::downloaded()).unwrap() ),
-    ).unwrap();
-    
-    //if the modification was an error (not swapped) the entry was not
-    //empty and thus has metadata, return the metadata. 
-    if let Err(old_value) = modification {
-        let with_metadata: DbEntry = bincode::deserialize(
-            &old_value
-            .current.unwrap()
-            .to_vec() ).unwrap();
-        Ok(with_metadata.meta)
-    } else {
-        Ok(None)
+    let mut new_path = PathBuf::from(MUSIC_DIR);
+    new_path.push(&meta.artist);
+    if !new_path.exists() {
+        fs::create_dir(&new_path)?;
     }
+    new_path.push(&meta.title);
+    new_path.set_extension("m4a");
+    dbg!(&old_path);
+    dbg!(&new_path);
+    fs::rename(old_path, &new_path).unwrap();
+    mpd::Client::connect("127.0.0.1:6600").and_then(|mut c| c.rescan())?;
+
+    Ok(new_path)
 }
 
-fn write_metadata(meta: MetaData, id: u64) -> Result<(), Error> {
-    //move file from temp/id to music/artist/title
-    //or in case metadata is wierd (tbdefined) to
-    //music/youtube/title.. 
-    todo!();
+fn update_metadata(old_path: &Path, meta: &MetaData) -> Result<PathBuf, Error> {
+    let mut new_path = PathBuf::from(MUSIC_DIR);
+    new_path.push(&meta.artist);
+    if !new_path.exists() {
+        fs::create_dir(&new_path)?;
+    }
+    new_path.push(&meta.title);
+    new_path.set_extension("m4a");
+    fs::rename(old_path, &new_path).unwrap();
+
+    //delete if parent dir is now empty
+    if let Some(dir) = old_path.parent(){
+        if dir.read_dir().unwrap().count() == 0 {
+            fs::remove_dir(dir).unwrap();
+        }
+    }
+
+    mpd::Client::connect("127.0.0.1:6600").and_then(|mut c| c.rescan())?;
+    
+    Ok(new_path)
 }
 
 async fn handle_job(job: Job, token: String, db: sled::Tree) 
     -> Result<(), Error> {
     
     let status = match download_song(&job.url, job.id).await {
-        Ok(_) => {
-            if let Some(meta) = get_metadata(db, job.id)?{
-                write_metadata(meta, job.id)?;
-                JobStatus::Finished
-            } else {
-                JobStatus::Downloaded
-            }
+        Ok(_) => { 
+            aquire_db_mutex(&db, job.id).await;
+            let db_status = db.get(&status_key(job.id))
+                .unwrap()
+                .ok_or(Error::CanNoLongerUpdateMeta)?;
+            let db_status = bincode::deserialize(&db_status.to_vec()).unwrap();
+            let (new_db_status, job_status) = match db_status {
+                Status::Queued(meta_guess) => {
+                    (Status::Downloaded(meta_guess), JobStatus::Downloaded)
+                },
+                Status::MetaConfirmed(meta) => {
+                    let new_path = write_metadata(job.id, &meta)?; //write meta
+                    (Status::MetaWritten((new_path, meta)), JobStatus::Finished)
+                },
+                Status::Downloaded(_) => {
+                    panic!("file should not yet be download!")
+                },
+                Status::MetaWritten((_, _)) => {
+                    panic!("file should not yet be download!")
+                },
+            };
+            
+            let mut batch = Batch::default();
+            batch.insert(
+                &status_key(job.id), 
+                bincode::serialize(&new_db_status).unwrap()
+            );
+            batch.insert( //unlock file lock
+                &db_mutex_key(job.id),
+                bincode::serialize(&false).unwrap()
+            );
+            db.apply_batch(batch).unwrap();
+            job_status
         },
         Err(error) => {
             error!("warn error during song download: {:?}", error);
+            //TODO remove from database
             JobStatus::Error
         },
     };
@@ -334,6 +409,26 @@ fn song_downloader(url_rx: crossbeam_channel::Receiver<Job>,
     }
 }
 
+async fn aquire_db_mutex(db: &sled::Tree, id: u64){
+    while let Err(_is_locked) = db.compare_and_swap(
+        &db_mutex_key(id),
+        Some(bincode::serialize(&false).unwrap()),
+        Some(bincode::serialize(&true).unwrap())).unwrap(){
+        task::sleep(Duration::from_millis(10)).await;
+        dbg!("blocking on mutex aquisition");
+    }
+}
+
+fn db_mutex_key(id: u64) -> [u8;9]{
+    let mut a = [0;9];
+    a[..8].clone_from_slice(&id.to_be_bytes());
+    return a;
+}
+fn status_key(id: u64) -> [u8;9]{
+    let mut a = [1;9];
+    a[..8].clone_from_slice(&id.to_be_bytes());
+    return a;
+}
 
 impl YoutubeDownloader {
     pub async fn init(token: String, db: sled::Db)
@@ -367,21 +462,76 @@ impl YoutubeDownloader {
         feedback: FeedbackChannel) -> Result<(), Error> {
         
         //get metadata guess from youtube-dl
-        let meta_guess = get_meta(&url)?;
+        let meta_guess = guess_meta(&url)?;
         let id = self.db.generate_id().unwrap();
-        let youtube_db = self.db.open_tree("youtube_dl").unwrap();
-        
-        let db_entry = DbEntry::default();
-        youtube_db.insert(
-            id.to_be_bytes(), 
+        let db = self.db.open_tree("youtube_dl").unwrap();
+         
+        let db_entry = Status::Queued(meta_guess.clone());
+        let mut batch = Batch::default();
+        batch.insert(
+            &status_key(id), 
             bincode::serialize(&db_entry).unwrap()
-        ).unwrap();
+        );
+        batch.insert(
+            &db_mutex_key(id),
+            bincode::serialize(&false).unwrap()
+        );
+        db.apply_batch(batch).unwrap();
 
         let job = Job {id, url: url, feedback: feedback.clone()};
         self.url_tx.try_send(job).unwrap();
-        feedback.send(JobStatus::Queued(meta_guess), &self.token).await;
+        feedback.send(JobStatus::Queued(meta_guess, id), &self.token).await;
         dbg!();
         Ok(())
+    }
+
+    pub async fn set_meta(&self, id: u64, title: &str, artist: &str)
+     -> Result<(), Error> {
+    
+        let db = self.db.open_tree("youtube_dl").unwrap();
+
+        let new_meta = MetaData {
+            title: title.to_owned(),
+            artist: artist.to_owned(),
+        };
+
+        aquire_db_mutex(&db, id).await;
+        let job_status = db.get(&status_key(id))
+            .unwrap()
+            .ok_or(Error::CanNoLongerUpdateMeta)?;
+        let job_status = bincode::deserialize(&job_status.to_vec()).unwrap();
+        let new_status = match job_status {
+            Status::Queued(_) => {
+                Status::MetaConfirmed(new_meta)
+            },
+            Status::MetaConfirmed(_) => {
+                Status::MetaConfirmed(new_meta)
+            },
+            Status::Downloaded(_) => {
+                let new_path = write_metadata(id, &new_meta)?;
+                Status::MetaWritten((new_path, new_meta))
+            },
+            Status::MetaWritten((path, _)) => {
+                let new_path = update_metadata(&path, &new_meta)?;
+                Status::MetaWritten((new_path, new_meta))
+            },
+        };
+        
+        let mut batch = Batch::default();
+        batch.insert(
+            &status_key(id), 
+            bincode::serialize(&new_status).unwrap()
+        );
+        batch.insert( //unlock file lock
+            &db_mutex_key(id),
+            bincode::serialize(&false).unwrap()
+        );
+        db.apply_batch(batch).unwrap();       
+        Ok(())
+    }
+
+    pub async fn no_meta(&self, id: u64, title: &str) -> Result<(), Error> {
+        self.set_meta(id, title, "none").await
     }
 }
 

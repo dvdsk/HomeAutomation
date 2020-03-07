@@ -8,6 +8,8 @@ use serde_json;
 use telegram_bot::types::update::Update;
 use telegram_bot::types::update::UpdateKind;
 use telegram_bot::types::message::MessageKind;
+use telegram_bot::types::message::Message;
+use telegram_bot::types::callback_query::CallbackQuery;
 use telegram_bot::types::refs::{ChatId, MessageId, UserId};
 
 use crate::input::youtube_downloader::{self,FeedbackChannel};
@@ -40,10 +42,9 @@ impl From<youtube_downloader::Error> for Error {
 	}
 }
 
-fn to_string_and_ids(update: Update) 
+fn to_string_and_ids(message: Message) 
 -> Result<(String, ChatId, UserId, MessageId),Error>{
 	
-	if let UpdateKind::Message(message) = update.kind {
 		let chat_id = message.chat.id();
 		let user_id = message.from.id;
 		let message_id = message.id;
@@ -54,10 +55,6 @@ fn to_string_and_ids(update: Update)
 			warn!("unhandled message kind");
 			return Err(Error::UnhandledUpdateKind);
 		}
-	} else {
-		warn!("unhandled update from telegram: {:?}", update);
-		return Err(Error::UnhandledMessageKind);
-	}
 }
 
 async fn handle_command(text: String, chat_id: ChatId, message_id: MessageId,
@@ -92,6 +89,29 @@ async fn handle_command(text: String, chat_id: ChatId, message_id: MessageId,
 	return Err(Error::UnknownCommand(command));
 }
 
+async fn handle_callback(callback: CallbackQuery, state: &State) {
+
+	if !state.valid_ids.contains(&callback.from.id){
+		warn!("Unauthorized callback, userid: {}", callback.from.id);
+		return; //no need for error handling, just drop callback
+	}
+
+	let header = callback.data.split_terminator(":").next();
+	let res = match header {
+		Some("ytdl") => {
+			youtube_dl::handle_callback(callback, state).await
+		}
+		_ => {
+			warn!("unhandled callback, data: {}\nfull_callback: {:?}", 
+				callback.data, callback);
+			Ok(()) //user need not be warned as user is dev
+		},
+	};
+	if let Err(e) = res {
+		error!("ran into error handling callback: {:?}", e);
+	}
+}
+
 const INT_ERR_TEXT: &str = "apologies, an internal error happend this has been reported and will be fixed as soon as possible";
 const UNHANDLED: &str = "sorry I can not understand your input";
 async fn handle_error(error: Error, chat_id: ChatId, token: &str) {
@@ -124,12 +144,24 @@ async fn handle_error(error: Error, chat_id: ChatId, token: &str) {
 	}
 }
 
-async fn handle(update: Update, state: State){
+async fn handle(update: Update, state: State){//TODO change to ref
 	let token = &state.bot_token;
-	if let Ok((text, chat_id, user_id, message_id)) = to_string_and_ids(update){
-		if let Err(error) = handle_command(text, chat_id, 
-			message_id, user_id, &state).await{
-			handle_error(error, chat_id, token).await;
+	match update.kind {
+		UpdateKind::Message(messg) => {
+			if let Ok((text, chat_id, user_id, message_id)) = to_string_and_ids(messg){
+				if let Err(error) = handle_command(text, chat_id, 
+					message_id, user_id, &state).await{
+					handle_error(error, chat_id, token).await;
+				}
+			}
+		}
+		UpdateKind::CallbackQuery(callback) => {
+			let chat_id = callback.message.chat.id();
+			handle_callback(callback, &state).await;
+
+		}
+		_ => {
+			warn!("unhandled update from telegram: {:?}", update);
 		}
 	}
 }

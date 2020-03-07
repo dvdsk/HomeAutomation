@@ -1,11 +1,9 @@
 #[macro_use]
 extern crate log;
-use chrono;
 
 use structopt::StructOpt;
 use sled;
 use std::path::PathBuf;
-use telegram_bot::types::refs::UserId;
 
 mod controller;
 
@@ -68,7 +66,7 @@ async fn main() {
 		db.clone()).unwrap();
 	let (youtube_dl, _downloader_thread) = input::YoutubeDownloader::init(
 		opt.token.clone(), db.clone()).await.unwrap();
-	let (mpd_status, _mpd_watcher_thread, updater_tx) = 
+	let (mpd_status, _mpd_watcher_thread, _updater_tx) = 
 		input::MpdStatus::start_updating()
 		.unwrap();
 
@@ -85,7 +83,7 @@ async fn main() {
 		opt.valid_ids.clone());
 
 	//start the webserver
-	let web_handle = server::start_webserver(
+	let _web_handle = server::start_webserver(
 		&opt.key_dir, state, opt.port, 
 		opt.domain.clone()).unwrap();
 	
