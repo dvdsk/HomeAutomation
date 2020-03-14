@@ -19,7 +19,7 @@ pub struct TelegramFeedback {
 //  Ok
 //  Lookup
 impl TelegramFeedback {
-    async fn ask_name_artist(&self, token: &str, meta: MetaGuess, id: u64)
+    async fn ask_name_artist(&self, token: &str, mut meta: MetaGuess, id: u64)
     -> Result<(), BotError> {
         dbg!();
         let keyboard_json = format!("[\
@@ -29,6 +29,10 @@ impl TelegramFeedback {
             [{{\"text\":\"lookup\", \"callback_data\":\"ytdl:lookup:{id}\"}}]\
         ]",id=id);
         let reply_markup = format!("{{\"inline_keyboard\":{} }}", keyboard_json);
+        meta.title.retain(|c| c.is_ascii_alphanumeric() || 
+            c.is_ascii_whitespace() || c=='-');
+        meta.artist.retain(|c| c.is_ascii_alphanumeric() || 
+            c.is_ascii_whitespace() || c=='-');
         let text = format!("is _{}_ the title and _{}_ the artist?", 
             meta.title, meta.artist);
         //TODO: should always base this on metadata guess, should make that a

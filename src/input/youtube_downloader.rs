@@ -14,7 +14,9 @@ use bincode;
 use async_trait::async_trait;
 use async_std::task;
 use sled::Batch;
-use id3;
+use std::ffi::OsStr;
+use regex::Regex;
+//use id3;
 
 use crate::input::bot::youtube_dl::TelegramFeedback;
 
@@ -155,7 +157,7 @@ pub struct MetaGuess {
     pub source_url: String,
 }
 
-impl MetaData {
+/*impl MetaData {
     fn to_tag(&self) -> id3::Tag {
         let mut tag = id3::Tag::new();
         tag.set_artist(&self.artist);
@@ -163,7 +165,7 @@ impl MetaData {
         //tag.set_text("source: ",&self.source_url);
         tag
     }
-}
+}*/
 
 // in the future queued an downloaded can be expanded
 // with a MetaGuess
@@ -180,6 +182,7 @@ fn split(to_split_on: &str) -> (&str, &str){
     let new_title;
     let new_artist;
 
+    let in_quotes = Regex::new(r#"(.*)\s*(?:'|")\s*(.*)\s*(?:'|")\s*(.*)"#).unwrap();
     if to_split_on.contains("-"){
         let mut split = to_split_on.splitn(2,"-");
         new_title = split.next().unwrap();
@@ -192,6 +195,17 @@ fn split(to_split_on: &str) -> (&str, &str){
         let mut split = to_split_on.splitn(2,"|");
         new_title = split.next().unwrap();
         new_artist = split.next().unwrap();
+    } else if let Some(caps) = in_quotes.captures(to_split_on){
+        dbg!(&caps);
+        let len_before = caps.get(1).unwrap().as_str().len();
+        let len_after = caps.get(3).unwrap().as_str().len();
+        if len_before > len_after {
+            new_title = caps.get(1).unwrap().as_str();
+            new_artist = caps.get(2).unwrap().as_str();
+        } else {
+            new_title = caps.get(2).unwrap().as_str();
+            new_artist = caps.get(3).unwrap().as_str();
+        }
     } else {
         new_title = to_split_on;
         new_artist = "unknown";
@@ -301,6 +315,24 @@ async fn download_song(url: &str, id: u64) -> Result<(), Error> {
     Ok(())
 }
 
+fn ffmpeg_set_meta(input: &Path, output: &Path, artist: &str, title: &str){
+    let input = fs::canonicalize(input).unwrap();
+    dbg!(&input);
+    dbg!(&output);
+
+    let output = Command::new("ffmpeg")
+        .args(&[OsStr::new("-i"),input.as_os_str()])
+        .args(&["-metadata", &format!("artist={}",artist)])
+        .args(&["-metadata", &format!("title={}",title)])
+        .args(&["-codec", "copy"])
+        .arg(output.as_os_str())
+        .output()
+        .expect("ffmpeg write metadata");
+
+    dbg!(output);
+    //ffmpeg -i InputFile -metadata key=value -codec copy OutputFile
+}
+
 fn write_metadata(id: u64, meta: &MetaData) -> Result<PathBuf, Error> {
     let mut old_path = PathBuf::from(MUSIC_TEMP);
     old_path.push(id.to_string());
@@ -313,15 +345,10 @@ fn write_metadata(id: u64, meta: &MetaData) -> Result<PathBuf, Error> {
     }
     new_path.push(&meta.title);
     new_path.set_extension("m4a");
-    dbg!(&old_path);
-    dbg!(&new_path);
-    fs::rename(old_path, &new_path).unwrap();
 
-    /*meta.to_tag() //not working, corrupts files
-        .write_to_path(&new_path, id3::Version::Id3v24)
-        .unwrap();*/
+    ffmpeg_set_meta(&old_path, &new_path, &meta.artist, &meta.title);
+    fs::remove_file(old_path).unwrap();
     mpd::Client::connect("127.0.0.1:6600").and_then(|mut c| c.rescan())?;
-
     Ok(new_path)
 }
 
@@ -333,8 +360,10 @@ fn update_metadata(old_path: &Path, meta: &MetaData) -> Result<PathBuf, Error> {
     }
     new_path.push(&meta.title);
     new_path.set_extension("m4a");
-    fs::rename(old_path, &new_path).unwrap();
-
+    
+    ffmpeg_set_meta(&old_path, &new_path, &meta.artist, &meta.title);
+    
+    fs::remove_file(old_path).unwrap();
     //delete if parent dir is now empty
     if let Some(dir) = old_path.parent(){
         if dir.read_dir().unwrap().count() == 0 {
@@ -342,11 +371,7 @@ fn update_metadata(old_path: &Path, meta: &MetaData) -> Result<PathBuf, Error> {
         }
     }
 
-    /*meta.to_tag() //not working, corrupts files
-        .write_to_path(&new_path, id3::Version::Id3v24)
-        .unwrap();*/
     mpd::Client::connect("127.0.0.1:6600").and_then(|mut c| c.rescan())?;
-    
     Ok(new_path)
 }
 
@@ -661,4 +686,13 @@ mod tests {
         let test_case_awnser = "Trevor Jones - Promentory (The Last of the Mohicans)";
         assert_eq!(parse_stdout(test_case).unwrap(), test_case_awnser);
     }*/
+
+    #[test]
+    fn test_split(){
+        let (artist, title) = split("Merlin 4 Soundtrack \"The Burial\" 04");
+        assert_eq!(artist, "Merlin 4 Soundtrack");
+        assert_eq!(title, "The Burial");
+    }
+    
+    
 }
