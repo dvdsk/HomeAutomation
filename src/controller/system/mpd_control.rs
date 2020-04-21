@@ -34,7 +34,7 @@ pub fn add_from_playlist(mpd: &mut mpd::Client, name: &str, minimal_play_time: D
 }
 
 pub fn increase_volume(mpd_status: &mut MpdStatus) -> Result<(),Error>{
-    const VOLUME_INCREMENT: i8 = 1;
+    const VOLUME_INCREMENT: i8 = 5;
 
     let mut client = mpd::Client::connect("127.0.0.1:6600")?;
     let current_volume = mpd_status.get_volume();
@@ -45,7 +45,7 @@ pub fn increase_volume(mpd_status: &mut MpdStatus) -> Result<(),Error>{
 }
 
 pub fn decrease_volume(mpd_status: &mut MpdStatus) -> Result<(),Error>{
-    const VOLUME_INCREMENT: i8 = 1;
+    const VOLUME_INCREMENT: i8 = 5;
 
     let mut client = mpd::Client::connect("127.0.0.1:6600")?;
     let current_volume = mpd_status.get_volume();
