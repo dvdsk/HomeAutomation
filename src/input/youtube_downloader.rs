@@ -296,15 +296,19 @@ async fn download_song(url: &str, id: u64) -> Result<(), Error> {
     let output = download_file(&output_arg, url)?;
     dbg!(&output);
 
-    if !output.status.success() {
+    dbg!(output.stderr.starts_with(b"ERROR:"));
+    if !output.status.success() || output.stderr.starts_with(b"ERROR:") {
+        dbg!("UPDATING YOUTUBE_DL");
         let since_last_updated = fs::metadata(YOUTUBE_DL_LOC).unwrap()
             .created().unwrap()
             .elapsed().unwrap_or(Duration::from_secs(0));
         
         // updating youtube-dl wont do anything return error
-        if since_last_updated > Duration::from_secs(60*60*24){
+        dbg!(since_last_updated);
+        if since_last_updated < Duration::from_secs(60*60*24){
+            dbg!("not updating youtube_dl, has been recently tried already");
             return Err(Error::CouldNotDownloadSong(output));
-        } 
+        }
         
         download_youtube_dl("https://yt-dl.org/downloads/latest/youtube-dl").await?;
         let output = download_file(&output_arg, url)?;
