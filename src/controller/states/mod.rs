@@ -1,3 +1,4 @@
+use serde::{Serialize, Deserialize};
 use super::{System, Modifications, Environment};
 
 mod normal;
@@ -15,7 +16,7 @@ pub enum ActiveState {
     WakeUp(wakeup::WakeUp),
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub enum TargetState {
     Normal,
     LightLoop,

@@ -17,6 +17,7 @@ use crate::input::web_api::server::{State};
 
 pub mod youtube_dl;
 use youtube_dl::TelegramFeedback;
+mod set_alarm;
 
 #[derive(Debug)]
 pub enum Error{
@@ -28,6 +29,7 @@ pub enum Error{
 	UnknownCommand(String),
 	SongDownloadError(youtube_downloader::Error),
 	Unauthorized(ChatId),
+	SetAlarmError(set_alarm::Error),
 }
 
 impl From<reqwest::Error> for Error {
@@ -39,6 +41,12 @@ impl From<reqwest::Error> for Error {
 impl From<youtube_downloader::Error> for Error {
 	fn from(e: youtube_downloader::Error) -> Self {
 		Error::SongDownloadError(e)
+	}
+}
+
+impl From<set_alarm::Error> for Error {
+	fn from(err: set_alarm::Error) -> Self {
+		Error::SetAlarmError(err)
 	}
 }
 
@@ -72,21 +80,24 @@ async fn handle_command(text: String, chat_id: ChatId, message_id: MessageId,
 		return Ok(());
 	}
 
-    //let split = text.find(char::is_whitespace);
-    let command = text;
-    //let args = command.split_off(split.unwrap_or(command.len()));
-    match command.as_str() {
+    let split = text.find(char::is_whitespace).unwrap_or(text.len());
+    let command = &text[..split];
+    let args = &text[..split];
+    match command {
         "/test" => {
             send_text(chat_id, token, "hi").await?; 
-            return Ok(());
-        }
+			return Ok(());
+		}
+		"/set_alarm" => {
+			set_alarm::handle(chat_id, token, args).await?;
+		}
         &_ => {
 			
 		}
     }
 		
 	warn!("no known command or alias: {:?}", &command);
-	return Err(Error::UnknownCommand(command));
+	return Err(Error::UnknownCommand(command.to_owned()));
 }
 
 async fn handle_callback(callback: CallbackQuery, state: &State) {
@@ -126,8 +137,10 @@ async fn handle_error(error: Error, chat_id: ChatId, token: &str) {
 			String::from(INT_ERR_TEXT)},
 		Error::SongDownloadError(e) => {
 			error!("song download error {:?}", e);
-			String::from("Could not download song due to critical internal error")
-		}
+			String::from("Could not download song due to critical internal error")}
+		Error::SetAlarmError(e) => {
+			error!("could not set alarm {:?}", e);
+			String::from("Could not set alarm")}
 		Error::Unauthorized(chat_id) => {
 			format!("You are not authorized to use this bot, if you \
 			believe this is a mistake ask for your telegram chat id \

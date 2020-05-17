@@ -1,8 +1,10 @@
+use serde::{Serialize, Deserialize};
+
 use super::{ActiveState, Modifications, System};
 use crate::controller::states::*;
 use crate::controller::system::mpd_control;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub enum Command {
   None,
 

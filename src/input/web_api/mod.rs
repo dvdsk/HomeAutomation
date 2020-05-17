@@ -5,12 +5,14 @@ use actix_web_httpauth::headers::www_authenticate::WwwAuthenticate;
 use actix_web::http::StatusCode;
 
 use chrono::{DateTime, NaiveDateTime, Utc};
+use std::time::Duration;
 use serde::Deserialize;
 
 use actix_web::HttpResponse;
 
 use crate::input::youtube_downloader::FeedbackChannel;
 use crate::controller::{Command, TargetState, Event};
+use crate::input::alarms::Alarm;
 
 mod command_logins;
 pub mod server;
@@ -146,7 +148,9 @@ pub fn set_alarm_unix_timestamp(params: Form<AlarmDataUnixTS>, state: Data<State
 		dbg!(Utc::now());
 
 		if time>Utc::now() {
-			if state.alarms.add_alarm(time).is_ok() {
+			let alarm = Alarm::from(time, Event::Alarm, Some(Duration::from_secs(3600*2)));
+
+			if state.alarms.add_alarm(alarm).is_ok() {
 				dbg!("done setting alarm");
 				HttpResponse::Ok().finish()
 			} else {

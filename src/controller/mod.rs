@@ -1,5 +1,6 @@
 use std::time::{Duration, Instant};
 use std::thread;
+use serde::{Serialize, Deserialize};
 
 mod system;
 use system::{Lighting};
@@ -19,7 +20,7 @@ use crate::input::sensors::SensorValue;
 use crate::input::mpd_status::MpdStatus;
 use crate::errors::Error;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum Event {
   Update,
   Alarm,

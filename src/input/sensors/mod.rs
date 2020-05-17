@@ -11,11 +11,12 @@ use std::time::Duration;
 use chrono::Utc;
 use async_std::task;
 use actix_rt;
+use serde::{Serialize, Deserialize};
 
 use crate::controller::Event;
 use local::{TEMPERATURE, HUMIDITY, PRESSURE, STOP_ENCODE};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum SensorValue {
 	Temperature(f32),
 	Humidity(f32),
