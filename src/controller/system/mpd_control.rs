@@ -55,6 +55,22 @@ pub fn decrease_volume(mpd_status: &mut MpdStatus) -> Result<(),Error>{
     Ok(())
 }
 
+pub fn next_song() -> Result<(),Error>{
+    const VOLUME_INCREMENT: i8 = 5;
+
+    let mut client = mpd::Client::connect("127.0.0.1:6600")?;
+    client.next()?;
+    Ok(())
+}
+
+pub fn prev_song() -> Result<(),Error>{
+    const VOLUME_INCREMENT: i8 = 5;
+
+    let mut client = mpd::Client::connect("127.0.0.1:6600")?;
+    client.prev()?;
+    Ok(())
+}
+
 pub fn toggle_playback(mpd_status: &mut MpdStatus) -> Result<(), Error>{
     let mut client = mpd::Client::connect("127.0.0.1:6600")?;
     

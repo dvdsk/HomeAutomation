@@ -16,6 +16,8 @@ pub enum Command {
   MpdPause,
   MpdDecreaseVolume,
   MpdIncreaseVolume,
+  MpdNextSong,
+  MpdPrevSong,
 
   GoToLinux,
   GoToWindows,
@@ -47,6 +49,8 @@ pub fn handle_cmd(cmd: Command, state: ActiveState, mods: &mut Modifications, sy
         Command::MpdPause => {mpd_control::toggle_playback(&mut sys.mpd).unwrap(); mods.mpd = true },
         Command::MpdDecreaseVolume => {mpd_control::increase_volume(&mut sys.mpd).unwrap(); mods.mpd = true },
         Command::MpdIncreaseVolume => {mpd_control::decrease_volume(&mut sys.mpd).unwrap(); mods.mpd = true },
+        Command::MpdNextSong => {mpd_control::next_song().unwrap()},
+        Command::MpdPrevSong => {mpd_control::prev_song().unwrap()},
 
         Command::Test => { warn!("The Test command was just send")},
         Command::None => { error!("None command was issued, this should not happen")},

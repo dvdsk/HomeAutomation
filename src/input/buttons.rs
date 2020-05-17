@@ -14,12 +14,13 @@ use crate::controller::{Command, Event};
 // 23 works perfectly
 // 24 also works perfectly
 const MILLIS: u64 = 1_000_000; //nano to milli 
+const MAX_TAP_LEN: u64 = 600 * MILLIS;
 const N_LINES: usize = 54;
 
-fn detect_and_handle(chip: &mut Chip, offset_to_command: [Event; 54],
-    tx: crossbeam_channel::Sender<Event>) -> Result<(), Error>{
+fn detect_and_handle(chip: &mut Chip, tx: crossbeam_channel::Sender<Event>)
+ -> Result<(), Error>{
 
-    let offsets: [u32; 10] = [27,22,18,  23,24,26,17, 16,12,13];   
+    let offsets: [u32; 10] = [27,22,18, 23,24,26,17, 16,12,13];   
     let (mut evt_handles, mut pollables) = configure_watching(chip, &offsets)?;
     thread::spawn(move || { 
         let mut last_high = [0u64; N_LINES];
@@ -30,8 +31,10 @@ fn detect_and_handle(chip: &mut Chip, offset_to_command: [Event; 54],
                 let key_presses = process_event(&pollables, 
                     &mut evt_handles, &mut last_high, &mut last_state);
                 for (offset, down_duration) in key_presses {
-                    if down_duration > 10*MILLIS {
-                        tx.send(offset_to_command[offset]).unwrap();
+                    if down_duration > 10*MILLIS { //debounce
+                        if let Some(event) = to_command(offset, down_duration){
+                            tx.send(event).unwrap();
+                        }
                     }
                 }
             }
@@ -90,31 +93,42 @@ fn configure_watching(chip: &mut Chip, offsets: &[u32])
     Ok((evt_handles, pollables))
 }
 
+fn to_command(offset: usize, duration: u64) -> Option<Event> {
+    if duration > MAX_TAP_LEN {
+        match offset {
+            27 => Some(Event::Command(Command::MpdNextSong)), //left 3, left
+            18 => Some(Event::Command(Command::MpdPrevSong)), //left 3, right
+            _ => None,
+        }
+    } else {
+        match offset {
+            16 => Some(Event::Command(Command::LampsDim)),
+            12 => Some(Event::Command(Command::LampsDimmest)),
+            13 => Some(Event::Command(Command::LampsToggle)),
+            
+            //buttons on desk
+            27 => Some(Event::Command(Command::MpdIncreaseVolume)), //left 3, left
+            22 => Some(Event::Command(Command::MpdPause)), //left 3, middle
+            18 => Some(Event::Command(Command::MpdDecreaseVolume)), //left 3, right
+            
+            23 => Some(Event::Command(Command::LampsNight)), //right 4, left most
+            24 => Some(Event::Command(Command::LampsEvening)), //right 4, left 
+            26 => Some(Event::Command(Command::LampsDay)), //right 4, right
+            17 => Some(Event::Command(Command::LampsToggle)), //right 4, right most
+            _  => None,
+        }
+    }
+}
+
 pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>) 
     -> Result<(), Error> {
-  
-    let mut offset_to_command = [Event::Command(Command::None); N_LINES];
-    //buttons near lamp
-    offset_to_command[16] = Event::Command(Command::LampsDim);
-    offset_to_command[12] = Event::Command(Command::LampsDimmest);
-    offset_to_command[13] = Event::Command(Command::LampsToggle);
-    
-    //buttons on desk
-    offset_to_command[27] = Event::Command(Command::MpdIncreaseVolume); //left 3, left
-    offset_to_command[22] = Event::Command(Command::MpdPause); //left 3, middle
-    offset_to_command[18] = Event::Command(Command::MpdDecreaseVolume); //left 3, right
-    
-    offset_to_command[23] = Event::Command(Command::LampsNight); //right 4, left most
-    offset_to_command[24] = Event::Command(Command::LampsEvening); //right 4, left 
-    offset_to_command[26] = Event::Command(Command::LampsDay); //right 4, right
-    offset_to_command[17] = Event::Command(Command::LampsToggle); //right 4, right most
-    
+      
     if let Some(mut chip) = gpio_cdev::chips()?
         .filter_map(Result::ok)
         .filter(|c| c.label() == "pinctrl-bcm2835")
         .next() {
         
-        detect_and_handle(&mut chip, offset_to_command, tx)?;
+        detect_and_handle(&mut chip, tx)?;
         Ok(())
     } else {
         error!("could not find gpio chip");
