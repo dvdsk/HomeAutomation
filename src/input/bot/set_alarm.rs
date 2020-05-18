@@ -120,10 +120,6 @@ pub async fn remove_alarm<'a>(chat_id: ChatId, token: &str, mut args: std::str::
     
     let to_remove = dbg!(args.next())
         .ok_or(Error::NoAlarmId)?;
-    //let to_remove = <[u8; 8]>::from_hex(to_remove)
-    //    .unwrap();
-        //.map_err(|_| Error::MalformedAlarmId)?;
-    //let to_remove = u64::from_be_bytes(to_remove);
     let to_remove = u64::from_str_radix(to_remove, 16).unwrap();
     
     let removed = state.alarms.remove_alarm(to_remove)

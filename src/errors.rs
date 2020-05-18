@@ -18,6 +18,7 @@ pub enum Error {
     YoutubeDownloader(youtube_downloader::Error),
     WebServerError(server::Error),
     UnTracked,
+    PlayListTooShort,
 }
 
 impl From<server::Error> for Error {

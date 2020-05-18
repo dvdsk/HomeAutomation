@@ -191,17 +191,9 @@ impl AlarmList {
         Ok(())
     }
     pub fn remove_alarm(&self, to_remove: u64) -> Result<Option<Alarm>, Error> {
-        
         Ok(self.db
             .remove(to_remove.to_be_bytes())?
             .map(|k| bincode::deserialize::<Alarm>(&k).unwrap()))
-
-        /*if let Some(old) = old {
-            let alarm: Alarm = bincode::deserialize(&old).unwrap();
-            dbg!(alarm);
-        };
-        Ok(None)
-        //    .and_then(|k| bincode::deserialize(&k).unwrap())*/
     }
 
     /// calculate time to the earliest alarm, remove it from the list if the current time is later
