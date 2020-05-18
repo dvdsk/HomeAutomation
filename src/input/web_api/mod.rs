@@ -171,9 +171,14 @@ pub fn list_alarms(state: Data<State>) -> HttpResponse {
 	//Code to parse alarm time
 	
 	let alarms = state.alarms.list();
-	let mut list = String::with_capacity(alarms.len()*30);
-	for alarm in alarms {
-		list.push_str(&alarm.to_rfc2822());
+	let mut list = String::with_capacity(alarms.len()*100);
+	for (id,alarm) in alarms {
+		list.push_str(&format!("{:x}, {}, {:?}, {:?}",
+			id,
+			&alarm.time.to_rfc2822(),
+			&alarm.action,
+			&alarm.expiration,
+		));
 		list.push_str("\n");
 	}
 	dbg!(&list);

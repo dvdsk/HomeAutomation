@@ -20,7 +20,7 @@ use crate::input::sensors::SensorValue;
 use crate::input::mpd_status::MpdStatus;
 use crate::errors::Error;
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Event {
   Update,
   Alarm,

@@ -16,7 +16,7 @@ pub enum ActiveState {
     WakeUp(wakeup::WakeUp),
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum TargetState {
     Normal,
     LightLoop,

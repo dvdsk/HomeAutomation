@@ -80,24 +80,22 @@ async fn handle_command(text: String, chat_id: ChatId, message_id: MessageId,
 		return Ok(());
 	}
 
-    let split = text.find(char::is_whitespace).unwrap_or(text.len());
-    let command = &text[..split];
-    let args = &text[..split];
+	let mut split = text.split_whitespace();
+    let command = split.next().unwrap();
     match command {
         "/test" => {
             send_text(chat_id, token, "hi").await?; 
-			return Ok(());
 		}
-		"/set_alarm" => {
-			set_alarm::handle(chat_id, token, args).await?;
+		"/alarm" => {
+			set_alarm::handle(chat_id, token, split, state).await?;
 		}
         &_ => {
-			
+			warn!("no known command or alias: {:?}", &command);
+			Err(Error::UnknownCommand(command.to_owned()))?;
 		}
     }
 		
-	warn!("no known command or alias: {:?}", &command);
-	return Err(Error::UnknownCommand(command.to_owned()));
+	return Ok(());
 }
 
 async fn handle_callback(callback: CallbackQuery, state: &State) {
@@ -129,7 +127,7 @@ async fn handle_error(error: Error, chat_id: ChatId, token: &str) {
 	let error_message = match error {
         Error::UnknownCommand(input) => 
             format!("Unknown command: {}", input),
-        Error::HttpClientError(err) => {
+		Error::HttpClientError(err) => {
 			error!("Internal error in http client: {}", err);
 			String::from(INT_ERR_TEXT)},
 		Error::InvalidServerResponse(resp) => {
@@ -146,6 +144,7 @@ async fn handle_error(error: Error, chat_id: ChatId, token: &str) {
 			believe this is a mistake ask for your telegram chat id \
 			{} to be added", chat_id)
 		}
+
 		Error::UnhandledMessageKind => {
 			String::from(UNHANDLED)}
 		Error::UnhandledUpdateKind => {

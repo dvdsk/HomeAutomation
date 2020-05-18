@@ -4,7 +4,7 @@ use std::ops::Sub;
 
 use chrono::{DateTime, NaiveDateTime, Utc, self};
 use sled;
-use byteorder::{ByteOrder, BigEndian};
+use byteorder::{ByteOrder, BigEndian, ReadBytesExt};
 use serde::{Serialize, Deserialize};
 
 use crate::controller::Event;
@@ -15,8 +15,8 @@ use crate::errors::Error;
 // -add one a second later
 // -store in millisec to lower collision chance?
 
-#[derive(Serialize, Deserialize)]
-enum Action {
+#[derive(Serialize, Deserialize, Debug)]
+pub enum Action {
     Event(Event),
     Command(Command),
 }
@@ -32,11 +32,11 @@ impl From<Command> for Action {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Alarm {
-    time: DateTime<Utc>,
-    action: Action,
-    expiration: Option<std::time::Duration>,
+    pub time: DateTime<Utc>,
+    pub action: Action,
+    pub expiration: Option<std::time::Duration>,
 }
 
 impl Alarm {
@@ -79,13 +79,13 @@ pub struct AlarmList {
 fn waker(mut alarm_list: AlarmList, event_tx: crossbeam_channel::Sender<Event>, waker_rx: crossbeam_channel::Receiver<()>) {
     loop { 
         //This can fail #TODO make sure an non waking error alarm is send to the user
-        if let Some(current_alarm) = alarm_list.get_next() {
+        if let Some((id, current_alarm)) = alarm_list.get_next() {
             let now = Utc::now();
             let timeout = &current_alarm - now;
             if let Some(expiration) = current_alarm.expiration {
                 if timeout < -chrono::Duration::from_std(expiration).unwrap() {
                     error!("skipping alarm to far in the past");
-                    alarm_list.remove_alarm(current_alarm).unwrap();
+                    alarm_list.remove_alarm(id).unwrap();
                     continue; //alarm to far in the past, skip and get next
                 }
             }
@@ -105,7 +105,7 @@ fn waker(mut alarm_list: AlarmList, event_tx: crossbeam_channel::Sender<Event>, 
                             error!("could not set off alarm: {:?}", error);
                         }; //set 
                         //remove alarm from memory and file
-                        alarm_list.remove_alarm(current_alarm).unwrap();
+                        alarm_list.remove_alarm(id).unwrap();
                         continue; //get next alarm
                     }
                     //we should stop, end the thread by returning
@@ -148,22 +148,22 @@ impl Alarms {
         self.waker_tx.send(())?;
         Ok(())
     }
-    pub fn remove_alarm(&self, to_remove: Alarm) -> Result<(), Error> {
-        self.alarm_db.remove_alarm(to_remove)?;
+    pub fn remove_alarm(&self, to_remove: u64) -> Result<Option<Alarm>, Error> {
+        let removed_alarm = self.alarm_db.remove_alarm(to_remove)?;
         self.waker_tx.send(())?; //signal waker to update its next alarm
-        Ok(())
+        Ok(removed_alarm)
     }
 
-    pub fn list(&self) -> Vec<DateTime<Utc>> {
+    pub fn list(&self) -> Vec<(u64, Alarm)> {
         //self.alarm_list.iter().keys().map(|k| DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(k, 0), Utc);)
         let start: &[u8] = &[0];
         let alarms = self.alarm_db.db.range(start..);
 
         let mut list = Vec::new(); //TODO placeholder
-        for (timestamp, _events) in alarms.filter_map(Result::ok) {
-            let timestamp = BigEndian::read_u64(&timestamp) as i64;
-            let alarm = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
-            list.push(alarm);
+        for (key, alarm) in alarms.filter_map(Result::ok) {
+            let alarm = bincode::deserialize(&alarm).unwrap();
+            let key = key.as_ref().read_u64::<BigEndian>().unwrap();
+            list.push((key,alarm));
         }
         list
     }
@@ -190,24 +190,33 @@ impl AlarmList {
         }
         Ok(())
     }
-    pub fn remove_alarm(&self, to_remove: Alarm) -> Result<(), Error> {
-        let timestamp = to_remove.time.timestamp() as u64;
-        self.db.remove(timestamp.to_be_bytes())?;
-        Ok(())
+    pub fn remove_alarm(&self, to_remove: u64) -> Result<Option<Alarm>, Error> {
+        
+        Ok(self.db
+            .remove(to_remove.to_be_bytes())?
+            .map(|k| bincode::deserialize::<Alarm>(&k).unwrap()))
+
+        /*if let Some(old) = old {
+            let alarm: Alarm = bincode::deserialize(&old).unwrap();
+            dbg!(alarm);
+        };
+        Ok(None)
+        //    .and_then(|k| bincode::deserialize(&k).unwrap())*/
     }
 
     /// calculate time to the earliest alarm, remove it from the list if the current time is later
     /// then the alarm
-    fn get_next(&mut self) -> Option<Alarm> {
+    fn get_next(&mut self) -> Option<(u64,Alarm)> {
         let now = Utc::now();
         
         //get earliest alarm time in db
         match self.db.get_gt(0u64.to_be_bytes()) {
             Ok(entry) => {
                 if let Some(entry) = entry {
-                    let (timestamp, alarm) = entry;
+                    let (id, alarm) = entry;
+                    let id = id.as_ref().read_u64::<BigEndian>().unwrap();
                     let alarm = bincode::deserialize(&alarm).unwrap();
-                    Some(alarm)
+                    Some((id,alarm))
                 } else { 
                     None
                 }
