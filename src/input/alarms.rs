@@ -142,8 +142,8 @@ impl Alarms {
 
     // we decrease the time till the alarm until there is a place in the database
     // as only one alarm can fire at the time, after an alarm gets a timeslot it is never changed
-    pub fn add_alarm(&self, to_add: Alarm) -> Result<(), Error> {      
-        self.alarm_db.add_alarm(to_add)?;
+    pub async fn add_alarm(&self, to_add: Alarm) -> Result<(), Error> {      
+        self.alarm_db.add_alarm(to_add).await?;
         //signal waker to update its next alarm
         self.waker_tx.send(())?;
         Ok(())
@@ -172,7 +172,7 @@ impl Alarms {
 impl AlarmList {
     // we decrease the time till the alarm until there is a place in the database
     // as only one alarm can fire at the time, after an alarm gets a timeslot it is never changed
-    fn add_alarm(&self, to_add: Alarm) -> Result<(), Error> {
+    async fn add_alarm(&self, to_add: Alarm) -> Result<(), Error> {
         let mut timestamp = to_add.time.timestamp() as u64;
         let mut timestamp_array = timestamp.to_be_bytes();
         let mut alarm = bincode::serialize(&to_add).unwrap();
@@ -188,6 +188,7 @@ impl AlarmList {
             timestamp -= 1;
             timestamp_array = timestamp.to_be_bytes();
         }
+        self.db.flush_async().await?;
         Ok(())
     }
     pub fn remove_alarm(&self, to_remove: u64) -> Result<Option<Alarm>, Error> {

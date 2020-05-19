@@ -138,7 +138,7 @@ pub struct AlarmDataUnixTS {
 	timestamp: String,
 }
 
-pub fn set_alarm_unix_timestamp(params: Form<AlarmDataUnixTS>, state: Data<State>) -> HttpResponse {
+pub async fn set_alarm_unix_timestamp(params: Form<AlarmDataUnixTS>, state: Data<State>) -> HttpResponse {
 	//Code to parse alarm time
 	dbg!(&params);
 
@@ -150,7 +150,7 @@ pub fn set_alarm_unix_timestamp(params: Form<AlarmDataUnixTS>, state: Data<State
 		if time>Utc::now() {
 			let alarm = Alarm::from(time, Event::Alarm, Some(Duration::from_secs(3600*2)));
 
-			if state.alarms.add_alarm(alarm).is_ok() {
+			if state.alarms.add_alarm(alarm).await.is_ok() {
 				dbg!("done setting alarm");
 				HttpResponse::Ok().finish()
 			} else {

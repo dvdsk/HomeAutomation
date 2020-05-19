@@ -3,7 +3,9 @@ use crate::input::web_api::server::State;
 use crate::input::alarms::Alarm;
 use crate::controller::Event;
 use super::send_text;
-use chrono::Utc;
+use chrono::{TimeZone};
+use chrono_tz::Europe::Amsterdam;
+use chrono::{Local, Utc, DateTime};
 use chrono::Timelike;
 use chrono::Duration;
 use hex::FromHex;
@@ -62,7 +64,11 @@ pub async fn add_alarm<'a>(chat_id: ChatId, token: &str, mut args: std::str::Spl
     if hour > 24 {return Err(Error::InvalidHourArgument);}
     if min > 60 {return Err(Error::InvalidMinuteArgument);}
 
-    let now = Utc::now();
+    //let now = Amsterdam::now();
+    let now = Local::now();
+    //let now = Amsterdam.ymd(2016, 5, 10).and_hms(12, 0, 0);
+    //let now = dt.with_timezone
+
     let alarm_sec_after_midnight = hour*3600+min*60;
     let till_alarm = if alarm_sec_after_midnight < now.num_seconds_from_midnight(){
         let seconds_left_in_day = 3600*24 - now.num_seconds_from_midnight();
@@ -75,11 +81,11 @@ pub async fn add_alarm<'a>(chat_id: ChatId, token: &str, mut args: std::str::Spl
     };
 
 
-    let alarm = Alarm::from(now+till_alarm, 
+    let alarm = Alarm::from(Utc::now()+till_alarm, 
         Event::Alarm, 
         Some(std::time::Duration::from_secs(3600*2)));
 
-    state.alarms.add_alarm(alarm).unwrap();
+    state.alarms.add_alarm(alarm).await.unwrap();
     
     let text = format!("set alarm for over {} hours and {} minutes from now",
         till_alarm.num_hours(), till_alarm.num_minutes() % 60);
@@ -100,7 +106,7 @@ pub async fn list_alarm(chat_id: ChatId, token: &str, state: &State)
         
         list.push_str(&format!("{:x}, {}, {:?}, {:?}",
             id,
-            &alarm.time.to_rfc2822(),
+            &alarm.time.with_timezone(&Local).to_rfc2822(),
             &alarm.action,
             &alarm.expiration,
         ));
@@ -129,7 +135,7 @@ pub async fn remove_alarm<'a>(chat_id: ChatId, token: &str, mut args: std::str::
     let text = if let Some(alarm) = removed {
         format!("removed alarm {:x}: {}, {:?}, {:?}",
             to_remove,
-            &alarm.time.to_rfc2822(),
+            &alarm.time.with_timezone(&Local).to_rfc2822(),
             &alarm.action,
             &alarm.expiration,
         )
