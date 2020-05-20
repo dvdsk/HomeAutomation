@@ -9,6 +9,7 @@ use crossbeam_channel;
 
 use crate::errors::Error;
 use crate::controller::{Command, Event};
+use crate::controller::TargetState::Sleep;
 
 // when pressing 22, 24 is often activated
 // 23 works perfectly
@@ -98,6 +99,8 @@ fn to_command(offset: usize, duration: u64) -> Option<Event> {
         match offset {
             27 => Some(Event::Command(Command::MpdNextSong)), //left 3, left
             18 => Some(Event::Command(Command::MpdPrevSong)), //left 3, right
+
+            23 => Some(Event::Command(Command::ChangeState(Sleep))),
             _ => None,
         }
     } else {

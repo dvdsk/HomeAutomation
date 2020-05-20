@@ -16,7 +16,7 @@ impl RoomState for LightLoop {
             ActiveState::Normal(normal::Normal::enter(mods, sys))
         } else {
             dbg!(self.counter);
-            sys.lights.set_all_to(self.counter, 200).unwrap();
+            sys.lights.set_all_ct(self.counter, 200).unwrap();
             self.counter -= 1;
             ActiveState::LightLoop(self)
         }
@@ -24,7 +24,7 @@ impl RoomState for LightLoop {
     fn enter(mods: &mut Modifications, sys: &mut System) -> Self {
         dbg!("making everything rdy for the lightloop state");
 
-        sys.lights.set_all_to(0, 200).unwrap();
+        sys.lights.set_all_ct(0, 200).unwrap();
         mods.lighting = false;
 
         sys.update_period = Duration::from_millis(500);

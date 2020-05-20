@@ -37,6 +37,13 @@ pub struct Modifications { //change name to: alteration, deviation, overrides or
   //Alarm,
 }
 
+impl Modifications {
+	fn reset(&mut self) {
+		self.lighting = false;
+		self.mpd = false;
+	}
+}
+
 impl Default for Modifications {
 	fn default() -> Self {
 		Modifications {lighting: false, mpd: false}

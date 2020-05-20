@@ -25,9 +25,11 @@ pub fn add_from_playlist(mpd: &mut mpd::Client, name: &str, minimal_play_time: D
     while time < minimal_play_time && songs.len()>1 {
         let idx = rng.gen_range(0, songs.len()-1);
         let song = songs.remove(idx);
-        if time + song.duration.unwrap() < maximal_play_time {
-            time = time + song.duration.unwrap();
-            mpd.push(song)?;
+        if let Some(duration) = song.duration {
+            if time + duration < maximal_play_time {
+                time = time + song.duration.unwrap();
+                mpd.push(song)?;
+            }
         }
     }
     Ok(())
@@ -79,6 +81,12 @@ pub fn toggle_playback(mpd_status: &mut MpdStatus) -> Result<(), Error>{
         mpd::status::State::Pause => client.toggle_pause()?,
         mpd::status::State::Play => client.toggle_pause()?,
     }
+    Ok(())
+}
+
+pub fn pause() -> Result<(), Error>{
+    let mut client = mpd::Client::connect("127.0.0.1:6600")?;
+    client.pause(true)?;
     Ok(())
 }
 

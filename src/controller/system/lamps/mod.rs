@@ -177,8 +177,16 @@ impl Lighting {
 		Ok(())
 	}
 
+	pub fn off(&mut self) -> Result<(),Error> {
+		let command = LightCommand::off(LightCommand::default() );
+		self.bridge.set_group_state(0, &command)?;
+		self.lamps.values_mut().for_each(|lamp| lamp.on = false);
+		Ok(())
+	}
+
+
 	//how to deal with errors?
-	pub fn set_all_to(&mut self, bri: u8, ct: u16) -> Result<(),Error>{
+	pub fn set_all_ct(&mut self, bri: u8, ct: u16) -> Result<(),Error>{
 		let command = LightCommand::default();
 		let command = command.on();
 		let command = command.with_bri(bri);
@@ -189,4 +197,66 @@ impl Lighting {
 		Ok(())
 	}
 
+	pub fn set_all_xy(&mut self, bri: u8, xy: (f32, f32)) -> Result<(),Error>{
+		let command = LightCommand::default();
+		let command = command.on();
+		let command = command.with_bri(bri);
+		let command = command.with_xy(xy);
+		self.bridge.set_group_state(0, &command)?;
+		self.lamps.values_mut().for_each(|lamp| {
+			lamp.bri =bri; 
+			lamp.xy = Some(xy); 
+			lamp.on =true
+		});
+
+		Ok(())
+	}
+
+	pub fn set_all_rgb(&mut self, bri: u8, rgb: (f32,f32,f32)) -> Result<(),Error> {
+		let xy = xy_from_rgb(rgb);
+		
+		let command = LightCommand::default();
+		let command = command.on();
+		let command = command.with_bri(bri);
+		let command = command.with_xy(xy);
+		self.bridge.set_group_state(0, &command)?;
+		self.lamps.values_mut().for_each(|lamp| {
+			lamp.bri =bri; 
+			lamp.xy = Some(xy); 
+			lamp.on =true
+		});
+
+		Ok(())
+	}
+
+}
+
+fn gamma_correct(mut x: f32) -> f32 {
+	if x > 0.04045 {
+		x = (x + 0.055)/(1f32 + 0.055);
+		x.powf(2.4)
+	} else {
+		x / 12.92
+	}
+}
+
+//r,g,b between 0 and one
+//https://gist.github.com/popcorn245/30afa0f98eea1c2fd34d
+fn xy_from_rgb(rgb: (f32,f32,f32)) -> (f32, f32) {
+
+	let (r,g,b) = rgb;
+	let r = gamma_correct(r); 
+	let g = gamma_correct(g);
+	let b = gamma_correct(b); 
+
+	let xyz_x = r * 0.649926 + g * 0.103455 + b * 0.197109;
+	let xyz_y = r * 0.234327 + g * 0.743075 + b * 0.022598;
+	let xyz_z = g * 0.053077 + b * 1.035763;
+
+	let hue_x = xyz_x/(xyz_x+xyz_y+xyz_z);
+	let hue_y = xyz_y/(xyz_x+xyz_y+xyz_z);
+
+	//TODO color gamut triangle stuff for finding closest valid value
+
+	(hue_x, hue_y)
 }

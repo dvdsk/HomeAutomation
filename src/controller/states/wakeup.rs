@@ -64,7 +64,7 @@ impl RoomState for WakeUp {
         if !mods.lighting { // if lighting controls have not been modified externally since start
             let bri = (BRI_PER_SECOND*(elapsed as f32)) as u8;
             let ct = CT_BEGIN-(CT_PER_SECOND*(elapsed as f32)) as u16;
-            sys.lights.set_all_to(bri, ct).expect("could not update lights in wakeup");
+            sys.lights.set_all_ct(bri, ct).expect("could not update lights in wakeup");
         }
 
         if !mods.mpd { // if mpd controls have not been modified externally since start
@@ -95,7 +95,7 @@ impl RoomState for WakeUp {
         dbg!("setting up playlist");
         Self::setup_playlist().expect("error creating wakeup playlist");
         dbg!("done with setting up playlist");
-        sys.lights.set_all_to(0, CT_BEGIN).expect("could not set lights on entering wakeup state");
+        sys.lights.set_all_ct(0, CT_BEGIN).expect("could not set lights on entering wakeup state");
         Self{start: Instant::now(), playing: false}
     }
 }
