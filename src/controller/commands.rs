@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
 
-use super::{ActiveState, Modifications, System};
-use crate::controller::states::*;
+use super::{Modifications, System};
+use crate::controller::state::*;
 use crate::controller::system::mpd_control;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
@@ -26,15 +26,16 @@ pub enum Command {
   
   Test, //prints a test message
 
-  ChangeState(TargetState),
+  ChangeState(State),
 }
 
 //TODO handle error on command
-pub fn handle_cmd(cmd: Command, state: ActiveState, mods: &mut Modifications, sys: &mut System) -> ActiveState {
-    println!("handled a command");
+pub fn handle_cmd(cmd: Command, mods: &mut Modifications, sys: &mut System) -> Option<State> {
+
+  println!("handled a command");
     match cmd {
       Command::ChangeState(target_state) => {
-        return change_state(target_state, mods, sys)
+        return Some(target_state);
       }
       //Command::PauseMpd => {unimplemented!(); state},
 
@@ -57,5 +58,5 @@ pub fn handle_cmd(cmd: Command, state: ActiveState, mods: &mut Modifications, sy
         Command::Test => { warn!("The Test command was just send")},
         Command::None => { error!("None command was issued, this should not happen")},
     }
-    state
+    None
 }

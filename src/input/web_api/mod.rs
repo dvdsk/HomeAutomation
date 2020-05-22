@@ -11,7 +11,7 @@ use serde::Deserialize;
 use actix_web::HttpResponse;
 
 use crate::input::youtube_downloader::FeedbackChannel;
-use crate::controller::{Command, TargetState, Event};
+use crate::controller::{Command, Event};
 use crate::input::alarms::Alarm;
 
 mod command_logins;
@@ -100,7 +100,7 @@ pub fn night(state: Data<State>, auth: BasicAuth) -> HttpResponse {
 
 pub fn lightloop(state: Data<State>, auth: BasicAuth) -> HttpResponse {
 	if authenticated(auth) {
-		state.controller_addr.send(Event::Command(Command::ChangeState(TargetState::LightLoop))).unwrap();
+		//state.controller_addr.send(Event::Command(Command::ChangeState(TargetState::LightLoop))).unwrap(); //TODO FIXME
 		HttpResponse::Ok().finish()
 	} else {
 		make_auth_error()

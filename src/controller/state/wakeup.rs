@@ -1,6 +1,5 @@
 use super::super::{Modifications, System, Environment};
-use super::{RoomState, ActiveState};
-use super::Normal;
+use super::{RoomState, State};
 use crate::controller::system;
 use crate::errors::Error;
 use retry::{retry, delay::Fixed};
@@ -53,12 +52,30 @@ impl WakeUp {
 
 }
 
+impl WakeUp {
+    pub fn setup(mods: &mut Modifications, sys: &mut System) -> Self {
+        dbg!("starting wakeup state");
+        sys.update_period = Duration::from_secs(UPDATE_PERIOD);
+        sys.next_update = Instant::now()+sys.update_period;
+
+        // reset modifications on entering state
+        mods.lighting = false;
+        mods.mpd = false;
+
+        dbg!("setting up playlist");
+        Self::setup_playlist().expect("error creating wakeup playlist");
+        dbg!("done with setting up playlist");
+        sys.lights.set_all_ct(0, CT_BEGIN).expect("could not set lights on entering wakeup state");
+        Self{start: Instant::now(), playing: false}
+    }
+}
+
 impl RoomState for WakeUp {
-    fn update(self, mods: &mut Modifications, sys: &mut System, _env: &mut Environment) -> ActiveState {
+    fn update(&mut self, mods: &mut Modifications, sys: &mut System, _env: &mut Environment) -> Option<State> {
         let elapsed = self.start.elapsed().as_secs();
         
         if elapsed > WAKEUP_DURATION {
-            return ActiveState::Normal(Normal::enter(mods, sys))
+            return Some(State::Normal);
         }
     
         if !mods.lighting { // if lighting controls have not been modified externally since start
@@ -80,22 +97,9 @@ impl RoomState for WakeUp {
             }
         }
 
-        ActiveState::WakeUp(self)
+        None
     }
 
-    fn enter(mods: &mut Modifications, sys: &mut System) -> Self {
-        dbg!("starting wakeup state");
-        sys.update_period = Duration::from_secs(UPDATE_PERIOD);
-        sys.next_update = Instant::now()+sys.update_period;
-
-        // reset modifications on entering state
-        mods.lighting = false;
-        mods.mpd = false;
-
-        dbg!("setting up playlist");
-        Self::setup_playlist().expect("error creating wakeup playlist");
-        dbg!("done with setting up playlist");
-        sys.lights.set_all_ct(0, CT_BEGIN).expect("could not set lights on entering wakeup state");
-        Self{start: Instant::now(), playing: false}
-    }
+    fn breakdown(&self, _: &mut Modifications, _: &mut System) {}
+    fn state(&self) -> State {State::LightLoop }
 }

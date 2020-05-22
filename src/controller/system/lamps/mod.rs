@@ -184,6 +184,12 @@ impl Lighting {
 		Ok(())
 	}
 
+	pub fn single_off(&mut self, lamp_id: usize) -> Result<(),Error> {
+		let command = LightCommand::off(LightCommand::default() );
+		self.bridge.set_light_state(lamp_id, &command);
+		self.lamps.get_mut(&lamp_id).unwrap().on = true;
+		Ok(())
+	}
 
 	//how to deal with errors?
 	pub fn set_all_ct(&mut self, bri: u8, ct: u16) -> Result<(),Error>{

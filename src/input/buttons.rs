@@ -6,10 +6,48 @@ use log::error;
 
 use std::thread;
 use crossbeam_channel;
+use serde::{Serialize, Deserialize};
 
 use crate::errors::Error;
-use crate::controller::{Command, Event};
-use crate::controller::TargetState::Sleep;
+use crate::controller::Event;
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub enum Button {
+    LampLeft,
+    LampMid,
+    LampRight,
+
+    DeskLeftMost,
+    DeskLeft,
+    DeskRight,
+    DeskRightMost,
+
+    DeskTop,
+    DeskMid,
+    DeskBottom,
+}
+
+impl Button {
+    fn from_offset(offset: usize) -> Option<Self> {
+        match offset {
+            16 => Some(Self::LampLeft),
+            12 => Some(Self::LampMid),
+            13 => Some(Self::LampRight),
+            
+            //buttons on desk
+            27 => Some(Self::DeskTop),
+            22 => Some(Self::DeskMid),
+            18 => Some(Self::DeskBottom),
+            
+            23 => Some(Self::DeskLeftMost),
+            24 => Some(Self::DeskLeft),
+            26 => Some(Self::DeskRight),
+            17 => Some(Self::DeskRightMost),
+
+            _ => None,
+        }
+    }
+}
 
 // when pressing 22, 24 is often activated
 // 23 works perfectly
@@ -33,7 +71,7 @@ fn detect_and_handle(chip: &mut Chip, tx: crossbeam_channel::Sender<Event>)
                     &mut evt_handles, &mut last_high, &mut last_state);
                 for (offset, down_duration) in key_presses {
                     if down_duration > 10*MILLIS { //debounce
-                        if let Some(event) = to_command(offset, down_duration){
+                        if let Some(event) = to_event(offset, down_duration){
                             tx.send(event).unwrap();
                         }
                     }
@@ -94,32 +132,13 @@ fn configure_watching(chip: &mut Chip, offsets: &[u32])
     Ok((evt_handles, pollables))
 }
 
-fn to_command(offset: usize, duration: u64) -> Option<Event> {
-    if duration > MAX_TAP_LEN {
-        match offset {
-            27 => Some(Event::Command(Command::MpdNextSong)), //left 3, left
-            18 => Some(Event::Command(Command::MpdPrevSong)), //left 3, right
 
-            23 => Some(Event::Command(Command::ChangeState(Sleep))),
-            _ => None,
-        }
+fn to_event(offset: usize, duration: u64) -> Option<Event> {
+    let button = Button::from_offset(offset)?;
+    if duration > MAX_TAP_LEN {
+        Some(Event::PressLong(button))
     } else {
-        match offset {
-            16 => Some(Event::Command(Command::LampsDim)),
-            12 => Some(Event::Command(Command::LampsDimmest)),
-            13 => Some(Event::Command(Command::LampsToggle)),
-            
-            //buttons on desk
-            27 => Some(Event::Command(Command::MpdIncreaseVolume)), //left 3, left
-            22 => Some(Event::Command(Command::MpdPause)), //left 3, middle
-            18 => Some(Event::Command(Command::MpdDecreaseVolume)), //left 3, right
-            
-            23 => Some(Event::Command(Command::LampsNight)), //right 4, left most
-            24 => Some(Event::Command(Command::LampsEvening)), //right 4, left 
-            26 => Some(Event::Command(Command::LampsDay)), //right 4, right
-            17 => Some(Event::Command(Command::LampsToggle)), //right 4, right most
-            _  => None,
-        }
+        Some(Event::PressShort(button))
     }
 }
 
