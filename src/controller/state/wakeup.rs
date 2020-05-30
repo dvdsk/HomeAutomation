@@ -53,7 +53,7 @@ impl WakeUp {
 }
 
 impl WakeUp {
-    pub fn setup(mods: &mut Modifications, sys: &mut System) -> Self {
+    pub fn setup(mods: &mut Modifications, sys: &mut System) -> Result<Box<dyn RoomState>, Error> {
         dbg!("starting wakeup state");
         sys.update_period = Duration::from_secs(UPDATE_PERIOD);
         sys.next_update = Instant::now()+sys.update_period;
@@ -66,22 +66,23 @@ impl WakeUp {
         Self::setup_playlist().expect("error creating wakeup playlist");
         dbg!("done with setting up playlist");
         sys.lights.set_all_ct(0, CT_BEGIN).expect("could not set lights on entering wakeup state");
-        Self{start: Instant::now(), playing: false}
+        
+        Ok(Box::new(Self{start: Instant::now(), playing: false}))
     }
 }
 
 impl RoomState for WakeUp {
-    fn update(&mut self, mods: &mut Modifications, sys: &mut System, _env: &mut Environment) -> Option<State> {
+    fn update(&mut self, mods: &mut Modifications, sys: &mut System, _env: &mut Environment) -> Result<Option<State>, Error> {
         let elapsed = self.start.elapsed().as_secs();
         
         if elapsed > WAKEUP_DURATION {
-            return Some(State::Normal);
+            return Ok(Some(State::Normal));
         }
     
         if !mods.lighting { // if lighting controls have not been modified externally since start
             let bri = (BRI_PER_SECOND*(elapsed as f32)) as u8;
             let ct = CT_BEGIN-(CT_PER_SECOND*(elapsed as f32)) as u16;
-            sys.lights.set_all_ct(bri, ct).expect("could not update lights in wakeup");
+            sys.lights.set_all_ct(bri, ct)?; //TODO map to terror error
         }
 
         if !mods.mpd { // if mpd controls have not been modified externally since start
@@ -93,13 +94,13 @@ impl RoomState for WakeUp {
                 }
             } else {
                 mpd::Client::connect("127.0.0.1:6600")
-                    .and_then(|mut c| c.volume((VOL_PER_SECOND*(elapsed-MUSIC_ON) as f32) as i8 ));           
+                    .and_then(|mut c| c.volume((VOL_PER_SECOND*(elapsed-MUSIC_ON) as f32) as i8 ));
             }
         }
 
-        None
+        Ok(None)
     }
 
-    fn breakdown(&self, _: &mut Modifications, _: &mut System) {}
-    fn state(&self) -> State {State::LightLoop }
+    fn breakdown(&self, _: &mut Modifications, _: &mut System) -> Result<(), Error> {Ok(())}
+    fn state(&self) -> State {State::WakeUp }
 }

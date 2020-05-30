@@ -87,8 +87,8 @@ pub fn start(rx: crossbeam_channel::Receiver<Event>, mpd_status: MpdStatus) -> R
 		let mut mods = Modifications::default();
 		let mut env = Environment::default();
 		// TODO guess best init state from statefile or lamps+mpd+time
-	  
-		let mut state: Box<dyn RoomState> = Box::new(state::Normal::setup(&mut mods, &mut system)); //initial state
+
+		let mut state: Box<dyn RoomState> = state::Normal::setup(&mut mods, &mut system).unwrap(); //initial state
 		let mut current_state = State::Normal;
 
 		loop {
@@ -105,67 +105,92 @@ pub fn start(rx: crossbeam_channel::Receiver<Event>, mpd_status: MpdStatus) -> R
 				}
 			};
 			
-			//state changes may not return errors
-			let next_state = match (event, current_state) {
-				//specific test code for normal state
-				(Event::Test, State::Normal) => {dbg!("a test happend while in normal state"); None},
-				//general code that is the same for all functions, unless specific handlers exist above
-				(Event::Command(cmd), _) => handle_cmd(cmd, &mut mods, &mut system),
-				(Event::Update, _) => state.update(&mut mods, &mut system, &mut env),	    
-				(Event::Alarm, _) => Some(State::WakeUp),
-				(Event::Test, _) => {dbg!("a test happend"); None},
+			match handle_event(event, current_state, &mut mods, 
+				&mut system, &mut env, &mut state){
 				
-				// #[cfg(feature = "sensors_connected")]
-				(Event::Sensor(_), _) => None,
-
-				(Event::PressShort(button), _) => {
-					let cmd = match button {
-						Button::LampLeft => Command::LampsDim,
-						Button::LampMid => Command::LampsDimmest,
-						Button::LampRight => Command::LampsToggle,
-					
-						Button::DeskLeftMost => Command::LampsNight,
-						Button::DeskLeft => Command::LampsEvening,
-						Button::DeskRight => Command::LampsDay,
-						Button::DeskRightMost => Command::LampsToggle,
-					
-						Button::DeskTop => Command::MpdIncreaseVolume,
-						Button::DeskMid => Command::MpdPause,
-						Button::DeskBottom => Command::MpdDecreaseVolume,
-					};
-					handle_cmd(cmd, &mut mods, &mut system)
-				}
-				(Event::PressLong(button), _) => {
-					match button {
-						Button::LampLeft => Some(State::Silent),
-						Button::LampMid => Some(State::Silent),
-						Button::LampRight => Some(State::Silent),
-
-						Button::DeskLeftMost => Some(State::Sleep),
-						Button::DeskLeft => Some(State::Normal),
-						Button::DeskRightMost => Some(State::LightLoop),
-						_ => None,
-					}
-				}
-			};
-
-			if let Some(next_state) = next_state {
-				//state.breakdown()
-				state = change_state(next_state, &mut mods, &mut system);
-				current_state = next_state;
+				Err(e) => error!("Ran into an error handling an event: {:?}", e),
+				Ok(Some(target_state)) => {//should switch to another state
+					if let Ok(new_state) = change_state(target_state, &mut mods, &mut system){
+						state = new_state;
+						current_state = target_state;
+					} //if state setup ran into an error we do not switch state
+				},
+				_ => (),
 			}
 		}
 	});
 	Ok(handle)
 }
 
-fn change_state(next_state: State, mods: &mut Modifications, system: &mut System) -> Box<dyn RoomState> {
+fn handle_event(event: Event, current_state: State, mods: &mut Modifications, 
+	system: &mut System, env: &mut Environment, state: &mut Box<dyn RoomState>) 
+	-> Result<Option<State>, Error> {
 
-	match next_state {
-		State::Normal => Box::new(state::Normal::setup(mods, system)),
-		State::LightLoop => Box::new(state::LightLoop::setup(mods, system)),
-		State::WakeUp => Box::new(state::WakeUp::setup(mods, system)),
-		State::Sleep => Box::new(state::Sleep::setup(mods, system)),
-		State::Silent => Box::new(state::Silent::setup(mods, system)),
+		//state changes may not return errors
+	let next_state = match (event, current_state) {
+		//specific test code for normal state
+		(Event::Test, State::Normal) => {dbg!("a test happend while in normal state"); None},
+		//general code that is the same for all functions, unless specific handlers exist above
+		(Event::Command(cmd), _) => handle_cmd(cmd, mods, system),
+		(Event::Update, _) => state.update(mods, system, env)?,	    
+		(Event::Alarm, _) => Some(State::WakeUp),
+		(Event::Test, _) => {dbg!("a test happend"); None},
+		
+		// #[cfg(feature = "sensors_connected")]
+		(Event::Sensor(_), _) => None,
+
+		(Event::PressShort(button), _) => {
+			match button {
+				Button::LampLeft => Some(State::Quite),
+				Button::LampMid => Some(State::Silent),
+				Button::LampRight => Some(State::Off),
+
+				Button::DeskLeftMost => Some(State::Sleep),
+				Button::DeskLeft => Some(State::Normal),
+				Button::DeskRightMost => Some(State::Off),
+			
+				Button::DeskTop => handle_cmd(Command::MpdIncreaseVolume, mods, system),
+				Button::DeskMid => handle_cmd(Command::MpdPause, mods, system),
+				Button::DeskBottom => handle_cmd(Command::MpdDecreaseVolume, mods, system),
+
+				_ => None,
+			}
+		}
+		(Event::PressLong(button), _) => {
+			let cmd = match button {
+				Button::LampLeft => Command::LampsDim,
+				Button::LampMid => Command::LampsDimmest,
+				Button::LampRight => Command::LampsToggle,
+			
+				Button::DeskLeftMost => Command::LampsNight,
+				Button::DeskLeft => Command::LampsEvening,
+				Button::DeskRight => Command::LampsDay,
+				Button::DeskRightMost => Command::LampsToggle,
+
+				_ => return Ok(None),
+			};
+			handle_cmd(cmd, mods, system)
+		}
+	};
+	Ok(next_state)
+}
+
+fn change_state(next_state: State, mods: &mut Modifications, system: &mut System) -> Result<Box<dyn RoomState>, Error> {
+
+	let res = match &next_state {
+		State::Normal => state::Normal::setup(mods, system),
+		State::LightLoop => state::LightLoop::setup(mods, system),
+		State::WakeUp => state::WakeUp::setup(mods, system),
+		State::Sleep => state::Sleep::setup(mods, system),
+		State::Silent => state::Silent::setup(mods, system),
+		State::Quite => state::Quiet::setup(mods, system),
+		State::Off => state::Off::setup(mods, system),
+	};
+
+	if let Err(ref e) = &res {
+		error!("ran into error trying to switch to state: {:?}, error: {:?}", 
+			next_state,e);
 	}
+
+	res
 }

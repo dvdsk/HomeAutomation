@@ -119,6 +119,7 @@ fn get_bridge_and_status() -> Result<(Bridge, BTreeMap<usize, philipshue::hue::L
 
 //adaptation from philipshue LightState that adds some
 //values and removes unused
+#[derive(Debug)]
 struct Lamp {
   pub on: bool,
   pub bri: u8,
@@ -158,6 +159,11 @@ impl Lighting {
 		Ok(Self {bridge, lamps})
 	}
 
+	#[allow(unused)]
+	pub fn print_info(&self){
+		dbg!(&self.lamps);
+	}
+
 	//how to deal with errors?
 	pub fn toggle(&mut self) -> Result<(),Error>{
 		let numb_on: u8 = self.lamps.values().map(|lamp| lamp.on as u8).sum();
@@ -177,16 +183,31 @@ impl Lighting {
 		Ok(())
 	}
 
-	pub fn off(&mut self) -> Result<(),Error> {
+	pub fn all_off(&mut self) -> Result<(),Error> {
 		let command = LightCommand::off(LightCommand::default() );
 		self.bridge.set_group_state(0, &command)?;
 		self.lamps.values_mut().for_each(|lamp| lamp.on = false);
 		Ok(())
 	}
 
+	pub fn all_on(&mut self) -> Result<(),Error> {
+		let command = LightCommand::on(LightCommand::default() );
+		self.bridge.set_group_state(0, &command)?;
+		self.lamps.values_mut().for_each(|lamp| lamp.on = false);
+		Ok(())		
+	}
+
 	pub fn single_off(&mut self, lamp_id: usize) -> Result<(),Error> {
 		let command = LightCommand::off(LightCommand::default() );
-		self.bridge.set_light_state(lamp_id, &command);
+		self.bridge.set_light_state(lamp_id, &command)?;
+		self.lamps.get_mut(&lamp_id).unwrap().on = true;
+		Ok(())
+	}
+
+	#[allow(dead_code)]
+	pub fn single_on(&mut self, lamp_id: usize) -> Result<(),Error> {
+		let command = LightCommand::on(LightCommand::default() );
+		self.bridge.set_light_state(lamp_id, &command)?;
 		self.lamps.get_mut(&lamp_id).unwrap().on = true;
 		Ok(())
 	}
@@ -194,7 +215,7 @@ impl Lighting {
 	//how to deal with errors?
 	pub fn set_all_ct(&mut self, bri: u8, ct: u16) -> Result<(),Error>{
 		let command = LightCommand::default();
-		let command = command.on();
+		//let command = command.on();
 		let command = command.with_bri(bri);
 		let command = command.with_ct(ct);
 		self.bridge.set_group_state(0, &command)?;
@@ -203,6 +224,7 @@ impl Lighting {
 		Ok(())
 	}
 
+	#[allow(dead_code)]
 	pub fn set_all_xy(&mut self, bri: u8, xy: (f32, f32)) -> Result<(),Error>{
 		let command = LightCommand::default();
 		let command = command.on();

@@ -1,6 +1,7 @@
 use super::super::{Modifications, System, Environment};
 use super::{RoomState, State};
 use crate::controller::system::mpd_control as mpd;
+use crate::errors::Error;
 
 use std::time::{Duration, Instant};
 
@@ -10,7 +11,7 @@ pub struct Sleep {
 }
 
 impl Sleep {
-    pub fn setup(mods: &mut Modifications, sys: &mut System) -> Self {
+    pub fn setup(mods: &mut Modifications, sys: &mut System) -> Result<Box<dyn RoomState>, Error> {
         dbg!("entering sleep mode");
         mods.reset();
         
@@ -18,28 +19,29 @@ impl Sleep {
         sys.next_update = Instant::now()+sys.update_period;
 
         const RED: (f32,f32,f32) = (1f32, 0f32, 0f32);
-        sys.lights.set_all_rgb(0, RED);
+        sys.lights.set_all_rgb(0, RED)?;
+        sys.lights.all_on()?;
 
-        Sleep {start: Instant::now()}
+        Ok(Box::new(Sleep {start: Instant::now()}))
     }
 }
 
 impl RoomState for Sleep {
 
-    fn update(&mut self, mods: &mut Modifications, sys: &mut System, _env: &mut Environment) -> Option<State> {
+    fn update(&mut self, mods: &mut Modifications, sys: &mut System, _env: &mut Environment) -> Result<Option<State>, Error> {
         const LIGHTS_OFF: Duration = Duration::from_secs(60);
         const MUSIC_OFF: Duration = Duration::from_secs(120);
 
         if self.start.elapsed() >= LIGHTS_OFF && !mods.lighting {
-            sys.lights.off();
+            sys.lights.all_off()?;
         }
         if self.start.elapsed() >= MUSIC_OFF && !mods.mpd {
-            mpd::pause();
+            mpd::pause()?;
         }
         
-        None
+        Ok(None)
     }
 
-    fn breakdown(&self, _: &mut Modifications, _: &mut System) {}
+    fn breakdown(&self, _: &mut Modifications, _: &mut System) -> Result<(), Error> {Ok(())}
     fn state(&self) -> State {State::LightLoop }
 }
