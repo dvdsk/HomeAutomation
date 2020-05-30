@@ -4,11 +4,9 @@ use futures::future;
 #[cfg(feature = "sensors_connected")]
 mod local;
 mod fields;
-mod ble;
 
 use std::thread;
 use std::time::Duration;
-use chrono::Utc;
 use async_std::task;
 use actix_rt;
 use serde::{Serialize, Deserialize};
@@ -33,7 +31,6 @@ pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>,
 	//init all local sensors
 	let mut local_sensors = local::init();
 	//subscribe and init remote sensors
-	ble::init();
 
 	thread::spawn(move || {//TODO figure out shutdown behaviour
 		let mut rt = Runtime::new().unwrap();
@@ -41,7 +38,6 @@ pub fn start_monitoring(tx: crossbeam_channel::Sender<Event>,
 		loop {
 			//get all measurements
 			let (hum, temp, pressure) = local::measure_and_record(&mut local_sensors);
-			let now = Utc::now();
 
 			//TODO
 			//process data into events and send off as event

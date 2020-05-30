@@ -1,6 +1,5 @@
 mod compression;
 
-pub type FieldId = u8;
 pub struct Field<T> {
 	pub offset: u8, //bits
 	pub length: u8, //bits (max 32 bit variables)

@@ -3,12 +3,9 @@ use crate::input::web_api::server::State;
 use crate::input::alarms::Alarm;
 use crate::controller::Event;
 use super::send_text;
-use chrono::{TimeZone};
-use chrono_tz::Europe::Amsterdam;
-use chrono::{Local, Utc, DateTime};
+use chrono::{Local, Utc};
 use chrono::Timelike;
 use chrono::Duration;
-use hex::FromHex;
 
 #[derive(Debug)]
 pub enum Error {
@@ -20,8 +17,6 @@ pub enum Error {
     InvalidMinuteArgument,
     WrongTimeFormat,
     NoAlarmId,
-    MalformedAlarmId,
-    CouldNotRemove,
 }
 
 pub async fn handle<'a>(chat_id: ChatId, token: &str, mut args: std::str::SplitWhitespace<'a>, state: &State)
@@ -55,11 +50,11 @@ pub async fn add_alarm<'a>(chat_id: ChatId, token: &str, mut args: std::str::Spl
     let hour = time.next()
         .ok_or(Error::WrongTimeFormat)?
         .parse::<u32>()
-        .map_err(|e| Error::InvalidHourArgument)?;
+        .map_err(|_| Error::InvalidHourArgument)?;
     let min = time.next()
         .ok_or(Error::WrongTimeFormat)?
         .parse::<u32>()
-        .map_err(|e| Error::InvalidHourArgument)?;
+        .map_err(|_| Error::InvalidHourArgument)?;
     
     if hour > 24 {return Err(Error::InvalidHourArgument);}
     if min > 60 {return Err(Error::InvalidMinuteArgument);}

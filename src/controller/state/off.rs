@@ -11,7 +11,7 @@ impl Off {
     pub fn setup(mods: &mut Modifications, sys: &mut System) -> Result<Box<dyn RoomState>, Error> {
         mods.reset();
         mpd::pause()?;
-        sys.lights.off()?;
+        sys.lights.all_off()?;
         Ok(Box::new(Off { }))
     }
 }

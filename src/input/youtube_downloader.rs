@@ -31,12 +31,12 @@ pub enum Error{
     CouldNotStoreExecutable(std::io::Error),
     CouldNotDownloadSong(std::process::Output),
     CouldNotUpdateMpd(mpd::error::Error),
-    CouldNotCreateTempDir(std::io::Error),
+    #[allow(dead_code)] CouldNotCreateTempDir(std::io::Error),
     UnexpectedYoutubeDlStdOut(String),
-    UnsupportedSource(String),
+    #[allow(dead_code)] UnsupportedSource(String),
     CanNoLongerUpdateMeta,
-    CanNotSwapArtistWithEmptyTitle,
-    IDWasDeleted,
+    #[allow(dead_code)] CanNotSwapArtistWithEmptyTitle,
+    #[allow(dead_code)] IDWasDeleted,
 }
 
 impl std::fmt::Display for Error {

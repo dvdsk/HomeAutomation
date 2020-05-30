@@ -41,14 +41,14 @@ fn mpd_watcher(mut client: Client, status: MpdStatus, rx: Receiver<()>) {
 }
 
 impl MpdStatus {
-    pub fn stop_updating(tx: Sender<()>) {
+    /*pub fn stop_updating(tx: Sender<()>) {
         let mut client = mpd::Client::connect("127.0.0.1:6600").unwrap();
         tx.send(()).unwrap(); //tell mpd watcher to shut down on next check
         //make a small change to a subsys that is watched to force mpd_watcher to stop idle mode
         let status = client.status().unwrap();
         client.volume(status.volume+1).unwrap();
         client.volume(status.volume).unwrap();
-    }
+    }*/
 
     pub fn start_updating() -> Result<(Self, thread::JoinHandle<()>, Sender<()>), Error>{
         let mut client = mpd::Client::connect("127.0.0.1:6600")?;

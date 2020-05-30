@@ -2,9 +2,9 @@ use crossbeam_channel;
 use std::thread;
 use std::ops::Sub;
 
-use chrono::{DateTime, NaiveDateTime, Utc, self};
+use chrono::{DateTime, Utc, self};
 use sled;
-use byteorder::{ByteOrder, BigEndian, ReadBytesExt};
+use byteorder::{BigEndian, ReadBytesExt};
 use serde::{Serialize, Deserialize};
 
 use crate::controller::Event;
@@ -131,7 +131,7 @@ impl Alarms {
 
     pub fn setup(event_tx: crossbeam_channel::Sender<Event>, db: sled::Db) -> Result<(Self, thread::JoinHandle<()>), Error> {
 
-        let mut alarm_db = AlarmList { db: db.open_tree("alarms")? };
+        let alarm_db = AlarmList { db: db.open_tree("alarms")? };
 
         let (waker_tx, waker_rx) = crossbeam_channel::unbounded();
         let waker_db_copy = alarm_db.clone();
@@ -175,7 +175,7 @@ impl AlarmList {
     async fn add_alarm(&self, to_add: Alarm) -> Result<(), Error> {
         let mut timestamp = to_add.time.timestamp() as u64;
         let mut timestamp_array = timestamp.to_be_bytes();
-        let mut alarm = bincode::serialize(&to_add).unwrap();
+        let alarm = bincode::serialize(&to_add).unwrap();
 
         //create alarm entry if there is no alarm at this timestamp yet
         //if there is already an alarm schedualed, postpone this one until there is a spot free
@@ -199,9 +199,7 @@ impl AlarmList {
 
     /// calculate time to the earliest alarm, remove it from the list if the current time is later
     /// then the alarm
-    fn get_next(&mut self) -> Option<(u64,Alarm)> {
-        let now = Utc::now();
-        
+    fn get_next(&mut self) -> Option<(u64,Alarm)> {      
         //get earliest alarm time in db
         match self.db.get_gt(0u64.to_be_bytes()) {
             Ok(entry) => {

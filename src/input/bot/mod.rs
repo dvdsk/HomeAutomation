@@ -25,7 +25,6 @@ pub enum Error{
 	CouldNotSetWebhook,
 	InvalidServerResponse(reqwest::Response),
 	UnhandledUpdateKind,
-    UnhandledMessageKind,
 	UnknownCommand(String),
 	SongDownloadError(youtube_downloader::Error),
 	Unauthorized(ChatId),
@@ -145,8 +144,6 @@ async fn handle_error(error: Error, chat_id: ChatId, token: &str) {
 			{} to be added", chat_id)
 		}
 
-		Error::UnhandledMessageKind => {
-			String::from(UNHANDLED)}
 		Error::UnhandledUpdateKind => {
 			String::from(UNHANDLED)}
 		Error::CouldNotSetWebhook => unreachable!(),
@@ -168,7 +165,7 @@ async fn handle(update: Update, state: State){//TODO change to ref
 			}
 		}
 		UpdateKind::CallbackQuery(callback) => {
-			let chat_id = callback.message.chat.id();
+			//let chat_id = callback.message.chat.id();
 			handle_callback(callback, &state).await;
 
 		}
