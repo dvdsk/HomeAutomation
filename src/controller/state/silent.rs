@@ -18,8 +18,10 @@ impl Silent {
         sys.next_update = Instant::now()+sys.update_period;
 
         mpd::pause()?;
-        sys.lights.set_all_ct(50,500)?;
+        
         sys.lights.single_off(2)?;
+        sys.lights.set_all_ct(50,500)?;
+
 
         Ok(Box::new(Silent {}))
     }

@@ -62,10 +62,8 @@ impl WakeUp {
         mods.lighting = false;
         mods.mpd = false;
 
-        dbg!("setting up playlist");
-        Self::setup_playlist().expect("error creating wakeup playlist");
-        dbg!("done with setting up playlist");
-        sys.lights.set_all_ct(0, CT_BEGIN).expect("could not set lights on entering wakeup state");
+        Self::setup_playlist()?;
+        sys.lights.set_all_ct(0, CT_BEGIN)?;
         
         Ok(Box::new(Self{start: Instant::now(), playing: false}))
     }
@@ -80,6 +78,10 @@ impl RoomState for WakeUp {
         }
     
         if !mods.lighting { // if lighting controls have not been modified externally since start
+            if sys.lights.numb_on() < 3 {
+                sys.lights.all_on()?;
+            }
+            
             let bri = (BRI_PER_SECOND*(elapsed as f32)) as u8;
             let ct = CT_BEGIN-(CT_PER_SECOND*(elapsed as f32)) as u16;
             sys.lights.set_all_ct(bri, ct)?; //TODO map to terror error

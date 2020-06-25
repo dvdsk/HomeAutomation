@@ -6,8 +6,6 @@ use crate::input::web_api::server;
 #[derive(Debug)]
 pub enum Error {
     IO(std::io::Error),
-    GPIO(gpio_cdev::errors::Error),
-    GPIONotFound,
     YamlParsing(serde_yaml::Error),
     Channel(crossbeam_channel::SendError<()>),
     DataBase(sled::Error),
@@ -40,12 +38,6 @@ impl From<serde_yaml::Error> for Error {
 impl From<std::io::Error> for Error {
     fn from(error: std::io::Error) -> Self {
         Error::IO(error)
-    }
-}
-
-impl From<gpio_cdev::errors::Error> for Error {
-    fn from(error: gpio_cdev::errors::Error) -> Self {
-        Error::GPIO(error)
     }
 }
 

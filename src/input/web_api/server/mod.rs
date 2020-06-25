@@ -17,7 +17,6 @@ use std::fs;
 
 use crate::input;
 use crate::input::bot;
-use crate::input::web_api;
 use crate::controller::Event;
 
 pub mod database;
@@ -27,6 +26,7 @@ pub mod login;
 pub use database::PasswordDatabase;
 pub use login::{make_random_cookie_key, login_page, login_get_and_check, logout};
 pub use login_redirect::CheckLogin;
+use super::{alarms, commands, music, sensors};
 
 pub struct Session {}//TODO deprecate
 
@@ -124,7 +124,7 @@ pub async fn index(_req: HttpRequest) -> impl Responder {
 }
 
 pub fn start_webserver(key_dir: &Path, 
-	state: State, port: u16, domain: String)
+	state: State, port: u16, domain: String, sensor_token: String)
 	 -> Result<actix_web::dev::Server,Error> {
 
 	let tls_config = make_tls_config(&domain, key_dir)?;
@@ -153,30 +153,34 @@ pub fn start_webserver(key_dir: &Path,
 							.route(web::get().to(login_page))
 				))
 				.service(web::resource("/commands/lamps/toggle")
-					.to(web_api::toggle))
+					.to(commands::toggle))
 				.service(web::resource("/commands/lamps/evening")
-					.to(web_api::evening))
+					.to(commands::evening))
 				.service(web::resource("/commands/lamps/night")
-					.to(web_api::night))
+					.to(commands::night))
 				.service(web::resource("/commands/lamps/day")
-					.to(web_api::normal))
+					.to(commands::normal))
 				.service(web::resource("/commands/lamps/dimmest")
-					.to(web_api::dimmest))
+					.to(commands::dimmest))
 				.service(web::resource("/commands/lamps/dim")
-					.to(web_api::dim))
+					.to(commands::dim))
 				.service(web::resource("/commands/lightloop")
-					.to(web_api::lightloop))
+					.to(commands::lightloop))
 				.service(web::resource(&format!("/{}", &state.bot_token))
 					.to(bot::handle_webhook))
+
+				.service(web::scope(&format!("/{}", sensor_token))
+					.service(web::resource("").to(sensors::handle))
+				)			
 
 				.service(web::scope("/")
 					.wrap(CheckLogin{})
 					
 					.service(web::resource("").to(index))
 					.service(web::resource("logout/").to(logout))
-					.service(web::resource("add_song").to(web_api::add_song_from_url))
-					.service(web::resource("set_alarm").to(web_api::set_alarm_unix_timestamp))
-					.service(web::resource("list_alarms").to(web_api::list_alarms))
+					.service(web::resource("add_song").to(music::add_song_from_url))
+					.service(web::resource("set_alarm").to(alarms::set_alarm_unix_timestamp))
+					.service(web::resource("list_alarms").to(alarms::list_alarms))
 					//for all other urls we try to resolve to static files in the "web" dir
 					.service(axtix_fs::Files::new("", "./web/"))
 				)

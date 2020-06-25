@@ -32,7 +32,7 @@ pub enum Error{
     CouldNotDownloadSong(std::process::Output),
     CouldNotUpdateMpd(mpd::error::Error),
     #[allow(dead_code)] CouldNotCreateTempDir(std::io::Error),
-    UnexpectedYoutubeDlStdOut(String),
+    #[allow(dead_code)] UnexpectedYoutubeDlStdOut(String),
     #[allow(dead_code)] UnsupportedSource(String),
     CanNoLongerUpdateMeta,
     #[allow(dead_code)] CanNotSwapArtistWithEmptyTitle,

@@ -164,9 +164,13 @@ impl Lighting {
 		dbg!(&self.lamps);
 	}
 
+	pub fn numb_on(&self) -> u8 {
+		self.lamps.values().map(|lamp| lamp.on as u8).sum()
+	}
+
 	//how to deal with errors?
 	pub fn toggle(&mut self) -> Result<(),Error>{
-		let numb_on: u8 = self.lamps.values().map(|lamp| lamp.on as u8).sum();
+		let numb_on: u8 = self.numb_on();
 		let numb_off =	self.lamps.len() as u8 - numb_on;
 
 		//group ID 0 is a special group containing all lights known to the bridge

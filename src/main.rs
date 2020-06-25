@@ -19,30 +19,20 @@ mod errors;
 struct Opt {
     #[structopt(short = "p", long = "port", default_value = "8080")]
 	port: u16,
-
 	#[structopt(short = "e", long = "external-port")]
 	external_port: Option<u16>,
-
     #[structopt(short = "t", long = "token")]
 	token: String,
-	
     #[structopt(short = "d", long = "domain")]
 	domain: String,
-	
     #[structopt(short = "a", long = "admin-password")]
 	password: String,
-	
-    #[structopt(short = "n", long = "node-id", default_value= "3")]
-	node_id: u16,
-	
-    #[structopt(short = "s", long = "dataserver-key")]
-	dataserver_key: u64,
-	
     #[structopt(short = "k", long = "keys", default_value="keys")]
 	key_dir: PathBuf,
-
     #[structopt(short = "i", long = "allowed-telegram-ids")]
 	valid_ids: Vec<i64>,
+    #[structopt(short = "n", long = "sensor-id")]
+	sensor_id: String,
 }
 
 #[actix_rt::main]
@@ -85,19 +75,12 @@ async fn main() {
 	//start the webserver
 	let _web_handle = server::start_webserver(
 		&opt.key_dir, state, opt.port, 
-		opt.domain.clone()).unwrap();
+		opt.domain.clone(), opt.sensor_id.clone()).unwrap();
 	
 
 	bot::set_webhook(
 		&opt.domain, &opt.token, 
 		opt.external_port.unwrap_or_else(|| opt.port)).await.unwrap();
-
-	//start monitoring local sensors
-	#[cfg(feature = "sensors_connected")]
-	input::sensors::start_monitoring(controller_tx.clone(), opt.node_id, 
-		opt.dataserver_key);
-	#[cfg(feature = "sensors_connected")]
-	input::buttons::start_monitoring(controller_tx.clone()).unwrap();
 
 	loop {
 		std::thread::park();

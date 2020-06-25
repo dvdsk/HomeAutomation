@@ -18,9 +18,10 @@ impl Quiet {
         sys.next_update = Instant::now()+sys.update_period;
 
         mpd::set_volume(10)?;
-        
-        sys.lights.set_all_ct(1,500)?;
+
         sys.lights.single_off(2)?;
+        sys.lights.set_all_ct(1,500)?;
+        //sys.lights.single_on(2)?;
 
         Ok(Box::new(Quiet { }))
     }

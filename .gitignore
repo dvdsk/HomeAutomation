@@ -72,3 +72,4 @@ userdb.hm
 # Rust #
 #####################
 target/
+src/input/web_api/logins.rs

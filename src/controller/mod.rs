@@ -15,22 +15,20 @@ use commands::{handle_cmd};
 
 pub use commands::Command;
 pub use state::State;
-#[cfg(feature = "sensors_connected")]
-use crate::input::sensors::SensorValue;
 use crate::input::mpd_status::MpdStatus;
-use crate::input::buttons::Button;
 use crate::errors::Error;
+use crate::input::sensors::Button;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Event {
   Update,
   Alarm,
   Test,
-  #[cfg(feature = "sensors_connected")]
-  Sensor(SensorValue),
   Command(Command),
   PressShort(Button),
   PressLong(Button),
+
+
 }
 
 pub struct Modifications { //change name to: alteration, deviation, overrides or something else?
@@ -136,8 +134,7 @@ fn handle_event(event: Event, current_state: State, mods: &mut Modifications,
 		(Event::Alarm, _) => Some(State::WakeUp),
 		(Event::Test, _) => {dbg!("a test happend"); None},
 		
-		// #[cfg(feature = "sensors_connected")]
-		(Event::Sensor(_), _) => None,
+		//(Event::Sensor(_), _) => None,
 
 		(Event::PressShort(button), _) => {
 			match button {
