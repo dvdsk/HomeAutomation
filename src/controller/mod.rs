@@ -142,6 +142,7 @@ fn handle_event(event: Event, current_state: State, mods: &mut Modifications,
 
 				Button::DeskLeftMost => Some(State::Sleep),
 				Button::DeskLeft => Some(State::Normal),
+				Button::DeskRight => {system.lights.print_info(); None},
 				Button::DeskRightMost => Some(State::Off),
 			
 				Button::DeskTop => handle_cmd(Command::MpdIncreaseVolume, mods, system),

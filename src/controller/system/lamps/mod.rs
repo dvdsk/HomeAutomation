@@ -120,7 +120,7 @@ fn get_bridge_and_status() -> Result<(Bridge, BTreeMap<usize, philipshue::hue::L
 //adaptation from philipshue LightState that adds some
 //values and removes unused
 #[derive(Debug)]
-struct Lamp {
+pub struct Lamp {
   pub on: bool,
   pub bri: u8,
   pub hue: Option<u16>,
@@ -131,9 +131,9 @@ struct Lamp {
 }
 
 pub struct Lighting {
-	bridge: Bridge,
+	pub bridge: Bridge,
 	//local cache of current state (used for toggle)
-	lamps: HashMap<usize, Lamp>,
+	pub lamps: HashMap<usize, Lamp>,
 }
 
 impl From<&philipshue::hue::LightState> for Lamp{
