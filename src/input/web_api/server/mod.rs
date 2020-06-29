@@ -124,7 +124,7 @@ pub async fn index(_req: HttpRequest) -> impl Responder {
 }
 
 pub fn start_webserver(key_dir: &Path, 
-	state: State, port: u16, domain: String, sensor_token: String)
+	state: State, port: u16, domain: String, ha_key: String)
 	 -> Result<actix_web::dev::Server,Error> {
 
 	let tls_config = make_tls_config(&domain, key_dir)?;
@@ -168,10 +168,9 @@ pub fn start_webserver(key_dir: &Path,
 					.to(commands::lightloop))
 				.service(web::resource(&format!("/{}", &state.bot_token))
 					.to(bot::handle_webhook))
-
-				.service(web::scope(&format!("/{}", sensor_token))
-					.service(web::resource("").to(sensors::handle))
-				)			
+				.service(web::resource(&format!("/{}", ha_key))
+						.route(web::post().to(sensors::handle))
+				)
 
 				.service(web::scope("/")
 					.wrap(CheckLogin{})

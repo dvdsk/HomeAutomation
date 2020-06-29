@@ -1,8 +1,10 @@
-use actix_web::web::{Form, Data};
+//use bytes::Bytes;
+use actix_web::web::{Data, Bytes};
 use serde::{Deserialize, Serialize};
 use actix_web::HttpResponse;
 
 use super::*;
+use crate::controller;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Button {
@@ -26,13 +28,32 @@ pub enum ButtonPress {
     Short(Button),
 }
 
-#[derive(Deserialize, Debug)]
-pub struct SongUrl {
-	url: String,
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum SensorValue {
+    ButtonPress(ButtonPress),
+    Temperature(f32),
+    Humidity(f32),
+    Pressure(f32),
 }
 
-pub fn handle(params: Form<SongUrl>, state: Data<State>) -> HttpResponse {
-	let tx = &state.controller_addr;
+pub fn handle(body: Bytes, state: Data<State>) -> HttpResponse {
+    let res = bincode::deserialize::<SensorValue>(&body[..]);
+    match res {
+        Err(e) => error!("deserialize sensorval failed: {:?}",e),
+        Ok(v) => {
+            //temp to ButtonPress
+            match v {
+                SensorValue::ButtonPress(p) => {
+                    let event = match p{
+                        ButtonPress::Long(b) => controller::Event::PressLong(b),
+                        ButtonPress::Short(b) => controller::Event::PressShort(b),
+                    };
+                    state.controller_addr.send(event).unwrap();
+                }
+                _ => (),
+            }
+        }
+    }
 
 	HttpResponse::Ok().finish()
 }

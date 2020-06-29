@@ -31,8 +31,8 @@ struct Opt {
 	key_dir: PathBuf,
     #[structopt(short = "i", long = "allowed-telegram-ids")]
 	valid_ids: Vec<i64>,
-    #[structopt(short = "n", long = "sensor-id")]
-	sensor_id: String,
+    #[structopt(short = "h", long = "ha-key")]
+	ha_key: String,
 }
 
 #[actix_rt::main]
@@ -75,7 +75,7 @@ async fn main() {
 	//start the webserver
 	let _web_handle = server::start_webserver(
 		&opt.key_dir, state, opt.port, 
-		opt.domain.clone(), opt.sensor_id.clone()).unwrap();
+		opt.domain.clone(), opt.ha_key.clone()).unwrap();
 	
 
 	bot::set_webhook(

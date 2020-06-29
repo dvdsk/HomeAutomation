@@ -27,8 +27,6 @@ pub enum Event {
   Command(Command),
   PressShort(Button),
   PressLong(Button),
-
-
 }
 
 pub struct Modifications { //change name to: alteration, deviation, overrides or something else?
