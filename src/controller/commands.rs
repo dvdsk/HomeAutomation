@@ -50,8 +50,13 @@ pub fn handle_cmd(cmd: Command, mods: &mut Modifications, sys: &mut System) -> O
         Command::GoToWindows => println!("should go to windows"),
         
         Command::MpdPause => {mpd_control::toggle_playback(&mut sys.mpd).unwrap(); mods.mpd = true },
-        Command::MpdDecreaseVolume => {mpd_control::increase_volume(&mut sys.mpd).unwrap(); mods.mpd = true },
-        Command::MpdIncreaseVolume => {mpd_control::decrease_volume(&mut sys.mpd).unwrap(); mods.mpd = true },
+        Command::MpdDecreaseVolume => {mpd_control::decrease_volume(&mut sys.mpd).unwrap(); mods.mpd = true },
+        Command::MpdIncreaseVolume => {
+            if sys.mpd.is_playing() {
+                mpd_control::increase_volume(&mut sys.mpd).unwrap(); 
+                mods.mpd = true 
+            }
+        },
         Command::MpdNextSong => {mpd_control::next_song().unwrap()},
         Command::MpdPrevSong => {mpd_control::prev_song().unwrap()},
 

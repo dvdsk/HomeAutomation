@@ -61,14 +61,14 @@ crossbeam-channel = "0.3"
 
 sled = "0.30"
 pagecache = "0.17"
-reqwest = {version = "0.10"}
+reqwest = {version = "0.10", default-features = false, features = ["rustls-tls"]}
 
 mpd = "0.0.12"
 dirs = "2"
 rand = "0.6"
 retry = "0.5"
 
-telegram-bot = "0.6.3"
+telegram-bot = {version = "0.7", default-features = false, features = ["rustls"]}
 serde_json = "1.0"
 regex = "1"
 #id3 = "0.5.0"

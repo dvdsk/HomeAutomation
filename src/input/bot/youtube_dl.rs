@@ -110,10 +110,10 @@ impl From<youtube_downloader::Error> for Error {
     }
 }
 
-pub async fn handle_callback(callback: CallbackQuery, state: &State)
+pub async fn handle_callback(callback_data: &str, state: &State)
     -> Result<(), Error> {
 
-    let mut split = callback.data.split_terminator(":").skip(1);
+    let mut split = callback_data.split_terminator(":").skip(1);
     let command = split.next();
     match command {
         Some("swap") => {

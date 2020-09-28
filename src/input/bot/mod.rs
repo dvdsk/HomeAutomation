@@ -104,14 +104,19 @@ async fn handle_callback(callback: CallbackQuery, state: &State) {
 		return; //no need for error handling, just drop callback
 	}
 
-	let header = callback.data.split_terminator(":").next();
+    if callback.data.is_none() {
+        debug!("no data in callback");
+        return; //not allowed, drop callback
+    }
+    let data = callback.data.as_ref().unwrap();
+	let header = data.split_terminator(":").next();
 	let res = match header {
 		Some("ytdl") => {
-			youtube_dl::handle_callback(callback, state).await
+			youtube_dl::handle_callback(data, state).await
 		}
 		_ => {
 			warn!("unhandled callback, data: {}\nfull_callback: {:?}", 
-				callback.data, callback);
+				data, callback);
 			Ok(()) //user need not be warned as user is dev
 		},
 	};
