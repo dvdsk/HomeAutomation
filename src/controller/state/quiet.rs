@@ -20,13 +20,13 @@ impl Quiet {
 
         mpd::set_volume(10)?;
 
-        sys.lights.single_off(2)?;
+        sys.lights.single_off(2)?; //2 is desk lamp
         let command = LightCommand::default()
             .on()
             .with_bri(50)
             .with_ct(500);
 
-        for lamp_id in &[8,1,4,6] {
+        for lamp_id in &[1,8,5,4,6] {
             sys.lights.bridge.set_light_state(*lamp_id, &command)?;
             sys.lights.lamps.get_mut(lamp_id).unwrap().on = true;
         }
@@ -43,5 +43,5 @@ impl RoomState for Quiet {
     }
 
     fn breakdown(&self, _: &mut Modifications, _sys: &mut System) -> Result<(), Error> {Ok(())}
-    fn state(&self) -> State {State::Quite }
+    fn state(&self) -> State {State::Quiet }
 }

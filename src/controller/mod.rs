@@ -136,13 +136,13 @@ fn handle_event(event: Event, current_state: State, mods: &mut Modifications,
 
 		(Event::PressShort(button), _) => {
 			match button {
-				Button::LampLeft => Some(State::Quite),
+				Button::LampLeft => Some(State::Quiet),
 				Button::LampMid => Some(State::Silent),
 				Button::LampRight => Some(State::Off),
 
 				Button::DeskLeftMost => Some(State::Sleep),
 				Button::DeskLeft => Some(State::Normal),
-				Button::DeskRight => {system.lights.print_info(); None},
+				Button::DeskRight => Some(State::Quiet),
 				Button::DeskRightMost => Some(State::Off),
 			
 				Button::DeskTop => handle_cmd(Command::MpdIncreaseVolume, mods, system),
@@ -179,7 +179,7 @@ fn change_state(next_state: State, mods: &mut Modifications, system: &mut System
 		State::WakeUp => state::WakeUp::setup(mods, system),
 		State::Sleep => state::Sleep::setup(mods, system),
 		State::Silent => state::Silent::setup(mods, system),
-		State::Quite => state::Quiet::setup(mods, system),
+		State::Quiet => state::Quiet::setup(mods, system),
 		State::Off => state::Off::setup(mods, system),
 	};
 

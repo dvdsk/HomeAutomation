@@ -25,7 +25,7 @@ pub enum State {
     WakeUp,
     Sleep,
     Silent,
-    Quite,
+    Quiet,
     Off,
 }
 

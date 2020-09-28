@@ -26,7 +26,7 @@ impl Silent {
             .with_bri(1)
             .with_ct(500);
 
-        for lamp_id in &[8,1,4,6] {
+        for lamp_id in &[1,8,5,4,6] {
             sys.lights.bridge.set_light_state(*lamp_id, &command)?;
             sys.lights.lamps.get_mut(lamp_id).unwrap().on = true;
         }
