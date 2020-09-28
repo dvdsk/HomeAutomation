@@ -52,7 +52,7 @@ pub fn handle_cmd(cmd: Command, mods: &mut Modifications, sys: &mut System) -> O
         Command::MpdPause => {mpd_control::toggle_playback(&mut sys.mpd).unwrap(); mods.mpd = true },
         Command::MpdDecreaseVolume => {mpd_control::decrease_volume(&mut sys.mpd).unwrap(); mods.mpd = true },
         Command::MpdIncreaseVolume => {
-            if sys.mpd.is_playing() {
+            if let mpd::State::Play = sys.mpd.is_playing() {
                 mpd_control::increase_volume(&mut sys.mpd).unwrap(); 
                 mods.mpd = true 
             }
