@@ -168,7 +168,7 @@ fn handle_sensor(
 ) -> Option<State> {
     match value {
         SensorValue::ButtonPress(press) => handle_buttonpress(press, mods, system),
-        _ => todo!(),
+        _ => None, // for now we ignore the other sensor data
     }
 }
 
