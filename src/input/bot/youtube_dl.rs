@@ -1,11 +1,11 @@
-use telegram_bot::types::refs::{ChatId, MessageId};
-use telegram_bot::types::callback_query::CallbackQuery;
 use async_trait::async_trait;
+use telegram_bot::types::callback_query::CallbackQuery;
+use telegram_bot::types::refs::{ChatId, MessageId};
 
-use crate::input::youtube_downloader::{self, Feedback, JobStatus, MetaGuess};
-use crate::input::web_api::server::{State};
 use super::send_text;
 use super::Error as BotError;
+use crate::input::web_api::server::State;
+use crate::input::youtube_downloader::{self, Feedback, JobStatus, MetaGuess};
 
 #[derive(Debug, Clone)]
 pub struct TelegramFeedback {
@@ -13,34 +13,43 @@ pub struct TelegramFeedback {
     pub message_id: MessageId,
 }
 
-//present options: 
+//present options:
 //  Swap
 //  None
 //  Ok
 //  Lookup
 impl TelegramFeedback {
-    async fn ask_name_artist(&self, token: &str, mut meta: MetaGuess, id: u64)
-    -> Result<(), BotError> {
+    async fn ask_name_artist(
+        &self,
+        token: &str,
+        mut meta: MetaGuess,
+        id: u64,
+    ) -> Result<(), BotError> {
         dbg!();
-        let keyboard_json = format!("[\
+        let keyboard_json = format!(
+            "[\
             [{{\"text\":\"swap\", \"callback_data\":\"ytdl:swap:{id}\"}}],\
             [{{\"text\":\"no\", \"callback_data\":\"ytdl:no:{id}\"}}],\
             [{{\"text\":\"ok\", \"callback_data\":\"ytdl:ok:{id}\"}}],\
             [{{\"text\":\"lookup\", \"callback_data\":\"ytdl:lookup:{id}\"}}]\
-        ]",id=id);
+        ]",
+            id = id
+        );
         let reply_markup = format!("{{\"inline_keyboard\":{} }}", keyboard_json);
-        meta.title.retain(|c| c.is_ascii_alphanumeric() || 
-            c.is_ascii_whitespace() || c=='-');
-        meta.artist.retain(|c| c.is_ascii_alphanumeric() || 
-            c.is_ascii_whitespace() || c=='-');
-        let text = format!("is _{}_ the title and _{}_ the artist?", 
-            meta.title, meta.artist);
+        meta.title
+            .retain(|c| c.is_ascii_alphanumeric() || c.is_ascii_whitespace() || c == '-');
+        meta.artist
+            .retain(|c| c.is_ascii_alphanumeric() || c.is_ascii_whitespace() || c == '-');
+        let text = format!(
+            "is _{}_ the title and _{}_ the artist?",
+            meta.title, meta.artist
+        );
         //TODO: should always base this on metadata guess, should make that a
         //seperate type
 
         dbg!(&text);
         dbg!(&reply_markup);
-        let url = format!("https://api.telegram.org/bot{}/sendMessage", token);	
+        let url = format!("https://api.telegram.org/bot{}/sendMessage", token);
         let form = reqwest::multipart::Form::new()
             .text("chat_id", self.chat_id.to_string())
             .text("text", text)
@@ -50,10 +59,9 @@ impl TelegramFeedback {
 
         dbg!();
         let client = reqwest::Client::new();
-        let resp = client.post(&url)
-            .multipart(form).send().await?;
+        let resp = client.post(&url).multipart(form).send().await?;
         //https://stackoverflow.com/questions/57540455/error-blockingclientinfuturecontext-when-trying-to-make-a-request-from-within
-        
+
         if resp.status() != reqwest::StatusCode::OK {
             error!("telegram gave invalid response: {:?}", resp);
             Err(BotError::InvalidServerResponse(resp))
@@ -61,7 +69,6 @@ impl TelegramFeedback {
             dbg!("send message");
             Ok(())
         }
-
     }
 }
 
@@ -69,20 +76,14 @@ impl TelegramFeedback {
 impl Feedback for TelegramFeedback {
     //errors during feedback must be handled within feedback channel
     async fn feedback(&self, status: JobStatus, token: &str) {
-        let res: Result<(),BotError> = match status {
-            JobStatus::Finished => {
-                send_text(self.chat_id, token, "finished").await
-            },
-            JobStatus::Downloaded => {
-                send_text(self.chat_id, token, "done downloading").await
-            },
-            JobStatus::Queued(meta_data, id) => {
-                self.ask_name_artist(token, meta_data, id).await
-                    .map_err(|e| e.into())
-            },
-            JobStatus::Error => {
-                send_text(self.chat_id, token, "ran into error").await
-            },
+        let res: Result<(), BotError> = match status {
+            JobStatus::Finished => send_text(self.chat_id, token, "finished").await,
+            JobStatus::Downloaded => send_text(self.chat_id, token, "done downloading").await,
+            JobStatus::Queued(meta_data, id) => self
+                .ask_name_artist(token, meta_data, id)
+                .await
+                .map_err(|e| e.into()),
+            JobStatus::Error => send_text(self.chat_id, token, "ran into error").await,
         };
 
         if let Err(e) = res {
@@ -110,9 +111,7 @@ impl From<youtube_downloader::Error> for Error {
     }
 }
 
-pub async fn handle_callback(callback_data: &str, state: &State)
-    -> Result<(), Error> {
-
+pub async fn handle_callback(callback_data: &str, state: &State) -> Result<(), Error> {
     let mut split = callback_data.split_terminator(":").skip(1);
     let command = split.next();
     match command {
@@ -132,7 +131,7 @@ pub async fn handle_callback(callback_data: &str, state: &State)
         Some("lookup") => todo!(),
         _ => {
             error!("cant handle youtube_dl callback command: {:?}", command);
-        },
+        }
     }
     Ok(())
 }

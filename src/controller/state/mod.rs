@@ -1,22 +1,22 @@
-use serde::{Serialize, Deserialize};
-use super::{System, Modifications, Environment};
+use super::{Environment, Modifications, System};
 use crate::errors::Error;
+use serde::{Deserialize, Serialize};
 
-mod normal;
 mod lightloop;
-mod wakeup;
-mod sleep;
-mod silent;
-mod quiet;
+mod normal;
 mod off;
+mod quiet;
+mod silent;
+mod sleep;
+mod wakeup;
 
-pub use normal::Normal;
 pub use lightloop::LightLoop;
-pub use wakeup::WakeUp;
-pub use sleep::Sleep;
-pub use silent::Silent;
-pub use quiet::Quiet;
+pub use normal::Normal;
 pub use off::Off;
+pub use quiet::Quiet;
+pub use silent::Silent;
+pub use sleep::Sleep;
+pub use wakeup::WakeUp;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum State {
@@ -30,9 +30,12 @@ pub enum State {
 }
 
 pub trait RoomState {
-    fn update(&mut self, mods: &mut Modifications, system: &mut System, 
-        env: &mut Environment) -> Result<Option<State>, Error>;
-    fn breakdown(&self, mods: &mut Modifications, system: &mut System)
-         -> Result<(), Error>;
+    fn update(
+        &mut self,
+        mods: &mut Modifications,
+        system: &mut System,
+        env: &mut Environment,
+    ) -> Result<Option<State>, Error>;
+    fn breakdown(&self, mods: &mut Modifications, system: &mut System) -> Result<(), Error>;
     fn state(&self) -> State;
 }

@@ -1,8 +1,8 @@
-use mpd::{idle::Idle, idle::Subsystem, Client};
 use crate::errors::Error;
-use std::thread;
-use std::sync::{Arc, RwLock};
 use crossbeam_channel::{Receiver, Sender};
+use mpd::{idle::Idle, idle::Subsystem, Client};
+use std::sync::{Arc, RwLock};
+use std::thread;
 
 //mpd watcher, waits on mpd sys changes and stores in struct/sends updates to whomever needs to know
 //mpd command sender (opens new connection for every command?)
@@ -26,11 +26,11 @@ fn mpd_watcher(mut client: Client, status: MpdStatus, rx: Receiver<()>) {
     client.wait(&[Subsystem::Player, Subsystem::Mixer]).unwrap();
     loop {
         //if we have a message that means we should shut down
-        if let Ok(_) = rx.try_recv(){
+        if let Ok(_) = rx.try_recv() {
             return;
         }
         //this loop is stopped by sending a change to mpd server
-        if let Ok(_) = client.wait(&[Subsystem::Player, Subsystem::Mixer]){
+        if let Ok(_) = client.wait(&[Subsystem::Player, Subsystem::Mixer]) {
             //update status
             let new_status = client.status().unwrap();
             *(status.inner.write().unwrap()) = new_status;
@@ -50,11 +50,13 @@ impl MpdStatus {
         client.volume(status.volume).unwrap();
     }*/
 
-    pub fn start_updating() -> Result<(Self, thread::JoinHandle<()>, Sender<()>), Error>{
+    pub fn start_updating() -> Result<(Self, thread::JoinHandle<()>, Sender<()>), Error> {
         let mut client = mpd::Client::connect("127.0.0.1:6600")?;
         let status = client.status()?;
 
-        let mpd_status = Self { inner: Arc::new(RwLock::new(status))};
+        let mpd_status = Self {
+            inner: Arc::new(RwLock::new(status)),
+        };
         let mpd_status_cloned = mpd_status.clone();
         let (tx, rx) = crossbeam_channel::bounded(1);
 

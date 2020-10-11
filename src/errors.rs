@@ -1,7 +1,7 @@
 use fern::colors::{Color, ColoredLevelConfig};
 
-use crate::input::youtube_downloader;
 use crate::input::web_api::server;
+use crate::input::youtube_downloader;
 
 #[derive(Debug)]
 pub enum Error {
@@ -56,7 +56,11 @@ impl From<reqwest::Error> for Error {
 impl From<retry::Error<Error>> for Error {
     fn from(error: retry::Error<Error>) -> Self {
         match error {
-            retry::Error::Operation{error, total_delay: _total_delay, tries: _tries} => error,
+            retry::Error::Operation {
+                error,
+                total_delay: _total_delay,
+                tries: _tries,
+            } => error,
             retry::Error::Internal(error_str) => Error::RetryLogic(error_str),
         }
     }
@@ -65,7 +69,11 @@ impl From<retry::Error<Error>> for Error {
 impl From<retry::Error<mpd::error::Error>> for Error {
     fn from(error: retry::Error<mpd::error::Error>) -> Self {
         match error {
-            retry::Error::Operation{error, total_delay: _total_delay, tries: _tries} => Error::Mpd(error),
+            retry::Error::Operation {
+                error,
+                total_delay: _total_delay,
+                tries: _tries,
+            } => Error::Mpd(error),
             retry::Error::Internal(error_str) => Error::RetryLogic(error_str),
         }
     }
@@ -96,55 +104,51 @@ impl From<mpd::error::Error> for Error {
 }
 
 pub fn setup_logging(verbosity: u8) -> Result<(), fern::InitError> {
-	let mut base_config = fern::Dispatch::new();
-	let colors = ColoredLevelConfig::new()
-	             .info(Color::Green)
-	             .debug(Color::Yellow)
-	             .warn(Color::Magenta);
+    let mut base_config = fern::Dispatch::new();
+    let colors = ColoredLevelConfig::new()
+        .info(Color::Green)
+        .debug(Color::Yellow)
+        .warn(Color::Magenta);
 
-	base_config = match verbosity {
-		0 =>
-			base_config
-					.level(log::LevelFilter::Error),
-		1 =>
-			base_config
-					.level(log::LevelFilter::Warn),
-		2 =>
-			base_config.level(log::LevelFilter::Info)
-					.level_for("actix-web", log::LevelFilter::Warn),
-		3 =>
-			base_config.level(log::LevelFilter::Trace),
-		4 =>
-			base_config.level(log::LevelFilter::Error),
-        _4_or_more => 
-            base_config.level(log::LevelFilter::Warn),
-	};
+    base_config = match verbosity {
+        0 => base_config.level(log::LevelFilter::Error),
+        1 => base_config.level(log::LevelFilter::Warn),
+        2 => base_config
+            .level(log::LevelFilter::Info)
+            .level_for("actix-web", log::LevelFilter::Warn),
+        3 => base_config.level(log::LevelFilter::Trace),
+        4 => base_config.level(log::LevelFilter::Error),
+        _4_or_more => base_config.level(log::LevelFilter::Warn),
+    };
 
-	// Separate file config so we can include year, month and day in file logs
-	let file_config = fern::Dispatch::new()
-		.format(|out, message, record| {
-			out.finish(format_args!(
-				"{}[{}][{}] {}",
-				chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
-				record.target(),
-				record.level(),
-				message
-			))
-		})
-		.chain(fern::log_file("program.log")?);
+    // Separate file config so we can include year, month and day in file logs
+    let file_config = fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{}[{}][{}] {}",
+                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                record.target(),
+                record.level(),
+                message
+            ))
+        })
+        .chain(fern::log_file("program.log")?);
 
-	let stdout_config = fern::Dispatch::new()
-		.format(move |out, message, record| {
-				out.finish(format_args!(
-						"[{}][{}][{}] {}",
-					chrono::Local::now().format("%H:%M"),
-					record.target(),
-					colors.color(record.level()),
-					message
-				))
-		})
-		.chain(std::io::stdout());
+    let stdout_config = fern::Dispatch::new()
+        .format(move |out, message, record| {
+            out.finish(format_args!(
+                "[{}][{}][{}] {}",
+                chrono::Local::now().format("%H:%M"),
+                record.target(),
+                colors.color(record.level()),
+                message
+            ))
+        })
+        .chain(std::io::stdout());
 
-	base_config.chain(file_config).chain(stdout_config).apply()?;
-	Ok(())
+    base_config
+        .chain(file_config)
+        .chain(stdout_config)
+        .apply()?;
+    Ok(())
 }

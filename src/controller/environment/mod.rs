@@ -9,15 +9,15 @@ pub struct Environment {
 }
 
 impl Environment {
-    pub fn update(&self, s: SensorValue){
-        
-    }
+    pub fn update(&self, s: SensorValue) {}
 }
 
 impl std::default::Default for Environment {
     fn default() -> Self {
         Environment {
-            light: History{last_values: Vec::new()},
+            light: History {
+                last_values: Vec::new(),
+            },
         }
     }
 }
