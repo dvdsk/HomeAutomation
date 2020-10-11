@@ -6,4 +6,3 @@ pub mod mpd_status;
 
 pub use youtube_downloader::YoutubeDownloader;
 pub use mpd_status::MpdStatus;
-pub use web_api::sensors;

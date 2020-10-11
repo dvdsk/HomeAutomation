@@ -1,12 +1,15 @@
 use rustls::{NoClientAuth, ServerConfig};
 use rustls::internal::pemfile::{certs, pkcs8_private_keys};
 use telegram_bot::types::refs::UserId;
+use sensor_value::SensorValue;
 
 use actix_rt::System;
 use actix_web::{HttpServer,App, web, Responder};
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_files as axtix_fs;
 use actix_web::HttpRequest;
+use actix_web::web::{Data, Bytes};
+use actix_web::HttpResponse;
 
 use std::thread;
 use std::sync::{Arc, Mutex, RwLock, atomic::AtomicUsize};
@@ -26,7 +29,7 @@ pub mod login;
 pub use database::PasswordDatabase;
 pub use login::{make_random_cookie_key, login_page, login_get_and_check, logout};
 pub use login_redirect::CheckLogin;
-use super::{alarms, commands, music, sensors};
+use super::{alarms, commands, music};
 
 pub struct Session {}//TODO deprecate
 
@@ -59,11 +62,11 @@ impl State {
 
 			State {
 				controller_addr: controller_tx,
-				alarms: alarms,
-				passw_db: passw_db,
-				youtube_dl: youtube_dl,
-				sessions: sessions,
-				free_session_ids: free_session_ids,
+				alarms,
+				passw_db,
+				youtube_dl,
+				sessions,
+				free_session_ids,
 				bot_token,
 				valid_ids,
 			}
@@ -169,7 +172,7 @@ pub fn start_webserver(key_dir: &Path,
 				.service(web::resource(&format!("/{}", &state.bot_token))
 					.to(bot::handle_webhook))
 				.service(web::resource(&format!("/{}", ha_key))
-						.route(web::post().to(sensors::handle))
+						.route(web::post().to(handle_sensor))
 				)
 
 				.service(web::scope("/")
@@ -197,4 +200,13 @@ pub fn start_webserver(key_dir: &Path,
 
 	let web_handle = rx.recv().unwrap();
 	Ok(web_handle)
+}
+
+pub fn handle_sensor(body: Bytes, state: Data<State>) -> HttpResponse {
+    let res = bincode::deserialize::<SensorValue>(&body[..]);
+    match res {
+        Err(err) => error!("deserialize sensorval failed: {:?}", err),
+        Ok(event) => state.controller_addr.send(Event::Sensor(event)).unwrap(),
+    }
+	HttpResponse::Ok().finish()
 }

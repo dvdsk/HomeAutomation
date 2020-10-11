@@ -3,21 +3,21 @@ use std::thread;
 use serde::{Serialize, Deserialize};
 
 mod system;
-use system::{Lighting};
+use system::Lighting;
 
 mod environment;
 use environment::Environment;
 
 mod state;
-use state::{RoomState};
+use state::RoomState;
 mod commands;
-use commands::{handle_cmd};
+use commands::handle_cmd;
 
 pub use commands::Command;
 pub use state::State;
 use crate::input::mpd_status::MpdStatus;
 use crate::errors::Error;
-use crate::input::sensors::Button;
+use sensor_value::{Button, Press, SensorValue};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Event {
@@ -25,8 +25,7 @@ pub enum Event {
   Alarm,
   Test,
   Command(Command),
-  PressShort(Button),
-  PressLong(Button),
+  Sensor(SensorValue),
 }
 
 pub struct Modifications { //change name to: alteration, deviation, overrides or something else?
@@ -113,6 +112,10 @@ pub fn start(rx: crossbeam_channel::Receiver<Event>, mpd_status: MpdStatus) -> R
 				},
 				_ => (),
 			}
+            
+            if let Event::Sensor(s) = event {
+                env.update(s);
+            }
 		}
 	});
 	Ok(handle)
@@ -131,47 +134,55 @@ fn handle_event(event: Event, current_state: State, mods: &mut Modifications,
 		(Event::Update, _) => state.update(mods, system, env)?,	    
 		(Event::Alarm, _) => Some(State::WakeUp),
 		(Event::Test, _) => {dbg!("a test happend"); None},
-		
-		//(Event::Sensor(_), _) => None,
-
-		(Event::PressShort(button), _) => {
-			match button {
-				Button::LampLeft => Some(State::Quiet),
-				Button::LampMid => Some(State::Silent),
-				Button::LampRight => Some(State::Off),
-
-				Button::DeskLeftMost => Some(State::Sleep),
-				Button::DeskLeft => Some(State::Normal),
-				Button::DeskRight => Some(State::Quiet),
-				Button::DeskRightMost => Some(State::Off),
-			
-				Button::DeskTop => handle_cmd(Command::MpdIncreaseVolume, mods, system),
-				Button::DeskMid => handle_cmd(Command::MpdPause, mods, system),
-				Button::DeskBottom => handle_cmd(Command::MpdDecreaseVolume, mods, system),
-
-				_ => None,
-			}
-		}
-		(Event::PressLong(button), _) => {
-			let cmd = match button {
-				Button::LampLeft => Command::LampsDim,
-				Button::LampMid => Command::LampsDimmest,
-				Button::LampRight => Command::LampsToggle,
-			
-				Button::DeskLeftMost => Command::LampsNight,
-				Button::DeskLeft => Command::LampsEvening,
-				Button::DeskRight => Command::LampsDay,
-				Button::DeskRightMost => Command::LampsToggle,
-
-				_ => return Ok(None),
-			};
-			handle_cmd(cmd, mods, system)
-		}
+        
+		(Event::Sensor(s), _) => handle_sensor(s, mods, system),
+        
 	};
 	Ok(next_state)
 }
 
-fn change_state(next_state: State, mods: &mut Modifications, system: &mut System) -> Result<Box<dyn RoomState>, Error> {
+fn handle_sensor(value: SensorValue, mods: &mut Modifications, system: &mut System) -> Option<State> {
+    match value {
+        SensorValue::ButtonPress(press) => handle_buttonpress(press, mods, system),
+        _ => todo!(),
+    }
+}
+
+fn handle_buttonpress(press: Press, mods: &mut Modifications, system: &mut System) -> Option<State> {
+    if press.duration > 10*1000 {// millisec
+        match press.button {
+            Button::LampLeft => Some(State::Quiet),
+            Button::LampMid => Some(State::Silent),
+            Button::LampRight => Some(State::Off),
+
+            Button::DeskLeftMost => Some(State::Sleep),
+            Button::DeskLeft => Some(State::Normal),
+            Button::DeskRight => Some(State::Quiet),
+            Button::DeskRightMost => Some(State::Off),
+        
+            Button::DeskTop => handle_cmd(Command::MpdIncreaseVolume, mods, system),
+            Button::DeskMid => handle_cmd(Command::MpdPause, mods, system),
+            Button::DeskBottom => handle_cmd(Command::MpdDecreaseVolume, mods, system),
+        }
+    } else {
+        let cmd = match press.button {
+            Button::LampLeft => Command::LampsDim,
+            Button::LampMid => Command::LampsDimmest,
+            Button::LampRight => Command::LampsToggle,
+        
+            Button::DeskLeftMost => Command::LampsNight,
+            Button::DeskLeft => Command::LampsEvening,
+            Button::DeskRight => Command::LampsDay,
+            Button::DeskRightMost => Command::LampsToggle,
+
+            _ => return None,
+        };
+        handle_cmd(cmd, mods, system)
+    }
+}
+
+fn change_state(next_state: State, mods: &mut Modifications, system: &mut System)
+    -> Result<Box<dyn RoomState>, Error> {
 
 	let res = match &next_state {
 		State::Normal => state::Normal::setup(mods, system),
@@ -187,6 +198,5 @@ fn change_state(next_state: State, mods: &mut Modifications, system: &mut System
 		error!("ran into error trying to switch to state: {:?}, error: {:?}", 
 			next_state,e);
 	}
-
 	res
 }

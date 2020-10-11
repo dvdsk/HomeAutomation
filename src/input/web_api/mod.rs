@@ -9,7 +9,6 @@ use actix_web::web::{Form, Data};
 mod logins;
 mod alarms;
 mod music;
-pub mod sensors;
 mod commands;
 
 pub mod server;
