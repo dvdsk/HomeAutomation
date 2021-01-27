@@ -93,18 +93,4 @@ async fn main() {
     loop {
         std::thread::park();
     }
-
-    /*println!("press: q to quit");
-    loop {
-        let mut input = String::new();
-        stdin().read_line(&mut input).unwrap();
-        match input.as_str() {
-            //"n\n" => helper::add_user(& passw_db),
-            "q\n" => break,
-            _ => println!("unhandled"),
-        };
-    }
-    println!("shutting down");
-    web_handle.stop(true).await;
-    input::MpdStatus::stop_updating(updater_tx);*/
 }

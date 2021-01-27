@@ -168,6 +168,10 @@ fn handle_sensor(
 ) -> Option<State> {
     match value {
         SensorValue::ButtonPress(press) => handle_buttonpress(press, mods, system),
+        // SensorValue::BathroomHum(b) => {dbg!(b); None}
+        // SensorValue::BathroomTemp(t) => {dbg!(t); None}
+        // SensorValue::MovementShower => {dbg!(b); None}
+        // SensorValue::MovementToilet => {dbg!(b); None}
         _ => None, // for now we ignore the other sensor data
     }
 }
@@ -177,7 +181,8 @@ fn handle_buttonpress(
     mods: &mut Modifications,
     system: &mut System,
 ) -> Option<State> {
-    if press.duration > 10 * 1000 {
+    const LONG_PRESS: u16 = 500; //ms
+    if press.duration < LONG_PRESS {
         // millisec
         match press.button {
             Button::LampLeft => Some(State::Quiet),
@@ -204,7 +209,9 @@ fn handle_buttonpress(
             Button::DeskRight => Command::LampsDay,
             Button::DeskRightMost => Command::LampsToggle,
 
-            _ => return None,
+            Button::DeskTop => Command::MpdIncreaseVolume,
+            Button::DeskMid => Command::MpdPause,
+            Button::DeskBottom => Command::MpdDecreaseVolume,
         };
         handle_cmd(cmd, mods, system)
     }
