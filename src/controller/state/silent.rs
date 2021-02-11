@@ -20,7 +20,7 @@ impl Silent {
         mpd::pause()?;
 
         sys.lights.single_off(2)?;
-        let command = LightCommand::default().on().with_bri(1).with_ct(500);
+        let command = LightCommand::default().on().with_bri(1).with_ct(2000);
 
         for lamp_id in &[1, 8, 5, 4, 6] {
             sys.lights.bridge.set_light_state(*lamp_id, &command)?;
