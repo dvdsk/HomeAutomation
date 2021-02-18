@@ -11,41 +11,42 @@ use crate::controller::Command;
 use crate::controller::Event;
 use crate::errors::Error;
 
-//TODO, what to do on multiple alarms at the same time?
-// -add one a second later
-// -store in millisec to lower collision chance?
+mod wakeup;
+pub use wakeup::WakeUp;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Action {
-    Event(Event),
-    Command(Command),
+    SendEvent(Event),
+    SendCommand(Command),
 }
 
 impl From<Event> for Action {
     fn from(event: Event) -> Self {
-        Action::Event(event)
+        Action::SendEvent(event)
     }
 }
 impl From<Command> for Action {
     fn from(command: Command) -> Self {
-        Action::Command(command)
+        Action::SendCommand(command)
     }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Alarm {
+pub struct Job {
     pub time: DateTime<Utc>,
     pub action: Action,
+    /// how long after the time was missed the alarm
+    /// should still go off
     pub expiration: Option<std::time::Duration>,
 }
 
-impl Alarm {
+impl Job {
     pub fn from(
         time: DateTime<Utc>,
         action: impl Into<Action>,
         expiration: Option<std::time::Duration>,
     ) -> Self {
-        Alarm {
+        Job {
             time,
             action: action.into(),
             expiration,
@@ -53,14 +54,14 @@ impl Alarm {
     }
 }
 
-impl Sub<Alarm> for Alarm {
+impl Sub<Job> for Job {
     type Output = chrono::Duration;
 
-    fn sub(self, other: Alarm) -> chrono::Duration {
+    fn sub(self, other: Job) -> chrono::Duration {
         self.time - other.time
     }
 }
-impl Sub<chrono::DateTime<Utc>> for &Alarm {
+impl Sub<chrono::DateTime<Utc>> for &Job {
     type Output = chrono::Duration;
 
     fn sub(self, other: chrono::DateTime<Utc>) -> chrono::Duration {
@@ -69,24 +70,25 @@ impl Sub<chrono::DateTime<Utc>> for &Alarm {
 }
 
 #[derive(Clone)]
-pub struct Alarms {
+pub struct Jobs {
     waker_tx: crossbeam_channel::Sender<()>,
-    alarm_db: AlarmList,
+    list: JobList,
 }
 
 #[derive(Clone)]
-pub struct AlarmList {
+pub struct JobList {
     db: sled::Tree,
 }
 
+use crossbeam_channel::RecvTimeoutError::*;
 fn waker(
-    mut alarm_list: AlarmList,
+    mut alarm_list: JobList,
     event_tx: crossbeam_channel::Sender<Event>,
     waker_rx: crossbeam_channel::Receiver<()>,
 ) {
     loop {
         //This can fail #TODO make sure an non waking error alarm is send to the user
-        if let Some((id, current_alarm)) = alarm_list.get_next() {
+        if let Some((id, current_alarm)) = alarm_list.peek_next() {
             let now = Utc::now();
             let timeout = &current_alarm - now;
             if let Some(expiration) = current_alarm.expiration {
@@ -101,27 +103,16 @@ fn waker(
                 .unwrap_or(std::time::Duration::from_secs(0));
             info!("next alarm is in: {} seconds", timeout.as_secs());
 
-            //do we sound the an alarm or should we add or remove one?
+            //do we sound an alarm or should we add or remove one?
             match waker_rx.recv_timeout(timeout) {
-                //do not set off alarm
-                Ok(_) => {
-                    dbg!();
-                    ()
-                } //should recheck if "current alarm" is still the right one as we removed one
-
-                Err(error) => match error {
-                    //should the alarm go off or should we stop?
-                    crossbeam_channel::RecvTimeoutError::Timeout => {
-                        if let Err(error) = event_tx.send(Event::Alarm) {
-                            error!("could not set off alarm: {:?}", error);
-                        }; //set
-                           //remove alarm from memory and file
-                        alarm_list.remove_alarm(id).unwrap();
-                        continue; //get next alarm
-                    }
-                    //we should stop, end the thread by returning
-                    crossbeam_channel::RecvTimeoutError::Disconnected => return,
-                },
+                Ok(_) => continue, // new alarm entered restart loop
+                Err(Disconnected) => return,
+                Err(Timeout) => {
+                    // time to sound the alarm
+                    sound_alarm(&mut alarm_list, &event_tx, current_alarm);
+                    alarm_list.remove_alarm(id).unwrap();
+                    continue; //get next alarm
+                }
             }
         } else {
             //no alarm to wait on, wait for instructions
@@ -137,40 +128,47 @@ fn waker(
     }
 }
 
-impl Alarms {
+fn sound_alarm(list: &mut JobList, event_tx: &crossbeam_channel::Sender<Event>, job: Job) {
+    match job.action {
+        Action::SendEvent(ev) => event_tx.send(ev).unwrap(),
+        Action::SendCommand(cmd) => event_tx.send(Event::Command(cmd)).unwrap(),
+    }
+}
+
+impl Jobs {
     pub fn setup(
         event_tx: crossbeam_channel::Sender<Event>,
         db: sled::Db,
     ) -> Result<(Self, thread::JoinHandle<()>), Error> {
-        let alarm_db = AlarmList {
+        let list = JobList {
             db: db.open_tree("alarms")?,
         };
 
         let (waker_tx, waker_rx) = crossbeam_channel::unbounded();
-        let waker_db_copy = alarm_db.clone();
+        let waker_db_copy = list.clone();
         let waker_thread = thread::spawn(move || waker(waker_db_copy, event_tx, waker_rx));
 
-        Ok((Self { alarm_db, waker_tx }, waker_thread))
+        Ok((Self { list, waker_tx }, waker_thread))
     }
 
     // we decrease the time till the alarm until there is a place in the database
     // as only one alarm can fire at the time, after an alarm gets a timeslot it is never changed
-    pub async fn add_alarm(&self, to_add: Alarm) -> Result<(), Error> {
-        self.alarm_db.add_alarm(to_add).await?;
+    pub async fn add_alarm(&self, to_add: Job) -> Result<(), Error> {
+        self.list.add_alarm(to_add).await?;
         //signal waker to update its next alarm
         self.waker_tx.send(())?;
         Ok(())
     }
-    pub fn remove_alarm(&self, to_remove: u64) -> Result<Option<Alarm>, Error> {
-        let removed_alarm = self.alarm_db.remove_alarm(to_remove)?;
+    pub fn remove_alarm(&self, to_remove: u64) -> Result<Option<Job>, Error> {
+        let removed_alarm = self.list.remove_alarm(to_remove)?;
         self.waker_tx.send(())?; //signal waker to update its next alarm
         Ok(removed_alarm)
     }
 
-    pub fn list(&self) -> Vec<(u64, Alarm)> {
+    pub fn list(&self) -> Vec<(u64, Job)> {
         //self.alarm_list.iter().keys().map(|k| DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(k, 0), Utc);)
         let start: &[u8] = &[0];
-        let alarms = self.alarm_db.db.range(start..);
+        let alarms = self.list.db.range(start..);
 
         let mut list = Vec::new(); //TODO placeholder
         for (key, alarm) in alarms.filter_map(Result::ok) {
@@ -182,10 +180,11 @@ impl Alarms {
     }
 }
 
-impl AlarmList {
+impl JobList {
     // we decrease the time till the alarm until there is a place in the database
     // as only one alarm can fire at the time, after an alarm gets a timeslot it is never changed
-    async fn add_alarm(&self, to_add: Alarm) -> Result<(), Error> {
+    /// return the key for the alarm
+    async fn add_alarm(&self, to_add: Job) -> Result<u64, Error> {
         let mut timestamp = to_add.time.timestamp() as u64;
         let mut timestamp_array = timestamp.to_be_bytes();
         let alarm = bincode::serialize(&to_add).unwrap();
@@ -204,18 +203,18 @@ impl AlarmList {
             timestamp_array = timestamp.to_be_bytes();
         }
         self.db.flush_async().await?;
-        Ok(())
+        Ok(timestamp)
     }
-    pub fn remove_alarm(&self, to_remove: u64) -> Result<Option<Alarm>, Error> {
+    pub fn remove_alarm(&self, to_remove: u64) -> Result<Option<Job>, Error> {
         Ok(self
             .db
             .remove(to_remove.to_be_bytes())?
-            .map(|k| bincode::deserialize::<Alarm>(&k).unwrap()))
+            .map(|k| bincode::deserialize::<Job>(&k).unwrap()))
     }
 
     /// calculate time to the earliest alarm, remove it from the list if the current time is later
     /// then the alarm
-    fn get_next(&mut self) -> Option<(u64, Alarm)> {
+    fn peek_next(&mut self) -> Option<(u64, Job)> {
         //get earliest alarm time in db
         match self.db.get_gt(0u64.to_be_bytes()) {
             Ok(entry) => {

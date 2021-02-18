@@ -36,7 +36,8 @@ pub struct Session {} //TODO deprecate
 #[derive(Clone)]
 pub struct State {
     pub controller_addr: crossbeam_channel::Sender<Event>,
-    pub alarms: input::alarms::Alarms,
+    pub jobs: input::jobs::Jobs,
+    pub wakeup: input::jobs::WakeUp,
     pub passw_db: PasswordDatabase,
     pub sessions: Arc<RwLock<HashMap<u16, Arc<Mutex<Session>>>>>,
     pub free_session_ids: Arc<AtomicUsize>,
@@ -49,7 +50,8 @@ impl State {
     pub fn new(
         passw_db: PasswordDatabase,
         controller_tx: crossbeam_channel::Sender<Event>,
-        alarms: input::alarms::Alarms,
+        jobs: input::jobs::Jobs,
+        wakeup: input::jobs::WakeUp,
         youtube_dl: input::YoutubeDownloader,
         bot_token: String,
         valid_ids: Vec<i64>,
@@ -60,7 +62,8 @@ impl State {
 
         State {
             controller_addr: controller_tx,
-            alarms,
+            jobs,
+            wakeup,
             passw_db,
             youtube_dl,
             sessions,

@@ -1,3 +1,4 @@
+use crossbeam_channel::RecvTimeoutError::*;
 use serde::{Deserialize, Serialize};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -14,6 +15,7 @@ mod commands;
 use commands::handle_cmd;
 
 use crate::errors::Error;
+use crate::input::jobs::WakeUp;
 use crate::input::mpd_status::MpdStatus;
 pub use commands::Command;
 use sensor_value::{Button, Press, SensorValue};
@@ -22,7 +24,7 @@ pub use state::State;
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Event {
     Update,
-    Alarm,
+    WakeUp,
     Test,
     Command(Command),
     Sensor(SensorValue),
@@ -55,11 +57,9 @@ impl Default for Modifications {
 pub struct System {
     update_period: Duration,
     next_update: Instant,
-
     lights: Lighting,
-    mpd: MpdStatus, //mpd
-
-                    //etc
+    mpd: MpdStatus,
+    wakeup: WakeUp,
 }
 
 fn saturating_duration_till(target: std::time::Instant) -> std::time::Duration {
@@ -74,13 +74,14 @@ fn saturating_duration_till(target: std::time::Instant) -> std::time::Duration {
 pub fn start(
     rx: crossbeam_channel::Receiver<Event>,
     mpd_status: MpdStatus,
+    wakeup: WakeUp,
 ) -> Result<thread::JoinHandle<()>, Error> {
     let mut system = System {
         update_period: Duration::from_secs(5),
         next_update: Instant::now() + Duration::from_secs(5),
-
         lights: Lighting::init()?,
         mpd: mpd_status,
+        wakeup,
     };
 
     let handle = thread::spawn(move || {
@@ -96,23 +97,22 @@ pub fn start(
             let time_till_update = saturating_duration_till(system.next_update);
             let event = match rx.recv_timeout(time_till_update) {
                 Ok(event) => event,
-                Err(error) => match error {
-                    crossbeam_channel::RecvTimeoutError::Timeout => {
-                        system.next_update = Instant::now() + system.update_period;
-                        Event::Update
-                    }
-                    crossbeam_channel::RecvTimeoutError::Disconnected => return (),
-                },
+                Err(Timeout) => {
+                    system.next_update = Instant::now() + system.update_period;
+                    Event::Update
+                }
+                Err(Disconnected) => return,
             };
 
-            match handle_event(
+            let res = handle_event(
                 event,
                 current_state,
                 &mut mods,
                 &mut system,
                 &mut env,
                 &mut state,
-            ) {
+            );
+            match res {
                 Err(e) => error!("Ran into an error handling an event: {:?}", e),
                 Ok(Some(target_state)) => {
                     //should switch to another state
@@ -150,7 +150,10 @@ fn handle_event(
         //general code that is the same for all functions, unless specific handlers exist above
         (Event::Command(cmd), _) => handle_cmd(cmd, mods, system),
         (Event::Update, _) => state.update(mods, system, env)?,
-        (Event::Alarm, _) => Some(State::WakeUp),
+        (Event::WakeUp, _) => {
+            system.wakeup.reset();
+            Some(State::WakeUp)
+        }
         (Event::Test, _) => {
             dbg!("a test happend");
             None

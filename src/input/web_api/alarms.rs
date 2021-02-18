@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use super::*;
 use crate::controller::Event;
-use crate::input::alarms::Alarm;
+use crate::input::jobs::Job;
 
 #[derive(Deserialize, Debug)]
 pub struct AlarmDataMinFrom {
@@ -52,9 +52,9 @@ pub async fn set_alarm_unix_timestamp(
         dbg!(Utc::now());
 
         if time > Utc::now() {
-            let alarm = Alarm::from(time, Event::Alarm, Some(Duration::from_secs(3600 * 2)));
+            let alarm = Job::from(time, Event::Alarm, Some(Duration::from_secs(3600 * 2)));
 
-            if state.alarms.add_alarm(alarm).await.is_ok() {
+            if state.jobs.add_alarm(alarm).await.is_ok() {
                 dbg!("done setting alarm");
                 HttpResponse::Ok().finish()
             } else {
@@ -74,7 +74,7 @@ pub async fn set_alarm_unix_timestamp(
 pub fn list_alarms(state: Data<State>) -> HttpResponse {
     //Code to parse alarm time
 
-    let alarms = state.alarms.list();
+    let alarms = state.jobs.list();
     let mut list = String::with_capacity(alarms.len() * 100);
     for (id, alarm) in alarms {
         list.push_str(&format!(

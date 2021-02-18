@@ -1,5 +1,5 @@
-pub mod alarms;
 pub mod bot;
+pub mod jobs;
 pub mod mpd_status;
 pub mod web_api;
 pub mod youtube_downloader;

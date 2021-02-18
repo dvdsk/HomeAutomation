@@ -1,6 +1,6 @@
 use super::send_text;
 use crate::controller::Event;
-use crate::input::alarms::Alarm;
+use crate::input::jobs::Job;
 use crate::input::web_api::server::State;
 use chrono::Duration;
 use chrono::Timelike;
@@ -66,11 +66,7 @@ pub async fn add_alarm<'a>(
         return Err(Error::InvalidMinuteArgument);
     }
 
-    //let now = Amsterdam::now();
     let now = Local::now();
-    //let now = Amsterdam.ymd(2016, 5, 10).and_hms(12, 0, 0);
-    //let now = dt.with_timezone
-
     let alarm_sec_after_midnight = hour * 3600 + min * 60;
     let till_alarm = if alarm_sec_after_midnight < now.num_seconds_from_midnight() {
         let seconds_left_in_day = 3600 * 24 - now.num_seconds_from_midnight();
@@ -81,13 +77,13 @@ pub async fn add_alarm<'a>(
         Duration::seconds(seconds_till_alarm as i64)
     };
 
-    let alarm = Alarm::from(
+    let alarm = Job::from(
         Utc::now() + till_alarm,
         Event::Alarm,
         Some(std::time::Duration::from_secs(3600 * 2)),
     );
 
-    state.alarms.add_alarm(alarm).await.unwrap();
+    state.jobs.add_alarm(alarm).await.unwrap();
 
     let text = format!(
         "set alarm for over {} hours and {} minutes from now",
@@ -103,7 +99,7 @@ pub async fn add_alarm<'a>(
 }
 
 pub async fn list_alarm(chat_id: ChatId, token: &str, state: &State) -> Result<(), Error> {
-    let alarms = state.alarms.list();
+    let alarms = state.jobs.list();
     let mut list = String::with_capacity(alarms.len() * 100);
 
     for (id, alarm) in alarms.into_iter() {
@@ -135,8 +131,8 @@ pub async fn remove_alarm<'a>(
     let to_remove = dbg!(args.next()).ok_or(Error::NoAlarmId)?;
     let to_remove = u64::from_str_radix(to_remove, 16).unwrap();
 
-    let removed = state.alarms.remove_alarm(to_remove).unwrap(); //TODO //FIXME
-                                                                 //.map_err(|_| Error::CouldNotRemove)?;
+    let removed = state.jobs.remove_alarm(to_remove).unwrap(); //TODO //FIXME
+                                                               //.map_err(|_| Error::CouldNotRemove)?;
 
     let text = if let Some(alarm) = removed {
         format!(

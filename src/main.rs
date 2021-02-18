@@ -52,8 +52,9 @@ async fn main() {
 
     let (controller_tx, controller_rx) = crossbeam_channel::unbounded();
 
-    let (alarms, _waker_thread) =
-        input::alarms::Alarms::setup(controller_tx.clone(), db.clone()).unwrap();
+    let (joblist, _waker_thread) =
+        input::jobs::Jobs::setup(controller_tx.clone(), db.clone()).unwrap();
+    let wakeup = input::jobs::WakeUp::setup(db.clone(), joblist.clone()).unwrap();
     let (youtube_dl, _downloader_thread) =
         input::YoutubeDownloader::init(opt.token.clone(), db.clone())
             .await
@@ -61,12 +62,14 @@ async fn main() {
     let (mpd_status, _mpd_watcher_thread, _updater_tx) =
         input::MpdStatus::start_updating().unwrap();
 
-    let _controller_thread = controller::start(controller_rx, mpd_status.clone()).unwrap();
+    let _controller_thread =
+        controller::start(controller_rx, mpd_status.clone(), wakeup.clone()).unwrap();
 
     let state = State::new(
         passw_db,
         controller_tx.clone(),
-        alarms,
+        joblist,
+        wakeup,
         youtube_dl,
         opt.token.clone(),
         opt.valid_ids.clone(),
