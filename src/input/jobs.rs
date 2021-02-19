@@ -153,11 +153,11 @@ impl Jobs {
 
     // we decrease the time till the alarm until there is a place in the database
     // as only one alarm can fire at the time, after an alarm gets a timeslot it is never changed
-    pub async fn add_alarm(&self, to_add: Job) -> Result<(), Error> {
-        self.list.add_alarm(to_add).await?;
+    pub async fn add_alarm(&self, to_add: Job) -> Result<u64, Error> {
+        let id = self.list.add_alarm(to_add).await?;
         //signal waker to update its next alarm
         self.waker_tx.send(())?;
-        Ok(())
+        Ok(id)
     }
     pub fn remove_alarm(&self, to_remove: u64) -> Result<Option<Job>, Error> {
         let removed_alarm = self.list.remove_alarm(to_remove)?;

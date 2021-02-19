@@ -1,10 +1,6 @@
 use super::send_text;
-use crate::controller::Event;
-use crate::input::jobs::Job;
 use crate::input::web_api::server::State;
-use chrono::Duration;
-use chrono::Timelike;
-use chrono::{Local, Utc};
+use chrono::{Local, Utc, Timelike};
 use telegram_bot::types::refs::ChatId;
 
 #[derive(Debug)]
@@ -30,7 +26,8 @@ pub async fn handle<'a>(
 
     match command {
         "list" => list_alarm(chat_id, token, state).await?,
-        "add" => add_alarm(chat_id, token, args, state).await?,
+        "tomorrow" => add_tomorrow(chat_id, token, args, state).await?,
+        "usually" => add_usually(chat_id, token, args, state).await?,
         "remove" => remove_alarm(chat_id, token, args, state).await?,
         &_ => Err(Error::InvalidOption)?,
     }
@@ -38,12 +35,44 @@ pub async fn handle<'a>(
     Ok(())
 }
 
-pub async fn add_alarm<'a>(
+pub async fn add_tomorrow<'a>(
     chat_id: ChatId,
     token: &str,
     mut args: std::str::SplitWhitespace<'a>,
     state: &State,
 ) -> Result<(), Error> {
+    let (hour, min, text) = add_alarm(chat_id, token, args, state)?;
+
+    state.wakeup.set_tomorrow(hour as u8, min as u8).await;
+    send_text(chat_id, token, text)
+        .await
+        .map_err(|_| Error::CouldNotRespond)?;
+
+    Ok(())
+}
+
+pub async fn add_usually<'a>(
+    chat_id: ChatId,
+    token: &str,
+    mut args: std::str::SplitWhitespace<'a>,
+    state: &State,
+) -> Result<(), Error> {
+    let (hour, min, text) = add_alarm(chat_id, token, args, state)?;
+
+    state.wakeup.set_usually(hour as u8, min as u8).await;
+    send_text(chat_id, token, text)
+        .await
+        .map_err(|_| Error::CouldNotRespond)?;
+
+    Ok(())
+}
+
+pub fn add_alarm<'a>(
+    chat_id: ChatId,
+    token: &str,
+    mut args: std::str::SplitWhitespace<'a>,
+    state: &State,
+) -> Result<(u8, u8, String), Error> {
     let time = args.next().ok_or(Error::NoTimeArgument)?;
 
     //assumes hh:mm
@@ -66,24 +95,17 @@ pub async fn add_alarm<'a>(
         return Err(Error::InvalidMinuteArgument);
     }
 
-    let now = Local::now();
-    let alarm_sec_after_midnight = hour * 3600 + min * 60;
-    let till_alarm = if alarm_sec_after_midnight < now.num_seconds_from_midnight() {
-        let seconds_left_in_day = 3600 * 24 - now.num_seconds_from_midnight();
-        Duration::seconds(seconds_left_in_day as i64)
-            + Duration::seconds(alarm_sec_after_midnight as i64)
-    } else {
-        let seconds_till_alarm = alarm_sec_after_midnight - now.num_seconds_from_midnight();
-        Duration::seconds(seconds_till_alarm as i64)
-    };
+    let now = Utc::now();
+    let mut alarm = now
+        .with_hour(hour).unwrap()
+        .with_minute(min).unwrap();
 
-    let alarm = Job::from(
-        Utc::now() + till_alarm,
-        Event::Alarm,
-        Some(std::time::Duration::from_secs(3600 * 2)),
-    );
+    if alarm < now {
+        let tomorrow = now.date().succ();
+        alarm = tomorrow.and_hms(hour, min, 0);
+    }
 
-    state.jobs.add_alarm(alarm).await.unwrap();
+    let till_alarm = alarm-now;
 
     let text = format!(
         "set alarm for over {} hours and {} minutes from now",
@@ -91,11 +113,7 @@ pub async fn add_alarm<'a>(
         till_alarm.num_minutes() % 60
     );
 
-    send_text(chat_id, token, text)
-        .await
-        .map_err(|_| Error::CouldNotRespond)?;
-
-    Ok(())
+    Ok((hour as u8, min as u8, text))
 }
 
 pub async fn list_alarm(chat_id: ChatId, token: &str, state: &State) -> Result<(), Error> {

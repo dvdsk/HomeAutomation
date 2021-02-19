@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc, Timelike};
 use serde::Deserialize;
 use std::time::Duration;
 
@@ -52,9 +52,9 @@ pub async fn set_alarm_unix_timestamp(
         dbg!(Utc::now());
 
         if time > Utc::now() {
-            let alarm = Job::from(time, Event::Alarm, Some(Duration::from_secs(3600 * 2)));
-
-            if state.jobs.add_alarm(alarm).await.is_ok() {
+            let hour = time.time().hour() as u8;
+            let min = time.time().minute() as u8;
+            if state.wakeup.set_tomorrow(hour, min).await.is_ok() {
                 dbg!("done setting alarm");
                 HttpResponse::Ok().finish()
             } else {
