@@ -1,6 +1,6 @@
 use super::send_text;
 use crate::input::web_api::server::State;
-use chrono::{Local, Utc, Timelike};
+use chrono::{Local, Timelike};
 use telegram_bot::types::refs::ChatId;
 
 #[derive(Debug)]
@@ -38,10 +38,10 @@ pub async fn handle<'a>(
 pub async fn add_tomorrow<'a>(
     chat_id: ChatId,
     token: &str,
-    mut args: std::str::SplitWhitespace<'a>,
+    args: std::str::SplitWhitespace<'a>,
     state: &State,
 ) -> Result<(), Error> {
-    let (hour, min, text) = add_alarm(chat_id, token, args, state)?;
+    let (hour, min, text) = parse_args(chat_id, token, args, state)?;
 
     state.wakeup.set_tomorrow(hour as u8, min as u8).await;
     send_text(chat_id, token, text)
@@ -54,10 +54,10 @@ pub async fn add_tomorrow<'a>(
 pub async fn add_usually<'a>(
     chat_id: ChatId,
     token: &str,
-    mut args: std::str::SplitWhitespace<'a>,
+    args: std::str::SplitWhitespace<'a>,
     state: &State,
 ) -> Result<(), Error> {
-    let (hour, min, text) = add_alarm(chat_id, token, args, state)?;
+    let (hour, min, text) = parse_args(chat_id, token, args, state)?;
 
     state.wakeup.set_usually(hour as u8, min as u8).await;
     send_text(chat_id, token, text)
@@ -67,7 +67,7 @@ pub async fn add_usually<'a>(
     Ok(())
 }
 
-pub fn add_alarm<'a>(
+fn parse_args<'a>(
     chat_id: ChatId,
     token: &str,
     mut args: std::str::SplitWhitespace<'a>,
@@ -95,7 +95,7 @@ pub fn add_alarm<'a>(
         return Err(Error::InvalidMinuteArgument);
     }
 
-    let now = Utc::now();
+    let now = Local::now();
     let mut alarm = now
         .with_hour(hour).unwrap()
         .with_minute(min).unwrap();

@@ -13,6 +13,12 @@ impl WakeUp {
         let inner = Arc::new(Mutex::new(inner));
         Ok(Self(inner))
     }
+    pub fn tomorrow(&self) -> Option<(u8,u8)> {
+        self.0.lock().unwrap().tomorrow
+    }
+    pub fn usually(&self) -> Option<(u8,u8)> {
+        self.0.lock().unwrap().usually
+    }
     pub async fn reset(&self) -> Result<(), Error> {
         self.0.lock().unwrap().reset().await
     }

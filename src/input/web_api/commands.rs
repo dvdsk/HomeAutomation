@@ -1,14 +1,39 @@
 use actix_web::web::Data;
 use actix_web_httpauth::extractors::basic::BasicAuth;
-
+use actix_web::http::Method;
+use actix_web::FromRequest;
+use actix_web::web::Bytes;
 use actix_web::HttpResponse;
 
 use super::*;
 use crate::controller::State as TargetState;
 use crate::controller::{Command, Event};
 
-///////////////////// lamp commands ///////////////////////////////
+pub async fn tomorrow(state: Data<State>, auth: BasicAuth, req: HttpRequest, body: Bytes) -> HttpResponse {
+    if !authenticated(auth) {
+        return make_auth_error();
+    }
 
+    match *req.method() {
+        Method::GET => {
+            let tomorrow = state.wakeup.tomorrow();
+            let bytes = bincode::serialize(&tomorrow).unwrap();
+            HttpResponse::Ok().body(bytes)
+        }
+        Method::POST => {
+            match bincode::deserialize(&body) {
+                Ok((hour,min)) => {
+                    state.wakeup.set_tomorrow(hour, min).await; //TODO handle result of this
+                    HttpResponse::Ok().finish()
+                }
+                Err(_) => HttpResponse::BadRequest().body("invalid encoding"),
+            }
+        }
+        _ => HttpResponse::BadRequest().finish(),
+    }
+}
+
+///////////////////// lamp commands ///////////////////////////////
 pub fn toggle(state: Data<State>, auth: BasicAuth) -> HttpResponse {
     if authenticated(auth) {
         state
