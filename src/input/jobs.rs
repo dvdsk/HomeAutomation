@@ -109,7 +109,7 @@ fn waker(
                 Err(Disconnected) => return,
                 Err(Timeout) => {
                     // time to sound the alarm
-                    sound_alarm(&mut alarm_list, &event_tx, current_alarm);
+                    sound_alarm(&event_tx, current_alarm);
                     alarm_list.remove_alarm(id).unwrap();
                     continue; //get next alarm
                 }
@@ -128,7 +128,7 @@ fn waker(
     }
 }
 
-fn sound_alarm(list: &mut JobList, event_tx: &crossbeam_channel::Sender<Event>, job: Job) {
+fn sound_alarm(event_tx: &crossbeam_channel::Sender<Event>, job: Job) {
     match job.action {
         Action::SendEvent(ev) => event_tx.send(ev).unwrap(),
         Action::SendCommand(cmd) => event_tx.send(Event::Command(cmd)).unwrap(),

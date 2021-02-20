@@ -111,15 +111,15 @@ fn wakeup_job(hour: u8, min: u8) -> Job {
 
 fn to_datetime(hour: u8, min: u8) -> DateTime<Utc> {
     let (hour, min) = (hour as u32, min as u32);
-    let now = Utc::now();
+    let now = Local::now();
     let alarm = now
         .with_hour(hour).unwrap()
         .with_minute(min).unwrap();
 
     if alarm < now {
         let tomorrow = now.date().succ();
-        tomorrow.and_hms(hour, min, 0)
+        tomorrow.and_hms(hour, min, 0).into()
     } else {
-        alarm
+        alarm.into()
     }
 }
