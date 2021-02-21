@@ -6,6 +6,7 @@ use actix_web::http::StatusCode;
 use actix_web::web::{Data, Form};
 use actix_web::{HttpRequest, HttpResponse};
 
+mod wakeup;
 mod alarms;
 mod commands;
 mod logins;

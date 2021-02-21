@@ -13,6 +13,7 @@ pub enum Error {
     InvalidMinuteArgument,
     WrongTimeFormat,
     NoAlarmId,
+    BackendError,
 }
 
 pub async fn handle<'a>(
@@ -43,7 +44,7 @@ pub async fn add_tomorrow<'a>(
 ) -> Result<(), Error> {
     let (hour, min, text) = parse_args(chat_id, token, args, state)?;
 
-    state.wakeup.set_tomorrow(hour as u8, min as u8).await;
+    state.wakeup.set_tomorrow(hour as u8, min as u8).await.map_err(|_| Error::BackendError)?;
     send_text(chat_id, token, text)
         .await
         .map_err(|_| Error::CouldNotRespond)?;
@@ -59,7 +60,7 @@ pub async fn add_usually<'a>(
 ) -> Result<(), Error> {
     let (hour, min, text) = parse_args(chat_id, token, args, state)?;
 
-    state.wakeup.set_usually(hour as u8, min as u8).await;
+    state.wakeup.set_usually(hour as u8, min as u8).await.map_err(|_| Error::BackendError)?;
     send_text(chat_id, token, text)
         .await
         .map_err(|_| Error::CouldNotRespond)?;

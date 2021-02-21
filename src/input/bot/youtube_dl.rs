@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use telegram_bot::types::callback_query::CallbackQuery;
 use telegram_bot::types::refs::{ChatId, MessageId};
 
 use super::send_text;

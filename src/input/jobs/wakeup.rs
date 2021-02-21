@@ -1,9 +1,19 @@
 use super::{Jobs, Job, Action};
-use crate::errors::Error;
+// use crate::errors::Error;
 use crate::controller::Event;
 use std::time::Duration;
 use std::sync::{Arc, Mutex};
 use chrono::{Utc, Local, DateTime, Timelike};
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Error modifying wakeup alarms: {0}")]
+    DbError(#[from] sled::Error),
+    #[error("Could not create/edit wakeup job")]
+    JobError(#[from] super::Error),
+
+
+}
 
 #[derive(Clone)]
 pub struct WakeUp(Arc<Mutex<Inner>>); 
@@ -19,8 +29,8 @@ impl WakeUp {
     pub fn usually(&self) -> Option<(u8,u8)> {
         self.0.lock().unwrap().usually
     }
-    pub async fn reset(&self) -> Result<(), Error> {
-        self.0.lock().unwrap().reset().await
+    pub fn reset(&self) -> Result<(), Error> {
+        self.0.lock().unwrap().reset()
     }
     pub async fn set_tomorrow(&self, hour: u8, min: u8) -> Result<(), Error> {
         self.0.lock().unwrap().set_tomorrow(hour, min).await
@@ -78,10 +88,11 @@ impl Inner {
         Ok(())
     }
 
-    pub async fn reset(&mut self) -> Result<(),Error> {
+    pub fn reset(&mut self) -> Result<(),Error> {
         if let Some((hour,min)) = self.usually {
             let job = wakeup_job(hour, min);
-            self.add_new_job(job).await?;
+            let add = self.add_new_job(job);
+            smol::block_on(add)?;
         }
         Ok(())
     }

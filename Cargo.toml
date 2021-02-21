@@ -15,6 +15,7 @@ live_server = []
 
 [dependencies]
 futures = "0.3"
+smol = "1.2"
 async-std = "1"
 async-trait = "0.1"
 
@@ -37,6 +38,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.8"
 bincode = "1.3.1"
 
+thiserror = "1.0"
 log = "0.4"
 fern = { version = "0.5.6", features = ["colored"] }
 
@@ -44,7 +46,6 @@ sensor_value = { git = "https://github.com/dskleingeld/sensor_central.git", bran
 gpio-cdev = { git = "https://github.com/rust-embedded/gpio-cdev", branch = "master" }
 nix = "0.17"
 
-#tokio = "0.1.15"
 ring = "0.16"
 
 linux-embedded-hal = "0.2"
@@ -72,4 +73,3 @@ retry = "0.5"
 telegram-bot = {version = "0.7", default-features = false, features = ["rustls"]}
 serde_json = "1.0"
 regex = "1"
-#id3 = "0.5.0"

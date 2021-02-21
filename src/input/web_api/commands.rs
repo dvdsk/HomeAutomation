@@ -9,30 +9,6 @@ use super::*;
 use crate::controller::State as TargetState;
 use crate::controller::{Command, Event};
 
-pub async fn tomorrow(state: Data<State>, auth: BasicAuth, req: HttpRequest, body: Bytes) -> HttpResponse {
-    if !authenticated(auth) {
-        return make_auth_error();
-    }
-
-    match *req.method() {
-        Method::GET => {
-            let tomorrow = state.wakeup.tomorrow();
-            let bytes = bincode::serialize(&tomorrow).unwrap();
-            HttpResponse::Ok().body(bytes)
-        }
-        Method::POST => {
-            match bincode::deserialize(&body) {
-                Ok((hour,min)) => {
-                    state.wakeup.set_tomorrow(hour, min).await; //TODO handle result of this
-                    HttpResponse::Ok().finish()
-                }
-                Err(_) => HttpResponse::BadRequest().body("invalid encoding"),
-            }
-        }
-        _ => HttpResponse::BadRequest().finish(),
-    }
-}
-
 ///////////////////// lamp commands ///////////////////////////////
 pub fn toggle(state: Data<State>, auth: BasicAuth) -> HttpResponse {
     if authenticated(auth) {

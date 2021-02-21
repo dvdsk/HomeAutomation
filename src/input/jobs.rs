@@ -9,7 +9,6 @@ use sled;
 
 use crate::controller::Command;
 use crate::controller::Event;
-use crate::errors::Error;
 
 mod wakeup;
 pub use wakeup::WakeUp;
@@ -18,6 +17,14 @@ pub use wakeup::WakeUp;
 pub enum Action {
     SendEvent(Event),
     SendCommand(Command),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Could store/edit job on disk")]
+    DbError(#[from] sled::Error),
+    #[error("Could not inform waker about new job")]
+    CommError(#[from] crossbeam_channel::SendError<()>),
 }
 
 impl From<Event> for Action {

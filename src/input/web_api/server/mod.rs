@@ -26,7 +26,7 @@ pub mod database;
 pub mod login;
 pub mod login_redirect;
 
-use super::{alarms, commands, music};
+use super::{alarms, wakeup, commands, music};
 pub use database::PasswordDatabase;
 pub use login::{login_get_and_check, login_page, logout, make_random_cookie_key};
 pub use login_redirect::CheckLogin;
@@ -172,8 +172,8 @@ pub fn start_webserver(
                 .service(web::resource("/commands/lamps/dimmest").to(commands::dimmest))
                 .service(web::resource("/commands/lamps/dim").to(commands::dim))
                 .service(web::resource("/commands/lightloop").to(commands::lightloop))
-                .service(web::resource("/alarm/tomorrow").to(commands::tomorrow))
-                // .service(web::resource("/alarm/usually").to(commands::usually))
+                .service(web::resource("/alarm/tomorrow").to(wakeup::tomorrow))
+                .service(web::resource("/alarm/usually").to(wakeup::usually))
                 .service(web::resource(&format!("/{}", &state.bot_token)).to(bot::handle_webhook))
                 .service(
                     web::resource(&format!("/{}", ha_key)).route(web::post().to(handle_sensor)),
