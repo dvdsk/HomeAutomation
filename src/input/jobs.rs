@@ -171,13 +171,15 @@ impl Jobs {
         self.waker_tx.send(())?; //signal waker to update its next alarm
         Ok(removed_alarm)
     }
+    pub fn get(&self, id: u64) -> Result<Option<Job>, Error> {
+        self.list.get_alarm(id)
+    }
 
     pub fn list(&self) -> Vec<(u64, Job)> {
-        //self.alarm_list.iter().keys().map(|k| DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(k, 0), Utc);)
         let start: &[u8] = &[0];
         let alarms = self.list.db.range(start..);
 
-        let mut list = Vec::new(); //TODO placeholder
+        let mut list = Vec::new();
         for (key, alarm) in alarms.filter_map(Result::ok) {
             let alarm = bincode::deserialize(&alarm).unwrap();
             let key = key.as_ref().read_u64::<BigEndian>().unwrap();
@@ -188,6 +190,13 @@ impl Jobs {
 }
 
 impl JobList {
+    pub fn get_alarm(&self, id: u64) -> Result<Option<Job>, Error> {
+        Ok(self
+            .db
+            .get(id.to_be_bytes())?
+            .map(|k| bincode::deserialize::<Job>(&k).unwrap()))
+    }
+
     // we decrease the time till the alarm until there is a place in the database
     // as only one alarm can fire at the time, after an alarm gets a timeslot it is never changed
     /// return the key for the alarm

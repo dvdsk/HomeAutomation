@@ -51,18 +51,18 @@ struct Inner {
 impl Inner {
     pub fn setup(db: sled::Db, jobs: Jobs) -> Result<Self, Error> {
         let db = db.open_tree("wakeup")?;
-        let tomorrow = db
-            .get("tomorrow")
-            .unwrap()
-            .map(|b| bincode::deserialize(&b).unwrap());
         let usually = db
-            .get("usually")
-            .unwrap()
+            .get("usually")?
             .map(|b| bincode::deserialize(&b).unwrap());
         let job_id = db
-            .get("job_id")
-            .unwrap()
+            .get("job_id")?
             .map(|b| bincode::deserialize(&b).unwrap());
+        let tomorrow = job_id.as_ref()
+            .map(|id| jobs.get(*id).ok())
+            .flatten().flatten()
+            .map(|job| job.time.into())
+            .map(|t: DateTime<Local>| (t.hour() as u8, t.minute() as u8))
+            .filter(|tomorrow| Some(*tomorrow) != usually);
 
         Ok(Self {
             db,
@@ -73,18 +73,21 @@ impl Inner {
         })
     }
 
-    fn remove_existing_job(&self) {
-        if let Some(job_id) = self.job_id {
-            self.jobs.remove_alarm(job_id).unwrap();
+    fn register_new_job(&mut self, id: u64) -> Result<(), Error> {
+        self.job_id = Some(id);
+        let bytes = bincode::serialize(&id).unwrap();
+        if let Some(bytes) = self.db.insert("job_id", bytes)? {
+            let old_job_id = bincode::deserialize(&bytes).unwrap();
+            self.jobs.remove_alarm(old_job_id)?;
         }
+        Ok(())
     }
 
     async fn add_new_job(&mut self, job: Job) -> Result<(),Error> {
         let id = self.jobs
             .add_alarm(job)
             .await?;
-        self.remove_existing_job();
-        self.job_id = Some(id);
+        self.register_new_job(id)?;
         Ok(())
     }
 
@@ -94,6 +97,7 @@ impl Inner {
             let add = self.add_new_job(job);
             smol::block_on(add)?;
         }
+        self.tomorrow = None;
         Ok(())
     }
 
