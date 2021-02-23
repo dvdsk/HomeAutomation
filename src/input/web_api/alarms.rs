@@ -1,10 +1,7 @@
 use chrono::{DateTime, NaiveDateTime, Utc, Timelike};
 use serde::Deserialize;
-use std::time::Duration;
 
 use super::*;
-use crate::controller::Event;
-use crate::input::jobs::Job;
 
 #[derive(Deserialize, Debug)]
 pub struct AlarmDataMinFrom {
@@ -12,7 +9,6 @@ pub struct AlarmDataMinFrom {
 }
 
 pub fn set_alarm_minutes_from_now(
-    req: HttpRequest,
     params: Form<AlarmDataMinFrom>,
     state: Data<State>,
     auth: BasicAuth,
@@ -54,7 +50,8 @@ pub async fn set_alarm_unix_timestamp(
         if time > Utc::now() {
             let hour = time.time().hour() as u8;
             let min = time.time().minute() as u8;
-            if state.wakeup.set_tomorrow(hour, min).await.is_ok() {
+            let time = Some((hour,min));
+            if state.wakeup.set_tomorrow(time).await.is_ok() {
                 dbg!("done setting alarm");
                 HttpResponse::Ok().finish()
             } else {

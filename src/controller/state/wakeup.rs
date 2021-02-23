@@ -29,11 +29,11 @@ impl WakeUp {
     fn setup_playlist() -> Result<(), Error> {
         let mpd = &mut retry(Fixed::from_millis(100), || {
             mpd::Client::connect("127.0.0.1:6600")
-        })?;
+        }).unwrap();//?;
         dbg!();
         retry(Fixed::from_millis(100).take(3), || {
             system::mpd_control::save_current_playlist(mpd)
-        })?;
+        }).unwrap();//?;
         dbg!();
         retry(Fixed::from_millis(100).take(3), || {
             system::mpd_control::add_from_playlist(
@@ -42,7 +42,7 @@ impl WakeUp {
                 chrono::Duration::seconds(3 * 60),
                 chrono::Duration::seconds(5 * 60),
             )
-        })?;
+        }).unwrap();//?;
         dbg!();
         retry(Fixed::from_millis(100).take(3), || {
             system::mpd_control::add_from_playlist(
@@ -51,7 +51,7 @@ impl WakeUp {
                 chrono::Duration::seconds(10 * 60),
                 chrono::Duration::seconds(11 * 60),
             )
-        })?;
+        }).unwrap();//?;
         retry(Fixed::from_millis(100).take(3), || {
             system::mpd_control::add_from_playlist(
                 mpd,
@@ -59,7 +59,7 @@ impl WakeUp {
                 chrono::Duration::seconds(30 * 60),
                 chrono::Duration::seconds(60 * 60),
             )
-        })?;
+        }).unwrap();//?;
         Ok(())
     }
 }

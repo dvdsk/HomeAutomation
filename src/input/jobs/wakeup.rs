@@ -1,5 +1,4 @@
 use super::{Jobs, Job, Action};
-// use crate::errors::Error;
 use crate::controller::Event;
 use std::time::Duration;
 use std::sync::{Arc, Mutex};
@@ -11,8 +10,6 @@ pub enum Error {
     DbError(#[from] sled::Error),
     #[error("Could not create/edit wakeup job")]
     JobError(#[from] super::Error),
-
-
 }
 
 #[derive(Clone)]
@@ -32,18 +29,19 @@ impl WakeUp {
     pub fn reset(&self) -> Result<(), Error> {
         self.0.lock().unwrap().reset()
     }
-    pub async fn set_tomorrow(&self, hour: u8, min: u8) -> Result<(), Error> {
-        self.0.lock().unwrap().set_tomorrow(hour, min).await
+    pub async fn set_tomorrow(&self, time: Time) -> Result<(), Error> {
+        self.0.lock().unwrap().set_tomorrow(time).await
     }
-    pub async fn set_usually(&self, hour: u8, min: u8) -> Result<(), Error> {
-        self.0.lock().unwrap().set_usually(hour, min).await
+    pub async fn set_usually(&self, time: Time) -> Result<(), Error> {
+        self.0.lock().unwrap().set_usually(time).await
     }
 }
 
+type Time = Option<(u8, u8)>;
 struct Inner {
     db: sled::Tree,
-    pub tomorrow: Option<(u8, u8)>,
-    pub usually: Option<(u8, u8)>,
+    pub tomorrow: Time,
+    pub usually: Time,
     job_id: Option<u64>,
     jobs: Jobs,
 }
@@ -73,7 +71,7 @@ impl Inner {
         })
     }
 
-    fn register_new_job(&mut self, id: u64) -> Result<(), Error> {
+    fn save_job_id(&mut self, id: u64) -> Result<(), Error> {
         self.job_id = Some(id);
         let bytes = bincode::serialize(&id).unwrap();
         if let Some(bytes) = self.db.insert("job_id", bytes)? {
@@ -83,40 +81,61 @@ impl Inner {
         Ok(())
     }
 
-    async fn add_new_job(&mut self, job: Job) -> Result<(),Error> {
+    async fn replace_current(&mut self, job: Job) -> Result<(),Error> {
         let id = self.jobs
             .add_alarm(job)
             .await?;
-        self.register_new_job(id)?;
+        self.save_job_id(id)?;
         Ok(())
     }
 
+    async fn remove_current(&mut self) -> Result<(), Error> {
+        self.jobs.remove_alarm(self.job_id.unwrap())?;
+        self.job_id = None;
+        Ok(())
+    }
+
+    /// reset the alarm, if their is a usual alarm
+    /// time we set that, otherwise remove all
     pub fn reset(&mut self) -> Result<(),Error> {
         if let Some((hour,min)) = self.usually {
-            let job = wakeup_job(hour, min);
-            let add = self.add_new_job(job);
+            let job = job_from(hour, min);
+            let add = self.replace_current(job);
             smol::block_on(add)?;
+        } else {
+            let remove = self.remove_current();
+            smol::block_on(remove)?;
         }
         self.tomorrow = None;
         Ok(())
     }
 
-    pub async fn set_tomorrow(&mut self, hour: u8, min: u8) -> Result<(),Error> {
-        let job = wakeup_job(hour, min);
-        self.tomorrow = Some((hour,min));
-        self.add_new_job(job).await?;
+    pub async fn set_tomorrow(&mut self, time: Time) -> Result<(),Error> {
+        match time {
+            None => self.reset()?,
+            Some((hour, min)) => {
+                let job = job_from(hour, min);
+                self.replace_current(job).await?;
+            }
+        }
+        self.tomorrow = time;
         Ok(())
     }
 
-    pub async fn set_usually(&mut self, hour: u8, min: u8) -> Result<(), Error> {
-        let job = wakeup_job(hour, min);
-        self.usually = Some((hour,min));
-        self.add_new_job(job).await?;
+    pub async fn set_usually(&mut self, time: Time) -> Result<(), Error> {
+        match time {
+            None => self.reset()?,
+            Some((hour, min)) => {
+                let job = job_from(hour, min);
+                self.replace_current(job).await?;
+            }
+        }
+        self.usually = time;
         Ok(())
     }
 }
 
-fn wakeup_job(hour: u8, min: u8) -> Job {
+fn job_from(hour: u8, min: u8) -> Job {
     Job {
         time: to_datetime(hour,min),
         action: Action::SendEvent(Event::WakeUp),

@@ -10,7 +10,7 @@ use sled;
 use crate::controller::Command;
 use crate::controller::Event;
 
-mod wakeup;
+pub mod wakeup;
 pub use wakeup::WakeUp;
 
 #[derive(Serialize, Deserialize, Debug)]

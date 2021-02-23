@@ -3,104 +3,32 @@ use fern::colors::{Color, ColoredLevelConfig};
 use crate::input::web_api::server;
 use crate::input::youtube_downloader;
 
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum Error {
-    IO(std::io::Error),
-    YamlParsing(serde_yaml::Error),
-    Channel(crossbeam_channel::SendError<()>),
-    DataBase(sled::Error),
-    Download(reqwest::Error),
-    Lamps(philipshue::errors::HueError),
-    Mpd(mpd::error::Error),
+    #[error("Io error")]
+    IO(#[from] std::io::Error),
+    #[error("Could not parse yaml")]
+    YamlParsing(#[from] serde_yaml::Error),
+    #[error("Channel send error")]
+    Channel(#[from] crossbeam_channel::SendError<()>),
+    #[error("Database error")]
+    DataBase(#[from] sled::Error),
+    #[error("Could not download youtube")]
+    Download(#[from] reqwest::Error),
+    #[error("Error contacting hue")]
+    Lamps(#[from] philipshue::errors::HueError),
+    #[error("Error contacting mpd")]
+    Mpd(#[from] mpd::error::Error),
+    #[error("TODO")]
     RetryLogic(String),
+    #[error("Could not download youtube movie")]
     YoutubeDownloader(youtube_downloader::Error),
+    #[error("Problem handeling web requests")]
     WebServerError(server::Error),
+    #[error("Wakeup system")]
+    WakeUp(#[from] crate::input::jobs::wakeup::Error),
+    #[error("untracked error")]
     UnTracked,
-}
-
-impl From<server::Error> for Error {
-    fn from(err: server::Error) -> Self {
-        Error::WebServerError(err)
-    }
-}
-
-impl From<youtube_downloader::Error> for Error {
-    fn from(err: youtube_downloader::Error) -> Self {
-        Error::YoutubeDownloader(err)
-    }
-}
-
-impl From<serde_yaml::Error> for Error {
-    fn from(error: serde_yaml::Error) -> Self {
-        Error::YamlParsing(error)
-    }
-}
-impl From<std::io::Error> for Error {
-    fn from(error: std::io::Error) -> Self {
-        Error::IO(error)
-    }
-}
-
-impl From<crossbeam_channel::SendError<()>> for Error {
-    fn from(error: crossbeam_channel::SendError<()>) -> Self {
-        Error::Channel(error)
-    }
-}
-
-impl From<reqwest::Error> for Error {
-    fn from(error: reqwest::Error) -> Self {
-        Error::Download(error)
-    }
-}
-
-impl From<retry::Error<Error>> for Error {
-    fn from(error: retry::Error<Error>) -> Self {
-        match error {
-            retry::Error::Operation {
-                error,
-                total_delay: _total_delay,
-                tries: _tries,
-            } => error,
-            retry::Error::Internal(error_str) => Error::RetryLogic(error_str),
-        }
-    }
-}
-
-impl From<retry::Error<mpd::error::Error>> for Error {
-    fn from(error: retry::Error<mpd::error::Error>) -> Self {
-        match error {
-            retry::Error::Operation {
-                error,
-                total_delay: _total_delay,
-                tries: _tries,
-            } => Error::Mpd(error),
-            retry::Error::Internal(error_str) => Error::RetryLogic(error_str),
-        }
-    }
-}
-
-impl From<sled::Error> for Error {
-    fn from(error: sled::Error) -> Self {
-        Error::DataBase(error)
-    }
-}
-
-impl From<()> for Error {
-    fn from(_error: ()) -> Self {
-        Error::UnTracked
-    }
-}
-
-impl From<philipshue::errors::HueError> for Error {
-    fn from(error: philipshue::errors::HueError) -> Self {
-        Error::Lamps(error)
-    }
-}
-
-impl From<mpd::error::Error> for Error {
-    fn from(error: mpd::error::Error) -> Self {
-        Error::Mpd(error)
-    }
 }
 
 pub fn setup_logging(verbosity: u8) -> Result<(), fern::InitError> {

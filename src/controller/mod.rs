@@ -151,7 +151,7 @@ fn handle_event(
         (Event::Command(cmd), _) => handle_cmd(cmd, mods, system),
         (Event::Update, _) => state.update(mods, system, env)?,
         (Event::WakeUp, _) => {
-            system.wakeup.reset();
+            system.wakeup.reset()?;
             Some(State::WakeUp)
         }
         (Event::Test, _) => {

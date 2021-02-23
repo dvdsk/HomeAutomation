@@ -1,8 +1,5 @@
 use actix_web::web::Data;
 use actix_web_httpauth::extractors::basic::BasicAuth;
-use actix_web::http::Method;
-use actix_web::FromRequest;
-use actix_web::web::Bytes;
 use actix_web::HttpResponse;
 
 use super::*;

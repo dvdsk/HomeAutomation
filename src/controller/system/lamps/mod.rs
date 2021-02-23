@@ -123,7 +123,7 @@ fn get_bridge_and_status() -> Result<(Bridge, BTreeMap<usize, philipshue::hue::L
                     },
                     _,
                 )) => {
-                    login = register(&ip)?;
+                    login = register(&ip).map_err(|_| Error::UnTracked)?;
                     update_ip_or_login = true;
                 }
                 Err(e) => {
@@ -134,7 +134,7 @@ fn get_bridge_and_status() -> Result<(Bridge, BTreeMap<usize, philipshue::hue::L
         }
     } else {
         let ip = find_bridge_ip()?;
-        let login = register(&ip)?;
+        let login = register(&ip).map_err(|_| Error::UnTracked)?;
         if update_saved_bridge_info(&ip, &login).is_err() {
             error!("Could not save new bridge ip and login, next run will fail without user intervention")
         };

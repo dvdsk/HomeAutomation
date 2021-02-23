@@ -9,7 +9,7 @@ pub struct Environment {
 }
 
 impl Environment {
-    pub fn update(&self, s: SensorValue) {}
+    pub fn update(&self, _: SensorValue) {}
 }
 
 impl std::default::Default for Environment {
