@@ -9,7 +9,7 @@ pub fn add_from_playlist(
     name: &str,
     minimal_play_time: Duration,
     maximal_play_time: Duration,
-) -> Result<(), Error> {
+) -> Result<(), mpd::error::Error> {
     let mut rng = rand::thread_rng();
 
     let songs = mpd.playlist(name);
@@ -104,11 +104,8 @@ pub fn pause() -> Result<(), Error> {
     Ok(())
 }
 
-pub fn save_current_playlist(mpd: &mut mpd::Client) -> Result<(), Error> {
-    dbg!();
+pub fn save_current_playlist(mpd: &mut mpd::Client) -> Result<(), mpd::error::Error> {
     mpd.pl_remove("temp")?;
-    dbg!();
     mpd.save("temp")?;
-    dbg!();
     Ok(())
 }

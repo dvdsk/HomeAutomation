@@ -16,7 +16,7 @@ pub use off::Off;
 pub use quiet::Quiet;
 pub use silent::Silent;
 pub use sleep::Sleep;
-pub use wakeup::WakeUp;
+pub use wakeup::{WakeUp, WakeUpStateError};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum State {

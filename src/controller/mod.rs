@@ -19,7 +19,7 @@ use crate::input::jobs::WakeUp;
 use crate::input::mpd_status::MpdStatus;
 pub use commands::Command;
 use sensor_value::{Button, Press, SensorValue};
-pub use state::State;
+pub use state::{State, WakeUpStateError};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Event {

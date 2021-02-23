@@ -25,8 +25,10 @@ pub enum Error {
     YoutubeDownloader(youtube_downloader::Error),
     #[error("Problem handeling web requests")]
     WebServerError(server::Error),
-    #[error("Wakeup system")]
-    WakeUp(#[from] crate::input::jobs::wakeup::Error),
+    #[error("Error in the wakeup alarm system")]
+    SetWakeUp(#[from] crate::input::jobs::wakeup::Error),
+    #[error("Error in wakeup state")]
+    WakeUpState(#[from] crate::controller::WakeUpStateError),
     #[error("untracked error")]
     UnTracked,
 }
