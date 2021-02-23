@@ -42,6 +42,8 @@ impl WakeUp {
             system::mpd_control::save_current_playlist(mpd)
         }).map_err(WakeUpStateError::SetupPlaylist)?;
 
+        // note if playlist does not exist we do not 
+        // report an error
         retry(Fixed::from_millis(100).take(3), || {
             system::mpd_control::add_from_playlist(
                 mpd,
@@ -84,6 +86,7 @@ impl WakeUp {
 
         Self::setup_playlist()?;
         sys.lights.set_all_ct(0, CT_BEGIN)?;
+        sys.lights.all_on()?;
 
         Ok(Box::new(Self {
             start: Instant::now(),
@@ -107,10 +110,6 @@ impl RoomState for WakeUp {
 
         // do nothing to the lighting if the user changed it
         if !mods.lighting {
-            if sys.lights.numb_on() < 3 {
-                sys.lights.all_on()?;
-            }
-
             let bri = (BRI_PER_SECOND * (elapsed as f32)) as u8;
             let ct = CT_BEGIN - (CT_PER_SECOND * (elapsed as f32)) as u16;
             sys.lights.set_all_ct(dbg!(bri), ct)?;

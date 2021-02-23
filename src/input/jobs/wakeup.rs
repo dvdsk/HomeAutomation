@@ -55,11 +55,13 @@ impl Inner {
         let job_id = db
             .get("job_id")?
             .map(|b| bincode::deserialize(&b).unwrap());
-        let tomorrow = job_id.as_ref()
+        let next_alarm = job_id.as_ref()
             .map(|id| jobs.get(*id).ok())
             .flatten().flatten()
             .map(|job| job.time.into())
-            .map(|t: DateTime<Local>| (t.hour() as u8, t.minute() as u8))
+            .map(|t: DateTime<Local>| t)
+            .map(|t| (t.hour() as u8, t.minute() as u8));
+        let tomorrow = next_alarm 
             .filter(|tomorrow| Some(*tomorrow) != usually);
 
         Ok(Self {
@@ -71,6 +73,7 @@ impl Inner {
         })
     }
 
+    /// stores a new job
     fn save_job_id(&mut self, id: u64) -> Result<(), Error> {
         self.job_id = Some(id);
         let bytes = bincode::serialize(&id).unwrap();
@@ -146,14 +149,14 @@ fn job_from(hour: u8, min: u8) -> Job {
 fn to_datetime(hour: u8, min: u8) -> DateTime<Utc> {
     let (hour, min) = (hour as u32, min as u32);
     let now = Local::now();
-    let alarm = now
-        .with_hour(hour).unwrap()
-        .with_minute(min).unwrap();
+    let today = now.date();
+    let alarm = today.and_hms(hour,min, 0);
 
     if alarm < now {
         let tomorrow = now.date().succ();
-        tomorrow.and_hms(hour, min, 0).into()
+        tomorrow.and_hms(hour, min, 0)
+            .with_timezone(&Utc)
     } else {
-        alarm.into()
+        alarm.with_timezone(&Utc)
     }
 }
