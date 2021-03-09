@@ -15,9 +15,9 @@ const CT_PER_SECOND: f32 = ((CT_BEGIN - CT_END) as f32) / (WAKEUP_DURATION as f3
 const BRI_PER_SECOND: f32 = 254. / (WAKEUP_DURATION as f32); //in seconds
 
 const MUSIC_ON: u64 = 60 * 5;
-const MAX_VOLUME: i8 = 40;
-const MIN_VOLUME: i8 = 10;
-const VOL_PER_SECOND: f32 = (MAX_VOLUME - MIN_VOLUME) as f32 / (WAKEUP_DURATION - MUSIC_ON) as f32;
+const MAX_VOLUME: f32 = 20.;
+const MIN_VOLUME: f32 = 3.;
+const VOL_PER_SECOND: f32 = (MAX_VOLUME - MIN_VOLUME) / (WAKEUP_DURATION - MUSIC_ON) as f32;
 
 #[derive(thiserror::Error, Debug)]
 pub enum WakeUpStateError {
@@ -76,7 +76,7 @@ impl WakeUp {
 
 impl WakeUp {
     pub fn setup(mods: &mut Modifications, sys: &mut System) -> Result<Box<dyn RoomState>, Error> {
-        dbg!("starting wakeup state");
+        log::info!("starting wakeup state");
         sys.update_period = Duration::from_secs(UPDATE_PERIOD);
         sys.next_update = Instant::now() + sys.update_period;
 
@@ -119,12 +119,14 @@ impl RoomState for WakeUp {
         if !mods.mpd {
             if !self.playing && elapsed > MUSIC_ON {
                 let mut client = mpd::Client::connect("127.0.0.1:6600")?;
-                client.volume(dbg!(MIN_VOLUME))?;
+                client.volume(dbg!(MIN_VOLUME) as i8)?;
                 client.play()?;
+                self.playing = true;
             } else if elapsed > MUSIC_ON {
                 let since_music_on = elapsed.saturating_sub(MUSIC_ON);
                 let mut client = mpd::Client::connect("127.0.0.1:6600")?;
-                client.volume(dbg!(dbg!(VOL_PER_SECOND) * dbg!(since_music_on) as f32) as i8)?;
+                let volume = MIN_VOLUME + VOL_PER_SECOND * (since_music_on as f32); 
+                client.volume(volume as i8)?;
             }
         }
 

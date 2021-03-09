@@ -92,7 +92,7 @@ async fn handle_command(
         "/test" => {
             send_text(chat_id, token, "hi").await?;
         }
-        "/alarm" => {
+        "/wakeup" => {
             set_alarm::handle(chat_id, token, split, state).await?;
         }
         &_ => {

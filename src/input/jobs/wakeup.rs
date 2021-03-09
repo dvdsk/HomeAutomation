@@ -4,6 +4,11 @@ use std::time::Duration;
 use std::sync::{Arc, Mutex};
 use chrono::{Utc, Local, DateTime, Timelike};
 
+// TODO FIXME multiple things left to do:
+// - usually and tomorrow are not written to db
+// - setting usually none goes wrong if tomorrow is not none 
+// - recheck set tomorrow and set usually carefull
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Error modifying wakeup alarms: {0}")]
@@ -27,13 +32,19 @@ impl WakeUp {
         self.0.lock().unwrap().usually
     }
     pub fn reset(&self) -> Result<(), Error> {
-        self.0.lock().unwrap().reset()
+        self.0.lock().unwrap().reset()?;
+        log::info!("alarm system reset correctly");
+        Ok(())
     }
     pub async fn set_tomorrow(&self, time: Time) -> Result<(), Error> {
-        self.0.lock().unwrap().set_tomorrow(time).await
+        self.0.lock().unwrap().set_tomorrow(time).await?;
+        log::info!("alarm tomorrow set to: time");
+        Ok(())
     }
     pub async fn set_usually(&self, time: Time) -> Result<(), Error> {
-        self.0.lock().unwrap().set_usually(time).await
+        self.0.lock().unwrap().set_usually(time).await?;
+        log::info!("alarm usually set to: time");
+        Ok(())
     }
 }
 
@@ -84,7 +95,13 @@ impl Inner {
         Ok(())
     }
 
-    async fn replace_current(&mut self, job: Job) -> Result<(),Error> {
+    fn save_usually(&mut self, usually: &Time) -> Result<(), Error> {
+        let bytes = bincode::serialize(dbg!(usually)).unwrap();
+        self.db.insert("usually", bytes)?;
+        Ok(())
+    }
+
+    async fn replace_job(&mut self, job: Job) -> Result<(),Error> {
         let id = self.jobs
             .add_alarm(job)
             .await?;
@@ -92,7 +109,7 @@ impl Inner {
         Ok(())
     }
 
-    async fn remove_current(&mut self) -> Result<(), Error> {
+    fn remove_job(&mut self) -> Result<(), Error> {
         self.jobs.remove_alarm(self.job_id.unwrap())?;
         self.job_id = None;
         Ok(())
@@ -103,11 +120,8 @@ impl Inner {
     pub fn reset(&mut self) -> Result<(),Error> {
         if let Some((hour,min)) = self.usually {
             let job = job_from(hour, min);
-            let add = self.replace_current(job);
+            let add = self.replace_job(job);
             smol::block_on(add)?;
-        } else {
-            let remove = self.remove_current();
-            smol::block_on(remove)?;
         }
         self.tomorrow = None;
         Ok(())
@@ -118,7 +132,7 @@ impl Inner {
             None => self.reset()?,
             Some((hour, min)) => {
                 let job = job_from(hour, min);
-                self.replace_current(job).await?;
+                self.replace_job(job).await?;
             }
         }
         self.tomorrow = time;
@@ -127,10 +141,16 @@ impl Inner {
 
     pub async fn set_usually(&mut self, time: Time) -> Result<(), Error> {
         match time {
-            None => self.reset()?,
             Some((hour, min)) => {
+                self.save_usually(&time)?;
                 let job = job_from(hour, min);
-                self.replace_current(job).await?;
+                self.replace_job(job).await?;
+            }
+            None => {
+                self.db.remove("usually")?;
+                if self.tomorrow.is_none() {
+                    self.remove_job()?;
+                }
             }
         }
         self.usually = time;

@@ -26,7 +26,7 @@ pub mod database;
 pub mod login;
 pub mod login_redirect;
 
-use super::{alarms, wakeup, commands, music};
+use super::{wakeup, commands, music};
 pub use database::PasswordDatabase;
 pub use login::{login_get_and_check, login_page, logout, make_random_cookie_key};
 pub use login_redirect::CheckLogin;
@@ -184,8 +184,6 @@ pub fn start_webserver(
                         .service(web::resource("").to(index))
                         .service(web::resource("logout/").to(logout))
                         .service(web::resource("add_song").to(music::add_song_from_url))
-                        .service(web::resource("set_alarm").to(alarms::set_alarm_unix_timestamp))
-                        .service(web::resource("list_alarms").to(alarms::list_alarms))
                         //for all other urls we try to resolve to static files in the "web" dir
                         .service(axtix_fs::Files::new("", "./web/")),
                 )

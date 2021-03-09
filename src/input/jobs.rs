@@ -221,11 +221,14 @@ impl JobList {
         self.db.flush_async().await?;
         Ok(timestamp)
     }
+
     pub fn remove_alarm(&self, to_remove: u64) -> Result<Option<Job>, Error> {
-        Ok(self
+        let old_alarm = self
             .db
             .remove(to_remove.to_be_bytes())?
-            .map(|k| bincode::deserialize::<Job>(&k).unwrap()))
+            .map(|k| bincode::deserialize::<Job>(&k).unwrap());
+        self.db.flush()?;
+        Ok(old_alarm)
     }
 
     /// calculate time to the earliest alarm, remove it from the list if the current time is later
