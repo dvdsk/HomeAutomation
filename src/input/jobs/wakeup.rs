@@ -60,15 +60,17 @@ struct Inner {
 impl Inner {
     pub fn setup(db: sled::Db, jobs: Jobs) -> Result<Self, Error> {
         let db = db.open_tree("wakeup")?;
+
         let usually = db
             .get("usually")?
-            .map(|b| bincode::deserialize(&b).unwrap());
+            .map(|b| bincode::deserialize(&b).unwrap())
+            .flatten(); // we want bincode to deserialize to Option<(u8,u8)> not (u8,u8)
         let job_id = db
             .get("job_id")?
             .map(|b| bincode::deserialize(&b).unwrap());
         let next_alarm = job_id.as_ref()
-            .map(|id| jobs.get(*id).ok())
-            .flatten().flatten()
+            .map(|id| jobs.get(*id).unwrap())
+            .flatten()
             .map(|job| job.time.into())
             .map(|t: DateTime<Local>| t)
             .map(|t| (t.hour() as u8, t.minute() as u8));
@@ -92,12 +94,14 @@ impl Inner {
             let old_job_id = bincode::deserialize(&bytes).unwrap();
             self.jobs.remove_alarm(old_job_id)?;
         }
+        self.db.flush().unwrap();
         Ok(())
     }
 
     fn save_usually(&mut self, usually: &Time) -> Result<(), Error> {
-        let bytes = bincode::serialize(dbg!(usually)).unwrap();
+        let bytes = bincode::serialize(usually).unwrap();
         self.db.insert("usually", bytes)?;
+        self.db.flush()?;
         Ok(())
     }
 
@@ -140,14 +144,13 @@ impl Inner {
     }
 
     pub async fn set_usually(&mut self, time: Time) -> Result<(), Error> {
+        self.save_usually(&time)?;
         match time {
             Some((hour, min)) => {
-                self.save_usually(&time)?;
                 let job = job_from(hour, min);
                 self.replace_job(job).await?;
             }
-            None => {
-                self.db.remove("usually")?;
+            None => if self.job_id.is_some() {
                 if self.tomorrow.is_none() {
                     self.remove_job()?;
                 }

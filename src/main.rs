@@ -38,7 +38,7 @@ struct Opt {
 #[actix_rt::main]
 async fn main() {
     let opt = Opt::from_args();
-    errors::setup_logging(1).unwrap();
+    errors::setup_logging(2).unwrap();
 
     let db = sled::Config::default() //651ms
         .path("database")

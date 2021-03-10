@@ -47,7 +47,7 @@ pub async fn usually(state: Data<State>, auth: BasicAuth, req: HttpRequest, body
 
     match *req.method() {
         Method::GET => {
-            let usually = dbg!(state.wakeup.usually());
+            let usually = state.wakeup.usually();
             let bytes = bincode::serialize(&usually).unwrap();
             HttpResponse::Ok().body(bytes)
         }
