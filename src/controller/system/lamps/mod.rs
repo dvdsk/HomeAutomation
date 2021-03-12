@@ -246,6 +246,22 @@ impl Lighting {
         Ok(())
     }
 
+    pub fn set_all_on_ct(&mut self, bri: u8, ct: u16) -> Result<(), Error> {
+        let command = LightCommand::default();
+        //let command = command.on();
+        let command = command.with_bri(bri);
+        let command = command.with_ct(ct);
+        let command = command.on();
+        self.bridge.set_group_state(0, &command)?;
+        self.lamps.values_mut().for_each(|lamp| {
+            lamp.bri = bri;
+            lamp.ct = Some(ct);
+            lamp.on = true
+        });
+
+        Ok(())
+    }
+
     //how to deal with errors?
     pub fn set_all_ct(&mut self, bri: u8, ct: u16) -> Result<(), Error> {
         let command = LightCommand::default();

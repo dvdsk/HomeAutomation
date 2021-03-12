@@ -85,8 +85,7 @@ impl WakeUp {
         mods.mpd = false;
 
         Self::setup_playlist()?;
-        sys.lights.set_all_ct(0, CT_BEGIN)?;
-        sys.lights.all_on()?;
+        sys.lights.set_all_on_ct(0, CT_BEGIN)?;
 
         Ok(Box::new(Self {
             start: Instant::now(),
@@ -112,14 +111,14 @@ impl RoomState for WakeUp {
         if !mods.lighting {
             let bri = (BRI_PER_SECOND * (elapsed as f32)) as u8;
             let ct = CT_BEGIN - (CT_PER_SECOND * (elapsed as f32)) as u16;
-            sys.lights.set_all_ct(dbg!(bri), ct)?;
+            sys.lights.set_all_on_ct(bri, ct)?;
         }
 
         // do nothing to mpd if the user changed an mpd setting
         if !mods.mpd {
             if !self.playing && elapsed > MUSIC_ON {
                 let mut client = mpd::Client::connect("127.0.0.1:6600")?;
-                client.volume(dbg!(MIN_VOLUME) as i8)?;
+                client.volume(MIN_VOLUME as i8)?;
                 client.play()?;
                 self.playing = true;
             } else if elapsed > MUSIC_ON {
