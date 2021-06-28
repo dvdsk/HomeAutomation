@@ -3,7 +3,6 @@ use actix_web_httpauth::headers::www_authenticate::basic::Basic;
 use actix_web_httpauth::headers::www_authenticate::WwwAuthenticate;
 
 use actix_web::http::StatusCode;
-use actix_web::web::{Data, Form};
 use actix_web::{HttpRequest, HttpResponse};
 
 mod wakeup;

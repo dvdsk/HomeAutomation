@@ -1,6 +1,5 @@
 use fern::colors::{Color, ColoredLevelConfig};
 
-use crate::input::web_api::server;
 use crate::input::youtube_downloader;
 
 #[derive(thiserror::Error, Debug)]
@@ -23,8 +22,6 @@ pub enum Error {
     RetryLogic(String),
     #[error("Could not download youtube movie")]
     YoutubeDownloader(youtube_downloader::Error),
-    #[error("Problem handeling web requests")]
-    WebServerError(server::Error),
     #[error("Error in the wakeup alarm system")]
     SetWakeUp(#[from] crate::input::jobs::wakeup::Error),
     #[error("Error in wakeup state")]
