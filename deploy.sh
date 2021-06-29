@@ -4,9 +4,9 @@ set -e
 BUILD_ARG=$1
 SERVER="sgc"  # ssh config name or full adress
 
-cross build --target=armv7-unknown-linux-gnueabihf $BUILD_ARG --features "sensors_connected live_server"
+cross build --target=aarch64-unknown-linux-gnu $BUILD_ARG --features "sensors_connected live_server"
 rsync -vh --progress \
-  target/armv7-unknown-linux-gnueabihf/debug/HomeAutomation \
+  target/aarch64-unknown-linux-gnu/debug/HomeAutomation \
   $SERVER:/tmp/
 
 cmds="
