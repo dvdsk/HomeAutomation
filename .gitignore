@@ -73,4 +73,3 @@ userdb.hm
 #####################
 target/
 src/input/web_api/logins.rs
-deploy_optimized.sh
