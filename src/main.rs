@@ -17,10 +17,10 @@ mod errors;
 #[structopt(name = "homeautomation")]
 struct Opt {
     /// port to bind to and listen for traffic
-    #[structopt(short = "p", long = "port", default_value = "433")]
+    #[structopt(short = "p", long = "port", default_value = "443")]
     port: u16,
     /// port to which telegram bot traffic should be send
-    #[structopt(short = "e", long = "external-port", default_value = "433")]
+    #[structopt(short = "e", long = "external-port", default_value = "443")]
     external_port: u16,
     /// telegram bot token
     #[structopt(short = "t", long = "token")]

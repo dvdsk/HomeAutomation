@@ -42,7 +42,7 @@ thiserror = "1.0"
 log = "0.4"
 fern = { version = "0.5.6", features = ["colored"] }
 
-sensor_value = { git = "https://github.com/dskleingeld/sensor_central.git", branch = "boolean-fields" }
+sensor_value = { git = "https://github.com/dskleingeld/sensor_central.git", branch = "main" }
 gpio-cdev = { git = "https://github.com/rust-embedded/gpio-cdev", branch = "master" }
 nix = "0.17"
 
