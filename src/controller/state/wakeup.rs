@@ -84,7 +84,9 @@ impl WakeUp {
         mods.lighting = false;
         mods.mpd = false;
 
-        Self::setup_playlist()?;
+        if let Err(e) = Self::setup_playlist() {
+            log::error!("could not set up playlist: {}", e);
+        }
         sys.lights.set_all_on_ct(0, CT_BEGIN)?;
 
         Ok(Box::new(Self {
