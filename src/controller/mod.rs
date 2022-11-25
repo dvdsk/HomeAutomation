@@ -231,7 +231,6 @@ fn change_state(
         State::WakeUp => state::WakeUp::setup(mods, system),
         State::Sleep => state::Sleep::setup(mods, system),
         State::Silent => state::Silent::setup(mods, system),
-        State::Quiet => state::Quiet::setup(mods, system),
         State::Off => state::Off::setup(mods, system),
     };
 

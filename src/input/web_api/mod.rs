@@ -7,7 +7,6 @@ use actix_web::{HttpRequest, HttpResponse};
 
 mod wakeup;
 mod commands;
-mod logins;
 mod music;
 
 pub mod server;
@@ -15,16 +14,8 @@ use server::State;
 
 fn authenticated(auth: BasicAuth) -> bool {
     let username = auth.user_id();
-    if let Some(password) = auth.password() {
-        logins::LIST
-            .iter()
-            .filter(|x| x.username == username)
-            .filter(|x| x.password == password)
-            .next()
-            .is_some()
-    } else {
-        false
-    }
+    let password = auth.password() ;
+    username == env!("CMD_API_USERNAME") && password == env!("COMMAND_API_PASSWORD")
 }
 
 fn make_auth_error() -> HttpResponse {

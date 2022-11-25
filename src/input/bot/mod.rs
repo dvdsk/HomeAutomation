@@ -226,7 +226,7 @@ pub async fn send_text<T: Into<String>>(
 pub async fn set_webhook(domain: &str, token: &str, port: u16) -> Result<(), Error> {
     let url = format!("https://api.telegram.org/bot{}/setWebhook", token);
 
-    let params = [("url", &webhook_url)];
+    let params = [("url", &url)];
     let client = reqwest::Client::new();
     let res = client.post(url.as_str()).form(&params).send().await?;
 
@@ -234,7 +234,7 @@ pub async fn set_webhook(domain: &str, token: &str, port: u16) -> Result<(), Err
         error!("could not set webhook: {:?}", res);
         Err(Error::CouldNotSetWebhook)
     } else {
-        info!("set webhook to: {}", webhook_url);
+        info!("set webhook to: {}", url);
         Ok(())
     }
 }
