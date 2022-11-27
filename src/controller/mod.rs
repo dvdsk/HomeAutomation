@@ -188,13 +188,13 @@ fn handle_buttonpress(
     if press.duration < LONG_PRESS {
         // millisec
         match press.button {
-            Button::LampLeft => Some(State::Quiet),
+            Button::LampLeft => None,
             Button::LampMid => Some(State::Silent),
             Button::LampRight => Some(State::Off),
 
             Button::DeskLeftMost => Some(State::Sleep),
             Button::DeskLeft => Some(State::Normal),
-            Button::DeskRight => Some(State::Quiet),
+            Button::DeskRight => None,
             Button::DeskRightMost => Some(State::Off),
 
             Button::DeskTop => handle_cmd(Command::MpdIncreaseVolume, mods, system),

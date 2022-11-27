@@ -6,12 +6,16 @@ use chrono::{Local, NaiveTime};
 use std::time::{Duration, Instant};
 
 fn update_lights(sys: &mut System) -> Result<(), Error> {
+    fn hour(h: u8) -> NaiveTime {
+        NaiveTime::from_hms_opt(h as u32, 0, 0).unwrap()
+    }
+
     let now = Local::now();
-    if now.time() > NaiveTime::from_hms(22, 0, 0) || now.time() < NaiveTime::from_hms(6, 0, 0) {
+    if now.time() > hour(22) || now.time() < hour(6) {
         sys.lights.set_all_ct(220, 500)?;
-    } else if now.time() > NaiveTime::from_hms(17, 0, 0) {
+    } else if now.time() > hour(17) {
         sys.lights.set_all_ct(254, 320)?;
-    } else if now.time() >= NaiveTime::from_hms(6, 0, 0) {
+    } else if now.time() >= hour(6) {
         sys.lights.set_all_ct(254, 240)?;
     };
     Ok(())

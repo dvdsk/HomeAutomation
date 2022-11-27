@@ -172,14 +172,14 @@ fn job_from(hour: u8, min: u8) -> Job {
 fn to_datetime(hour: u8, min: u8) -> DateTime<Utc> {
     let (hour, min) = (hour as u32, min as u32);
     let now = Local::now();
-    let today = now.date();
-    let alarm = today.and_hms(hour,min, 0);
+    let today = now.date_naive();
+    let alarm = today.and_hms_opt(hour,min, 0).unwrap();
 
-    if alarm < now {
-        let tomorrow = now.date().succ();
-        tomorrow.and_hms(hour, min, 0)
+    if alarm < now.naive_local() {
+        let tomorrow = now.date_naive().succ_opt().unwrap();
+        tomorrow.and_hms_opt(hour, min, 0).unwrap().and_local_timezone(Local).unwrap()
             .with_timezone(&Utc)
     } else {
-        alarm.with_timezone(&Utc)
+        alarm.and_local_timezone(Local).unwrap().with_timezone(&Utc)
     }
 }

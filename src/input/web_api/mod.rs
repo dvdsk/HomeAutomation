@@ -5,16 +5,16 @@ use actix_web_httpauth::headers::www_authenticate::WwwAuthenticate;
 use actix_web::http::StatusCode;
 use actix_web::{HttpRequest, HttpResponse};
 
-mod wakeup;
 mod commands;
 mod music;
+mod wakeup;
 
 pub mod server;
 use server::State;
 
 fn authenticated(auth: BasicAuth) -> bool {
-    let username = auth.user_id();
-    let password = auth.password() ;
+    let username = auth.user_id() else { return false };
+    let Some(password) = auth.password() else { return false };
     username == env!("CMD_API_USERNAME") && password == env!("COMMAND_API_PASSWORD")
 }
 

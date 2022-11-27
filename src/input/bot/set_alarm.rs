@@ -93,6 +93,7 @@ fn parse_args<'a>(
     mut args: std::str::SplitWhitespace<'a>,
     _: &State,
 ) -> Result<Parsed, Error> {
+    use chrono::TimeZone;
     let time = args.next().ok_or(Error::NoTimeArgument)?;
 
     if time == "-" {
@@ -128,8 +129,8 @@ fn parse_args<'a>(
         .with_minute(min).unwrap();
 
     if alarm < now {
-        let tomorrow = now.date().succ();
-        alarm = tomorrow.and_hms(hour, min, 0);
+        let alarm = now.date_naive().succ_opt().unwrap()
+        .and_hms_opt(hour, min, 0).unwrap().and_local_timezone(Local).unwrap();
     }
 
     let till_alarm = alarm-now;
