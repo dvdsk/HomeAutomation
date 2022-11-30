@@ -21,7 +21,7 @@ pub mod database;
 pub mod login;
 pub mod login_redirect;
 
-use super::{wakeup, commands, music};
+use super::{commands, music, wakeup};
 pub use database::PasswordDatabase;
 pub use login::{login_get_and_check, login_page, logout, make_random_cookie_key};
 pub use login_redirect::CheckLogin;

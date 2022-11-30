@@ -78,20 +78,12 @@ async fn main() {
     );
 
     //start the webserver
-    let _web_handle = server::start_webserver(
-        state,
-        opt.port,
-        opt.domain.clone(),
-        opt.ha_key.clone(),
-    );
+    let _web_handle =
+        server::start_webserver(state, opt.port, opt.domain.clone(), opt.ha_key.clone());
 
-    bot::set_webhook(
-        &opt.domain,
-        &opt.token,
-        opt.external_port,
-    )
-    .await
-    .unwrap();
+    bot::set_webhook(&opt.domain, &opt.token, opt.external_port)
+        .await
+        .unwrap();
 
     loop {
         std::thread::park();

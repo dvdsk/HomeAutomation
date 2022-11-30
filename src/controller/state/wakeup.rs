@@ -23,7 +23,6 @@ const VOL_PER_SECOND: f32 = (MAX_VOLUME - MIN_VOLUME) / (WAKEUP_DURATION - MUSIC
 pub enum WakeUpStateError {
     #[error("could not setup playlist even after retries: {0}")]
     SetupPlaylist(retry::Error<mpd::error::Error>),
-
 }
 
 #[derive(Clone, Copy)]
@@ -36,13 +35,15 @@ impl WakeUp {
     fn setup_playlist() -> Result<(), Error> {
         let mpd = &mut retry(Fixed::from_millis(100), || {
             mpd::Client::connect("127.0.0.1:6600")
-        }).map_err(WakeUpStateError::SetupPlaylist)?;
+        })
+        .map_err(WakeUpStateError::SetupPlaylist)?;
 
         retry(Fixed::from_millis(100).take(3), || {
             system::mpd_control::save_current_playlist(mpd)
-        }).map_err(WakeUpStateError::SetupPlaylist)?;
+        })
+        .map_err(WakeUpStateError::SetupPlaylist)?;
 
-        // note if playlist does not exist we do not 
+        // note if playlist does not exist we do not
         // report an error
         retry(Fixed::from_millis(100).take(3), || {
             system::mpd_control::add_from_playlist(
@@ -51,7 +52,8 @@ impl WakeUp {
                 chrono::Duration::seconds(3 * 60),
                 chrono::Duration::seconds(5 * 60),
             )
-        }).map_err(WakeUpStateError::SetupPlaylist)?;
+        })
+        .map_err(WakeUpStateError::SetupPlaylist)?;
 
         retry(Fixed::from_millis(100).take(3), || {
             system::mpd_control::add_from_playlist(
@@ -60,7 +62,8 @@ impl WakeUp {
                 chrono::Duration::seconds(10 * 60),
                 chrono::Duration::seconds(11 * 60),
             )
-        }).map_err(WakeUpStateError::SetupPlaylist)?;
+        })
+        .map_err(WakeUpStateError::SetupPlaylist)?;
 
         retry(Fixed::from_millis(100).take(3), || {
             system::mpd_control::add_from_playlist(
@@ -69,7 +72,8 @@ impl WakeUp {
                 chrono::Duration::seconds(30 * 60),
                 chrono::Duration::seconds(60 * 60),
             )
-        }).map_err(WakeUpStateError::SetupPlaylist)?;
+        })
+        .map_err(WakeUpStateError::SetupPlaylist)?;
         Ok(())
     }
 }
@@ -126,7 +130,7 @@ impl RoomState for WakeUp {
             } else if elapsed > MUSIC_ON {
                 let since_music_on = elapsed.saturating_sub(MUSIC_ON);
                 let mut client = mpd::Client::connect("127.0.0.1:6600")?;
-                let volume = MIN_VOLUME + VOL_PER_SECOND * (since_music_on as f32); 
+                let volume = MIN_VOLUME + VOL_PER_SECOND * (since_music_on as f32);
                 client.volume(volume as i8)?;
             }
         }

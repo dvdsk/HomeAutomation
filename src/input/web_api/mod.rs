@@ -5,6 +5,8 @@ use actix_web_httpauth::headers::www_authenticate::WwwAuthenticate;
 use actix_web::http::StatusCode;
 use actix_web::{HttpRequest, HttpResponse};
 
+use crate::PasswordDatabase;
+
 mod commands;
 mod music;
 mod wakeup;
@@ -12,10 +14,14 @@ mod wakeup;
 pub mod server;
 use server::State;
 
-fn authenticated(auth: BasicAuth) -> bool {
-    let username = auth.user_id() else { return false };
-    let Some(password) = auth.password() else { return false };
-    username == env!("CMD_API_USERNAME") && password == env!("COMMAND_API_PASSWORD")
+fn authenticated(auth: BasicAuth, pass_db: &PasswordDatabase) -> bool {
+    let username = auth.user_id();
+    let Some(password) = auth.password() else {
+        return false;
+    };
+    pass_db
+        .verify_password(username.as_bytes(), password.as_bytes())
+        .is_ok()
 }
 
 fn make_auth_error() -> HttpResponse {

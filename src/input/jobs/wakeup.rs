@@ -1,12 +1,12 @@
-use super::{Jobs, Job, Action};
+use super::{Action, Job, Jobs};
 use crate::controller::Event;
-use std::time::Duration;
+use chrono::{DateTime, Local, Timelike, Utc};
 use std::sync::{Arc, Mutex};
-use chrono::{Utc, Local, DateTime, Timelike};
+use std::time::Duration;
 
 // TODO FIXME multiple things left to do:
 // - usually and tomorrow are not written to db
-// - setting usually none goes wrong if tomorrow is not none 
+// - setting usually none goes wrong if tomorrow is not none
 // - recheck set tomorrow and set usually carefull
 
 #[derive(Debug, thiserror::Error)]
@@ -18,17 +18,17 @@ pub enum Error {
 }
 
 #[derive(Clone)]
-pub struct WakeUp(Arc<Mutex<Inner>>); 
+pub struct WakeUp(Arc<Mutex<Inner>>);
 impl WakeUp {
     pub fn setup(db: sled::Db, jobs: Jobs) -> Result<Self, Error> {
         let inner = Inner::setup(db, jobs)?;
         let inner = Arc::new(Mutex::new(inner));
         Ok(Self(inner))
     }
-    pub fn tomorrow(&self) -> Option<(u8,u8)> {
+    pub fn tomorrow(&self) -> Option<(u8, u8)> {
         self.0.lock().unwrap().tomorrow
     }
-    pub fn usually(&self) -> Option<(u8,u8)> {
+    pub fn usually(&self) -> Option<(u8, u8)> {
         self.0.lock().unwrap().usually
     }
     pub fn reset(&self) -> Result<(), Error> {
@@ -65,17 +65,15 @@ impl Inner {
             .get("usually")?
             .map(|b| bincode::deserialize(&b).unwrap())
             .flatten(); // we want bincode to deserialize to Option<(u8,u8)> not (u8,u8)
-        let job_id = db
-            .get("job_id")?
-            .map(|b| bincode::deserialize(&b).unwrap());
-        let next_alarm = job_id.as_ref()
+        let job_id = db.get("job_id")?.map(|b| bincode::deserialize(&b).unwrap());
+        let next_alarm = job_id
+            .as_ref()
             .map(|id| jobs.get(*id).unwrap())
             .flatten()
             .map(|job| job.time.into())
             .map(|t: DateTime<Local>| t)
             .map(|t| (t.hour() as u8, t.minute() as u8));
-        let tomorrow = next_alarm 
-            .filter(|tomorrow| Some(*tomorrow) != usually);
+        let tomorrow = next_alarm.filter(|tomorrow| Some(*tomorrow) != usually);
 
         Ok(Self {
             db,
@@ -105,10 +103,8 @@ impl Inner {
         Ok(())
     }
 
-    async fn replace_job(&mut self, job: Job) -> Result<(),Error> {
-        let id = self.jobs
-            .add_alarm(job)
-            .await?;
+    async fn replace_job(&mut self, job: Job) -> Result<(), Error> {
+        let id = self.jobs.add_alarm(job).await?;
         self.save_job_id(id)?;
         Ok(())
     }
@@ -121,8 +117,8 @@ impl Inner {
 
     /// reset the alarm, if their is a usual alarm
     /// time we set that, otherwise remove all
-    pub fn reset(&mut self) -> Result<(),Error> {
-        if let Some((hour,min)) = self.usually {
+    pub fn reset(&mut self) -> Result<(), Error> {
+        if let Some((hour, min)) = self.usually {
             let job = job_from(hour, min);
             let add = self.replace_job(job);
             smol::block_on(add)?;
@@ -131,7 +127,7 @@ impl Inner {
         Ok(())
     }
 
-    pub async fn set_tomorrow(&mut self, time: Time) -> Result<(),Error> {
+    pub async fn set_tomorrow(&mut self, time: Time) -> Result<(), Error> {
         match time {
             None => self.reset()?,
             Some((hour, min)) => {
@@ -150,9 +146,11 @@ impl Inner {
                 let job = job_from(hour, min);
                 self.replace_job(job).await?;
             }
-            None => if self.job_id.is_some() {
-                if self.tomorrow.is_none() {
-                    self.remove_job()?;
+            None => {
+                if self.job_id.is_some() {
+                    if self.tomorrow.is_none() {
+                        self.remove_job()?;
+                    }
                 }
             }
         }
@@ -163,9 +161,9 @@ impl Inner {
 
 fn job_from(hour: u8, min: u8) -> Job {
     Job {
-        time: to_datetime(hour,min),
+        time: to_datetime(hour, min),
         action: Action::SendEvent(Event::WakeUp),
-        expiration: Some(Duration::from_secs(3*60*60)),
+        expiration: Some(Duration::from_secs(3 * 60 * 60)),
     }
 }
 
@@ -173,11 +171,15 @@ fn to_datetime(hour: u8, min: u8) -> DateTime<Utc> {
     let (hour, min) = (hour as u32, min as u32);
     let now = Local::now();
     let today = now.date_naive();
-    let alarm = today.and_hms_opt(hour,min, 0).unwrap();
+    let alarm = today.and_hms_opt(hour, min, 0).unwrap();
 
     if alarm < now.naive_local() {
         let tomorrow = now.date_naive().succ_opt().unwrap();
-        tomorrow.and_hms_opt(hour, min, 0).unwrap().and_local_timezone(Local).unwrap()
+        tomorrow
+            .and_hms_opt(hour, min, 0)
+            .unwrap()
+            .and_local_timezone(Local)
+            .unwrap()
             .with_timezone(&Utc)
     } else {
         alarm.and_local_timezone(Local).unwrap().with_timezone(&Utc)

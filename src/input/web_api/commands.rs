@@ -1,6 +1,6 @@
 use actix_web::web::Data;
-use actix_web_httpauth::extractors::basic::BasicAuth;
 use actix_web::HttpResponse;
+use actix_web_httpauth::extractors::basic::BasicAuth;
 
 use super::*;
 use crate::controller::State as TargetState;
@@ -8,7 +8,7 @@ use crate::controller::{Command, Event};
 
 ///////////////////// lamp commands ///////////////////////////////
 pub fn toggle(state: Data<State>, auth: BasicAuth) -> HttpResponse {
-    if authenticated(auth) {
+    if authenticated(auth, &state.passw_db) {
         state
             .controller_addr
             .send(Event::Command(Command::LampsToggle))
@@ -20,7 +20,7 @@ pub fn toggle(state: Data<State>, auth: BasicAuth) -> HttpResponse {
 }
 
 pub fn dim(state: Data<State>, auth: BasicAuth) -> HttpResponse {
-    if authenticated(auth) {
+    if authenticated(auth, &state.passw_db) {
         state
             .controller_addr
             .send(Event::Command(Command::LampsDim))
@@ -32,7 +32,7 @@ pub fn dim(state: Data<State>, auth: BasicAuth) -> HttpResponse {
 }
 
 pub fn dimmest(state: Data<State>, auth: BasicAuth) -> HttpResponse {
-    if authenticated(auth) {
+    if authenticated(auth, &state.passw_db) {
         state
             .controller_addr
             .send(Event::Command(Command::LampsDimmest))
@@ -44,7 +44,7 @@ pub fn dimmest(state: Data<State>, auth: BasicAuth) -> HttpResponse {
 }
 
 pub fn normal(state: Data<State>, auth: BasicAuth) -> HttpResponse {
-    if authenticated(auth) {
+    if authenticated(auth, &state.passw_db) {
         state
             .controller_addr
             .send(Event::Command(Command::LampsDay))
@@ -56,7 +56,7 @@ pub fn normal(state: Data<State>, auth: BasicAuth) -> HttpResponse {
 }
 
 pub fn evening(state: Data<State>, auth: BasicAuth) -> HttpResponse {
-    if authenticated(auth) {
+    if authenticated(auth, &state.passw_db) {
         state
             .controller_addr
             .send(Event::Command(Command::LampsEvening))
@@ -68,7 +68,7 @@ pub fn evening(state: Data<State>, auth: BasicAuth) -> HttpResponse {
 }
 
 pub fn night(state: Data<State>, auth: BasicAuth) -> HttpResponse {
-    if authenticated(auth) {
+    if authenticated(auth, &state.passw_db) {
         state
             .controller_addr
             .send(Event::Command(Command::LampsNight))
@@ -82,7 +82,7 @@ pub fn night(state: Data<State>, auth: BasicAuth) -> HttpResponse {
 //////////////////////// go to state commands /////////////////////////////////
 
 pub fn lightloop(state: Data<State>, auth: BasicAuth) -> HttpResponse {
-    if authenticated(auth) {
+    if authenticated(auth, &state.passw_db) {
         state
             .controller_addr
             .send(Event::Command(Command::ChangeState(TargetState::LightLoop)))
