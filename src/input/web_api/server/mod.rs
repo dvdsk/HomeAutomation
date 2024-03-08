@@ -47,7 +47,6 @@ impl State {
         controller_tx: crossbeam_channel::Sender<Event>,
         jobs: input::jobs::Jobs,
         wakeup: input::jobs::WakeUp,
-        youtube_dl: input::YoutubeDownloader,
         bot_token: String,
         valid_ids: Vec<i64>,
     ) -> Self {

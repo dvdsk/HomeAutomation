@@ -5,20 +5,19 @@ use crate::errors::Error;
 use chrono::{Local, NaiveTime};
 use std::time::{Duration, Instant};
 
-fn update_lights(sys: &mut System) -> Result<(), Error> {
+fn update_lights(sys: &mut System) {
     fn hour(h: u8) -> NaiveTime {
         NaiveTime::from_hms_opt(h as u32, 0, 0).unwrap()
     }
 
     let now = Local::now();
     if now.time() > hour(22) || now.time() < hour(6) {
-        sys.lights.set_all_ct(220, 500)?;
+        let _ignore_err = sys.lights.set_all_ct(220, 500);
     } else if now.time() > hour(17) {
-        sys.lights.set_all_ct(254, 320)?;
+        let _ignore_err = sys.lights.set_all_ct(254, 320);
     } else if now.time() >= hour(6) {
-        sys.lights.set_all_ct(254, 240)?;
+        let _ignore_err = sys.lights.set_all_ct(254, 240);
     };
-    Ok(())
 }
 
 #[derive(Default, Clone, Copy)]
@@ -26,13 +25,12 @@ pub struct Normal {}
 
 impl Normal {
     pub fn setup(mods: &mut Modifications, sys: &mut System) -> Result<Box<dyn RoomState>, Error> {
-        dbg!("making everything rdy for the normal state");
         mods.reset();
 
         sys.update_period = Duration::from_secs(5);
         sys.next_update = Instant::now() + sys.update_period;
-        update_lights(sys)?;
-        sys.lights.all_on()?;
+        update_lights(sys);
+        let _ignore_err = sys.lights.all_on();
 
         Ok(Box::new(Self::default()))
     }
@@ -47,7 +45,7 @@ impl RoomState for Normal {
     ) -> Result<Option<State>, Error> {
         //dbg!("updating normal state");
         if !mods.lighting {
-            update_lights(sys)?
+            update_lights(sys)
         }
         Ok(None)
     }

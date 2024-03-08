@@ -2,6 +2,7 @@ use super::super::{Environment, Modifications, System};
 use super::{RoomState, State};
 use crate::controller::system;
 use retry::{delay::Fixed, retry};
+use tracing::{error, info};
 
 use crate::errors::Error;
 use std::time::{Duration, Instant};
@@ -49,8 +50,8 @@ impl WakeUp {
             system::mpd_control::add_from_playlist(
                 mpd,
                 "calm",
-                chrono::Duration::seconds(3 * 60),
-                chrono::Duration::seconds(5 * 60),
+                Duration::from_secs(3 * 60),
+                Duration::from_secs(5 * 60),
             )
         })
         .map_err(WakeUpStateError::SetupPlaylist)?;
@@ -59,8 +60,8 @@ impl WakeUp {
             system::mpd_control::add_from_playlist(
                 mpd,
                 "energetic",
-                chrono::Duration::seconds(10 * 60),
-                chrono::Duration::seconds(11 * 60),
+                Duration::from_secs(10 * 60),
+                Duration::from_secs(11 * 60),
             )
         })
         .map_err(WakeUpStateError::SetupPlaylist)?;
@@ -69,8 +70,8 @@ impl WakeUp {
             system::mpd_control::add_from_playlist(
                 mpd,
                 "active",
-                chrono::Duration::seconds(30 * 60),
-                chrono::Duration::seconds(60 * 60),
+                Duration::from_secs(30 * 60),
+                Duration::from_secs(60 * 60),
             )
         })
         .map_err(WakeUpStateError::SetupPlaylist)?;
@@ -78,9 +79,12 @@ impl WakeUp {
     }
 }
 
+/* TODO: Hardware backup alarm that triggers if any of this failed 
+ * <dvdsk noreply@davidsk.dev> */
+
 impl WakeUp {
     pub fn setup(mods: &mut Modifications, sys: &mut System) -> Result<Box<dyn RoomState>, Error> {
-        log::info!("starting wakeup state");
+        info!("starting wakeup state");
         sys.update_period = Duration::from_secs(UPDATE_PERIOD);
         sys.next_update = Instant::now() + sys.update_period;
 
@@ -89,9 +93,9 @@ impl WakeUp {
         mods.mpd = false;
 
         if let Err(e) = Self::setup_playlist() {
-            log::error!("could not set up playlist: {}", e);
+            error!("could not set up playlist: {}", e);
         }
-        sys.lights.set_all_on_ct(0, CT_BEGIN)?;
+        let _ignore_err = sys.lights.set_all_ct(1, CT_BEGIN);
 
         Ok(Box::new(Self {
             start: Instant::now(),
@@ -117,7 +121,7 @@ impl RoomState for WakeUp {
         if !mods.lighting {
             let bri = (BRI_PER_SECOND * (elapsed as f32)) as u8;
             let ct = CT_BEGIN - (CT_PER_SECOND * (elapsed as f32)) as u16;
-            sys.lights.set_all_on_ct(bri, ct)?;
+            let _ignore_err = sys.lights.set_all_ct(bri, ct);
         }
 
         // do nothing to mpd if the user changed an mpd setting

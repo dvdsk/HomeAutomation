@@ -19,8 +19,8 @@ impl Sleep {
         sys.next_update = Instant::now() + sys.update_period;
 
         const RED: (f32, f32, f32) = (1f32, 0f32, 0f32);
-        sys.lights.set_all_rgb(0, RED)?;
-        sys.lights.all_on()?;
+        let _ignore_err = sys.lights.set_all_rgb(0, RED);
+        let _ignore_err = sys.lights.all_on();
 
         Ok(Box::new(Sleep {
             start: Instant::now(),
@@ -39,7 +39,7 @@ impl RoomState for Sleep {
         const MUSIC_OFF: Duration = Duration::from_secs(120);
 
         if self.start.elapsed() >= LIGHTS_OFF && !mods.lighting {
-            sys.lights.all_off()?;
+            let _ignore_err = sys.lights.all_off();
         }
         if self.start.elapsed() >= MUSIC_OFF && !mods.mpd {
             mpd::pause()?;

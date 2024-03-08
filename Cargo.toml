@@ -1,8 +1,8 @@
 [package]
-name = "HomeAutomation"
+name = "ha"
 version = "0.1.0"
 authors = ["David Kleingeld <dskleingeld@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [features]
 default = []
@@ -15,18 +15,16 @@ live_server = []
 
 [dependencies]
 futures = "0.3"
-smol = "1.2"
-async-std = "1"
-async-trait = "0.1"
+tokio = { version = "1", features = ["full"] }
 
-actix-web = { version = "2", features = ["rustls"] }
-actix-net = "0.2"
-actix-identity = "0.2"
-actix-files = "0.2"
-actix-rt = "1"
-actix-service = "1.0"
-actix-web-httpauth = "0.4"
-rustls = "0.16"
+# actix-web = { version = "4", features = ["rustls"] }
+# actix-net = "0.2"
+# actix-identity = "0.2"
+# actix-files = "0.2"
+# actix-rt = "1"
+# actix-service = "1.0"
+# actix-web-httpauth = "0.4"
+# rustls = "0.16"
 
 philipshue = { git = "https://github.com/dskleingeld/philipshue", branch = "master" }
 # for local dev purpose we use below targets
@@ -39,15 +37,11 @@ serde_yaml = "0.8"
 bincode = "1.3"
 
 thiserror = "1.0"
-log = "0.4"
 fern = { version = "0.5.9", features = ["colored"] }
 
 sensor_value = { git = "https://github.com/dskleingeld/sensor_central.git", branch = "main" }
-gpio-cdev = { git = "https://github.com/rust-embedded/gpio-cdev", branch = "master" }
-nix = "0.17"
-
-ring = "0.16"
-
+# nix = "0.17"
+# ring = "0.16"
 linux-embedded-hal = "0.2"
 bme280 = "0.1"
 
@@ -62,10 +56,10 @@ hex = "0.4.3"
 crossbeam-channel = "0.3"
 
 sled = "0.34"
-pagecache = "0.17"
+# pagecache = "0.17"
 reqwest = {version = "0.10", default-features = false, features = ["rustls-tls"]}
 
-mpd = "0.0.12"
+mpd = "0.1"
 dirs = "2"
 rand = "0.6"
 retry = "1"
@@ -73,3 +67,9 @@ retry = "1"
 telegram-bot = {version = "0.7", default-features = false, features = ["rustls"]}
 serde_json = "1.0"
 regex = "1"
+futures-util = "0.3.30"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+tracing-journald = "0.3.0"
+log-panics = "2.1.0"
+axum = "0.7.4"

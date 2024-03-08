@@ -1,6 +1,7 @@
 use crate::errors::Error;
-use chrono::Duration;
+use std::time::Duration;
 use rand::Rng;
+use tracing::warn;
 
 use crate::input::mpd_status::MpdStatus;
 
@@ -28,7 +29,7 @@ pub fn add_from_playlist(
         },
     };
 
-    let mut time = Duration::seconds(0);
+    let mut time = Duration::from_secs(0);
     //add random songs until the playtime is larger then the minimum
     while time < minimal_play_time && songs.len() > 1 {
         let idx = rng.gen_range(0, songs.len() - 1);
@@ -66,12 +67,6 @@ pub fn decrease_volume(mpd_status: &mut MpdStatus) -> Result<(), Error> {
     }
 
     client.volume(current_volume - VOLUME_INCREMENT)?;
-    Ok(())
-}
-
-pub fn set_volume(volume: i8) -> Result<(), Error> {
-    let mut client = mpd::Client::connect("127.0.0.1:6600")?;
-    client.volume(volume)?;
     Ok(())
 }
 

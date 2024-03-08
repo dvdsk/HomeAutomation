@@ -3,7 +3,6 @@ use super::{RoomState, State};
 use crate::controller::system::mpd_control as mpd;
 use crate::errors::Error;
 
-use philipshue::hue::LightCommand;
 use std::time::{Duration, Instant};
 
 #[derive(Clone, Copy)]
@@ -19,12 +18,10 @@ impl Silent {
 
         mpd::pause()?;
 
-        sys.lights.single_off(2)?;
-        let command = LightCommand::default().on().with_bri(77).with_ct(2000);
-
+        let _ignore_err = sys.lights.single_off(2);
         for lamp_id in &[1, 8, 5, 4, 6] {
-            sys.lights.bridge.set_light_state(*lamp_id, &command)?;
-            sys.lights.lamps.get_mut(lamp_id).unwrap().on = true;
+            let _ignore_err = sys.lights.single_on(*lamp_id);
+            let _ignore_err = sys.lights.set_ct(*lamp_id, 77, 2000);
         }
 
         Ok(Box::new(Silent {}))

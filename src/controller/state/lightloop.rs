@@ -12,7 +12,7 @@ impl LightLoop {
     pub fn setup(mods: &mut Modifications, sys: &mut System) -> Result<Box<dyn RoomState>, Error> {
         dbg!("making everything rdy for the lightloop state");
 
-        sys.lights.set_all_ct(0, 200)?;
+        let _ignore_err = sys.lights.set_all_ct(0, 200);
         mods.lighting = false;
 
         sys.update_period = Duration::from_millis(500);
@@ -34,8 +34,7 @@ impl RoomState for LightLoop {
             Ok(Some(State::Normal))
         } else {
             if !mods.lighting {
-                dbg!(self.counter);
-                sys.lights.set_all_ct(self.counter, 200)?;
+                let _ignore_err = sys.lights.set_all_ct(self.counter, 200);
                 self.counter -= 1;
             }
             Ok(None)

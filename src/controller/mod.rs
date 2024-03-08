@@ -2,8 +2,9 @@ use crossbeam_channel::RecvTimeoutError::*;
 use serde::{Deserialize, Serialize};
 use std::thread;
 use std::time::{Duration, Instant};
+use tracing::error;
 
-mod system;
+pub mod system;
 use system::Lighting;
 
 mod environment;
@@ -79,7 +80,7 @@ pub fn start(
     let mut system = System {
         update_period: Duration::from_secs(5),
         next_update: Instant::now() + Duration::from_secs(5),
-        lights: Lighting::init()?,
+        lights: Lighting::start_init(),
         mpd: mpd_status,
         wakeup,
     };
@@ -144,7 +145,7 @@ fn handle_event(
     let next_state = match (event, current_state) {
         //specific test code for normal state
         (Event::Test, State::Normal) => {
-            dbg!("a test happend while in normal state");
+            dbg!("a test happened while in normal state");
             None
         }
         //general code that is the same for all functions, unless specific handlers exist above
@@ -155,7 +156,7 @@ fn handle_event(
             Some(State::WakeUp)
         }
         (Event::Test, _) => {
-            dbg!("a test happend");
+            dbg!("a test happened");
             None
         }
 

@@ -1,13 +1,15 @@
 use super::{Action, Job, Jobs};
 use crate::controller::Event;
 use chrono::{DateTime, Local, Timelike, Utc};
+use tokio::runtime::Runtime;
+use tracing::info;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 // TODO FIXME multiple things left to do:
 // - usually and tomorrow are not written to db
 // - setting usually none goes wrong if tomorrow is not none
-// - recheck set tomorrow and set usually carefull
+// - recheck set tomorrow and set usually
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -33,17 +35,17 @@ impl WakeUp {
     }
     pub fn reset(&self) -> Result<(), Error> {
         self.0.lock().unwrap().reset()?;
-        log::info!("alarm system reset correctly");
+        info!("alarm system reset correctly");
         Ok(())
     }
     pub async fn set_tomorrow(&self, time: Time) -> Result<(), Error> {
         self.0.lock().unwrap().set_tomorrow(time).await?;
-        log::info!("alarm tomorrow set to: time");
+        info!("alarm tomorrow set to: time");
         Ok(())
     }
     pub async fn set_usually(&self, time: Time) -> Result<(), Error> {
         self.0.lock().unwrap().set_usually(time).await?;
-        log::info!("alarm usually set to: time");
+        info!("alarm usually set to: time");
         Ok(())
     }
 }
@@ -121,7 +123,8 @@ impl Inner {
         if let Some((hour, min)) = self.usually {
             let job = job_from(hour, min);
             let add = self.replace_job(job);
-            smol::block_on(add)?;
+            let rt = Runtime::new().unwrap();
+            rt.block_on(add)?;
         }
         self.tomorrow = None;
         Ok(())

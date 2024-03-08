@@ -1,4 +1,6 @@
 use crossbeam_channel;
+use tracing::error;
+use tracing::info;
 use std::ops::Sub;
 use std::thread;
 
@@ -206,7 +208,7 @@ impl JobList {
         let alarm = bincode::serialize(&to_add).unwrap();
 
         //create alarm entry if there is no alarm at this timestamp yet
-        //if there is already an alarm schedualed, postpone this one until there is a spot free
+        //if there is already an alarm scheduled, postpone this one until there is a spot free
         //self.db.cas(&[1], None as Option<&[u8]>, Some(&[10])
         //TODO check how this works and expand sled documentation for fail cases
         while let Err(_old_event) = self.db.compare_and_swap(
