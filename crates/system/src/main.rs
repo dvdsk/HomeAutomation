@@ -1,5 +1,7 @@
+use std::net::IpAddr;
+
+use clap::Parser;
 use sled;
-use structopt::StructOpt;
 use tracing::warn;
 
 mod controller;
@@ -7,18 +9,26 @@ mod controller;
 mod errors;
 mod input;
 
-#[derive(StructOpt)]
-#[structopt(name = "homeautomation")]
+#[derive(Parser)]
+#[command(version, about, long_about=None)]
 struct Opt {
     /// secret url part on which sensor data is received
-    #[structopt(short = "h", long = "ha-key")]
-    ha_key: String,
+    #[clap(short, long)]
+    key: String,
+
+    /// ip address for mpd server
+    #[clap(short, long)]
+    mpd_ip: IpAddr,
+
+    /// http api listens on this port at 127.0.0.1 use
+    /// a loadbalancer/reverse proxy to get traffic to this
+    #[clap(short, long)]
+    port: u16,
 }
 
 #[tokio::main]
 async fn main() {
-    let opt = Opt::from_args();
-    setup_tracing();
+    let opt = Opt::parse();
 
     let db = sled::Config::default() //651ms
         .path("database")
@@ -27,21 +37,16 @@ async fn main() {
         .open()
         .unwrap();
 
-    let (controller_tx, controller_rx) = crossbeam_channel::unbounded();
+    let (event_tx, event_rx) = crossbeam_channel::unbounded();
 
-    let (joblist, _waker_thread) =
-        input::jobs::Jobs::setup(controller_tx.clone(), db.clone()).unwrap();
+    let (joblist, _waker_thread) = input::jobs::Jobs::setup(event_tx.clone(), db.clone()).unwrap();
     let wakeup = input::jobs::WakeUp::setup(db.clone(), joblist.clone()).unwrap();
     let (mpd_status, _mpd_watcher_thread, _updater_tx) =
-        input::MpdStatus::start_updating().unwrap();
+        input::MpdStatus::start_updating(opt.mpd_ip).unwrap();
 
     let _controller_thread =
-        controller::start(controller_rx, mpd_status.clone(), wakeup.clone()).unwrap();
-    let _webserver = input::api::setup(wakeup.clone()).unwrap();
-
-    loop {
-        std::thread::park();
-    }
+        controller::start(event_rx, mpd_status.clone(), wakeup.clone()).unwrap();
+    let webserver = input::api::setup(wakeup.clone(), event_tx, opt.port).await;
 }
 
 pub fn setup_tracing() {

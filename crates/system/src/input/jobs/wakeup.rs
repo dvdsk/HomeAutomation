@@ -3,7 +3,8 @@ use crate::controller::Event;
 use chrono::{DateTime, Local, Timelike, Utc};
 use tokio::runtime::Runtime;
 use tracing::info;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use std::time::Duration;
 
 // TODO FIXME multiple things left to do:
@@ -27,24 +28,24 @@ impl WakeUp {
         let inner = Arc::new(Mutex::new(inner));
         Ok(Self(inner))
     }
-    pub fn tomorrow(&self) -> Option<(u8, u8)> {
-        self.0.lock().unwrap().tomorrow
+    pub async fn tomorrow(&self) -> Option<(u8, u8)> {
+        self.0.lock().await.tomorrow
     }
-    pub fn usually(&self) -> Option<(u8, u8)> {
-        self.0.lock().unwrap().usually
+    pub async fn usually(&self) -> Option<(u8, u8)> {
+        self.0.lock().await.usually
     }
     pub fn reset(&self) -> Result<(), Error> {
-        self.0.lock().unwrap().reset()?;
+        self.0.blocking_lock().reset()?;
         info!("alarm system reset correctly");
         Ok(())
     }
     pub async fn set_tomorrow(&self, time: Time) -> Result<(), Error> {
-        self.0.lock().unwrap().set_tomorrow(time).await?;
+        self.0.lock().await.set_tomorrow(time).await?;
         info!("alarm tomorrow set to: time");
         Ok(())
     }
     pub async fn set_usually(&self, time: Time) -> Result<(), Error> {
-        self.0.lock().unwrap().set_usually(time).await?;
+        self.0.lock().await.set_usually(time).await?;
         info!("alarm usually set to: time");
         Ok(())
     }

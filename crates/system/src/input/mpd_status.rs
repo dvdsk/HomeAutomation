@@ -1,6 +1,7 @@
 use crate::errors::Error;
 use crossbeam_channel::{Receiver, Sender};
 use mpd::{idle::Idle, idle::Subsystem, Client};
+use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, RwLock};
 use std::thread;
 
@@ -50,8 +51,8 @@ impl MpdStatus {
         client.volume(status.volume).unwrap();
     }*/
 
-    pub fn start_updating() -> Result<(Self, thread::JoinHandle<()>, Sender<()>), Error> {
-        let mut client = mpd::Client::connect("127.0.0.1:6600")?;
+    pub fn start_updating(mpd_ip: IpAddr) -> Result<(Self, thread::JoinHandle<()>, Sender<()>), Error> {
+        let mut client = mpd::Client::connect(SocketAddr::new(mpd_ip, 6600))?;
         let status = client.status()?;
 
         let mpd_status = Self {

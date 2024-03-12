@@ -73,7 +73,7 @@ fn saturating_duration_till(target: std::time::Instant) -> std::time::Duration {
 }
 
 pub fn start(
-    rx: crossbeam_channel::Receiver<Event>,
+    event_rx: crossbeam_channel::Receiver<Event>,
     mpd_status: MpdStatus,
     wakeup: WakeUp,
 ) -> Result<thread::JoinHandle<()>, Error> {
@@ -96,7 +96,7 @@ pub fn start(
         loop {
             //wait for next update or an incoming event
             let time_till_update = saturating_duration_till(system.next_update);
-            let event = match rx.recv_timeout(time_till_update) {
+            let event = match event_rx.recv_timeout(time_till_update) {
                 Ok(event) => event,
                 Err(Timeout) => {
                     system.next_update = Instant::now() + system.update_period;
