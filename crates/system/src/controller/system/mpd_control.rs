@@ -32,7 +32,7 @@ pub fn add_from_playlist(
     let mut time = Duration::from_secs(0);
     //add random songs until the playtime is larger then the minimum
     while time < minimal_play_time && songs.len() > 1 {
-        let idx = rng.gen_range(0, songs.len() - 1);
+        let idx = rng.gen_range(0..(songs.len() - 1));
         let song = songs.remove(idx);
         if let Some(duration) = song.duration {
             if time + duration < maximal_play_time {
