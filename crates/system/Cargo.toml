@@ -36,7 +36,7 @@ bytes = "0.4"
 byteorder = "1.4"
 num = { version = "0.2"}
 
-crossbeam-channel = "0.3"
+crossbeam-channel = "0.4"
 
 sled = "0.34"
 # pagecache = "0.17"
