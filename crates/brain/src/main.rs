@@ -1,10 +1,13 @@
 use std::net::IpAddr;
 
 use clap::Parser;
+use input::jobs::Jobs;
 use sled;
+use tokio::sync::broadcast;
 use tracing::warn;
 
 mod controller;
+mod system;
 
 mod errors;
 mod input;
@@ -27,26 +30,29 @@ struct Opt {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    setup_tracing();
     let opt = Opt::parse();
 
     let db = sled::Config::default() //651ms
         .path("database")
         .flush_every_ms(None) //do not flush to disk unless explicitly asked
         .cache_capacity(1024 * 1024 * 32) //32 mb cache
-        .open()
-        .unwrap();
+        .open()?;
 
-    let (event_tx, event_rx) = crossbeam_channel::unbounded();
+    let (event_tx, _event_rx) = broadcast::channel(250);
 
-    let (joblist, _waker_thread) = input::jobs::Jobs::setup(event_tx.clone(), db.clone()).unwrap();
-    let wakeup = input::jobs::WakeUp::setup(db.clone(), joblist.clone()).unwrap();
-    let (mpd_status, _mpd_watcher_thread, _updater_tx) =
-        input::MpdStatus::start_updating(opt.mpd_ip).unwrap();
+    let (jobs, _waker_thread) = input::jobs::Jobs::setup(event_tx.clone(), db.clone())?;
+    let wakeup = input::jobs::WakeUp::setup(db.clone(), jobs.clone())?;
+    // let (_mpd_status, _mpd_watcher_thread, _updater_tx) =
+    //     input::MpdStatus::start_updating(opt.mpd_ip)?;
 
-    let _controller_thread =
-        controller::start(event_rx, mpd_status.clone(), wakeup.clone()).unwrap();
-    let webserver = input::api::setup(wakeup.clone(), event_tx, opt.port).await;
+    let system = system::System::init(jobs);
+    controller::start(event_tx.clone(), system);
+    input::api::setup(wakeup.clone(), event_tx, opt.port).await?;
+
+    std::future::pending::<()>().await;
+    Ok(())
 }
 
 pub fn setup_tracing() {

@@ -5,6 +5,10 @@ use tracing::warn;
 
 use crate::input::mpd_status::MpdStatus;
 
+// TODO make this stuff obj oriented
+#[derive(Debug, Clone)]
+pub struct Mpd;
+
 pub fn add_from_playlist(
     mpd: &mut mpd::Client,
     name: &str,

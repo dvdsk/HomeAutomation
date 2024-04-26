@@ -1,8 +1,7 @@
 /// will store a short history of the last sensor values
-/// useful for debouncing events (someone passing in front 
+/// useful for debouncing events (someone passing in front
 /// light sensor vs a cloud)
-
-use sensor_value::SensorValue;
+use protocol::SensorValue;
 
 // struct History<T> {
 //     last_values: Vec<T>,

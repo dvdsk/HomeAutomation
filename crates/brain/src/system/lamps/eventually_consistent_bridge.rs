@@ -13,21 +13,42 @@ use tracing::error;
 
 use philipshue::bridge::Bridge;
 
-pub(crate) type LampId = usize;
 pub(crate) enum Change {
     AllOff,
     AllOn,
-    Off { lamp_id: LampId },
-    On { lamp_id: LampId },
-    CtBri { lamp_id: LampId, bri: u8, ct: u16 },
-    AllCtBri { bri: u8, ct: u16 },
-    AllXY { bri: u8, xy: (f32, f32) },
+    Off {
+        name: &'static str,
+    },
+    On {
+        name: &'static str,
+    },
+    CtBri {
+        name: &'static str,
+        bri: u8,
+        ct: u16,
+    },
+    XyBri {
+        name: &'static str,
+        bri: u8,
+        xy: (f32, f32),
+    },
+    AllCtBri {
+        bri: u8,
+        ct: u16,
+    },
+    AllXY {
+        bri: u8,
+        xy: (f32, f32),
+    },
 }
 
+type LampId = usize;
 pub(crate) struct CachedBridge {
     pub(crate) bridge: Bridge,
     pub(crate) needed_state: State,
     pub(crate) known_state: State,
+    // get names using: curl 192.168.1.11/api/<HUE API KEY>/lights | jq | grep '"name": "'
+    lookup: HashMap<String, LampId>,
 }
 
 impl CachedBridge {
@@ -37,11 +58,16 @@ impl CachedBridge {
             .iter()
             .map(|(id, light)| (*id, Lamp::from(&light.state)))
             .collect();
+        let lookup = lights_info
+            .into_iter()
+            .map(|(id, light)| (light.name, id))
+            .collect();
 
         Ok(Self {
             bridge,
             needed_state: state.clone(),
             known_state: state,
+            lookup,
         })
     }
 
@@ -77,24 +103,46 @@ impl CachedBridge {
                     .values_mut()
                     .for_each(|lamp| lamp.on = true);
             }
-            Change::Off { lamp_id } => {
-                if let Some(lamp) = self.needed_state.get_mut(&lamp_id) {
+            Change::Off { name } => {
+                let Some(lamp_id) = self.lookup.get(*name) else {
+                    error!("no lamp with name: {name} in lookup table, was recently (re)named?");
+                    return;
+                };
+                if let Some(lamp) = self.needed_state.get_mut(lamp_id) {
                     lamp.on = true;
                 } else {
                     error!("no lamp with id: {lamp_id} exists");
                 }
             }
-            Change::On { lamp_id } => {
+            Change::On { name } => {
+                let Some(lamp_id) = self.lookup.get(*name) else {
+                    error!("no lamp with name: {name} in lookup table, was recently (re)named?");
+                    return;
+                };
                 if let Some(lamp) = self.needed_state.get_mut(&lamp_id) {
                     lamp.on = false;
                 } else {
                     error!("no lamp with id: {lamp_id} exists");
                 }
             }
-            Change::CtBri { lamp_id, bri, ct } => {
+            Change::CtBri { name, bri, ct } => {
+                let Some(lamp_id) = self.lookup.get(*name) else {
+                    error!("no lamp with name: {name} in lookup table, was recently (re)named?");
+                    return;
+                };
                 if let Some(lamp) = self.needed_state.get_mut(lamp_id) {
                     lamp.bri = *bri;
                     lamp.ct = Some(*ct);
+                }
+            }
+            Change::XyBri { name, bri, xy } => {
+                let Some(lamp_id) = self.lookup.get(*name) else {
+                    error!("no lamp with name: {name} in lookup table, was recently (re)named?");
+                    return;
+                };
+                if let Some(lamp) = self.needed_state.get_mut(lamp_id) {
+                    lamp.bri = *bri;
+                    lamp.xy = Some(*xy);
                 }
             }
             Change::AllCtBri { bri, ct } => {

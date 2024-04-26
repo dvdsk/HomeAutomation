@@ -25,6 +25,7 @@ async fn manage_bridge(
         yielded.map(|item| (item, rx))
     });
 
+    let mut prev_error = String::new();
     let stream = stream.peekable();
     pin_mut!(stream);
     loop {
@@ -35,13 +36,16 @@ async fn manage_bridge(
             Err(e) => e,
         };
 
-        error!("could not connect to bridge: {error:?}");
+        if prev_error != error.to_string() {
+            error!("could not connect to bridge: {error:?}");
+            prev_error = error.to_string();
+        }
         tokio::time::sleep(Duration::from_secs(5)).await;
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Lighting {
-    _manage_bridge: tokio::task::JoinHandle<()>,
     tx: mpsc::UnboundedSender<(oneshot::Sender<Result<(), ApplyChangeError>>, Change)>,
 }
 
@@ -80,10 +84,7 @@ impl Lighting {
         let (tx, rx) = mpsc::unbounded_channel();
         let manage_bridge = manage_bridge(rx);
         let manage_bridge = tokio::task::spawn(manage_bridge);
-        Self {
-            _manage_bridge: manage_bridge,
-            tx,
-        }
+        Self { tx }
     }
 
     //how to deal with errors?
@@ -94,10 +95,11 @@ impl Lighting {
 
     light_fn! {all_off, AllOff}
     light_fn! {all_on, AllOn}
-    light_fn! {single_off, Off; lamp_id: usize}
-    light_fn! {single_on, On; lamp_id: usize}
+    light_fn! {single_off, Off; name: &'static str}
+    light_fn! {single_on, On; name: &'static str}
 
-    light_fn! {set_ct, CtBri; lamp_id: usize, bri: u8, ct: u16 }
+    light_fn! {set_ct, CtBri; name: &'static str, bri: u8, ct: u16 }
+    light_fn! {set_xy, XyBri; name: &'static str, bri: u8, xy: (f32, f32)}
     light_fn! {set_all_ct, AllCtBri; bri: u8, ct: u16 }
     light_fn! {set_all_xy, AllXY; bri: u8, xy: (f32, f32) }
 

@@ -3,6 +3,8 @@ use axum::extract::State as aState;
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::Router;
+use tokio::sync::broadcast;
+use tracing::warn;
 
 use crate::controller::Event;
 
@@ -34,7 +36,8 @@ async fn set_usually(aState(state): aState<State>, body: Bytes) -> StatusCode {
     let time: Option<(u8, u8)> = bincode::deserialize(&body[..])
         .map_err(|_| "Could not deserialize into time")
         .unwrap();
-    let _ignore = state.wakeup
+    let _ignore = state
+        .wakeup
         .set_usually(time)
         .await
         .map_err(|_| "Could not save new alarm time")
@@ -47,7 +50,8 @@ async fn set_tomorrow(aState(state): aState<State>, body: Bytes) -> StatusCode {
     let time: Option<(u8, u8)> = bincode::deserialize(&body[..])
         .map_err(|_| "Could not deserialize into time")
         .unwrap();
-    let _ignore = state.wakeup
+    let _ignore = state
+        .wakeup
         .set_tomorrow(time)
         .await
         .map_err(|_| "Could not save new alarm time")
@@ -56,26 +60,33 @@ async fn set_tomorrow(aState(state): aState<State>, body: Bytes) -> StatusCode {
     StatusCode::OK
 }
 
-async fn button(aState(state): aState<State>) {
-    state.event_tx.send(todo!()).unwrap();
+async fn sensor_event(aState(state): aState<State>, body: Bytes) {
+    let value = match protocol::SensorValue::decode(&body[..]) {
+        Ok(value) => value,
+        Err(e) => {
+            warn!("Failed to decode received body: {e}");
+            return;
+        }
+    };
+    state.event_tx.send(Event::Sensor(value)).unwrap();
 }
 
 #[derive(Clone)]
 pub struct State {
     wakeup: WakeUp,
-    event_tx: crossbeam_channel::Sender<Event>,
+    event_tx: broadcast::Sender<Event>,
 }
 
 pub async fn setup(
     wakeup: WakeUp,
-    event_tx: crossbeam_channel::Sender<Event>,
+    event_tx: broadcast::Sender<Event>,
     port: u16,
 ) -> Result<(), Error> {
     let app = Router::new()
         .route("/alarm/usually", get(usually).post(set_usually))
         .route("/alarm/tomorrow", get(tomorrow).post(set_tomorrow))
-        .route("/event/button", post(button))
-        .with_state(State{wakeup, event_tx});
+        .route("/event", post(sensor_event))
+        .with_state(State { wakeup, event_tx });
 
     // https is done at the loadbalancer
     let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{port}"))

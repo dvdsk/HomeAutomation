@@ -166,7 +166,7 @@ impl Inner {
 fn job_from(hour: u8, min: u8) -> Job {
     Job {
         time: to_datetime(hour, min),
-        action: Action::SendEvent(Event::WakeUp),
+        action: todo!(), //Action::SendEvent(Event::WakeUp),
         expiration: Some(Duration::from_secs(3 * 60 * 60)),
     }
 }

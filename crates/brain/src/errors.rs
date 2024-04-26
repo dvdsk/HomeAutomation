@@ -11,11 +11,9 @@ pub enum Error {
     #[error("Could not download youtube")]
     Download(#[from] reqwest::Error),
     #[error("Error while adjusting lighting: {0}")]
-    Lamps(#[from] crate::controller::system::lamps::Error),
+    Lamps(#[from] crate::system::lamps::Error),
     #[error("Error contacting mpd")]
     Mpd(#[from] mpd::error::Error),
     #[error("Error in the wakeup alarm system")]
     SetWakeUp(#[from] crate::input::jobs::wakeup::Error),
-    #[error("Error in wakeup state")]
-    WakeUpState(#[from] crate::controller::WakeUpStateError),
 }

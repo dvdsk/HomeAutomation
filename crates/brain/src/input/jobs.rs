@@ -1,4 +1,5 @@
 use crossbeam_channel;
+use tokio::sync::broadcast;
 use tracing::error;
 use tracing::info;
 use std::ops::Sub;
@@ -9,7 +10,6 @@ use chrono::{self, DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sled;
 
-use crate::controller::Command;
 use crate::controller::Event;
 
 pub mod wakeup;
@@ -17,8 +17,7 @@ pub use wakeup::WakeUp;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Action {
-    SendEvent(Event),
-    SendCommand(Command),
+    // SendEvent(Event),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -27,17 +26,6 @@ pub enum Error {
     DbError(#[from] sled::Error),
     #[error("Could not inform waker about new job")]
     CommError(#[from] crossbeam_channel::SendError<()>),
-}
-
-impl From<Event> for Action {
-    fn from(event: Event) -> Self {
-        Action::SendEvent(event)
-    }
-}
-impl From<Command> for Action {
-    fn from(command: Command) -> Self {
-        Action::SendCommand(command)
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -78,21 +66,21 @@ impl Sub<chrono::DateTime<Utc>> for &Job {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Jobs {
     waker_tx: crossbeam_channel::Sender<()>,
     list: JobList,
 }
 
-#[derive(Clone)]
-pub struct JobList {
+#[derive(Debug, Clone)]
+struct JobList {
     db: sled::Tree,
 }
 
 use crossbeam_channel::RecvTimeoutError::*;
 fn waker(
     mut alarm_list: JobList,
-    event_tx: crossbeam_channel::Sender<Event>,
+    event_tx: broadcast::Sender<Event>,
     waker_rx: crossbeam_channel::Receiver<()>,
 ) {
     loop {
@@ -137,16 +125,16 @@ fn waker(
     }
 }
 
-fn sound_alarm(event_tx: &crossbeam_channel::Sender<Event>, job: Job) {
-    match job.action {
-        Action::SendEvent(ev) => event_tx.send(ev).unwrap(),
-        Action::SendCommand(cmd) => event_tx.send(Event::Command(cmd)).unwrap(),
-    }
+fn sound_alarm(event_tx: &broadcast::Sender<Event>, job: Job) {
+    todo!();
+    // match job.action {
+        // Action::SendEvent(ev) => event_tx.send(ev).unwrap(),
+    // };
 }
 
 impl Jobs {
     pub fn setup(
-        event_tx: crossbeam_channel::Sender<Event>,
+        event_tx: broadcast::Sender<Event>,
         db: sled::Db,
     ) -> Result<(Self, thread::JoinHandle<()>), Error> {
         let list = JobList {
