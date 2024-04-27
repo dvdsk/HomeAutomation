@@ -1,4 +1,4 @@
-#[cfg_attr(not(feature = "alloc"), no_std)]
+#![cfg_attr(not(feature = "alloc"), no_std)]
 pub mod large_bedroom;
 
 use postcard::experimental::max_size::MaxSize as _;
@@ -77,45 +77,13 @@ impl Press {
     Eq,
     postcard::experimental::max_size::MaxSize,
 )]
-pub enum Button {
-    LargeBedroomDesk(large_bedroom::DeskButton),
-}
-
-impl Button {
-    pub fn press(&self) -> Press {
-        match self {
-            Button::LargeBedroomDesk(b) => b.press(),
-        }
-    }
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    postcard::experimental::max_size::MaxSize,
-)]
 pub enum SensorValue {
-    ButtonPress(Button),
+    LargeBedroom(large_bedroom::LargeBedroom),
     #[cfg(test)]
     Test,
 }
 
 impl SensorValue {
-    // #[cfg(feature = "alloc")]
-    // pub fn encode(&self) -> Vec<u8> {
-    //     postcard::to_allocvec(self).expect("Encoding should not fail")
-    // }
-    // // todo encode for on an embedded sys
-    //
-    // pub fn decode(bytes: impl AsRef<[u8]>) -> Result<Self, postcard::Error> {
-    //     postcard::from_bytes(bytes.as_ref())
-    // }
-    //
     pub fn version() -> u8 {
         0u8
     }
@@ -123,8 +91,8 @@ impl SensorValue {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SensorMessage<const MAX_ITEMS: usize> {
-    values: heapless::Vec<SensorValue, MAX_ITEMS>,
-    version: u8,
+    pub values: heapless::Vec<SensorValue, MAX_ITEMS>,
+    pub version: u8,
 }
 
 impl<const MAX_ITEMS: usize> SensorMessage<MAX_ITEMS> {

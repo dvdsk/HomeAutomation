@@ -1,5 +1,4 @@
-use super::{Action, Job, Jobs};
-use crate::controller::Event;
+use super::{Job, Jobs};
 use chrono::{DateTime, Local, Timelike, Utc};
 use tokio::runtime::Runtime;
 use tracing::info;

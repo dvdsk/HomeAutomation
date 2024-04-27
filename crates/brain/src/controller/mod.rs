@@ -27,7 +27,7 @@ pub fn start(event_tx: broadcast::Sender<Event>, system: System) -> JoinSet<()> 
     let mut tasks = JoinSet::new();
 
     let restricted = RestrictedSystem {
-        system,
+        system: system.clone(),
         allowed_lights: vec![
             "large_bedroom:cabinet",
             "large_bedroom:ceiling",
@@ -35,6 +35,32 @@ pub fn start(event_tx: broadcast::Sender<Event>, system: System) -> JoinSet<()> 
         ],
     };
     tasks.spawn(rooms::large_bedroom::run(
+        event_tx.clone().subscribe(),
+        event_tx.clone(),
+        restricted,
+    ));
+
+    let restricted = RestrictedSystem {
+        system: system.clone(),
+        allowed_lights: vec![
+            "small_bedroom:ceiling",
+        ],
+    };
+    tasks.spawn(rooms::small_bedroom::run(
+        event_tx.clone().subscribe(),
+        event_tx.clone(),
+        restricted,
+    ));
+
+    let restricted = RestrictedSystem {
+        system: system.clone(),
+        allowed_lights: vec![
+            "kitchen:ceiling",
+            "kitchen:hood_left",
+            "kitchen:hood_right",
+        ],
+    };
+    tasks.spawn(rooms::kitchen::run(
         event_tx.subscribe(),
         event_tx,
         restricted,

@@ -10,10 +10,10 @@ use tracing::warn;
 use crate::controller::{Event, RestrictedSystem};
 
 enum State {
-    // Sleep,
-    // Wakeup,
+    Sleep,
+    Wakeup,
     Normal,
-    // Away,
+    Away,
 }
 
 const INTERVAL: Duration = Duration::from_secs(5);
@@ -50,7 +50,7 @@ fn filter(event: Event) -> Option<RelevantEvent> {
 pub async fn run(
     mut event_rx: broadcast::Receiver<Event>,
     // todo if state change message everyone using this
-    _event_tx: broadcast::Sender<Event>,
+    event_tx: broadcast::Sender<Event>,
     mut system: RestrictedSystem,
 ) {
     enum Res {
@@ -58,7 +58,7 @@ pub async fn run(
         ShouldUpdate,
     }
 
-    let _state = State::Normal;
+    let state = State::Normal;
     let mut next_update = Instant::now() + INTERVAL;
     loop {
         let get_event = event_rx.recv_filter_mapped(filter).map(Res::Event);
@@ -83,9 +83,10 @@ fn update(system: &mut RestrictedSystem) {
 fn optimal_ct_bri() -> (u16, u8) {
     let now = OffsetDateTime::now_local().expect("Timezone not found");
     match now.hour() {
-        0..=5 | 22.. => (500, 220),
-        17..=21 => (320, u8::MAX),
-        6..=16 => (254, u8::MAX),
+        0..=8 | 22.. => (500, 180),
+        9..=16 => (270, u8::MAX),
+        17..=19 => (300, u8::MAX),
+        20..=21 => (400, 220),
     }
 }
 

@@ -1,8 +1,8 @@
 pub mod lamps;
-pub mod mpd_control;
+// pub mod mpd_control;
 
 pub use lamps::Lighting;
-pub use mpd_control::Mpd;
+// pub use mpd_control::Mpd;
 
 use crate::input::jobs::Jobs;
 
@@ -10,7 +10,7 @@ use crate::input::jobs::Jobs;
 pub struct System {
     pub jobs: Jobs,
     pub lights: Lighting,
-    pub mpd: Mpd,
+    // pub mpd: Mpd,
 }
 
 impl System {
@@ -18,7 +18,7 @@ impl System {
         Self {
             jobs,
             lights: Lighting::start_init(),
-            mpd: Mpd,
+            // mpd: Mpd,
         }
     }
 }

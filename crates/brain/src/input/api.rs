@@ -61,14 +61,18 @@ async fn set_tomorrow(aState(state): aState<State>, body: Bytes) -> StatusCode {
 }
 
 async fn sensor_event(aState(state): aState<State>, body: Bytes) {
-    let value = match protocol::SensorValue::decode(&body[..]) {
-        Ok(value) => value,
+    let mut bytes = body[..].to_vec();
+    let msg: protocol::SensorMessage<20> = match protocol::SensorMessage::decode(&mut bytes) {
+        Ok(msg) => msg,
         Err(e) => {
             warn!("Failed to decode received body: {e}");
             return;
         }
     };
-    state.event_tx.send(Event::Sensor(value)).unwrap();
+    // in future convert from older protocol here
+    for value in msg.values {
+        state.event_tx.send(Event::Sensor(value)).unwrap();
+    }
 }
 
 #[derive(Clone)]

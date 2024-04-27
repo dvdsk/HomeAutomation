@@ -15,5 +15,4 @@ heapless = { version = "0.8.0", features = ["serde"] }
 strum = { version = "0.26.2", default-features = false }
 
 [features]
-default = ["alloc"]
 alloc = ["postcard/alloc", "serde/std"]
