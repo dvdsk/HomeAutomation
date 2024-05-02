@@ -60,8 +60,22 @@ pub enum LargeBedroom {
 }
 
 #[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize)]
-pub enum Error {
+pub enum SensorError {
     Sht31(sht31::error::SHTError),
     Bme680(bosch_bme680::BmeError<I2cError>),
-    Max44(max44009::Error<I2cError>)
+    Max44(max44009::Error<I2cError>),
+}
+
+#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize)]
+pub enum Device {
+    Sht31,
+    Bme680,
+    Max44,
+}
+
+#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize)]
+pub enum Error {
+    Running(SensorError),
+    Setup(SensorError),
+    SetupTimedOut(Device),
 }

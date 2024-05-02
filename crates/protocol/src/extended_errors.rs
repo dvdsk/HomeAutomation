@@ -28,6 +28,7 @@ pub enum I2cError {
     )]
     Config,
 }
+
 impl From<embassy_embedded_hal::shared_bus::I2cDeviceError<embassy_stm32::i2c::Error>>
     for I2cError
 {
@@ -52,7 +53,7 @@ impl From<embassy_embedded_hal::shared_bus::I2cDeviceError<embassy_stm32::i2c::E
 
 pub trait ConcreteErrorType {
     type Concrete;
-    fn map_to_concrete(self) -> Self::Concrete;
+    fn strip_generics(self) -> Self::Concrete;
 }
 
 impl<E> ConcreteErrorType for BmeError<E>
@@ -60,7 +61,7 @@ where
     E: Into<I2cError> + core::fmt::Debug,
 {
     type Concrete = BmeError<I2cError>;
-    fn map_to_concrete(self) -> Self::Concrete {
+    fn strip_generics(self) -> Self::Concrete {
         match self {
             BmeError::WriteError(i2c) => BmeError::WriteError(i2c.into()),
             BmeError::WriteReadError(i2c) => BmeError::WriteReadError(i2c.into()),
@@ -75,7 +76,7 @@ where
     E: Into<I2cError> + core::fmt::Debug + defmt::Format,
 {
     type Concrete = max44009::Error<I2cError>;
-    fn map_to_concrete(self) -> Self::Concrete {
+    fn strip_generics(self) -> Self::Concrete {
         match self {
             max44009::Error::I2C(i2c) => max44009::Error::I2C(i2c.into()),
             max44009::Error::OperationNotAvailable => max44009::Error::OperationNotAvailable,
