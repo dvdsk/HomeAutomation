@@ -4,7 +4,6 @@ use futures_concurrency::future::Race;
 use futures_util::FutureExt;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
-use tracing::{instrument, warn};
 
 use crate::controller::{local_now, Event, RestrictedSystem};
 
@@ -49,7 +48,7 @@ fn filter(event: Event) -> Option<RelevantEvent> {
 pub async fn run(
     mut event_rx: broadcast::Receiver<Event>,
     // todo if state change message everyone using this
-    event_tx: broadcast::Sender<Event>,
+    _event_tx: broadcast::Sender<Event>,
     mut system: RestrictedSystem,
 ) {
     enum Res {
@@ -57,7 +56,7 @@ pub async fn run(
         ShouldUpdate,
     }
 
-    let state = State::Normal;
+    let _state = State::Normal;
     let mut next_update = Instant::now() + INTERVAL;
     loop {
         let get_event = event_rx.recv_filter_mapped(filter).map(Res::Event);

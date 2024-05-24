@@ -4,7 +4,6 @@ use futures_concurrency::future::Race;
 use futures_util::FutureExt;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
-use tracing::warn;
 
 use crate::controller::{local_now, Event, RestrictedSystem};
 
@@ -35,15 +34,15 @@ impl RecvFiltered for broadcast::Receiver<Event> {
 #[derive(Debug)]
 enum RelevantEvent {
     WakeUp,
-    WeightLeft(u32),
-    WeightRight(u32),
-    Brightness(f32), // millilux
+    // WeightLeft(u32),
+    // WeightRight(u32),
+    // Brightness(f32), // millilux
     DeskButton(protocol::large_bedroom::desk::Button),
-    BedButton(protocol::large_bedroom::bed::Button),
+    // BedButton(protocol::large_bedroom::bed::Button),
 }
 
 fn filter(event: Event) -> Option<RelevantEvent> {
-    use protocol::large_bedroom::bed::Reading as B;
+    // use protocol::large_bedroom::bed::Reading as B;
     use protocol::large_bedroom::desk::Reading as D;
     use protocol::large_bedroom::Reading as R;
     use protocol::Reading::LargeBedroom as LB;
@@ -52,10 +51,10 @@ fn filter(event: Event) -> Option<RelevantEvent> {
     Some(match event {
         WakeUp => RelevantEvent::WakeUp,
         Sensor(LB(R::Desk(D::Button(b)))) => RelevantEvent::DeskButton(b),
-        Sensor(LB(R::Bed(B::Button(b)))) => RelevantEvent::BedButton(b),
-        Sensor(LB(R::Bed(B::Brightness(l)))) => RelevantEvent::Brightness(l),
-        Sensor(LB(R::Bed(B::WeightLeft(w)))) => RelevantEvent::WeightLeft(w),
-        Sensor(LB(R::Bed(B::WeightRight(w)))) => RelevantEvent::WeightRight(w),
+        // Sensor(LB(R::Bed(B::Button(b)))) => RelevantEvent::BedButton(b),
+        // Sensor(LB(R::Bed(B::Brightness(l)))) => RelevantEvent::Brightness(l),
+        // Sensor(LB(R::Bed(B::WeightLeft(w)))) => RelevantEvent::WeightLeft(w),
+        // Sensor(LB(R::Bed(B::WeightRight(w)))) => RelevantEvent::WeightRight(w),
         _ => return None,
     })
 }
@@ -108,7 +107,15 @@ fn handle_event(e: RelevantEvent) {
     // use RelevantEvent as R;
 
     match e {
-        // R::DeskButton(DeskButton::OneOfFour(p)) if p.is_long() => (),
-        unhandled => warn!("Unhandled relevant event: {unhandled:?}"),
+        RelevantEvent::WakeUp => (),
+        // RelevantEvent::WeightLeft(_) => (),
+        // RelevantEvent::WeightRight(_) => (),
+        // RelevantEvent::Brightness(_) => (),
+        RelevantEvent::DeskButton(b) => handle_button(b),
+        // RelevantEvent::BedButton(_) => (),
     }
+}
+
+fn handle_button(b: protocol::large_bedroom::desk::Button) {
+    println!("button pressed: {b:?}");
 }

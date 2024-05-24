@@ -2,7 +2,7 @@ use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
 use crate::button_enum;
-use crate::downcast_err::{LinuxI2cError, RpiButtonError};
+use crate::downcast_err::{GpioError, LinuxI2cError};
 
 button_enum! {
     /// No these are not borg, these are buttons on a string of cat5.
@@ -50,14 +50,14 @@ impl Error {
 #[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
 pub enum SetupError {
     BmeError(bme280::Error<LinuxI2cError>),
-    Gpio(RpiButtonError),
+    Gpio(GpioError),
     I2c(LinuxI2cError),
 }
 
 #[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
 pub enum SensorError {
     BmeError(bme280::Error<LinuxI2cError>),
-    Gpio(RpiButtonError),
+    Gpio(GpioError),
 }
 
 impl SensorError {

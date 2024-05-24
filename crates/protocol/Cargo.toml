@@ -28,6 +28,8 @@ bme280 = { version = "0.5", git = "https://github.com/dvdsk/bme280-rs", features
 embassy-stm32 = { version = "0.1.0", features = ["stm32f401cc"] }
 embassy-embedded-hal = "0.1.0"
 linux-embedded-hal = { version = "0.4.0", features = ["i2c"], default-features = false }
+gpiocdev-embedded-hal = "0.1.1"
+gpiocdev = "0.7"
 nix = "0.28.0"
 embedded-hal = "1.0.0"
 

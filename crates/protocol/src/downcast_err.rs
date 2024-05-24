@@ -4,7 +4,7 @@ mod uart;
 
 use bosch_bme680::BmeError;
 pub use i2c::{I2cError, LinuxI2cError};
-pub use rpi_button::RpiButtonError;
+pub use rpi_button::GpioError;
 pub use uart::Error as UartError;
 
 pub trait ConcreteErrorType {

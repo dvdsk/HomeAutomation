@@ -70,7 +70,7 @@ async fn sensor_event(aState(state): aState<State>, body: Bytes) {
         }
     };
     // in future convert from older protocol here
-    for value in msg.values {
+    for value in msg.values.into_iter().filter_map(Result::ok) {
         state.event_tx.send(Event::Sensor(value)).unwrap();
     }
 }
