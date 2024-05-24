@@ -2,17 +2,17 @@ use super::{bridge_connect, lamp::Lamp};
 use super::{ApplyChangeError, State};
 use crate::errors::Error;
 use futures_util::stream::Peekable;
-use futures_util::{FutureExt, Stream, StreamExt};
-use philipshue::LightCommand;
-use std::collections::HashMap;
+use futures_util::{Stream, StreamExt};
+use std::collections::{HashMap, HashSet};
 use std::pin::Pin;
-use std::time::Duration;
-use tokio::select;
+use std::time::{Duration, Instant};
 use tokio::sync::oneshot;
-use tracing::error;
+use tokio::time::{timeout, timeout_at};
+use tracing::{error, warn};
 
 use philipshue::bridge::Bridge;
 
+#[derive(Debug)]
 pub(crate) enum Change {
     AllOff,
     AllOn,
@@ -49,6 +49,7 @@ pub(crate) struct CachedBridge {
     pub(crate) known_state: State,
     // get names using: curl 192.168.1.11/api/<HUE API KEY>/lights | jq | grep '"name": "'
     lookup: HashMap<String, LampId>,
+    reported_missing: HashSet<String>,
 }
 
 impl CachedBridge {
@@ -68,7 +69,15 @@ impl CachedBridge {
             needed_state: state.clone(),
             known_state: state,
             lookup,
+            reported_missing: HashSet::new(),
         })
+    }
+
+    fn report_missing_if_not_reported_yet(&mut self, missing_lamp: &str) {
+        let new = self.reported_missing.insert(missing_lamp.to_string());
+        if new {
+            error!("no lamp with name: {missing_lamp} in lookup table, was recently (re)named?");
+        }
     }
 
     pub(crate) fn apply_changes(&mut self) -> Result<(), Error> {
@@ -78,19 +87,23 @@ impl CachedBridge {
             };
 
             if lamp != needed {
-                self.bridge
-                    .set_light_state(
-                        *id,
-                        &LightCommand::default()
-                            .with_xy(needed.xy.unwrap())
-                            .with_bri(needed.bri),
-                    )
-                    .unwrap();
+                if let Err(e) = self.bridge.set_light_state(*id, &needed.light_cmd()) {
+                    warn!("could not apply changes to lamp: {e}")
+                }
+                *lamp = needed.clone()
             }
         }
 
         Ok(())
     }
+
+    fn push_state(&mut self) -> Result<(), Error> {
+        for (id, lamp) in self.known_state.iter_mut() {
+            let _ignore_err = self.bridge.set_light_state(*id, &lamp.light_cmd());
+        }
+        Ok(())
+    }
+
     pub(crate) fn prep_change(&mut self, change: &Change) {
         match change {
             Change::AllOff => {
@@ -105,7 +118,6 @@ impl CachedBridge {
             }
             Change::Off { name } => {
                 let Some(lamp_id) = self.lookup.get(*name) else {
-                    error!("no lamp with name: {name} in lookup table, was recently (re)named?");
                     return;
                 };
                 if let Some(lamp) = self.needed_state.get_mut(lamp_id) {
@@ -116,7 +128,7 @@ impl CachedBridge {
             }
             Change::On { name } => {
                 let Some(lamp_id) = self.lookup.get(*name) else {
-                    error!("no lamp with name: {name} in lookup table, was recently (re)named?");
+                    self.report_missing_if_not_reported_yet(*name);
                     return;
                 };
                 if let Some(lamp) = self.needed_state.get_mut(&lamp_id) {
@@ -127,34 +139,38 @@ impl CachedBridge {
             }
             Change::CtBri { name, bri, ct } => {
                 let Some(lamp_id) = self.lookup.get(*name) else {
-                    error!("no lamp with name: {name} in lookup table, was recently (re)named?");
+                    self.report_missing_if_not_reported_yet(*name);
                     return;
                 };
                 if let Some(lamp) = self.needed_state.get_mut(lamp_id) {
                     lamp.bri = *bri;
                     lamp.ct = Some(*ct);
+                    lamp.xy = None;
                 }
             }
             Change::XyBri { name, bri, xy } => {
                 let Some(lamp_id) = self.lookup.get(*name) else {
-                    error!("no lamp with name: {name} in lookup table, was recently (re)named?");
+                    self.report_missing_if_not_reported_yet(*name);
                     return;
                 };
                 if let Some(lamp) = self.needed_state.get_mut(lamp_id) {
                     lamp.bri = *bri;
                     lamp.xy = Some(*xy);
+                    lamp.ct = None;
                 }
             }
             Change::AllCtBri { bri, ct } => {
                 self.needed_state.values_mut().for_each(|lamp| {
                     lamp.bri = *bri;
                     lamp.ct = Some(*ct);
+                    lamp.xy = None;
                 });
             }
             Change::AllXY { bri, xy } => {
                 self.needed_state.values_mut().for_each(|lamp| {
                     lamp.bri = *bri;
                     lamp.xy = Some(*xy);
+                    lamp.ct = None;
                 });
             }
         }
@@ -168,31 +184,56 @@ pub(crate) async fn process_lamp_changes<S>(
 where
     S: Stream<Item = (oneshot::Sender<Result<(), ApplyChangeError>>, Change)>,
 {
+    const MAX_DUR: Duration = Duration::from_millis(100);
+    let mut last_state_push = Instant::now();
     loop {
-        let mut to_answer = Vec::new();
-        // process backlog
-        loop {
-            let Some((_, change)) = stream.as_mut().peek_mut().now_or_never().flatten() else {
-                let change_appears = stream.as_mut().peek_mut();
-                let not_instant = tokio::time::sleep(Duration::from_millis(50));
-                select! {
-                    _ = change_appears => continue,
-                    _ = not_instant => break,
+        if last_state_push.elapsed() > Duration::from_secs(5) {
+            if let Err(err) = bridge.push_state() {
+                return err;
+            }
+            last_state_push = Instant::now();
+        }
 
+        let (tx, change) = match timeout(Duration::from_secs(5), stream.next()).await {
+            Ok(Some(next)) => next,
+            Ok(None) => unreachable!("light system should not drop"),
+            Err(_timeout) => {
+                if let Err(err) = bridge.push_state() {
+                    return err;
+                } else {
+                    continue;
+                }
+            }
+        };
+
+        bridge.prep_change(&change);
+        let mut to_answer = vec![tx];
+
+        let now = Instant::now();
+        let deadline = tokio::time::Instant::from(now) + MAX_DUR;
+
+        // process backlog
+        while now.elapsed() < MAX_DUR {
+            match timeout_at(deadline, stream.next()).await {
+                Err(_timeout) => break,
+                Ok(None) => unreachable!("light system should not drop"),
+                Ok(Some((tx, change))) => {
+                    bridge.prep_change(&change);
+                    to_answer.push(tx);
                 }
             };
-            bridge.prep_change(change);
-            // remove the now processed item from the stream and store its
-            // answer tx
-            let (tx, _) = stream.as_mut().next().await.expect("just peeked");
-            to_answer.push(tx);
         }
 
         if let Err(e) = bridge.apply_changes() {
+            error!("Could not apply changes to bridge immediately, err: {e}");
             for tx in to_answer {
                 let _ignore_canceld_requester = tx.send(Err(ApplyChangeError));
             }
             return e;
+        } else {
+            for tx in to_answer {
+                let _ignore_canceld_requester = tx.send(Ok(()));
+            }
         }
     }
 }

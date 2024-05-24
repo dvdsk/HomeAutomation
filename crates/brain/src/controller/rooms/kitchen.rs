@@ -2,12 +2,11 @@ use std::time::Duration;
 
 use futures_concurrency::future::Race;
 use futures_util::FutureExt;
-use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
-use tracing::warn;
+use tracing::{instrument, warn};
 
-use crate::controller::{Event, RestrictedSystem};
+use crate::controller::{local_now, Event, RestrictedSystem};
 
 enum State {
     // Sleep,
@@ -35,7 +34,7 @@ impl RecvFiltered for broadcast::Receiver<Event> {
 
 #[derive(Debug)]
 enum RelevantEvent {
-    DeskButton(protocol::large_bedroom::DeskButton),
+    // DeskButton(protocol::large_bedroom::DeskButton),
 }
 
 fn filter(event: Event) -> Option<RelevantEvent> {
@@ -66,35 +65,37 @@ pub async fn run(
 
         let res = (get_event, tick).race().await;
         match res {
-            Res::Event(e) => handle_event(e),
+            Res::Event(_) => (), // handle_event(e),
             Res::ShouldUpdate => {
-                update(&mut system);
-                next_update = Instant::now() + INTERVAL;
+                update(&mut system).await;
+                next_update = Instant::now() + Duration::from_secs(60);
             }
         }
     }
 }
 
-fn update(system: &mut RestrictedSystem) {
+async fn update(system: &mut RestrictedSystem) {
     let (new_ct, new_bri) = optimal_ct_bri();
-    system.all_lamps_ct(new_ct, new_bri);
+    system.all_lamps_ct(new_ct, new_bri).await;
+    tracing::info!("updated lamps");
 }
 
 fn optimal_ct_bri() -> (u16, u8) {
-    let now = OffsetDateTime::now_local().expect("Timezone not found");
+    let now = local_now();
     match now.hour() {
-        0..=5 | 22.. => (500, 220),
-        17..=21 => (320, u8::MAX),
-        6..=16 => (254, u8::MAX),
+        0..=8 | 22.. => (500, 180),
+        9..=16 => (270, u8::MAX),
+        17..=19 => (300, u8::MAX),
+        20..=21 => (400, 210),
     }
 }
 
-fn handle_event(e: RelevantEvent) {
-    use protocol::large_bedroom::DeskButton as D;
-    use RelevantEvent as R;
-
-    match e {
-        R::DeskButton(D::OneOfFour(p)) if p.is_long() => todo!(),
-        unhandled => warn!("Unhandled button: {unhandled:?}"),
-    }
-}
+// fn handle_event(e: RelevantEvent) {
+//     use protocol::large_bedroom::DeskButton as D;
+//     use RelevantEvent as R;
+//
+//     match e {
+//         R::DeskButton(D::OneOfFour(p)) if p.is_long() => todo!(),
+//         unhandled => warn!("Unhandled button: {unhandled:?}"),
+//     }
+// }

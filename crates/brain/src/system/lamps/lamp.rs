@@ -1,3 +1,5 @@
+use philipshue::LightCommand;
+
 //adaptation from philipshue LightState that adds some
 //values and removes unused
 #[derive(Debug, Clone, PartialEq)]
@@ -9,6 +11,20 @@ pub struct Lamp {
     pub xy: Option<(f32, f32)>,
     pub ct: Option<u16>,
     pub reachable: bool,
+}
+
+impl Lamp {
+    pub(crate) fn light_cmd(&self) -> LightCommand {
+        let light_cmd = LightCommand::default().with_bri(self.bri);
+        let light_cmd = if let Some(xy) = self.xy {
+            light_cmd.with_xy(xy)
+        } else if let Some(ct) = self.ct {
+            light_cmd.with_ct(ct)
+        } else {
+            unreachable!("lamp must have ct or xy set");
+        };
+        light_cmd
+    }
 }
 
 impl From<&philipshue::hue::LightState> for Lamp {
@@ -25,6 +41,7 @@ impl From<&philipshue::hue::LightState> for Lamp {
     }
 }
 
+#[allow(dead_code)]
 fn gamma_correct(mut x: f32) -> f32 {
     if x > 0.04045 {
         x = (x + 0.055) / (1f32 + 0.055);
@@ -36,6 +53,7 @@ fn gamma_correct(mut x: f32) -> f32 {
 
 //r,g,b between 0 and one
 //https://gist.github.com/popcorn245/30afa0f98eea1c2fd34d
+#[allow(dead_code)]
 pub fn xy_from_rgb(rgb: (f32, f32, f32)) -> (f32, f32) {
     let (r, g, b) = rgb;
     let r = gamma_correct(r);

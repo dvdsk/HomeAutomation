@@ -1,3 +1,4 @@
+use std::array;
 use std::net::IpAddr;
 
 use clap::Parser;
@@ -39,19 +40,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .cache_capacity(1024 * 1024 * 32) //32 mb cache
         .open()?;
 
-    let (event_tx, _event_rx) = broadcast::channel(250);
+    // must create all listeners before jobs/alarm events can be send
+    // or they may be lost.
+    let (event_tx, event_rx) = broadcast::channel(250);
+    let subscribed_rxs = array::from_fn(|_| event_tx.subscribe());
 
     let (jobs, _waker_thread) = input::jobs::Jobs::setup(event_tx.clone(), db.clone())?;
-    let wakeup = input::jobs::WakeUp::setup(db.clone(), jobs.clone())?;
+    let wakeup = input::jobs::WakeUp::setup(db.clone(), jobs.clone(), event_rx)?;
     // let (_mpd_status, _mpd_watcher_thread, _updater_tx) =
     //     input::MpdStatus::start_updating(opt.mpd_ip)?;
 
     let system = system::System::init(jobs);
-    controller::start(event_tx.clone(), system);
+    let _tasks = controller::start(subscribed_rxs, event_tx.clone(), system);
     input::api::setup(wakeup.clone(), event_tx, opt.port).await?;
 
-    std::future::pending::<()>().await;
-    Ok(())
+    unreachable!();
 }
 
 pub fn setup_tracing() {
@@ -64,7 +67,7 @@ pub fn setup_tracing() {
         .try_from_env()
         .unwrap_or_else(|_| {
             filter::EnvFilter::builder()
-                .parse("HomeAutomation=debug,info")
+                .parse("brain=debug,info")
                 .unwrap()
         });
 

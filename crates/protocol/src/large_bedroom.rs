@@ -1,81 +1,51 @@
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
-use crate::button_enum;
-use crate::extended_errors::I2cError;
-
-button_enum! {
-    /// No these are not borg, these are buttons on a string of cat5.
-    /// They are numbered starting at the farthest from the end
-    DeskButton {
-        OneOfFour,
-        TwoOfFour,
-        ThreeOfFour,
-        FourOfFour,
-        OneOfThree,
-        TwoOfThree,
-        ThirdOfThree,
-    }
-}
-
-button_enum! {
-    /// All button are on the headboard of the bed. As seen from the foot of the
-    /// bed it looks like this:
-    ///
-    /// LR----------------------------|
-    /// |--------------|--------------|
-    /// |-----------321|123-----------|
-    /// |654-----------|-----------456|
-    ///
-    /// Legend:
-    /// L: TopLeft, R: TopRight, 1: MiddleInner, 2: MiddleCenter, 3: MiddleOuter,
-    /// 4: OuterInner, 5: OuterCenter, 6: OuterOuter
-    BedButton {
-        TopLeft,
-        TopRight,
-        MiddleInner,
-        MiddleCenter,
-        MiddleOuter,
-        LowerInner,
-        LowerCenter,
-        LowerOuter,
-    }
-}
+pub mod bed;
+pub mod desk;
 
 #[derive(Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize)]
-pub enum LargeBedroom {
-    Brightness(f32),
-    Temperature(f32),
-    Humidity(f32),
-    GassResistance(f32), // in Ohm
-    Pressure(f32),
-    /// parts per million
-    Co2(u16),
-    /// weight on the left side of the bed
-    WeightLeft(u32),
-    /// weight on the right side of the bed
-    WeightRight(u32),
-    DeskButton(DeskButton),
-    BedButton(BedButton),
+pub enum Reading {
+    Bed(bed::Reading),
+    Desk(desk::Reading),
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize)]
-pub enum SensorError {
-    Sht31(sht31::error::SHTError),
-    Bme680(bosch_bme680::BmeError<I2cError>),
-    Max44(max44009::Error<I2cError>),
-}
-
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize)]
-pub enum Device {
-    Sht31,
-    Bme680,
-    Max44,
-}
-
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize)]
+#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
 pub enum Error {
-    Running(SensorError),
-    Setup(SensorError),
-    SetupTimedOut(Device),
+    Bed(bed::Error),
+    Desk(desk::Error),
+}
+
+#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
+pub enum Device {
+    Bed(bed::Device),
+    Desk(desk::Device),
+}
+
+
+#[derive(Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize)]
+pub enum Actuator {
+    CleanSensor,
+    CalibrateCo2,
+}
+
+impl Actuator {
+    #[cfg(feature = "alloc")]
+    pub fn encode(&self) -> Vec<u8> {
+        postcard::to_allocvec_cobs(self).expect("Encoding should not fail")
+    }
+
+    /// Buffer should be at least Self::ENCODED_SIZE long. The returned slice contains
+    /// the serialized data. It can be shorter then the input buffer.
+    pub fn encode_slice<'a>(&self, buf: &'a mut [u8]) -> &'a mut [u8] {
+        postcard::to_slice_cobs(self, buf).expect("Encoding should not fail")
+    }
+
+    pub fn decode(mut bytes: impl AsMut<[u8]>) -> Result<Self, crate::DecodeError> {
+        postcard::from_bytes_cobs(bytes.as_mut()).map_err(crate::DecodeError)
+    }
+
+    pub fn version(&self) -> u8 {
+        0
+    }
 }

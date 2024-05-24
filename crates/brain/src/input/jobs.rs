@@ -1,9 +1,9 @@
 use crossbeam_channel;
+use std::ops::Sub;
+use std::thread;
 use tokio::sync::broadcast;
 use tracing::error;
 use tracing::info;
-use std::ops::Sub;
-use std::thread;
 
 use byteorder::{BigEndian, ReadBytesExt};
 use chrono::{self, DateTime, Utc};
@@ -14,11 +14,6 @@ use crate::controller::Event;
 
 pub mod wakeup;
 pub use wakeup::WakeUp;
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum Action {
-    // SendEvent(Event),
-}
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -31,7 +26,7 @@ pub enum Error {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Job {
     pub time: DateTime<Utc>,
-    pub action: Action,
+    pub event: Event,
     /// how long after the time was missed the alarm
     /// should still go off
     pub expiration: Option<std::time::Duration>,
@@ -40,12 +35,12 @@ pub struct Job {
 impl Job {
     pub fn from(
         time: DateTime<Utc>,
-        action: impl Into<Action>,
+        event: Event,
         expiration: Option<std::time::Duration>,
     ) -> Self {
         Job {
             time,
-            action: action.into(),
+            event: event.into(),
             expiration,
         }
     }
@@ -106,7 +101,9 @@ fn waker(
                 Err(Disconnected) => return,
                 Err(Timeout) => {
                     // time to sound the alarm
-                    sound_alarm(&event_tx, current_alarm);
+                    event_tx
+                        .send(current_alarm.event)
+                        .expect("controller should listen on this");
                     alarm_list.remove_alarm(id).unwrap();
                     continue; //get next alarm
                 }
@@ -123,13 +120,6 @@ fn waker(
             }
         }
     }
-}
-
-fn sound_alarm(event_tx: &broadcast::Sender<Event>, job: Job) {
-    todo!();
-    // match job.action {
-        // Action::SendEvent(ev) => event_tx.send(ev).unwrap(),
-    // };
 }
 
 impl Jobs {
@@ -165,18 +155,18 @@ impl Jobs {
         self.list.get_alarm(id)
     }
 
-    pub fn list(&self) -> Vec<(u64, Job)> {
-        let start: &[u8] = &[0];
-        let alarms = self.list.db.range(start..);
-
-        let mut list = Vec::new();
-        for (key, alarm) in alarms.filter_map(Result::ok) {
-            let alarm = bincode::deserialize(&alarm).unwrap();
-            let key = key.as_ref().read_u64::<BigEndian>().unwrap();
-            list.push((key, alarm));
-        }
-        list
-    }
+    // pub fn list(&self) -> Vec<(u64, Job)> {
+    //     let start: &[u8] = &[0];
+    //     let alarms = self.list.db.range(start..);
+    //
+    //     let mut list = Vec::new();
+    //     for (key, alarm) in alarms.filter_map(Result::ok) {
+    //         let alarm = bincode::deserialize(&alarm).unwrap();
+    //         let key = key.as_ref().read_u64::<BigEndian>().unwrap();
+    //         list.push((key, alarm));
+    //     }
+    //     list
+    // }
 }
 
 impl JobList {

@@ -1,22 +1,13 @@
 [package]
-name = "ha"
+name = "brain"
 version = "0.1.0"
 rust-version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
 
-[features]
-default = []
-
-# Enable code that expects sensor hardware to be present. Will stop execution
-# if hardware is not present,
-# on by default for testing use cargo flag: --no-default-features
-sensors_connected = []
-live_server = []
-
 [dependencies]
-protocol = { path = "../protocol", features = ["alloc"] }
+protocol = { path = "../protocol" }
 
 futures = "0.3"
 tokio = { version = "1", features = ["full"] }
@@ -34,24 +25,22 @@ thiserror = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 bytes = "1.5"
 byteorder = "1.4"
-num = { version = "0.4"}
 
 crossbeam-channel = "0.5"
 
 sled = "0.34"
-# pagecache = "0.17"
 reqwest = {version = "0.11", default-features = false, features = ["rustls-tls"]}
 
 mpd = "0.1"
 rand = "0.8"
-retry = "2"
 
 futures-util = "0.3.30"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tracing-journald = "0.3.0"
 log-panics = "2.1.0"
-clap = { version = "4.5.2", features = ["derive"] }
+clap = { version = "4.5.4", features = ["derive"] }
 futures-concurrency = "7.5.0"
-time = { version = "0.3.36", features = ["local-offset"] }
+time = { version = "0.3.36", features = ["macros"] }
 strum = { version = "0.26.2", default-features = false, features = ["derive"] }
+tz-rs = "0.6.14"

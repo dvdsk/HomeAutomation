@@ -2,12 +2,11 @@ use std::time::Duration;
 
 use futures_concurrency::future::Race;
 use futures_util::FutureExt;
-use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
 use tracing::warn;
 
-use crate::controller::{Event, RestrictedSystem};
+use crate::controller::{local_now, Event, RestrictedSystem};
 
 enum State {
     // Sleep,
@@ -35,16 +34,30 @@ impl RecvFiltered for broadcast::Receiver<Event> {
 
 #[derive(Debug)]
 enum RelevantEvent {
-    DeskButton(protocol::large_bedroom::DeskButton),
+    WakeUp,
+    WeightLeft(u32),
+    WeightRight(u32),
+    Brightness(f32), // millilux
+    DeskButton(protocol::large_bedroom::desk::Button),
+    BedButton(protocol::large_bedroom::bed::Button),
 }
 
 fn filter(event: Event) -> Option<RelevantEvent> {
-    match event {
-        // Event::Sensor(SensorValue::ButtonPress(Button::LargeBedroomDesk(desk))) => {
-        //     Some(RelevantEvent::DeskButton(desk))
-        // }
-        _ => None,
-    }
+    use protocol::large_bedroom::bed::Reading as B;
+    use protocol::large_bedroom::desk::Reading as D;
+    use protocol::large_bedroom::Reading as R;
+    use protocol::Reading::LargeBedroom as LB;
+    use Event::{Sensor, WakeUp};
+
+    Some(match event {
+        WakeUp => RelevantEvent::WakeUp,
+        Sensor(LB(R::Desk(D::Button(b)))) => RelevantEvent::DeskButton(b),
+        Sensor(LB(R::Bed(B::Button(b)))) => RelevantEvent::BedButton(b),
+        Sensor(LB(R::Bed(B::Brightness(l)))) => RelevantEvent::Brightness(l),
+        Sensor(LB(R::Bed(B::WeightLeft(w)))) => RelevantEvent::WeightLeft(w),
+        Sensor(LB(R::Bed(B::WeightRight(w)))) => RelevantEvent::WeightRight(w),
+        _ => return None,
+    })
 }
 
 pub async fn run(
@@ -68,33 +81,34 @@ pub async fn run(
         match res {
             Res::Event(e) => handle_event(e),
             Res::ShouldUpdate => {
-                update(&mut system);
+                update(&mut system).await;
                 next_update = Instant::now() + INTERVAL;
             }
         }
     }
 }
 
-fn update(system: &mut RestrictedSystem) {
+async fn update(system: &mut RestrictedSystem) {
     let (new_ct, new_bri) = optimal_ct_bri();
-    system.all_lamps_ct(new_ct, new_bri);
+    system.all_lamps_ct(new_ct, new_bri).await;
 }
 
 fn optimal_ct_bri() -> (u16, u8) {
-    let now = OffsetDateTime::now_local().expect("Timezone not found");
+    let now = local_now();
     match now.hour() {
-        0..=5 | 22.. => (500, 220),
-        17..=21 => (320, u8::MAX),
+        0..=5 | 22.. => (500, 170),
         6..=16 => (254, u8::MAX),
+        17..=19 => (320, u8::MAX),
+        20..=21 => (320, 220),
     }
 }
 
 fn handle_event(e: RelevantEvent) {
-    use protocol::large_bedroom::DeskButton as D;
-    use RelevantEvent as R;
+    // use protocol::large_bedroom::DeskButton;
+    // use RelevantEvent as R;
 
     match e {
-        R::DeskButton(D::OneOfFour(p)) if p.is_long() => todo!(),
-        unhandled => warn!("Unhandled button: {unhandled:?}"),
+        // R::DeskButton(DeskButton::OneOfFour(p)) if p.is_long() => (),
+        unhandled => warn!("Unhandled relevant event: {unhandled:?}"),
     }
 }

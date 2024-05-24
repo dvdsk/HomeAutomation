@@ -1,10 +1,13 @@
+use crate::controller::Event;
+
 use super::{Job, Jobs};
 use chrono::{DateTime, Local, Timelike, Utc};
-use tokio::runtime::Runtime;
-use tracing::info;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use std::time::Duration;
+use tokio::runtime::Runtime;
+use tokio::sync::{broadcast, Mutex};
+use tokio::task;
+use tracing::{error, info};
 
 // TODO FIXME multiple things left to do:
 // - usually and tomorrow are not written to db
@@ -19,12 +22,37 @@ pub enum Error {
     JobError(#[from] super::Error),
 }
 
+async fn reset_on_wakeup(wake_up: WakeUp, mut event_rx: broadcast::Receiver<Event>) {
+    loop {
+        match event_rx.recv().await {
+            Ok(Event::WakeUp) => {
+                if let Err(e) = wake_up.reset() {
+                    /* TODO: this should make more "noise" then this <28-04-24, dvdsk> */
+                    error!("Could not reset wakeup system for next wake: {e}");
+                }
+            }
+            Err(broadcast::error::RecvError::Closed) => return,
+            _ => (),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct WakeUp(Arc<Mutex<Inner>>);
 impl WakeUp {
-    pub fn setup(db: sled::Db, jobs: Jobs) -> Result<Self, Error> {
+    /// # Important
+    /// The receiver must be subscribed before the jobs system is started
+    /// or it can miss alarms
+    pub fn setup(
+        db: sled::Db,
+        jobs: Jobs,
+        event_rx: broadcast::Receiver<Event>,
+    ) -> Result<Self, Error> {
         let inner = Inner::setup(db, jobs)?;
         let inner = Arc::new(Mutex::new(inner));
+        let this = Self(inner.clone());
+        task::spawn(reset_on_wakeup(this, event_rx));
+
         Ok(Self(inner))
     }
     pub async fn tomorrow(&self) -> Option<(u8, u8)> {
@@ -117,7 +145,7 @@ impl Inner {
         Ok(())
     }
 
-    /// reset the alarm, if their is a usual alarm
+    /// reset the alarm, if there is a usual alarm
     /// time we set that, otherwise remove all
     pub fn reset(&mut self) -> Result<(), Error> {
         if let Some((hour, min)) = self.usually {
@@ -165,7 +193,7 @@ impl Inner {
 fn job_from(hour: u8, min: u8) -> Job {
     Job {
         time: to_datetime(hour, min),
-        action: todo!(), //Action::SendEvent(Event::WakeUp),
+        event: Event::WakeUp,
         expiration: Some(Duration::from_secs(3 * 60 * 60)),
     }
 }

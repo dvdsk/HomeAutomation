@@ -69,28 +69,23 @@ pub struct ApplyChangeError;
 
 macro_rules! light_fn {
     ($name:ident, $change:ident$(; $($arg:ident: $type:ty),+)?) => {
-        pub fn $name(&mut self, $($($arg: $type),+)?) -> Result<(), ApplyChangeError> {
+        pub async fn $name(&mut self, $($($arg: $type),+)?) -> Result<(), ApplyChangeError> {
             // todo use oneshot to get error back from other side
             let (tx, rx) = tokio::sync::oneshot::channel();
             self.tx.send((tx, Change::$change$({$($arg),+})?)).expect("managed_bridge should channel should never drop as managed bridge task should never end");
-            let res = rx.blocking_recv().expect("managed_bridge should not crash and thus not drop the receive end of the channel");
+            let res = rx.await.expect("managed_bridge should not crash and thus not drop the receive end of the channel");
             res
         }
     };
 }
 
+#[allow(dead_code)]
 impl Lighting {
     pub fn start_init() -> Self {
         let (tx, rx) = mpsc::unbounded_channel();
         let manage_bridge = manage_bridge(rx);
-        let manage_bridge = tokio::task::spawn(manage_bridge);
+        tokio::task::spawn(manage_bridge);
         Self { tx }
-    }
-
-    //how to deal with errors?
-    pub fn toggle(&mut self) -> Result<(), Error> {
-        error!("not implemented");
-        Ok(())
     }
 
     light_fn! {all_off, AllOff}

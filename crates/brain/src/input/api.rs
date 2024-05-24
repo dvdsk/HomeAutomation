@@ -65,7 +65,7 @@ async fn sensor_event(aState(state): aState<State>, body: Bytes) {
     let msg: protocol::SensorMessage<20> = match protocol::SensorMessage::decode(&mut bytes) {
         Ok(msg) => msg,
         Err(e) => {
-            warn!("Failed to decode received body: {e}");
+            warn!("Failed to decode received body: {e:?}");
             return;
         }
     };

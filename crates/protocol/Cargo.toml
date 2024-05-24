@@ -12,7 +12,7 @@ authors.workspace = true
 serde = { version = "1.0", features = ["derive"], default-features = false }
 postcard = { version = "1.0", features = ["experimental-derive"] }
 heapless = { version = "0.8.0", features = ["serde"] }
-strum = { version = "0.26.2", default-features = false }
+strum = { version = "0.26.2", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0", optional = true }
 defmt = "0.3.6"
 
@@ -20,10 +20,18 @@ defmt = "0.3.6"
 sht31 = { version = "0.3.0", git = "https://github.com/dvdsk/SHT31-rs", features = ["serde", "postcard"]}
 bosch-bme680 = { version = "1.0.2", git = "https://github.com/dvdsk/async-bosch-bme680", features = ["serde", "postcard"] }
 max44009 = { version = "0.2", git = "https://github.com/dvdsk/max44009-rs", features = ["serde", "postcard"] }
+mhzx = { version = "0.3", git = "https://github.com/dvdsk/mhzx", features = ["serde", "postcard"] }
+sps30-async = { version = "0.2.0", git = "https://github.com/dvdsk/sps30-async", features = ["serde", "postcard"] }
+bme280 = { version = "0.5", git = "https://github.com/dvdsk/bme280-rs", features = ["postcard", "serde", "with_defmt"]}
 
 # needed for bme680 error I2C type 
 embassy-stm32 = { version = "0.1.0", features = ["stm32f401cc"] }
 embassy-embedded-hal = "0.1.0"
+linux-embedded-hal = { version = "0.4.0", features = ["i2c"], default-features = false }
+nix = "0.28.0"
+embedded-hal = "1.0.0"
 
 [features]
-alloc = ["postcard/alloc", "serde/std", "sht31/thiserror", "bosch-bme680/thiserror"]
+alloc = ["postcard/alloc", "serde/std", "sht31/thiserror",
+"bosch-bme680/thiserror", "mhzx/thiserror", "sps30-async/thiserror",
+"max44009/thiserror"]
