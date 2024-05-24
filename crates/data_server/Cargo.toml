@@ -1,0 +1,16 @@
+[package]
+name = "data-server"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+color-eyre = "0.6.3"
+tracing = "0.1.40"
+tracing-error = "0.2.0"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+
+protocol = { path = "/home/david/Documents/HomeAutomation/crates/protocol", features = ["alloc"] }
+tokio = { version = "1.37.0", features = ["rt", "macros", "net", "sync", "io-util"] }
+tokio-stream = { version = "0.1.15", features = ["net"] }
