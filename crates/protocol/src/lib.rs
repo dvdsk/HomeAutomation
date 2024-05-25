@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "alloc"), no_std)]
 
+use core::any::type_name;
+
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
@@ -83,11 +85,55 @@ impl Press {
     }
 }
 
-#[derive(strum::VariantNames, Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize)]
+type TomatoId = u8;
+pub enum TomatoItem<'a> {
+    Leaf(f32),
+    Node(&'a dyn Tomato),
+}
+
+pub trait Tomato {
+    fn inner<'a>(&'a self) -> TomatoItem<'a>;
+    fn name(&self) -> &'static str {
+        type_name::<Self>()
+    }
+    fn id(&self) -> TomatoId;
+}
+
+macro_rules! all_nodes {
+    ($name:ident; $variant:ident; $($var:ident),*) => {
+        impl Tomato for $name {
+            fn inner<'a>(&'a self) -> crate::TomatoItem<'a> {
+                match self {
+                    $(
+                    $name::$var(inner) => crate::TomatoItem::Node(inner as &dyn Tomato)
+                    ),*
+                }
+            }
+
+            fn id(&self) -> crate::TomatoId {
+                $variant::from(self) as crate::TomatoId
+            }
+        }
+    };
+}
+pub(crate) use all_nodes;
+all_nodes! {Reading; ReadingDiscriminants; LargeBedroom} //, Test}
+
+#[derive(
+    strum::EnumDiscriminants,
+    strum::VariantNames,
+    Clone,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+)]
+#[strum_discriminants(derive(Hash))]
 pub enum Reading {
     LargeBedroom(large_bedroom::Reading),
     // SmallBedroom(small_bedroom::Reading),
-    Test,
+    // Test,
 }
 
 #[derive(strum::VariantNames, Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize)]

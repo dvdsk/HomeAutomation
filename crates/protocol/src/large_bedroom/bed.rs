@@ -1,5 +1,5 @@
-use crate::button_enum;
 use crate::downcast_err::{I2cError, UartError};
+use crate::{button_enum, Tomato, TomatoItem};
 
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
@@ -68,29 +68,34 @@ pub enum Reading {
     TypicalParticleSize(f32),
 }
 
-impl Into<f32> for Reading {
-    fn into(self) -> f32 {
-        match self {
-            Reading::Brightness(val) => val,
-            Reading::Temperature(val) => val,
-            Reading::Humidity(val) => val,
-            Reading::GassResistance(val) => val,
-            Reading::Pressure(val) => val,
-            Reading::Co2(val) => val as f32,
-            Reading::WeightLeft(val) => val as f32,
-            Reading::WeightRight(val) => val as f32,
-            Reading::Button(val) => val.into(),
-            Reading::MassPm1_0(val) => val,
-            Reading::MassPm2_5(val) => val,
-            Reading::MassPm4_0(val) => val,
-            Reading::MassPm10(val) => val,
-            Reading::MassPm0_5(val) => val,
-            Reading::NumberPm1_0(val) => val,
-            Reading::NumberPm2_5(val) => val,
-            Reading::NumberPm4_0(val) => val,
-            Reading::NumberPm10(val) => val,
-            Reading::TypicalParticleSize(val) => val,
-        }
+impl Tomato for Reading {
+    fn inner<'a>(&'a self) -> TomatoItem<'a> {
+        let val = match self {
+            Reading::Brightness(val) => *val,
+            Reading::Temperature(val) => *val,
+            Reading::Humidity(val) => *val,
+            Reading::GassResistance(val) => *val,
+            Reading::Pressure(val) => *val,
+            Reading::Co2(val) => *val as f32,
+            Reading::WeightLeft(val) => *val as f32,
+            Reading::WeightRight(val) => *val as f32,
+            Reading::Button(val) => (*val).into(),
+            Reading::MassPm1_0(val) => *val,
+            Reading::MassPm2_5(val) => *val,
+            Reading::MassPm4_0(val) => *val,
+            Reading::MassPm10(val) => *val,
+            Reading::MassPm0_5(val) => *val,
+            Reading::NumberPm1_0(val) => *val,
+            Reading::NumberPm2_5(val) => *val,
+            Reading::NumberPm4_0(val) => *val,
+            Reading::NumberPm10(val) => *val,
+            Reading::TypicalParticleSize(val) => *val,
+        };
+        TomatoItem::Leaf(val)
+    }
+
+    fn id(&self) -> crate::TomatoId {
+        ReadingDiscriminants::from(self) as crate::TomatoId
     }
 }
 

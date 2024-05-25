@@ -1,14 +1,21 @@
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
+use crate::{all_nodes, Tomato};
+
 pub mod bed;
 pub mod desk;
 
-#[derive(Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize)]
+#[derive(
+    strum::EnumDiscriminants, Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize,
+)]
+#[strum_discriminants(derive(Hash))]
 pub enum Reading {
     Bed(bed::Reading),
     Desk(desk::Reading),
 }
+
+all_nodes! {Reading; ReadingDiscriminants; Bed, Desk}
 
 #[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
 pub enum Error {
@@ -21,7 +28,6 @@ pub enum Device {
     Bed(bed::Device),
     Desk(desk::Device),
 }
-
 
 #[derive(Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize)]
 pub enum Actuator {

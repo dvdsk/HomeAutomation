@@ -1,8 +1,8 @@
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
-use crate::button_enum;
 use crate::downcast_err::{GpioError, LinuxI2cError};
+use crate::{button_enum, Tomato, TomatoItem};
 
 button_enum! {
     /// No these are not borg, these are buttons on a string of cat5.
@@ -27,6 +27,22 @@ pub enum Reading {
     Humidity(f32),
     Pressure(f32),
     Button(Button),
+}
+
+impl Tomato for Reading {
+    fn inner<'a>(&'a self) -> TomatoItem<'a> {
+        let val = match self {
+            Reading::Temperature(val) => *val,
+            Reading::Humidity(val) => *val,
+            Reading::Pressure(val) => *val,
+            Reading::Button(val) => (*val).into(),
+        };
+        TomatoItem::Leaf(val)
+    }
+
+    fn id(&self) -> crate::TomatoId {
+        ReadingDiscriminants::from(self) as crate::TomatoId
+    }
 }
 
 #[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
