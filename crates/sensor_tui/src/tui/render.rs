@@ -1,7 +1,7 @@
 use ratatui::{
     self,
     layout::{Constraint, Layout, Rect},
-    style::{Color, Modifier, Style, Stylize},
+    style::{Modifier, Style},
     symbols,
     widgets::{
         Axis, Bar, BarChart, BarGroup, Block, Borders, Chart, Dataset, GraphType, List, ListState,
@@ -9,13 +9,14 @@ use ratatui::{
     },
     Frame,
 };
+use tui_tree_widget::{Tree, TreeItem, TreeState};
 
-use super::{reading::ChartParts, ActiveList};
+use super::{reading::{ChartParts, TreeKey}, ActiveList};
 
 pub(crate) fn all(
     frame: &mut Frame,
-    readings: Vec<String>,
-    reading_list_state: &mut ListState,
+    readings: &[TreeItem<'static, TreeKey>],
+    reading_state: &mut TreeState<TreeKey>,
     actuators: Vec<String>,
     actuator_list_state: &mut ListState,
     active_list: ActiveList,
@@ -32,7 +33,7 @@ pub(crate) fn all(
         frame,
         top,
         readings,
-        reading_list_state,
+        reading_state,
         actuators,
         actuator_list_state,
         active_list,
@@ -120,8 +121,8 @@ fn global_view(frame: &mut Frame, layout: Rect, histogram: &[Bar]) {
 pub(crate) fn render_top(
     frame: &mut Frame,
     layout: Rect,
-    readings: Vec<String>,
-    reading_list_state: &mut ListState,
+    readings: &[TreeItem<'static, TreeKey>],
+    reading_list_state: &mut TreeState<TreeKey>,
     actuators: Vec<String>,
     actuator_list_state: &mut ListState,
     active_list: ActiveList,
@@ -139,7 +140,8 @@ pub(crate) fn render_top(
             .areas(vertical[1]);
 
     frame.render_stateful_widget(
-        List::new(readings)
+        Tree::new(&readings)
+            .expect("all item identifiers should be unique")
             .block(
                 Block::default()
                     .title("Sensor readings")
@@ -148,9 +150,7 @@ pub(crate) fn render_top(
             )
             .style(active_list.style(ActiveList::Readings))
             .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
-            .highlight_symbol(">>")
-            .repeat_highlight_symbol(false)
-            .direction(ratatui::widgets::ListDirection::TopToBottom),
+            .highlight_symbol(">>"),
         horizontal[0],
         reading_list_state,
     );

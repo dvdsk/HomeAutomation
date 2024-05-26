@@ -1,49 +1,14 @@
-use std::io::prelude::*;
-use std::io::BufReader;
-use std::net::{TcpListener, TcpStream};
+use std::net::SocketAddr;
 use std::sync::mpsc;
-use std::sync::mpsc::Sender;
 use std::thread;
 
 use color_eyre::Result;
 
-use protocol::SensorMessage;
-
 mod tui;
 
-fn handle_client(stream: TcpStream, tx: Sender<Update>) {
-    let mut reader = BufReader::new(stream);
-    let mut buf = Vec::new();
-    loop {
-        let n_read = match reader.read_until(0, &mut buf) {
-            Err(e) => {
-                tx.send(Update::ConnFailed).unwrap();
-                return;
-            }
-            Ok(bytes) => bytes,
-        };
-        let msg = &mut buf[0..n_read];
-        let msg = match SensorMessage::<6>::decode(msg) {
-            Ok(msg) => msg,
-            Err(e) => {
-                tx.send(Update::DecodeFailed(e)).unwrap();
-                continue;
-            }
-        };
-        let values = msg.values;
-        for value in values.into_iter() {
-            tx.send(Update::Data(value)).unwrap();
-        }
-
-        buf.clear();
-    }
-}
-
 enum Update {
-    Data(protocol::Sensor),
-    ConnFailed,
-    NewConn(std::net::SocketAddr),
-    DecodeFailed(protocol::DecodeError),
+    Reading(protocol::Reading),
+    Error(protocol::Error),
 }
 
 fn main() -> Result<()> {
@@ -52,25 +17,18 @@ fn main() -> Result<()> {
 
     thread::spawn(|| tui::run(rx));
 
-    let listener = TcpListener::bind("0.0.0.0:1234")?;
+    let addr = SocketAddr::from(([127, 0, 0, 1], 1235));
+    let mut sub = data_server::Subscriber::connect(addr).unwrap();
 
-    // accept connections and process them serially
-    for stream in listener.incoming() {
-        let stream = match stream {
-            Ok(stream) => stream,
-            Err(e) => {
-                println!("new connection failed: {e}");
-                continue;
-            }
+    while let Ok(val) = sub.next() {
+        let update = match val {
+            Ok(reading) => Update::Reading(reading),
+            Err(error) => Update::Error(error),
         };
 
-        tx.send(Update::NewConn(stream.peer_addr().unwrap()))
-            .unwrap();
-        {
-            let tx = tx.clone();
-            std::thread::spawn(move || handle_client(stream, tx));
-        }
+        tx.send(update).unwrap();
     }
+
     Ok(())
 }
 
