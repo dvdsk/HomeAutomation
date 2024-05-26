@@ -8,7 +8,7 @@ use tokio_stream::wrappers::TcpListenerStream;
 use tokio_stream::StreamExt;
 
 use color_eyre::{Result, Section};
-use protocol::{Sensor, SensorMessage};
+use protocol::{Reading, SensorMessage};
 
 use clap::Parser;
 use tokio::select;
@@ -58,7 +58,7 @@ async fn handle_client(stream: TcpStream, tx: Sender<Event>) {
 
 enum Event {
     NewSub(TcpStream),
-    NewReading(Sensor),
+    NewReading(Result<Reading, protocol::Error>),
 }
 
 async fn spread_updates(

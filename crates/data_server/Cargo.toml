@@ -14,3 +14,4 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 protocol = { path = "/home/david/Documents/HomeAutomation/crates/protocol", features = ["alloc"] }
 tokio = { version = "1.37.0", features = ["rt", "macros", "net", "sync", "io-util"] }
 tokio-stream = { version = "0.1.15", features = ["net"] }
+thiserror = "1.0.61"
