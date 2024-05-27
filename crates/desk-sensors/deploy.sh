@@ -12,13 +12,13 @@ fi
 rustup override set nightly
 cross build --target=aarch64-unknown-linux-gnu $BUILD_ARG
 rsync -vh --progress \
-  target/aarch64-unknown-linux-gnu/$RELEASE/sensor_central \
+  target/aarch64-unknown-linux-gnu/$RELEASE/desk-sensors \
   $SERVER:/tmp/
 
 cmds="
-sudo mv /tmp/sensor_central /home/ha/sensor_central
-sudo chown ha:ha /home/ha/sensor_central
-sudo systemctl restart sens.service
+sudo mv /tmp/desk-sensors /home/ha/desk-sensors
+sudo chown ha:ha /home/ha/desk-sensors
+sudo systemctl restart desk-sensors.service
 "
 
 ssh -t sgc "$cmds"
