@@ -35,7 +35,7 @@ impl Subscriber {
             .map_err(SubscribeError::ConnFailed)?;
 
         let msg = &mut self.buf[0..n_read];
-        let msg = SensorMessage::<6>::decode(msg).map_err(SubscribeError::DecodeFailed)?;
+        let msg = SensorMessage::<50>::decode(msg).map_err(SubscribeError::DecodeFailed)?;
 
         self.values = msg.values.to_vec().into_iter();
         Ok(self

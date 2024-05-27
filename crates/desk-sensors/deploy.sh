@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
-BUILD_ARG=$1
-SERVER="sgc"  # ssh config name or full adress
-RELEASE=debug
-
-if [[ BUILD_ARG == "--release" ]]; then
-	RELEASE=release
-fi
+SERVER="sgc"  # ssh config name or full address
+BUILD_ARG=--release
+RELEASE=release
 
 cargo build --target=aarch64-unknown-linux-musl $BUILD_ARG
 rsync -vh --progress \

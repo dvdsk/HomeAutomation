@@ -17,5 +17,5 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tracing-error = "0.2.0"
 
 protocol = { path = "../protocol", features = ["alloc"] }
-tokio = { version = "1.37.0", features = ["rt", "time"] }
+tokio = { version = "1.37.0", features = ["rt", "time", "macros"] }
 embedded-hal-async = "1.0.0"

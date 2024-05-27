@@ -1,18 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
-BUILD_ARG=$1
+BUILD_ARG=--release
 SERVER="sgc"  # ssh config name or full address
-RELEASE=debug
 NAME=data-server
 
-if [[ BUILD_ARG == "--release" ]]; then
-	RELEASE=release
-fi
-
-cross build --target=aarch64-unknown-linux-gnu $BUILD_ARG
+cargo build --target=aarch64-unknown-linux-musl $BUILD_ARG
 rsync -vh --progress \
-  target/aarch64-unknown-linux-gnu/$RELEASE/$NAME \
+  ../../target/aarch64-unknown-linux-musl/release/$NAME \
   $SERVER:/tmp/
 
 cmds="

@@ -2,7 +2,8 @@ use std::net::SocketAddr;
 use std::sync::mpsc;
 use std::thread;
 
-use color_eyre::Result;
+use color_eyre::eyre::WrapErr;
+use color_eyre::{Help, Result};
 
 mod tui;
 
@@ -13,8 +14,10 @@ enum Update {
 
 fn main() -> Result<()> {
     setup_tracing().unwrap();
-    let addr = SocketAddr::from(([127, 0, 0, 1], 1235));
-    let mut sub = data_server::Subscriber::connect(addr).unwrap();
+    let addr = SocketAddr::from(([192, 168, 1, 43], 1235));
+    let mut sub = data_server::Subscriber::connect(addr)
+        .wrap_err("failed to connect")
+        .with_suggestion(|| format!("verify the server is listening on: {addr}"))?;
 
     let (tx, rx) = mpsc::channel();
     thread::spawn(|| tui::run(rx));

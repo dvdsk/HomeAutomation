@@ -10,7 +10,7 @@ use protocol::large_bedroom::desk::{Button, SetupError};
 
 use crate::{send_error, send_reading};
 
-const CHIP: &str = "pinctrl-bcm2835";
+const CHIP: &str = "/dev/gpiochip0";
 
 async fn watch_pin(
     offset: u32,
@@ -80,6 +80,7 @@ async fn watch_pins(tx: &Sender<Result<Reading, protocol::Error>>) {
 pub fn start_monitoring(tx: Sender<Result<Reading, protocol::Error>>) {
     thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_io()
             .build()
             .unwrap();
         rt.block_on(watch_pins(&tx))
