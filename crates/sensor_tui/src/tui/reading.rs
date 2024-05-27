@@ -13,16 +13,6 @@ pub struct SensorInfo {
 }
 
 impl SensorInfo {
-    fn last(&self) -> Result<f32, Error> {
-        self.condition.clone()?;
-
-        let last = self
-            .history
-            .front()
-            .expect("Items are put in the map when they arrive with a value");
-        Ok(last.1)
-    }
-
     fn last_at(&self) -> Result<Instant, Error> {
         self.condition.clone()?;
 
@@ -36,22 +26,24 @@ impl SensorInfo {
 
 pub type TreeKey = [u8; 6];
 pub struct Readings {
+    // in the ground there are multiple trees
     pub ground: Vec<TreeItem<'static, TreeKey>>,
     pub data: HashMap<TreeKey, SensorInfo>,
 }
 
-fn add_leaf(tomato: &dyn Tomato, tree: &mut TreeItem<'static, TreeKey>, key: TreeKey) {
-    // let text = format!("{}: {}", tomato.name(), val);
-    let new_item = TreeItem::new_leaf(key, tomato.name());
+fn add_leaf(name: &'static str, val: f32, tree: &mut TreeItem<'static, TreeKey>, key: TreeKey) {
+    let text = format!("{}: {}", name, val);
+    let new_item = TreeItem::new_leaf(key, text.clone());
     // todo is exists its fine handle that
-    tree.add_child(new_item); // errors when identifier already exists
+    let _ignore_existing = tree.add_child(new_item); // errors when identifier already exists
 
-    // let new_child = tree
-    //     .children()
-    //     .iter()
-    //     .position(|item| *item.identifier() == tomato.id())
-    //     .expect("just added it");
-    // let existing = tree.child_mut(new_child).expect("just added it")
+    let new_child = tree
+        .children()
+        .iter()
+        .position(|item| *item.identifier() == key)
+        .expect("just added it");
+    let existing = tree.child_mut(new_child).expect("just added it");
+    existing.update_text(text);
 }
 
 fn add_root<'a>(
@@ -77,8 +69,8 @@ fn add_node<'a>(
 ) -> &'a mut TreeItem<'static, TreeKey> {
     let key = [tomato.id(); 6];
     let new_item = TreeItem::new(key, tomato.name(), Vec::new()).unwrap();
-    // todo is exists its fine handle that
-    tree.add_child(new_item); // errors when identifier already exists
+    // add just in case it was not there yet
+    let _ignore_existing = tree.add_child(new_item);
     let new_child = tree
         .children()
         .iter()
@@ -145,8 +137,8 @@ impl Readings {
         let mut tree = add_root(tomato, &mut self.ground);
         loop {
             match tomato.inner() {
-                TomatoItem::Leaf(_) => {
-                    add_leaf(tomato, tree, key);
+                TomatoItem::Leaf(val) => {
+                    add_leaf(tomato.name(), val, tree, key);
                     return;
                 }
                 TomatoItem::Node(inner) => {

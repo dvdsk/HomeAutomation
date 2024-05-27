@@ -13,12 +13,11 @@ enum Update {
 
 fn main() -> Result<()> {
     setup_tracing().unwrap();
-    let (tx, rx) = mpsc::channel();
-
-    thread::spawn(|| tui::run(rx));
-
     let addr = SocketAddr::from(([127, 0, 0, 1], 1235));
     let mut sub = data_server::Subscriber::connect(addr).unwrap();
+
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(|| tui::run(rx));
 
     while let Ok(val) = sub.next() {
         let update = match val {

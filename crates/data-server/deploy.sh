@@ -2,9 +2,9 @@
 set -e
 
 BUILD_ARG=$1
-SERVER="sgc"  # ssh config name or full adress
+SERVER="sgc"  # ssh config name or full address
 RELEASE=debug
-NAME=datasplitter
+NAME=data-server
 
 if [[ BUILD_ARG == "--release" ]]; then
 	RELEASE=release
@@ -16,9 +16,9 @@ rsync -vh --progress \
   $SERVER:/tmp/
 
 cmds="
-sudo mv /tmp/$NAME /home/data/$NAME
-sudo chown data:data /home/data/$NAME
-sudo systemctl restart datasplitter.service
+sudo mv /tmp/$NAME /home/ha/$NAME
+sudo chown ha:ha /home/ha/$NAME
+sudo systemctl restart data-server.service
 "
 
 ssh -t sgc "$cmds"
