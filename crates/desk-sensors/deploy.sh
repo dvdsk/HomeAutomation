@@ -11,7 +11,7 @@ fi
 
 cargo build --target=aarch64-unknown-linux-musl $BUILD_ARG
 rsync -vh --progress \
-  target/aarch64-unknown-linux-gnu/$RELEASE/desk-sensors \
+  ../../target/aarch64-unknown-linux-musl/$RELEASE/desk-sensors \
   $SERVER:/tmp/
 
 cmds="
