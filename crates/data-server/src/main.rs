@@ -12,7 +12,7 @@ use protocol::{Reading, SensorMessage};
 
 use clap::Parser;
 use tokio::select;
-use tracing::warn;
+use tracing::{info, warn};
 
 #[derive(Parser)]
 #[command(name = "data server")]
@@ -112,45 +112,48 @@ async fn spread_updates(
     Ok(())
 }
 
-async fn register_subs(port: u16, share: &mpsc::Sender<Event>) -> Result<()> {
+async fn handle_data_sources(port: u16, share: &mpsc::Sender<Event>) -> Result<()> {
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = TcpListener::bind(addr)
         .await
         .wrap_err("Could not start listening for new subscribers")
         .with_note(|| format!("trying to listen on port: {port}"))?;
-    let mut listener = TcpListenerStream::new(listener);
 
-    // accept connections and process them serially
-    while let Some(stream) = listener.next().await {
-        match stream {
-            Ok(stream) => tokio::spawn(handle_client(stream, share.clone())),
+    loop {
+        let res = listener.accept().await;
+        match res {
+            Ok((stream, source)) => {
+                info!("new data source connected from: {source}");
+                tokio::spawn(handle_client(stream, share.clone()));
+            }
             Err(e) => {
                 println!("new connection failed: {e}");
                 continue;
             }
         };
     }
-    Ok(())
 }
 
-async fn receive_updates(port: u16, tx: &mpsc::Sender<Event>) -> Result<()> {
+async fn register_subs(port: u16, tx: &mpsc::Sender<Event>) -> Result<()> {
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    let listener = TcpListener::bind(addr).await
+    let listener = TcpListener::bind(addr)
+        .await
         .wrap_err("Could not start receiving updates")
         .with_note(|| format!("trying to listen on port: {port}"))?;
-    let mut listener = TcpListenerStream::new(listener);
 
-    // accept connections and process them serially
-    while let Some(res) = listener.next().await {
+    loop {
+        let res = listener.accept().await;
         match res {
-            Ok(stream) => tx.send(Event::NewSub(stream)).await.unwrap(),
+            Ok((stream, source)) => {
+                info!("new subscriber connected from: {source}");
+                tx.send(Event::NewSub(stream)).await.unwrap();
+            }
             Err(e) => {
-                println!("new connection failed: {e}");
+                warn!("new connection failed: {e}");
                 continue;
             }
         };
     }
-    Ok(())
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -165,8 +168,8 @@ async fn main() -> Result<()> {
 
     let (tx, rx) = mpsc::channel(2000);
     select! {
-        e = receive_updates(update_port, &tx) => e,
         e = register_subs(subscribe_port, &tx) => e,
+        e = handle_data_sources(update_port, &tx) => e,
         e = spread_updates(rx, &tx) => e,
     }
 }
