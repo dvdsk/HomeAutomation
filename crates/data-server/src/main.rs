@@ -4,8 +4,6 @@ use std::net::SocketAddr;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufStream};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{self, Sender};
-use tokio_stream::wrappers::TcpListenerStream;
-use tokio_stream::StreamExt;
 
 use color_eyre::{Result, Section};
 use protocol::{Reading, SensorMessage};
