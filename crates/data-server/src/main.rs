@@ -113,7 +113,7 @@ async fn spread_updates(
 }
 
 async fn register_subs(port: u16, share: &mpsc::Sender<Event>) -> Result<()> {
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = TcpListener::bind(addr)
         .await
         .wrap_err("Could not start listening for new subscribers")
@@ -134,7 +134,7 @@ async fn register_subs(port: u16, share: &mpsc::Sender<Event>) -> Result<()> {
 }
 
 async fn receive_updates(port: u16, tx: &mpsc::Sender<Event>) -> Result<()> {
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = TcpListener::bind(addr).await
         .wrap_err("Could not start receiving updates")
         .with_note(|| format!("trying to listen on port: {port}"))?;
