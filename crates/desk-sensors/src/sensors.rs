@@ -3,6 +3,7 @@ use bme280::{self, Measurements};
 use hal::{Delay, I2cdev};
 use linux_embedded_hal as hal;
 use protocol::downcast_err::ConcreteErrorType;
+use tracing::debug;
 
 use std::sync::mpsc::Sender;
 use std::thread;
@@ -36,12 +37,13 @@ pub fn start_monitoring(tx: Sender<Result<Reading, protocol::Error>>) -> Result<
     thread::spawn(move || {
         loop {
             match bme.measure(&mut Delay) {
-                Ok(Measurements {
+                Ok(m @ Measurements {
                     temperature,
                     pressure,
                     humidity,
                     ..
                 }) => {
+                    debug!("got measurements: {m:?}");
                     send_reading(&tx, DeskReading::Temperature(temperature));
                     send_reading(&tx, DeskReading::Humidity(humidity));
                     send_reading(&tx, DeskReading::Pressure(pressure));

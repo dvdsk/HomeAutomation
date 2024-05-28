@@ -4,6 +4,7 @@ use std::io::{ErrorKind, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::sync::mpsc::{self, Sender};
 use std::time::Duration;
+use tracing::{debug, info};
 
 mod buttons;
 mod sensors;
@@ -32,6 +33,8 @@ fn main() {
 
     let mut msg: protocol::SensorMessage<20> = protocol::SensorMessage::new();
     let addr = SocketAddr::from(([127, 0, 0, 1], cli.update_port));
+    info!("connecting to dataserver on: {}", cli.update_port);
+
     loop {
         let mut stream = match TcpStream::connect(addr) {
             Ok(stream) => stream,
@@ -43,6 +46,7 @@ fn main() {
         };
 
         loop {
+            msg.values.clear();
             let result = rx.recv().unwrap();
             msg.values.push(result).expect("capacity > 0");
             while let Ok(result) = rx.try_recv() {
@@ -51,8 +55,12 @@ fn main() {
                     break;
                 }
             }
+            debug!("Sending message: {msg:?}");
             let bytes = msg.encode();
-            stream.write_all(&bytes).unwrap();
+            if stream.write_all(&bytes).is_err() {
+                std::thread::sleep(Duration::from_secs(5));
+                break; // reconnect
+            }
         }
     }
 }

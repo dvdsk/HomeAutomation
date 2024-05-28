@@ -13,7 +13,7 @@ rsync -vh --progress \
 cmds="
 sudo mv /tmp/desk-sensors /home/ha/desk-sensors
 sudo chown ha:ha /home/ha/desk-sensors
-sudo systemctl restart desk-sensors.service
+# sudo systemctl restart desk-sensors.service
 "
 
 ssh -t sgc "$cmds"

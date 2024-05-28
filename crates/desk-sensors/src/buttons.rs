@@ -2,7 +2,7 @@ use embedded_hal_async::digital::Wait;
 use protocol::{Press, Reading};
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
-use tracing::error;
+use tracing::{debug, error, info, trace};
 
 use std::thread;
 
@@ -22,6 +22,7 @@ async fn watch_pin(
     const DEBOUNCE: Duration = Duration::from_millis(5);
     const MAX_PRESS: Duration = Duration::from_secs(5);
 
+    // pins are pulled down to ground
     let mut pin = match gpiocdev_embedded_hal::tokio::InputPin::new(CHIP, offset) {
         Ok(pin) => pin,
         Err(error) => {
@@ -33,6 +34,8 @@ async fn watch_pin(
         }
     };
 
+    info!("opened_pin: {offset}");
+
     loop {
         if let Err(error) = pin.wait_for_rising_edge().await {
             error!("error waiting for rising edge for gpio {offset} on {CHIP}: {error}");
@@ -43,6 +46,7 @@ async fn watch_pin(
         }
 
         let now = Instant::now();
+        trace!("waiting for button to be released");
         match tokio::time::timeout(MAX_PRESS, pin.wait_for_falling_edge()).await {
             Ok(Err(error)) => {
                 error!("error waiting for falling edge for gpio {offset} on {CHIP}: {error}");
@@ -57,9 +61,12 @@ async fn watch_pin(
 
         let press = now.elapsed();
         if press > DEBOUNCE {
+            debug!("sending button press (pressed for: {press:?})");
             let button = (as_button)(Press(press.as_millis() as u16));
             let reading = desk::Reading::Button(button);
             send_reading(tx, reading);
+        } else {
+            trace!("press too short, caught as bounce");
         }
     }
 }
@@ -81,6 +88,7 @@ pub fn start_monitoring(tx: Sender<Result<Reading, protocol::Error>>) {
     thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_io()
+            .enable_time()
             .build()
             .unwrap();
         rt.block_on(watch_pins(&tx))
