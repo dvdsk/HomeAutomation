@@ -5,13 +5,15 @@ use ratatui::{
     symbols,
     widgets::{
         Axis, Bar, BarChart, BarGroup, Block, Borders, Chart, Dataset, GraphType, List, ListState,
-        Paragraph,
     },
     Frame,
 };
 use tui_tree_widget::{Tree, TreeItem, TreeState};
 
-use super::{reading::{ChartParts, TreeKey}, ActiveList};
+use super::{
+    reading::{ChartParts, TreeKey},
+    ActiveList,
+};
 
 pub(crate) fn all(
     frame: &mut Frame,
@@ -22,7 +24,6 @@ pub(crate) fn all(
     active_list: ActiveList,
     histogram: &[Bar],
     chart: Option<ChartParts>,
-    conn_status: &str,
 ) {
     let area = frame.size();
     let [top, bottom] = Layout::vertical([Constraint::Min(10), Constraint::Min(10)])
@@ -37,7 +38,6 @@ pub(crate) fn all(
         actuators,
         actuator_list_state,
         active_list,
-        conn_status,
     );
     render_lower(frame, bottom, histogram, chart);
 }
@@ -126,18 +126,11 @@ pub(crate) fn render_top(
     actuators: Vec<String>,
     actuator_list_state: &mut ListState,
     active_list: ActiveList,
-    conn_status: &str,
 ) {
-    let vertical: [_; 2] = Layout::vertical([Constraint::Max(2), Constraint::Min(5)])
-        .flex(ratatui::layout::Flex::Legacy)
-        .areas(layout);
-
-    frame.render_widget(Paragraph::new(conn_status), vertical[0]);
-
     let horizontal: [_; 2] =
         Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
             .flex(ratatui::layout::Flex::Legacy)
-            .areas(vertical[1]);
+            .areas(layout);
 
     frame.render_stateful_widget(
         Tree::new(&readings)

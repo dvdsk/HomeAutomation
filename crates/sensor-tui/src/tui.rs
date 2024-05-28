@@ -8,10 +8,8 @@ use ratatui::{
     style::{Color, Style},
     widgets::ListState,
 };
+use std::{collections::HashMap, io::stdout, sync::mpsc, time::Duration};
 use tui_tree_widget::TreeState;
-use std::{
-    collections::HashMap, io::stdout, sync::mpsc, time::{Duration, Instant}
-};
 
 mod reading;
 use reading::Readings;
@@ -33,44 +31,26 @@ impl ActiveList {
         }
     }
 
-    fn swap(self) -> Self {
-        match self {
-            Self::Readings => Self::Actuators,
-            Self::Actuators => Self::Readings,
-        }
-    }
-}
-
-struct ConnInfo {
-    last_msg: Instant,
-    addr: std::net::SocketAddr,
-}
-
-impl ConnInfo {
-    fn conn_status(&self) -> String {
-        let Self { last_msg, addr } = self;
-        let elapsed = last_msg.elapsed().as_secs();
-        if elapsed < 2 {
-            format!("client: {addr}\nlast message less then 2 seconds ago")
-        } else {
-            format!("client: {addr}\nlast message {elapsed}s ago")
-        }
-    }
-    fn got_msg(&mut self) {
-        self.last_msg = Instant::now();
-    }
+    // fn swap(self) -> Self {
+    //     match self {
+    //         Self::Readings => Self::Actuators,
+    //         Self::Actuators => Self::Readings,
+    //     }
+    // }
 }
 
 pub fn run(rx: mpsc::Receiver<Update>) -> Result<(), std::io::Error> {
-    let mut readings = Readings { ground: Vec::new(), data: HashMap::new() };
-    let mut conn_info = None;
+    let mut readings = Readings {
+        ground: Vec::new(),
+        data: HashMap::new(),
+    };
 
     stdout().execute(EnterAlternateScreen)?;
     enable_raw_mode()?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
     terminal.clear()?;
 
-    let mut active_list = ActiveList::Readings;
+    let active_list = ActiveList::Readings;
     let mut reading_list_state = TreeState::default();
     let mut actuator_list_state = ListState::default();
     let actuators = vec![
@@ -81,22 +61,16 @@ pub fn run(rx: mpsc::Receiver<Update>) -> Result<(), std::io::Error> {
     let mut plot_buf = Vec::new();
 
     loop {
-        let conn_status = conn_info
-            .as_ref()
-            .map(ConnInfo::conn_status)
-            .unwrap_or_else(|| format!("no connected client"));
+        let data = reading_list_state
+            .selected()
+            .first()
+            .map(|key| readings.data.get(key))
+            .flatten();
 
-        let chart = if !reading_list_state.selected().is_empty() {
-            readings.chart(reading_list_state.selected(), &mut plot_buf)
+        let (chart, histogram) = if let Some(data) = data {
+            (data.chart(&mut plot_buf), data.histogram())
         } else {
-            None
-        };
-
-        let histogram = if !reading_list_state.selected().is_empty() {
-            let key = reading_list_state.selected().first().unwrap();
-            readings.histogram(*key)
-        } else {
-            readings.histogram_all()
+            (None, readings.histogram_all())
         };
 
         terminal.draw(|frame| {
@@ -109,12 +83,16 @@ pub fn run(rx: mpsc::Receiver<Update>) -> Result<(), std::io::Error> {
                 active_list,
                 &histogram,
                 chart,
-                &conn_status,
             );
         })?;
 
+        if reading_list_state.selected().is_empty() {
+            reading_list_state.select_first();
+        }
+
         if event::poll(Duration::from_millis(16))? {
             if let event::Event::Key(key) = event::read()? {
+                tracing::trace!("key pressed: {key:?}");
                 if key.kind == KeyEventKind::Press {
                     if key.code == KeyCode::Char('q') {
                         break;
@@ -125,10 +103,12 @@ pub fn run(rx: mpsc::Receiver<Update>) -> Result<(), std::io::Error> {
                         break;
                     }
                     if key.code == KeyCode::Left {
-                        active_list = active_list.swap();
+                        reading_list_state.key_left();
+                        // active_list = active_list.swap();
                     }
                     if key.code == KeyCode::Right {
-                        active_list = active_list.swap();
+                        reading_list_state.key_right();
+                        // active_list = active_list.swap();
                     }
                     if key.code == KeyCode::Down {
                         reading_list_state.key_down();
@@ -136,13 +116,15 @@ pub fn run(rx: mpsc::Receiver<Update>) -> Result<(), std::io::Error> {
                     if key.code == KeyCode::Up {
                         reading_list_state.key_up();
                     }
+                    // if key.code == KeyCode::Enter {
+                    // reading_list_state.
+                    // }
                 }
             }
         }
 
         match rx.try_recv() {
             Ok(Update::Reading(reading)) => {
-                conn_info.as_mut().unwrap().got_msg();
                 readings.add(reading);
             }
             Ok(Update::Error(err)) => {

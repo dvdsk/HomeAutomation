@@ -4,7 +4,7 @@ use std::io::{ErrorKind, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::sync::mpsc::{self, Sender};
 use std::time::Duration;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 mod buttons;
 mod sensors;
@@ -39,6 +39,7 @@ fn main() {
         let mut stream = match TcpStream::connect(addr) {
             Ok(stream) => stream,
             Err(err) if err.kind() == ErrorKind::ConnectionRefused => {
+                warn!("could not connect to data server, retrying in 5 seconds");
                 std::thread::sleep(Duration::from_secs(5));
                 continue;
             }

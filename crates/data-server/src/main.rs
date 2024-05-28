@@ -74,7 +74,7 @@ async fn spread_updates(
             Event::NewReading(reading) => reading,
         };
 
-        let mut msg: SensorMessage<40> = SensorMessage::new();
+        let mut msg: SensorMessage<50> = SensorMessage::new();
         msg.values.push(reading).expect("capacity should be > 0");
 
         while let Ok(event) = events.try_recv() {
@@ -163,6 +163,9 @@ async fn main() -> Result<()> {
         update_port,
     } = Cli::parse();
     assert_ne!(subscribe_port, update_port);
+
+    info!("listening for updates on port: {update_port}");
+    info!("serving subscribers on port: {subscribe_port}");
 
     let (tx, rx) = mpsc::channel(2000);
     select! {

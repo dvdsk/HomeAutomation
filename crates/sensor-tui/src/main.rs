@@ -22,16 +22,17 @@ fn main() -> Result<()> {
     let (tx, rx) = mpsc::channel();
     thread::spawn(|| tui::run(rx));
 
-    while let Ok(val) = sub.next() {
-        let update = match val {
+    loop {
+        let update = match sub
+            .next()
+            .wrap_err("Error getting next reading from server")?
+        {
             Ok(reading) => Update::Reading(reading),
             Err(error) => Update::Error(error),
         };
 
         tx.send(update).unwrap();
     }
-
-    Ok(())
 }
 
 fn setup_tracing() -> Result<()> {

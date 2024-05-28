@@ -7,6 +7,7 @@ use std::{collections::VecDeque, time::Instant};
 use tui_tree_widget::TreeItem;
 
 pub struct SensorInfo {
+    name: &'static str,
     timing: Histogram,
     history: VecDeque<(Instant, f32)>,
     condition: Result<(), Error>,
@@ -21,6 +22,27 @@ impl SensorInfo {
             .front()
             .expect("Items are put in the map when they arrive with a value");
         Ok(last.0)
+    }
+
+    pub fn histogram(&self) -> Vec<Bar> {
+        histogram_bars(&self.timing)
+    }
+
+    pub fn chart<'a>(&self, plot_buf: &'a mut Vec<(f64, f64)>) -> Option<ChartParts<'a>> {
+        plot_buf.clear();
+
+        for xy in self
+            .history
+            .iter()
+            .map(|(x, y)| (x.elapsed().as_secs_f64(), *y as f64))
+        {
+            plot_buf.push(xy);
+        }
+
+        Some(ChartParts {
+            name: self.name,
+            data: plot_buf,
+        })
     }
 }
 
@@ -79,7 +101,7 @@ fn add_node<'a>(
     tree.child_mut(new_child).expect("just added it")
 }
 
-fn extract_keyval(reading: &Reading) -> (TreeKey, f32) {
+fn extract_leaf_info(reading: &Reading) -> (TreeKey, &'static str, f32) {
     let mut key = [0u8; 6];
     key[0] = reading.id();
 
@@ -91,8 +113,8 @@ fn extract_keyval(reading: &Reading) -> (TreeKey, f32) {
                 inner
             }
             TomatoItem::Leaf(val) => {
-                *byte = reading.id();
-                return (key, val);
+                let name = reading.name();
+                return (key, name, val);
             }
         };
     }
@@ -106,7 +128,7 @@ impl Readings {
     }
 
     fn record_data(&mut self, reading: Reading) {
-        let (key, val) = extract_keyval(&reading);
+        let (key, name, val) = extract_leaf_info(&reading);
 
         if let Some(info) = self.data.get_mut(&key) {
             if let Ok(last_reading) = info.last_at() {
@@ -122,6 +144,7 @@ impl Readings {
             self.data.insert(
                 key,
                 SensorInfo {
+                    name,
                     timing: Histogram::new(4, 24).unwrap(),
                     history,
                     condition: Ok(()),
@@ -131,7 +154,7 @@ impl Readings {
     }
 
     fn update_tree(&mut self, reading: &Reading) {
-        let (key, _) = extract_keyval(reading);
+        let (key, _, _) = extract_leaf_info(reading);
 
         let mut tomato = reading as &dyn Tomato;
         let mut tree = add_root(tomato, &mut self.ground);
@@ -156,39 +179,10 @@ impl Readings {
         }
         histogram_bars(&all)
     }
-
-    pub fn histogram(&self, key: TreeKey) -> Vec<Bar> {
-        let hist = &self.data.get(&key).unwrap().timing;
-        histogram_bars(hist)
-    }
-
-    pub fn chart<'a>(
-        &mut self,
-        selected: &[TreeKey],
-        plot_buf: &'a mut Vec<(f64, f64)>,
-    ) -> Option<ChartParts<'a>> {
-        plot_buf.clear();
-
-        let key = selected.first().unwrap();
-        let data = &self.data.get(key).expect("data is never removed");
-
-        for xy in data
-            .history
-            .iter()
-            .map(|(x, y)| (x.elapsed().as_secs_f64(), *y as f64))
-        {
-            plot_buf.push(xy);
-        }
-
-        Some(ChartParts {
-            name: format!("{key:?}"),
-            data: plot_buf,
-        })
-    }
 }
 
 pub struct ChartParts<'a> {
-    pub name: String,
+    pub name: &'static str,
     pub data: &'a [(f64, f64)],
 }
 
