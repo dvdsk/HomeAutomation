@@ -3,7 +3,7 @@ set -e
 
 SERVER="sgc"  # ssh config name or full address
 
-cargo build --target=aarch64-unknown-linux-musl --release
+cross build --target=aarch64-unknown-linux-musl --release
 rsync -vh --progress \
   target/aarch64-unknown-linux-gnu/release/brain \
   $SERVER:/tmp/
