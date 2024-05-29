@@ -1,5 +1,5 @@
-use crossbeam_channel;
 use std::ops::Sub;
+use std::sync::mpsc;
 use std::thread;
 use tokio::sync::broadcast;
 use tracing::error;
@@ -20,7 +20,7 @@ pub enum Error {
     #[error("Could store/edit job on disk")]
     DbError(#[from] sled::Error),
     #[error("Could not inform waker about new job")]
-    CommError(#[from] crossbeam_channel::SendError<()>),
+    CommError(#[from] mpsc::SendError<()>),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -63,7 +63,7 @@ impl Sub<chrono::DateTime<Utc>> for &Job {
 
 #[derive(Debug, Clone)]
 pub struct Jobs {
-    waker_tx: crossbeam_channel::Sender<()>,
+    waker_tx: mpsc::Sender<()>,
     list: JobList,
 }
 
@@ -72,11 +72,11 @@ struct JobList {
     db: sled::Tree,
 }
 
-use crossbeam_channel::RecvTimeoutError::*;
+use mpsc::RecvTimeoutError::*;
 fn waker(
     mut alarm_list: JobList,
     event_tx: broadcast::Sender<Event>,
-    waker_rx: crossbeam_channel::Receiver<()>,
+    waker_rx: mpsc::Receiver<()>,
 ) {
     loop {
         //This can fail #TODO make sure an non waking error alarm is send to the user
@@ -131,7 +131,7 @@ impl Jobs {
             db: db.open_tree("alarms")?,
         };
 
-        let (waker_tx, waker_rx) = crossbeam_channel::unbounded();
+        let (waker_tx, waker_rx) = mpsc::channel();
         let waker_db_copy = list.clone();
         let waker_thread = thread::spawn(move || waker(waker_db_copy, event_tx, waker_rx));
 

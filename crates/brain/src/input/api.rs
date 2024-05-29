@@ -1,12 +1,8 @@
 use axum::body::Bytes;
 use axum::extract::State as aState;
 use axum::http::StatusCode;
-use axum::routing::{get, post};
+use axum::routing::get;
 use axum::Router;
-use tokio::sync::broadcast;
-use tracing::warn;
-
-use crate::controller::Event;
 
 use super::jobs::WakeUp;
 
@@ -60,37 +56,19 @@ async fn set_tomorrow(aState(state): aState<State>, body: Bytes) -> StatusCode {
     StatusCode::OK
 }
 
-async fn sensor_event(aState(state): aState<State>, body: Bytes) {
-    let mut bytes = body[..].to_vec();
-    let msg: protocol::SensorMessage<20> = match protocol::SensorMessage::decode(&mut bytes) {
-        Ok(msg) => msg,
-        Err(e) => {
-            warn!("Failed to decode received body: {e:?}");
-            return;
-        }
-    };
-    // in future convert from older protocol here
-    for value in msg.values.into_iter().filter_map(Result::ok) {
-        state.event_tx.send(Event::Sensor(value)).unwrap();
-    }
-}
-
 #[derive(Clone)]
 pub struct State {
     wakeup: WakeUp,
-    event_tx: broadcast::Sender<Event>,
 }
 
 pub async fn setup(
     wakeup: WakeUp,
-    event_tx: broadcast::Sender<Event>,
     port: u16,
 ) -> Result<(), Error> {
     let app = Router::new()
         .route("/alarm/usually", get(usually).post(set_usually))
         .route("/alarm/tomorrow", get(tomorrow).post(set_tomorrow))
-        .route("/event", post(sensor_event))
-        .with_state(State { wakeup, event_tx });
+        .with_state(State { wakeup });
 
     // https is done at the loadbalancer
     let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{port}"))

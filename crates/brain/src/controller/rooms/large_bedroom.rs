@@ -7,10 +7,12 @@ use tokio::time::{sleep_until, Instant};
 
 use crate::controller::{local_now, Event, RestrictedSystem};
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum State {
     // Sleep,
     // Wakeup,
     Normal,
+    Bright,
     // Away,
 }
 
@@ -70,26 +72,40 @@ pub async fn run(
         ShouldUpdate,
     }
 
-    let _state = State::Normal;
+    let mut state = State::Normal;
     let mut next_update = Instant::now() + INTERVAL;
     loop {
         let get_event = event_rx.recv_filter_mapped(filter).map(Res::Event);
         let tick = sleep_until(next_update).map(|_| Res::ShouldUpdate);
 
         let res = (get_event, tick).race().await;
-        match res {
+        let new_state = match res {
             Res::Event(e) => handle_event(e),
             Res::ShouldUpdate => {
-                update(&mut system).await;
+                update(&mut system, &state).await;
                 next_update = Instant::now() + INTERVAL;
+                None
             }
+        };
+
+        if let Some(new) = new_state {
+            state = new;
+            update(&mut system, &state).await;
+            next_update = Instant::now() + INTERVAL;
         }
     }
 }
 
-async fn update(system: &mut RestrictedSystem) {
-    let (new_ct, new_bri) = optimal_ct_bri();
-    system.all_lamps_ct(new_ct, new_bri).await;
+async fn update(system: &mut RestrictedSystem, state: &State) {
+    match state {
+        State::Normal => {
+            let (new_ct, new_bri) = optimal_ct_bri();
+            system.all_lamps_ct(new_ct, new_bri).await;
+        }
+        State::Bright => {
+            system.all_lamps_ct(254, u8::MAX).await;
+        }
+    }
 }
 
 fn optimal_ct_bri() -> (u16, u8) {
@@ -102,12 +118,12 @@ fn optimal_ct_bri() -> (u16, u8) {
     }
 }
 
-fn handle_event(e: RelevantEvent) {
+fn handle_event(e: RelevantEvent) -> Option<State> {
     // use protocol::large_bedroom::DeskButton;
     // use RelevantEvent as R;
 
     match e {
-        RelevantEvent::WakeUp => (),
+        RelevantEvent::WakeUp => None,
         // RelevantEvent::WeightLeft(_) => (),
         // RelevantEvent::WeightRight(_) => (),
         // RelevantEvent::Brightness(_) => (),
@@ -116,6 +132,18 @@ fn handle_event(e: RelevantEvent) {
     }
 }
 
-fn handle_button(b: protocol::large_bedroom::desk::Button) {
+fn handle_button(b: protocol::large_bedroom::desk::Button) -> Option<State> {
+    use protocol::large_bedroom::desk::Button;
+
     println!("button pressed: {b:?}");
+    match b {
+        Button::OneOfFour(press) if press.is_long() => Some(State::Bright),
+        Button::FourOfFour(press) if !press.is_long() => Some(State::Normal),
+        // Button::TwoOfFour(_) => todo!(),
+        // Button::ThreeOfFour(_) => todo!(),
+        // Button::OneOfThree(_) => todo!(),
+        // Button::TwoOfThree(_) => todo!(),
+        // Button::ThreeOfThree(_) => todo!(),
+        _ => None,
+    }
 }

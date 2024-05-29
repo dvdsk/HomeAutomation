@@ -15,9 +15,9 @@ mod input;
 #[derive(Parser)]
 #[command(version, about, long_about=None)]
 struct Opt {
-    /// secret url part on which sensor data is received
+    /// port where to subscribe for updates
     #[clap(short, long)]
-    key: String,
+    subscribe_port: u16,
 
     /// ip address for mpd server
     #[clap(short, long)]
@@ -52,7 +52,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let system = system::System::init(jobs);
     let _tasks = controller::start(subscribed_rxs, event_tx.clone(), system);
-    input::api::setup(wakeup.clone(), event_tx, opt.port).await?;
+
+    tokio::task::spawn(input::sensors::subscribe(
+        event_tx,
+        opt.subscribe_port,
+    ));
+    input::api::setup(wakeup.clone(), opt.port).await?;
 
     unreachable!();
 }
