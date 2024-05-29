@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "alloc"), no_std)]
 
-use core::any::type_name;
+use core::fmt;
 
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
@@ -38,6 +38,7 @@ macro_rules! button_enum {
             postcard::experimental::max_size::MaxSize
         )]
         $(#[$outer])* // docs
+        /// SAFETY: must be repr(u8) or id fn will create undefined behaviour
         #[repr(u8)]
         pub enum $name {
             $($variant(crate::Press),)*
@@ -57,6 +58,28 @@ macro_rules! button_enum {
                     $(Self::$variant(p) if p.is_long() => 2.0,)*
                     $(Self::$variant(_) => 1.0,)*
                 }
+            }
+        }
+
+        impl crate::Tomato for $name {
+            fn inner<'a>(&'a self) -> crate::TomatoItem<'a> {
+                crate::TomatoItem::Leaf((*self).into())
+            }
+            fn name(&self) -> String {
+                let dbg_repr = format!("{:?}", self);
+                dbg_repr
+                    .split_once('(')
+                    .map(|(name, _)| name)
+                    .unwrap_or("-")
+                    .to_string()
+            }
+            fn id(&self) -> crate::TomatoId {
+                // SAFETY: Because `Self` is marked `repr(u8)`, its layout is a
+                // `repr(C)` `union` between `repr(C)` structs, each of which
+                // has the `u8` discriminant as its first field, so we can read
+                // the discriminant without offsetting the pointer.
+                let discriminant = unsafe { *<*const _>::from(self).cast::<u8>() };
+                discriminant as crate::TomatoId
             }
         }
     };
@@ -86,15 +109,21 @@ impl Press {
 }
 
 type TomatoId = u8;
+#[derive(Debug)]
 pub enum TomatoItem<'a> {
     Leaf(f32),
     Node(&'a dyn Tomato),
 }
 
-pub trait Tomato {
+pub trait Tomato: fmt::Debug {
     fn inner<'a>(&'a self) -> TomatoItem<'a>;
-    fn name(&self) -> &'static str {
-        type_name::<Self>()
+    fn name(&self) -> String {
+        let dbg_repr = format!("{:?}", self);
+        dbg_repr
+            .split_once('(')
+            .map(|(name, _)| name)
+            .unwrap_or("-")
+            .to_string()
     }
     fn id(&self) -> TomatoId;
 }

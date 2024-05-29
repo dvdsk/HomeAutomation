@@ -32,6 +32,7 @@ gpiocdev-embedded-hal = "0.1.1"
 gpiocdev = "0.7"
 nix = "0.28.0"
 embedded-hal = "1.0.0"
+tracing = "0.1.40"
 
 [features]
 alloc = ["postcard/alloc", "serde/std", "sht31/thiserror",

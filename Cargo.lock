@@ -2612,6 +2612,7 @@ dependencies = [
  "sps30-async",
  "strum",
  "thiserror",
+ "tracing",
 ]
 
 [[package]]

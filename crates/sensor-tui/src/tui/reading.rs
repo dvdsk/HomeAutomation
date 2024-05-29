@@ -7,7 +7,7 @@ use std::{collections::VecDeque, time::Instant};
 use tui_tree_widget::TreeItem;
 
 pub struct SensorInfo {
-    name: &'static str,
+    name: String,
     timing: Histogram,
     history: VecDeque<(Instant, f32)>,
     condition: Result<(), Error>,
@@ -40,7 +40,7 @@ impl SensorInfo {
         }
 
         Some(ChartParts {
-            name: self.name,
+            name: self.name.clone(),
             data: plot_buf,
         })
     }
@@ -53,7 +53,7 @@ pub struct Readings {
     pub data: HashMap<TreeKey, SensorInfo>,
 }
 
-fn add_leaf(name: &'static str, val: f32, tree: &mut TreeItem<'static, TreeKey>, key: TreeKey) {
+fn add_leaf(name: String, val: f32, tree: &mut TreeItem<'static, TreeKey>, key: TreeKey) {
     let text = format!("{}: {}", name, val);
     let new_item = TreeItem::new_leaf(key, text.clone());
     // todo is exists its fine handle that
@@ -101,7 +101,7 @@ fn add_node<'a>(
     tree.child_mut(new_child).expect("just added it")
 }
 
-fn extract_leaf_info(reading: &Reading) -> (TreeKey, &'static str, f32) {
+fn extract_leaf_info(reading: &Reading) -> (TreeKey, String, f32) {
     let mut key = [0u8; 6];
     key[0] = reading.id();
 
@@ -156,8 +156,11 @@ impl Readings {
     fn update_tree(&mut self, reading: &Reading) {
         let (key, _, _) = extract_leaf_info(reading);
 
-        let mut tomato = reading as &dyn Tomato;
-        let mut tree = add_root(tomato, &mut self.ground);
+        let mut tree = add_root(reading as &dyn Tomato, &mut self.ground);
+        let mut tomato = match reading.inner() {
+            TomatoItem::Leaf(_) => unreachable!("no values at level 0"),
+            TomatoItem::Node(inner) => inner,
+        };
         loop {
             match tomato.inner() {
                 TomatoItem::Leaf(val) => {
@@ -165,8 +168,8 @@ impl Readings {
                     return;
                 }
                 TomatoItem::Node(inner) => {
-                    tomato = inner;
                     tree = add_node(tomato, tree);
+                    tomato = inner;
                 }
             };
         }
@@ -182,7 +185,7 @@ impl Readings {
 }
 
 pub struct ChartParts<'a> {
-    pub name: &'static str,
+    pub name: String,
     pub data: &'a [(f64, f64)],
 }
 

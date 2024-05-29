@@ -35,7 +35,7 @@ impl Tomato for Reading {
             Reading::Temperature(val) => *val,
             Reading::Humidity(val) => *val,
             Reading::Pressure(val) => *val,
-            Reading::Button(val) => (*val).into(),
+            Reading::Button(val) => return TomatoItem::Node(val),
         };
         TomatoItem::Leaf(val)
     }
