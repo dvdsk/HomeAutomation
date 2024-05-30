@@ -18,6 +18,7 @@ mod lamp;
 type State = HashMap<usize, lamp::Lamp>;
 
 async fn manage_bridge(
+    ip: String,
     rx: mpsc::UnboundedReceiver<(oneshot::Sender<Result<(), ApplyChangeError>>, Change)>,
 ) {
     let stream = stream::unfold(rx, |mut rx| async move {
@@ -29,7 +30,7 @@ async fn manage_bridge(
     let stream = stream.peekable();
     pin_mut!(stream);
     loop {
-        let error = match eventually_consistent_bridge::CachedBridge::try_init() {
+        let error = match eventually_consistent_bridge::CachedBridge::try_init(&ip) {
             Ok(bridge) => {
                 eventually_consistent_bridge::process_lamp_changes(&mut stream, bridge).await
             }
@@ -53,10 +54,6 @@ pub struct Lighting {
 pub enum Error {
     #[error("Could not get lights from bridge")]
     GettingLights(philipshue::errors::HueError),
-    #[error("Could not find the bridge via upnp")]
-    NoBridgeFound,
-    #[error("Error while trying to discover the bridge")]
-    Discovery(philipshue::errors::HueError),
     #[error("Failed to register on bridge")]
     Register(#[from] bridge_connect::RegisterError),
     #[error("Something went wrong saving bridge account to disk: {0}")]
@@ -81,9 +78,9 @@ macro_rules! light_fn {
 
 #[allow(dead_code)]
 impl Lighting {
-    pub fn start_init() -> Self {
+    pub fn start_init(ip: String) -> Self {
         let (tx, rx) = mpsc::unbounded_channel();
-        let manage_bridge = manage_bridge(rx);
+        let manage_bridge = manage_bridge(ip, rx);
         tokio::task::spawn(manage_bridge);
         Self { tx }
     }

@@ -1,7 +1,7 @@
 use philipshue::bridge;
 use philipshue::bridge::Bridge;
 use philipshue::errors::{BridgeError::LinkButtonNotPressed, HueError, HueErrorKind};
-use tracing::{info, error};
+use tracing::{error, info};
 
 use super::Error;
 use std::collections::BTreeMap;
@@ -46,21 +46,6 @@ fn register(ip: &str) -> Result<String, RegisterError> {
     return Err(RegisterError::Timedout);
 }
 
-fn find_bridge_ip() -> Result<String, Error> {
-    let mut discovered = bridge::discover().map_err(Error::Discovery)?;
-    if discovered.len() == 0 {
-        error!("No bridge found!");
-        return Err(Error::NoBridgeFound);
-    } else if discovered.len() > 1 {
-        error!(
-            "Found multiple hue bridges: {:?}, continuing with first one in list",
-            discovered
-        );
-    }
-
-    Ok(discovered.pop().unwrap().into_ip())
-}
-
 fn saved_bridge_info() -> Result<(String, String), ()> {
     let path = Path::new("hueBridgeLogin");
     match File::open(&path) {
@@ -89,13 +74,14 @@ fn update_saved_bridge_info(bridge_ip: &str, login: &str) -> Result<(), SaveBrid
     serde_yaml::to_writer(file, &(bridge_ip, login)).map_err(SaveBridgeError::Writing)
 }
 
-pub fn get_bridge_and_status() -> Result<(Bridge, BTreeMap<usize, philipshue::hue::Light>), Error> {
+pub fn get_bridge_and_status(
+    ip: &str,
+) -> Result<(Bridge, BTreeMap<usize, philipshue::hue::Light>), Error> {
     let Ok((ip, login)) = saved_bridge_info() else {
-        let ip = find_bridge_ip()?;
         let login = register(&ip)?;
-        update_saved_bridge_info(&ip, &login)?;
+        update_saved_bridge_info(ip, &login)?;
 
-        let bridge = Bridge::new(&ip, &login);
+        let bridge = Bridge::new(ip, &login);
         let lights_info = bridge.get_all_lights().map_err(Error::GettingLights)?;
         return Ok((bridge, lights_info));
     };
@@ -106,7 +92,6 @@ pub fn get_bridge_and_status() -> Result<(Bridge, BTreeMap<usize, philipshue::hu
     match res {
         Ok(lights_info) => Ok((bridge, lights_info)),
         Err(_) => {
-            let ip = find_bridge_ip()?;
             let login = register(&ip)?;
             update_saved_bridge_info(&ip, &login)?;
 

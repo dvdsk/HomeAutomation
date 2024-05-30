@@ -14,10 +14,10 @@ pub struct System {
 }
 
 impl System {
-    pub fn init(jobs: Jobs) -> Self {
+    pub fn init(jobs: Jobs, hue_bridge_ip: String) -> Self {
         Self {
             jobs,
-            lights: Lighting::start_init(),
+            lights: Lighting::start_init(hue_bridge_ip),
             // mpd: Mpd,
         }
     }

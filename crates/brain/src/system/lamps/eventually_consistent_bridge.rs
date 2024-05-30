@@ -53,8 +53,8 @@ pub(crate) struct CachedBridge {
 }
 
 impl CachedBridge {
-    pub(crate) fn try_init() -> Result<Self, Error> {
-        let (bridge, lights_info) = bridge_connect::get_bridge_and_status()?;
+    pub(crate) fn try_init(ip: &str) -> Result<Self, Error> {
+        let (bridge, lights_info) = bridge_connect::get_bridge_and_status(ip)?;
         let state: HashMap<usize, Lamp> = lights_info
             .iter()
             .map(|(id, light)| (*id, Lamp::from(&light.state)))
