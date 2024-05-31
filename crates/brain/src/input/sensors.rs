@@ -7,11 +7,10 @@ use tracing::{error, warn};
 
 use crate::controller::Event;
 
-pub async fn subscribe(event_tx: broadcast::Sender<Event>, subscribe_port: u16) {
+pub async fn subscribe(event_tx: broadcast::Sender<Event>, data_server: SocketAddr) {
     loop {
         let mut sub = loop {
-            let addr = SocketAddr::from(([127, 0, 0, 1], subscribe_port));
-            match AsyncSubscriber::connect(addr).await {
+            match AsyncSubscriber::connect(data_server).await {
                 Ok(sub) => break sub,
                 Err(SubscribeError::DecodeFailed(e)) => {
                     error!("Decode failed: {e:?}. is protocol lib up to date? Exiting");
@@ -26,7 +25,9 @@ pub async fn subscribe(event_tx: broadcast::Sender<Event>, subscribe_port: u16) 
 
         loop {
             match sub.next().await {
-                Ok(Ok(reading)) => event_tx.send(Event::Sensor(reading)).unwrap(),
+                Ok(Ok(reading)) => {
+                    event_tx.send(Event::Sensor(reading)).unwrap();
+                }
                 Ok(Err(_)) => continue,
                 Err(e) => {
                     warn!("Error while subscribed to sensor readings: {e}, retrying...");

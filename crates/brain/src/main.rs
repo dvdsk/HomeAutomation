@@ -1,5 +1,5 @@
 use std::array;
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 
 use clap::Parser;
 use sled;
@@ -15,9 +15,9 @@ mod input;
 #[derive(Parser)]
 #[command(version, about, long_about=None)]
 struct Opt {
-    /// port where to subscribe for updates
+    /// ip address whete to subscribe for updates
     #[clap(short, long)]
-    subscribe_port: u16,
+    data_server: SocketAddr,
 
     /// ip address for mpd server
     #[clap(short, long)]
@@ -29,7 +29,7 @@ struct Opt {
     port: u16,
 
     /// ip address of the hue bridge, format as: 127.0.0.1
-    #[clap(short, long)]
+    #[clap(short = 'b', long)]
     hue_bridge_ip: String,
 }
 
@@ -57,7 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let system = system::System::init(jobs, opt.hue_bridge_ip);
     let _tasks = controller::start(subscribed_rxs, event_tx.clone(), system);
 
-    tokio::task::spawn(input::sensors::subscribe(event_tx, opt.subscribe_port));
+    tokio::task::spawn(input::sensors::subscribe(event_tx, opt.data_server));
     input::api::setup(wakeup.clone(), opt.port).await?;
 
     unreachable!();
@@ -90,5 +90,4 @@ pub fn setup_tracing() {
             registry.init()
         }
     };
-    log_panics::init();
 }

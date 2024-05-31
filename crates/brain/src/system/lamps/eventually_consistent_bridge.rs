@@ -53,8 +53,8 @@ pub(crate) struct CachedBridge {
 }
 
 impl CachedBridge {
-    pub(crate) fn try_init(ip: &str) -> Result<Self, Error> {
-        let (bridge, lights_info) = bridge_connect::get_bridge_and_status(ip)?;
+    pub(crate) async fn try_init(ip: &str) -> Result<Self, Error> {
+        let (bridge, lights_info) = bridge_connect::get_bridge_and_status(ip).await?;
         let state: HashMap<usize, Lamp> = lights_info
             .iter()
             .map(|(id, light)| (*id, Lamp::from(&light.state)))
@@ -80,14 +80,14 @@ impl CachedBridge {
         }
     }
 
-    pub(crate) fn apply_changes(&mut self) -> Result<(), Error> {
+    pub(crate) async fn apply_changes(&mut self) -> Result<(), Error> {
         for (id, lamp) in self.known_state.iter_mut() {
             let Some(needed) = self.needed_state.get(id) else {
                 continue;
             };
 
             if lamp != needed {
-                if let Err(e) = self.bridge.set_light_state(*id, &needed.light_cmd()) {
+                if let Err(e) = self.bridge.set_light_state(*id, &needed.light_cmd()).await {
                     warn!("could not apply changes to lamp: {e}")
                 }
                 *lamp = needed.clone()
@@ -97,9 +97,9 @@ impl CachedBridge {
         Ok(())
     }
 
-    fn push_state(&mut self) -> Result<(), Error> {
+    async fn push_state(&mut self) -> Result<(), Error> {
         for (id, lamp) in self.known_state.iter_mut() {
-            let _ignore_err = self.bridge.set_light_state(*id, &lamp.light_cmd());
+            let _ignore_err = self.bridge.set_light_state(*id, &lamp.light_cmd()).await;
         }
         Ok(())
     }
@@ -118,10 +118,11 @@ impl CachedBridge {
             }
             Change::Off { name } => {
                 let Some(lamp_id) = self.lookup.get(*name) else {
+                    self.report_missing_if_not_reported_yet(*name);
                     return;
                 };
                 if let Some(lamp) = self.needed_state.get_mut(lamp_id) {
-                    lamp.on = true;
+                    lamp.on = false;
                 } else {
                     error!("no lamp with id: {lamp_id} exists");
                 }
@@ -132,7 +133,7 @@ impl CachedBridge {
                     return;
                 };
                 if let Some(lamp) = self.needed_state.get_mut(&lamp_id) {
-                    lamp.on = false;
+                    lamp.on = true;
                 } else {
                     error!("no lamp with id: {lamp_id} exists");
                 }
@@ -184,11 +185,11 @@ pub(crate) async fn process_lamp_changes<S>(
 where
     S: Stream<Item = (oneshot::Sender<Result<(), ApplyChangeError>>, Change)>,
 {
-    const MAX_DUR: Duration = Duration::from_millis(100);
+    const MAX_DUR: Duration = Duration::from_millis(5);
     let mut last_state_push = Instant::now();
     loop {
         if last_state_push.elapsed() > Duration::from_secs(5) {
-            if let Err(err) = bridge.push_state() {
+            if let Err(err) = bridge.push_state().await {
                 return err;
             }
             last_state_push = Instant::now();
@@ -198,7 +199,7 @@ where
             Ok(Some(next)) => next,
             Ok(None) => unreachable!("light system should not drop"),
             Err(_timeout) => {
-                if let Err(err) = bridge.push_state() {
+                if let Err(err) = bridge.push_state().await {
                     return err;
                 } else {
                     continue;
@@ -224,15 +225,15 @@ where
             };
         }
 
-        if let Err(e) = bridge.apply_changes() {
+        if let Err(e) = bridge.apply_changes().await {
             error!("Could not apply changes to bridge immediately, err: {e}");
             for tx in to_answer {
-                let _ignore_canceld_requester = tx.send(Err(ApplyChangeError));
+                let _ignore_canceled_requester = tx.send(Err(ApplyChangeError));
             }
             return e;
         } else {
             for tx in to_answer {
-                let _ignore_canceld_requester = tx.send(Ok(()));
+                let _ignore_canceled_requester = tx.send(Ok(()));
             }
         }
     }

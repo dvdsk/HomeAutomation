@@ -39,6 +39,18 @@ impl RestrictedSystem {
             self.system.lights.set_ct(name, bri, ct).await.unwrap();
         }
     }
+
+    async fn all_lamps_off(&mut self) {
+        for name in &self.allowed_lights {
+            self.system.lights.single_off(name).await.unwrap();
+        }
+    }
+
+    async fn all_lamps_on(&mut self) {
+        for name in &self.allowed_lights {
+            self.system.lights.single_on(name).await.unwrap();
+        }
+    }
 }
 
 pub fn start(

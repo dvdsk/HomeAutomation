@@ -4,6 +4,7 @@ use futures_concurrency::future::Race;
 use futures_util::FutureExt;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
+use tracing::{info, warn};
 
 use crate::controller::{local_now, Event, RestrictedSystem};
 
@@ -11,8 +12,10 @@ use crate::controller::{local_now, Event, RestrictedSystem};
 enum State {
     // Sleep,
     // Wakeup,
+    FadeOut(Instant),
     Normal,
     Bright,
+    Off,
     // Away,
 }
 
@@ -82,30 +85,47 @@ pub async fn run(
         let new_state = match res {
             Res::Event(e) => handle_event(e),
             Res::ShouldUpdate => {
-                update(&mut system, &state).await;
                 next_update = Instant::now() + INTERVAL;
-                None
+                update(&mut system, &state).await
             }
         };
 
         if let Some(new) = new_state {
+            info!("transitioning to new state: {new:?}");
             state = new;
-            update(&mut system, &state).await;
             next_update = Instant::now() + INTERVAL;
+            if update(&mut system, &state).await.is_some() {
+                warn!("Transiting to a new state while in the first update is not allowed")
+            }
         }
     }
 }
 
-async fn update(system: &mut RestrictedSystem, state: &State) {
+async fn update(system: &mut RestrictedSystem, state: &State) -> Option<State> {
     match state {
+        State::Off => {
+            system.all_lamps_off().await;
+            /* TODO: make states have destructors, maybe even remove enum in
+             * favor of polymorphism? <dvdsk noreply@davidsk.dev> */
+        }
         State::Normal => {
             let (new_ct, new_bri) = optimal_ct_bri();
+            system.all_lamps_on().await;
             system.all_lamps_ct(new_ct, new_bri).await;
         }
         State::Bright => {
+            system.all_lamps_on().await;
             system.all_lamps_ct(254, u8::MAX).await;
         }
+        State::FadeOut(started) => {
+            system.all_lamps_on().await;
+            system.all_lamps_ct(1, u8::MAX).await;
+            if started.elapsed() > Duration::from_secs(40) {
+                return Some(State::Off)
+            }
+        }
     }
+    None
 }
 
 fn optimal_ct_bri() -> (u16, u8) {
@@ -137,7 +157,9 @@ fn handle_button(b: protocol::large_bedroom::desk::Button) -> Option<State> {
 
     println!("button pressed: {b:?}");
     match b {
-        Button::OneOfFour(press) if press.is_long() => Some(State::Bright),
+        Button::OneOfFour(press) if press.is_long() => Some(State::Off),
+        Button::OneOfFour(_) => Some(State::FadeOut(Instant::now())),
+        Button::TwoOfFour(press) if press.is_long() => Some(State::Bright),
         Button::FourOfFour(press) if !press.is_long() => Some(State::Normal),
         // Button::TwoOfFour(_) => todo!(),
         // Button::ThreeOfFour(_) => todo!(),

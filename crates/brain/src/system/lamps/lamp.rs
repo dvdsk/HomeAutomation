@@ -15,7 +15,9 @@ pub struct Lamp {
 
 impl Lamp {
     pub(crate) fn light_cmd(&self) -> LightCommand {
-        let light_cmd = LightCommand::default().with_bri(self.bri);
+        let mut light_cmd = LightCommand::default().with_bri(self.bri);
+        light_cmd.on = Some(self.on);
+
         let light_cmd = if let Some(xy) = self.xy {
             light_cmd.with_xy(xy)
         } else if let Some(ct) = self.ct {

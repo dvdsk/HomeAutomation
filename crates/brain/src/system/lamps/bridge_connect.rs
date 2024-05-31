@@ -7,7 +7,6 @@ use super::Error;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::Path;
-use std::thread;
 use std::time::Duration;
 
 #[derive(Debug, thiserror::Error)]
@@ -18,10 +17,10 @@ pub enum RegisterError {
     Timedout,
 }
 
-fn register(ip: &str) -> Result<String, RegisterError> {
+async fn register(ip: &str) -> Result<String, RegisterError> {
     for _ in 0..5 {
         //try 5 times to connect
-        match bridge::register_user(ip, "homeAutomationSys") {
+        match bridge::register_user(ip, "homeAutomationSys").await {
             Ok(received_login) => {
                 println!("Success, linked to bridge");
                 info!("User registered: {}, on IP: {}", &received_login, ip);
@@ -35,7 +34,7 @@ fn register(ip: &str) -> Result<String, RegisterError> {
                 _,
             )) => {
                 println!("Please, press the link on the bridge. Retrying in 5 seconds");
-                thread::sleep(Duration::from_secs(5));
+                tokio::time::sleep(Duration::from_secs(5)).await;
             }
             Err(e) => {
                 println!("Unexpected error occurred: {}", e);
@@ -74,29 +73,35 @@ fn update_saved_bridge_info(bridge_ip: &str, login: &str) -> Result<(), SaveBrid
     serde_yaml::to_writer(file, &(bridge_ip, login)).map_err(SaveBridgeError::Writing)
 }
 
-pub fn get_bridge_and_status(
+pub async fn get_bridge_and_status(
     ip: &str,
 ) -> Result<(Bridge, BTreeMap<usize, philipshue::hue::Light>), Error> {
     let Ok((ip, login)) = saved_bridge_info() else {
-        let login = register(&ip)?;
+        let login = register(&ip).await?;
         update_saved_bridge_info(ip, &login)?;
 
         let bridge = Bridge::new(ip, &login);
-        let lights_info = bridge.get_all_lights().map_err(Error::GettingLights)?;
+        let lights_info = bridge
+            .get_all_lights()
+            .await
+            .map_err(Error::GettingLights)?;
         return Ok((bridge, lights_info));
     };
 
     let bridge = Bridge::new(&ip, &login);
-    let res = bridge.get_all_lights();
+    let res = bridge.get_all_lights().await;
 
     match res {
         Ok(lights_info) => Ok((bridge, lights_info)),
         Err(_) => {
-            let login = register(&ip)?;
+            let login = register(&ip).await?;
             update_saved_bridge_info(&ip, &login)?;
 
             let bridge = Bridge::new(&ip, &login);
-            let lights_info = bridge.get_all_lights().map_err(Error::GettingLights)?;
+            let lights_info = bridge
+                .get_all_lights()
+                .await
+                .map_err(Error::GettingLights)?;
             Ok((bridge, lights_info))
         }
     }

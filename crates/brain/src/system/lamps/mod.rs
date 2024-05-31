@@ -30,7 +30,7 @@ async fn manage_bridge(
     let stream = stream.peekable();
     pin_mut!(stream);
     loop {
-        let error = match eventually_consistent_bridge::CachedBridge::try_init(&ip) {
+        let error = match eventually_consistent_bridge::CachedBridge::try_init(&ip).await {
             Ok(bridge) => {
                 eventually_consistent_bridge::process_lamp_changes(&mut stream, bridge).await
             }

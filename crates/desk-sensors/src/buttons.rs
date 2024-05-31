@@ -20,7 +20,7 @@ async fn watch_pin(
     use protocol::large_bedroom::desk;
 
     const DEBOUNCE: Duration = Duration::from_millis(5);
-    const MAX_PRESS: Duration = Duration::from_secs(5);
+    const MAX_PRESS: Duration = Duration::from_secs(10);
 
     // pins are pulled down to ground
     let mut pin = match gpiocdev_embedded_hal::tokio::InputPin::new(CHIP, offset) {
