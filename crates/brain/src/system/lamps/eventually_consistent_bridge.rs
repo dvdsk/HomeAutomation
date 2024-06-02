@@ -44,6 +44,7 @@ pub(crate) enum Change {
 
 type LampId = usize;
 pub(crate) struct CachedBridge {
+    last_cmd_send: Instant,
     pub(crate) bridge: Bridge,
     pub(crate) needed_state: State,
     pub(crate) known_state: State,
@@ -70,6 +71,7 @@ impl CachedBridge {
             known_state: state,
             lookup,
             reported_missing: HashSet::new(),
+            last_cmd_send: Instant::now(),
         })
     }
 
@@ -87,9 +89,12 @@ impl CachedBridge {
             };
 
             if lamp != needed {
+                let next_send_possible = self.last_cmd_send + Duration::from_millis(100);
+                tokio::time::sleep_until(next_send_possible.into()).await;
                 if let Err(e) = self.bridge.set_light_state(*id, &needed.light_cmd()).await {
                     warn!("could not apply changes to lamp: {e}")
                 }
+                self.last_cmd_send = Instant::now();
                 *lamp = needed.clone()
             }
         }
@@ -99,7 +104,12 @@ impl CachedBridge {
 
     async fn push_state(&mut self) -> Result<(), Error> {
         for (id, lamp) in self.known_state.iter_mut() {
-            let _ignore_err = self.bridge.set_light_state(*id, &lamp.light_cmd()).await;
+            let next_send_possible = self.last_cmd_send + Duration::from_millis(100);
+            tokio::time::sleep_until(next_send_possible.into()).await;
+            if let Err(e) = self.bridge.set_light_state(*id, &lamp.light_cmd()).await {
+                warn!("could not apply changes to lamp: {e}")
+            }
+            self.last_cmd_send = Instant::now();
         }
         Ok(())
     }
