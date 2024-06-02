@@ -10,7 +10,7 @@ use tokio::sync::oneshot;
 use tokio::time::{timeout, timeout_at};
 use tracing::{error, warn};
 
-use philipshue::bridge::Bridge;
+use hueclient::Bridge;
 
 #[derive(Debug)]
 pub(crate) enum Change {
@@ -57,11 +57,11 @@ impl CachedBridge {
         let (bridge, lights_info) = bridge_connect::get_bridge_and_status(ip).await?;
         let state: HashMap<usize, Lamp> = lights_info
             .iter()
-            .map(|(id, light)| (*id, Lamp::from(&light.state)))
+            .map(|light| (light.id, Lamp::from(&light.light.state)))
             .collect();
         let lookup = lights_info
             .into_iter()
-            .map(|(id, light)| (light.name, id))
+            .map(|light| (light.light.name, light.id))
             .collect();
 
         Ok(Self {

@@ -1,4 +1,4 @@
-use philipshue::LightCommand;
+use hueclient::{CommandLight, LightState};
 
 //adaptation from philipshue LightState that adds some
 //values and removes unused
@@ -10,16 +10,15 @@ pub struct Lamp {
     pub sat: Option<u8>,
     pub xy: Option<(f32, f32)>,
     pub ct: Option<u16>,
-    pub reachable: bool,
 }
 
 impl Lamp {
-    pub(crate) fn light_cmd(&self) -> LightCommand {
-        let mut light_cmd = LightCommand::default().with_bri(self.bri);
+    pub(crate) fn light_cmd(&self) -> CommandLight {
+        let mut light_cmd = CommandLight::default().with_bri(self.bri);
         light_cmd.on = Some(self.on);
 
-        let light_cmd = if let Some(xy) = self.xy {
-            light_cmd.with_xy(xy)
+        let light_cmd = if let Some((x, y)) = self.xy {
+            light_cmd.with_xy(x, y)
         } else if let Some(ct) = self.ct {
             light_cmd.with_ct(ct)
         } else {
@@ -29,16 +28,15 @@ impl Lamp {
     }
 }
 
-impl From<&philipshue::hue::LightState> for Lamp {
-    fn from(state: &philipshue::hue::LightState) -> Self {
+impl From<&LightState> for Lamp {
+    fn from(state: &LightState) -> Self {
         Lamp {
             on: state.on,
-            bri: state.bri,
+            bri: state.bri.unwrap_or(0),
             hue: state.hue,
             sat: state.sat,
             xy: state.xy,
             ct: state.ct,
-            reachable: state.reachable,
         }
     }
 }

@@ -1,6 +1,3 @@
-extern crate philipshue;
-extern crate serde_yaml;
-
 use futures_util::{pin_mut, stream, StreamExt};
 use tokio::sync::{mpsc, oneshot};
 use tracing::error;
@@ -53,7 +50,7 @@ pub struct Lighting {
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Could not get lights from bridge")]
-    GettingLights(philipshue::errors::HueError),
+    GettingLights(hueclient::HueError),
     #[error("Failed to register on bridge")]
     Register(#[from] bridge_connect::RegisterError),
     #[error("Something went wrong saving bridge account to disk: {0}")]
