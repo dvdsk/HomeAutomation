@@ -1,0 +1,16 @@
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+# replace STM32F103C8 with your chip as listed in `probe-rs chip list`
+# runner = "probe-rs run --chip STM32F103C8"
+runner = "probe-rs run --chip STM32F401CCUx"
+
+[build]
+# target = "thumbv7m-none-eabi" for f103
+target = "thumbv7em-none-eabihf"
+
+[env]
+DEFMT_LOG = "debug,sps30_async=trace,bosch_bme680=info"
+EMBASSY_EXECUTOR_TASK_ARENA_SIZE="8000"
+
+# [unstable]
+# build-std = ["core"]
+# build-std-features = ["panic_immediate_abort"]
