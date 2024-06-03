@@ -228,10 +228,13 @@ impl<const MAX_ITEMS: usize> SensorMessage<MAX_ITEMS> {
 }
 
 pub type ErrorString = heapless::String<200>;
-pub fn make_error_string(e: impl core::fmt::Display) -> ErrorString {
+// thiserror does not work on nostd. That will change when this lands:
+// https://github.com/rust-lang/rust/issues/103765
+// at that point try switching this to fmt::Display
+pub fn make_error_string(e: impl core::fmt::Debug) -> ErrorString {
     use core::fmt::Write;
 
     let mut s = ErrorString::new();
-    core::write!(s, "{e}").ok();
+    core::write!(s, "{e:?}").ok();
     s
 }

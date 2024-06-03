@@ -1,5 +1,3 @@
-use core::mem;
-
 use defmt::{info, unwrap, warn};
 use embassy_net::driver::Driver;
 use embassy_net::tcp::TcpSocket;

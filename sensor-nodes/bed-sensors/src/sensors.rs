@@ -9,7 +9,8 @@ use embassy_sync::mutex::Mutex;
 use embassy_time::{with_timeout, Delay, Duration};
 use max44009::{Max44009, SlaveAddr};
 use mhzx::MHZ;
-use protocol::downcast_err::ConcreteErrorType;
+use protocol::large_bedroom::bed::{Device, Error, SensorError};
+use protocol::make_error_string;
 use sps30_async::Sps30;
 
 use crate::channel::Channel;
@@ -25,10 +26,7 @@ pub async fn init_then_measure(
     i2c: Mutex<NoopRawMutex, I2c<'static, I2C1, Async>>,
     usart_mhz: Uart<'static, USART1, Async>,
     usart_sps: Uart<'static, USART2, Async>,
-) -> Result<(), protocol::large_bedroom::Error> {
-    use protocol::large_bedroom::Device;
-    use protocol::large_bedroom::Error;
-    use protocol::large_bedroom::SensorError;
+) -> Result<(), protocol::large_bedroom::bed::Error> {
 
     let bme_config = bosch_bme680::Configuration::default();
     let bme = with_timeout(
@@ -43,7 +41,7 @@ pub async fn init_then_measure(
     )
     .await
     .map_err(|_| Error::SetupTimedOut(Device::Bme680))?
-    .map_err(|err| err.strip_generics())
+    .map_err(|err| make_error_string(err))
     .map_err(SensorError::Bme680)
     .map_err(Error::Setup)?;
 
@@ -57,7 +55,7 @@ pub async fn init_then_measure(
     )
     .await
     .map_err(|_| Error::SetupTimedOut(Device::Max44))?
-    .map_err(|err| err.strip_generics())
+    .map_err(|err| make_error_string(err))
     .map_err(SensorError::Max44)
     .map_err(Error::Setup)?;
 
@@ -78,7 +76,7 @@ pub async fn init_then_measure(
     let sps30 = with_timeout(Duration::from_millis(100), Sps30::from_tx_rx(tx, rx, Delay))
         .await
         .map_err(|_| Error::SetupTimedOut(Device::Sps30))?
-        .map_err(|err| err.strip_generics())
+        .map_err(|err| make_error_string(err))
         .map_err(SensorError::Sps30)
         .map_err(Error::Setup)?;
 

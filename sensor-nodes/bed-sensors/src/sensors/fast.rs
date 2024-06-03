@@ -1,8 +1,5 @@
-use defmt::{unwrap, warn};
-use embassy_futures::{
-    join::{self, join3},
-    yield_now,
-};
+use defmt::warn;
+use embassy_futures::yield_now;
 use embassy_stm32::exti::ExtiInput;
 use embassy_time::{Duration, Instant, Timer};
 use embedded_hal_async::i2c::I2c;
@@ -10,8 +7,11 @@ use max44009::Max44009;
 
 use crate::channel::Channel;
 
-use protocol::downcast_err::{ConcreteErrorType, I2cError};
-use protocol::large_bedroom::{self, BedButton, LargeBedroom as LB};
+use protocol::large_bedroom::{
+    bed::Button,
+    bed::{self, SensorError},
+    bed::Reading,
+};
 
 fn sig_lux_diff(old: f32, new: f32) -> bool {
     let diff = old - new;
@@ -19,13 +19,10 @@ fn sig_lux_diff(old: f32, new: f32) -> bool {
     diff > old / 20.0 || -diff > old / 20.0
 }
 
-async fn report_lux<I2C>(
-    mut max44: Max44009<I2C>,
-    publish: &Channel,
-) where
+async fn report_lux<I2C>(mut max44: Max44009<I2C>, publish: &Channel)
+where
     I2C: I2c,
     I2C::Error: defmt::Format,
-    <I2C as embedded_hal_async::i2c::ErrorType>::Error: Into<I2cError>,
 {
     let mut prev_lux = f32::MAX;
     let mut last_lux = Instant::now();
@@ -37,8 +34,9 @@ async fn report_lux<I2C>(
         let lux = match max44.read_lux().await {
             Ok(lux) => lux,
             Err(err) if last_lux.elapsed() > MIN_INTERVAL => {
-                let err = large_bedroom::SensorError::Max44(err.strip_generics());
-                let err = large_bedroom::Error::Running(err);
+                let err = protocol::make_error_string(err);
+                let err = SensorError::Max44(err);
+                let err = bed::Error::Running(err);
                 let _ignore = publish.send_error(err);
                 continue;
             }
@@ -46,9 +44,9 @@ async fn report_lux<I2C>(
         };
 
         if sig_lux_diff(prev_lux, lux) {
-            publish.send_p2(LB::Brightness(lux))
+            publish.send_p2(Reading::Brightness(lux))
         } else if last_lux.elapsed() > MIN_INTERVAL {
-            publish.send_p1(LB::Brightness(lux))
+            publish.send_p1(Reading::Brightness(lux))
         } else {
             yield_now().await;
             continue;
@@ -59,9 +57,10 @@ async fn report_lux<I2C>(
     }
 }
 
+#[allow(dead_code)]
 async fn watch_button(
     mut input: ExtiInput<'static>,
-    event: impl Fn(protocol::Press) -> BedButton,
+    event: impl Fn(protocol::Press) -> Button,
     channel: &Channel,
 ) {
     let mut went_high_at: Option<Instant> = None;
@@ -75,7 +74,7 @@ async fn watch_button(
                     continue;
                 };
                 let event = (event)(protocol::Press(press));
-                let _ignore_full = channel.send_p2(LB::BedButton(event));
+                let _ignore_full = channel.send_p2(Reading::Button(event));
             }
         } else {
             input.wait_for_rising_edge().await;
@@ -84,6 +83,7 @@ async fn watch_button(
     }
 }
 
+#[allow(dead_code)]
 pub struct ButtonInputs {
     pub top_left: ExtiInput<'static>,
     pub top_right: ExtiInput<'static>,
@@ -95,14 +95,10 @@ pub struct ButtonInputs {
     pub lower_outer: ExtiInput<'static>,
 }
 
-pub async fn read<I2C>(
-    max44: Max44009<I2C>,
-    /*inputs: ButtonInputs,*/
-    publish: &Channel,
-) where
+pub async fn read<I2C>(max44: Max44009<I2C>, /*inputs: ButtonInputs,*/ publish: &Channel)
+where
     I2C: I2c,
     I2C::Error: defmt::Format,
-    <I2C as embedded_hal_async::i2c::ErrorType>::Error: Into<I2cError>,
 {
     // let watch_buttons_1 = join5(
     //     watch_button(inputs.top_left, BedButton::TopLeft, publish),

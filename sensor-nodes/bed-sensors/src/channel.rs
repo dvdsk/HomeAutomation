@@ -4,8 +4,7 @@ use embassy_sync::mutex::Mutex;
 use embassy_sync::priority_channel::{self, PriorityChannel};
 use embassy_time::{Duration, Instant};
 use heapless::Vec;
-use protocol::large_bedroom::{Error, LargeBedroom};
-use protocol::Sensor;
+use protocol::large_bedroom::bed::{self, Error, Reading};
 
 struct ErrorEvent {
     error: Error,
@@ -38,7 +37,7 @@ impl Channel {
         self.queue.try_receive().ok()
     }
 
-    pub fn send_error(&self, error: Error) {
+    pub fn send_error(&self, error: bed::Error) {
         let mut recent_errors = unwrap!(self.recent_errors.try_lock());
 
         let mut to_remove: Vec<usize, 20> = Vec::new();
@@ -55,7 +54,9 @@ impl Channel {
         }
         let entry = PriorityValue {
             priority: 0,
-            value: Sensor::LargeBedroomError(error.clone()),
+            value: Err(protocol::Error::LargeBedroom(
+                protocol::large_bedroom::Error::Bed(error.clone()),
+            )),
         };
 
         let full = self.queue.try_send(entry).is_err();
@@ -68,25 +69,31 @@ impl Channel {
         }
     }
 
-    pub fn send_p0(&self, value: LargeBedroom) {
+    pub fn send_p0(&self, value: Reading) {
         let entry = PriorityValue {
             priority: 0,
-            value: Sensor::LargeBedroom(value),
+            value: Ok(protocol::Reading::LargeBedroom(
+                protocol::large_bedroom::Reading::Bed(value),
+            )),
         };
         let _ignore_full = self.queue.try_send(entry);
     }
-    pub fn send_p1(&self, value: LargeBedroom) {
+    pub fn send_p1(&self, value: Reading) {
         let entry = PriorityValue {
             priority: 1,
-            value: Sensor::LargeBedroom(value),
+            value: Ok(protocol::Reading::LargeBedroom(
+                protocol::large_bedroom::Reading::Bed(value),
+            )),
         };
         let _ignore_full = self.queue.try_send(entry);
     }
 
-    pub fn send_p2(&self, value: LargeBedroom) {
+    pub fn send_p2(&self, value: Reading) {
         let entry = PriorityValue {
             priority: 2,
-            value: Sensor::LargeBedroom(value),
+            value: Ok(protocol::Reading::LargeBedroom(
+                protocol::large_bedroom::Reading::Bed(value),
+            )),
         };
         let _ignore_full = self.queue.try_send(entry);
     }
@@ -94,7 +101,9 @@ impl Channel {
     pub async fn send_critical_error(&self, error: Error) {
         let entry = PriorityValue {
             priority: 10,
-            value: Sensor::LargeBedroomError(error),
+            value: Err(protocol::Error::LargeBedroom(
+                protocol::large_bedroom::Error::Bed(error),
+            )),
         };
 
         self.queue.send(entry).await;
@@ -104,7 +113,7 @@ impl Channel {
 /// Higher prio will be send earlier
 pub struct PriorityValue {
     priority: u8,
-    pub value: Sensor,
+    pub value: Result<protocol::Reading, protocol::Error>,
 }
 
 impl PriorityValue {
