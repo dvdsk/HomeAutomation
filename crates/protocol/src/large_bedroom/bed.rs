@@ -1,5 +1,7 @@
 use crate::downcast_err::{I2cError, UartError};
-use crate::{button_enum, Tomato, TomatoItem};
+#[cfg(feature = "alloc")]
+use crate::{Tomato, TomatoItem};
+use crate::button_enum;
 
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
@@ -68,6 +70,7 @@ pub enum Reading {
     TypicalParticleSize(f32),
 }
 
+#[cfg(feature = "alloc")]
 impl Tomato for Reading {
     fn inner<'a>(&'a self) -> TomatoItem<'a> {
         let val = match self {

@@ -1,7 +1,5 @@
 #![cfg_attr(not(feature = "alloc"), no_std)]
 
-use core::fmt;
-
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
@@ -61,6 +59,7 @@ macro_rules! button_enum {
             }
         }
 
+        #[cfg(feature = "alloc")]
         impl crate::Tomato for $name {
             fn inner<'a>(&'a self) -> crate::TomatoItem<'a> {
                 crate::TomatoItem::Leaf((*self).into())
@@ -108,13 +107,16 @@ impl Press {
     }
 }
 
+#[cfg(feature = "alloc")]
 type TomatoId = u8;
+#[cfg(feature = "alloc")]
 #[derive(Debug)]
 pub enum TomatoItem<'a> {
     Leaf(f32),
     Node(&'a dyn Tomato),
 }
 
+#[cfg(feature = "alloc")]
 pub trait Tomato: fmt::Debug {
     fn inner<'a>(&'a self) -> TomatoItem<'a>;
     fn name(&self) -> String {
@@ -128,6 +130,7 @@ pub trait Tomato: fmt::Debug {
     fn id(&self) -> TomatoId;
 }
 
+#[cfg(feature = "alloc")]
 macro_rules! all_nodes {
     ($name:ident; $variant:ident; $($var:ident),*) => {
         impl Tomato for $name {
@@ -145,7 +148,9 @@ macro_rules! all_nodes {
         }
     };
 }
+#[cfg(feature = "alloc")]
 pub(crate) use all_nodes;
+#[cfg(feature = "alloc")]
 all_nodes! {Reading; ReadingDiscriminants; LargeBedroom} //, Test}
 
 #[derive(

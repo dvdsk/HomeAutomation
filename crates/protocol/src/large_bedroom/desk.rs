@@ -2,7 +2,9 @@ use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
 use crate::downcast_err::{GpioError, LinuxI2cError};
-use crate::{button_enum, Tomato, TomatoItem};
+#[cfg(feature = "alloc")]
+use crate::{Tomato, TomatoItem};
+use crate::button_enum;
 
 button_enum! {
     /// No these are not borg, these are buttons on a string of cat5.
@@ -29,6 +31,7 @@ pub enum Reading {
     Button(Button),
 }
 
+#[cfg(feature = "alloc")]
 impl Tomato for Reading {
     fn inner<'a>(&'a self) -> TomatoItem<'a> {
         let val = match self {

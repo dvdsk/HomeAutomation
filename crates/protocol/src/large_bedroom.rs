@@ -1,6 +1,7 @@
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "alloc")]
 use crate::{all_nodes, Tomato};
 
 pub mod bed;
@@ -15,6 +16,7 @@ pub enum Reading {
     Desk(desk::Reading),
 }
 
+#[cfg(feature = "alloc")]
 all_nodes! {Reading; ReadingDiscriminants; Bed, Desk}
 
 #[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
