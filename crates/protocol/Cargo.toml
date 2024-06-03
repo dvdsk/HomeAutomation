@@ -27,14 +27,15 @@ bme280 = { version = "0.5", git = "https://github.com/dvdsk/bme280-rs", features
 # needed for bme680 error I2C type 
 embassy-stm32 = { version = "0.1.0", features = ["stm32f401cc"] }
 embassy-embedded-hal = "0.1.0"
-linux-embedded-hal = { version = "0.4.0", features = ["i2c"], default-features = false }
-gpiocdev-embedded-hal = "0.1.1"
-gpiocdev = "0.7"
-nix = "0.28.0"
-embedded-hal = "1.0.0"
-tracing = "0.1.40"
+
+linux-embedded-hal = { version = "0.4.0", features = ["i2c"], default-features = false, optional = true }
+gpiocdev-embedded-hal = { version = "0.1.1", optional = true }
+gpiocdev = { version = "0.7.1", optional = true }
+nix = { version = "0.28.0", optional = true }
+tracing = { version = "0.1.40", optional = true }
 
 [features]
 alloc = ["postcard/alloc", "serde/std", "sht31/thiserror",
 "bosch-bme680/thiserror", "mhzx/thiserror", "sps30-async/thiserror",
-"max44009/thiserror"]
+"max44009/thiserror", "linux-embedded-hal", "gpiocdev-embedded-hal", "gpiocdev",
+"nix", "tracing"]

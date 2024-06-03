@@ -1,9 +1,11 @@
 mod i2c;
+// #[cfg(feature = "alloc")]
 mod rpi_button;
 mod uart;
 
 use bosch_bme680::BmeError;
 pub use i2c::{I2cError, LinuxI2cError};
+// #[cfg(feature = "alloc")]
 pub use rpi_button::GpioError;
 pub use uart::Error as UartError;
 

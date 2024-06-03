@@ -80,12 +80,14 @@ impl core::fmt::Display for LinuxI2cError {
     }
 }
 
+#[cfg(alloc)]
 impl From<linux_embedded_hal::I2CError> for LinuxI2cError {
     fn from(value: linux_embedded_hal::I2CError) -> Self {
         value.inner().into()
     }
 }
 
+#[cfg(alloc)]
 impl From<&linux_embedded_hal::i2cdev::linux::LinuxI2CError> for LinuxI2cError {
     fn from(value: &linux_embedded_hal::i2cdev::linux::LinuxI2CError) -> Self {
         use linux_embedded_hal::i2cdev::linux::LinuxI2CError;

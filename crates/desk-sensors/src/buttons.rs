@@ -66,7 +66,7 @@ async fn watch_pin(
             let reading = desk::Reading::Button(button);
             send_reading(tx, reading);
         } else {
-            trace!("press too short, caught as bounce");
+            trace!("press too short, caught as bounce: {offset}");
         }
     }
 }

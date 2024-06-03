@@ -509,7 +509,7 @@ dependencies = [
 [[package]]
 name = "bme280"
 version = "0.5.1"
-source = "git+https://github.com/dvdsk/bme280-rs#4999b005d26a16312acb3dbc64b72658df49a16d"
+source = "git+https://github.com/dvdsk/bme280-rs#a147bfc93d73a827616121f194972d6cc9cb3d11"
 dependencies = [
  "defmt",
  "derive_more",
@@ -2457,7 +2457,6 @@ dependencies = [
  "defmt",
  "embassy-embedded-hal",
  "embassy-stm32",
- "embedded-hal 1.0.0",
  "gpiocdev",
  "gpiocdev-embedded-hal",
  "heapless 0.8.0",
