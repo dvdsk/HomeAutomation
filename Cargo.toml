@@ -1,9 +1,11 @@
 [workspace]
 resolver = "2"
 members = ["crates/*"]
+exclude = ["sensor-nodes/bed-sensors"]
 
 [workspace.package]
 rust-version = "1.78"
 edition = "2021"
 license = "GPLv3"
 authors = ["David Kleingeld & Eva van Houten"]
+
