@@ -19,3 +19,4 @@ tracing-error = "0.2.0"
 protocol = { path = "../protocol", features = ["alloc"] }
 tokio = { version = "1.37.0", features = ["rt", "time", "macros"] }
 embedded-hal-async = "1.0.0"
+heapless = "0.8.0"

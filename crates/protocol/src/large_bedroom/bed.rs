@@ -1,7 +1,6 @@
-use crate::downcast_err::{I2cError, UartError};
+use crate::button_enum;
 #[cfg(feature = "alloc")]
 use crate::{Tomato, TomatoItem};
-use crate::button_enum;
 
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
@@ -119,13 +118,17 @@ impl Error {
     }
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
+#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, Eq, PartialEq)]
 pub enum SensorError {
-    Sht31(sht31::error::SHTError),
-    Bme680(bosch_bme680::BmeError<I2cError>),
-    Max44(max44009::Error<I2cError>),
-    Mhz14(mhzx::Error<UartError, UartError>),
-    Sps30(sps30_async::Error<UartError, UartError>),
+    Sht31(heapless::String<200>),
+    Bme680(heapless::String<200>),
+    Max44(heapless::String<200>),
+    Mhz14(heapless::String<200>),
+    Sps30(heapless::String<200>),
+}
+
+impl MaxSize for SensorError {
+    const POSTCARD_MAX_SIZE: usize = 201;
 }
 
 impl SensorError {

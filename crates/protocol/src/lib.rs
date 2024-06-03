@@ -6,8 +6,6 @@ use serde::{Deserialize, Serialize};
 pub mod large_bedroom;
 pub mod small_bedroom;
 
-pub mod downcast_err;
-
 /// turns an enum of empty variants into one with [`Press`](crate::Press) inside each variant also
 /// adds a method `press(&self)` that returns an instance of [`Press`](crate::Press). It can be
 /// used to quickly find out if a button event is a long or short press.
@@ -117,7 +115,7 @@ pub enum TomatoItem<'a> {
 }
 
 #[cfg(feature = "alloc")]
-pub trait Tomato: fmt::Debug {
+pub trait Tomato: core::fmt::Debug {
     fn inner<'a>(&'a self) -> TomatoItem<'a>;
     fn name(&self) -> String {
         let dbg_repr = format!("{:?}", self);
@@ -227,4 +225,13 @@ impl<const MAX_ITEMS: usize> SensorMessage<MAX_ITEMS> {
     pub fn version(&self) -> u8 {
         self.version
     }
+}
+
+pub type ErrorString = heapless::String<200>;
+pub fn make_error_string(e: impl core::fmt::Display) -> ErrorString {
+    use core::fmt::Write;
+
+    let mut s = ErrorString::new();
+    core::write!(s, "{e}").ok();
+    s
 }

@@ -1,10 +1,9 @@
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
-use crate::downcast_err::{GpioError, LinuxI2cError};
+use crate::button_enum;
 #[cfg(feature = "alloc")]
 use crate::{Tomato, TomatoItem};
-use crate::button_enum;
 
 button_enum! {
     /// No these are not borg, these are buttons on a string of cat5.
@@ -66,17 +65,25 @@ impl Error {
     }
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
+#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, Eq, PartialEq)]
 pub enum SetupError {
-    BmeError(bme280::Error<LinuxI2cError>),
-    Gpio(GpioError),
-    I2c(LinuxI2cError),
+    BmeError(heapless::String<200>),
+    Gpio(heapless::String<200>),
+    I2c(heapless::String<200>),
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
+impl MaxSize for SetupError {
+    const POSTCARD_MAX_SIZE: usize = 200+1;
+}
+
+#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, Eq, PartialEq)]
 pub enum SensorError {
-    BmeError(bme280::Error<LinuxI2cError>),
-    Gpio(GpioError),
+    BmeError(heapless::String<200>),
+    Gpio(heapless::String<200>),
+}
+
+impl MaxSize for SensorError {
+    const POSTCARD_MAX_SIZE: usize = 200+1;
 }
 
 impl SensorError {

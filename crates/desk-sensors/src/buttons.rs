@@ -1,5 +1,5 @@
 use embedded_hal_async::digital::Wait;
-use protocol::{Press, Reading};
+use protocol::{make_error_string, Press, Reading};
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
 use tracing::{debug, error, info, trace};
@@ -27,7 +27,7 @@ async fn watch_pin(
         Ok(pin) => pin,
         Err(error) => {
             error!("error opening gpio {offset} on {CHIP}: {error}");
-            let error: protocol::downcast_err::GpioError = error.into();
+            let error = make_error_string(error); 
             let error = desk::Error::Setup(SetupError::Gpio(error));
             send_error(tx, error);
             return;
@@ -39,7 +39,7 @@ async fn watch_pin(
     loop {
         if let Err(error) = pin.wait_for_rising_edge().await {
             error!("error waiting for rising edge for gpio {offset} on {CHIP}: {error}");
-            let error: protocol::downcast_err::GpioError = error.into();
+            let error = make_error_string(error); 
             let error = desk::Error::Running(desk::SensorError::Gpio(error));
             send_error(tx, error);
             return;
@@ -50,7 +50,7 @@ async fn watch_pin(
         match tokio::time::timeout(MAX_PRESS, pin.wait_for_falling_edge()).await {
             Ok(Err(error)) => {
                 error!("error waiting for falling edge for gpio {offset} on {CHIP}: {error}");
-                let error: protocol::downcast_err::GpioError = error.into();
+                let error = make_error_string(error); 
                 let error = desk::Error::Running(desk::SensorError::Gpio(error));
                 send_error(tx, error);
                 return;
