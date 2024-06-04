@@ -4,7 +4,6 @@ use hal::{Delay, I2cdev};
 use linux_embedded_hal as hal;
 use tracing::debug;
 
-use std::str::FromStr;
 use std::sync::mpsc::Sender;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -18,16 +17,14 @@ use crate::{send_error, send_reading};
 pub fn init() -> Result<Bme280<I2cdev>, Error> {
     let i2c_bus = I2cdev::new("/dev/i2c-1")
         .inspect_err(|e| tracing::error!("Could not open i2c bus: {e}"))
-        .map_err(|e| e.to_string())
-        .map_err(|e| heapless::String::from_str(&e[..200]).unwrap())
+        .map_err(|e| protocol::make_error_string(e))
         .map_err(|e| Error::Setup(SetupError::I2c(e)))?;
 
     let mut bme280 = Bme280::new_primary(i2c_bus);
     bme280
         .init(&mut Delay)
         .inspect_err(|e| tracing::error!("Could not init bme280 sensor: {e}"))
-        .map_err(|e| e.to_string())
-        .map_err(|e| heapless::String::from_str(&e[..200]).unwrap())
+        .map_err(|e| protocol::make_error_string(e))
         .map_err(|e| Error::Setup(SetupError::BmeError(e)))?;
     Ok(bme280)
 }

@@ -12,7 +12,7 @@ use embassy_stm32::exti::ExtiInput;
 use embassy_stm32::gpio::{Level, Output, Pull, Speed};
 use embassy_stm32::i2c::{self, I2c};
 use embassy_stm32::mode::Async;
-use embassy_stm32::peripherals::{IWDG, SPI1};
+use embassy_stm32::peripherals::IWDG;
 use embassy_stm32::spi::{Config as SpiConfig, Spi};
 use embassy_stm32::time::Hertz;
 use embassy_stm32::usart::{self, DataBits, StopBits, Uart};
@@ -33,6 +33,7 @@ use {defmt_rtt as _, panic_probe as _};
 mod channel;
 mod network;
 mod sensors;
+mod error_cache;
 use crate::channel::Channel;
 
 embassy_stm32::bind_interrupts!(struct Irqs {
@@ -59,7 +60,7 @@ async fn print_if_running_task() -> ! {
     }
 }
 
-type EthernetSPI = ExclusiveDevice<Spi<'static, SPI1, Async>, Output<'static>, Delay>;
+type EthernetSPI = ExclusiveDevice<Spi<'static, Async>, Output<'static>, Delay>;
 #[embassy_executor::task]
 async fn ethernet_task(
     runner: Runner<'static, W5500, EthernetSPI, ExtiInput<'static>, Output<'static>>,
@@ -110,7 +111,7 @@ fn config() -> Config {
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     let p = embassy_stm32::init(config());
-    let dog = IndependentWatchdog::new(p.IWDG, 20 * 1000 * 1000);
+    // let dog = IndependentWatchdog::new(p.IWDG, 20 * 1000 * 1000);
     let publish = Channel::new();
     let seed = gen_random_number().await;
 
@@ -173,6 +174,7 @@ async fn main(spawner: Spawner) {
     let (miso, mosi, clk) = (p.PA6, p.PA7, p.PA5);
     let spi = Spi::new(p.SPI1, clk, mosi, miso, p.DMA2_CH3, p.DMA2_CH0, spi_cfg);
     let cs = Output::new(p.PA4, Level::High, Speed::VeryHigh);
+    let spi = unwrap!(ExclusiveDevice::new(spi, cs, Delay));
 
     let w5500_int = ExtiInput::new(p.PB0, p.EXTI0, Pull::Up);
     let w5500_reset = Output::new(p.PB1, Level::High, Speed::VeryHigh);
@@ -183,7 +185,7 @@ async fn main(spawner: Spawner) {
     let (device, runner) = embassy_net_wiznet::new(
         mac_addr,
         state,
-        ExclusiveDevice::new(spi, cs, Delay),
+        spi,
         w5500_int,
         w5500_reset,
     )
@@ -219,8 +221,9 @@ async fn main(spawner: Spawner) {
     network_up.signal(());
     let send_published = network::send_published(stack, &publish, &network_up);
     pin_mut!(send_published);
-    let keep_dog_happy = keep_dog_happy(dog);
-    let send_and_pet_dog = join::join(&mut send_published, keep_dog_happy);
+    // let keep_dog_happy = keep_dog_happy(dog);
+    // let send_and_pet_dog = join::join(&mut send_published, keep_dog_happy);
+    let send_and_pet_dog = &mut send_published;
 
     let init_then_measure = sensors::init_then_measure(&publish, i2c, usart_mhz, usart_sps30);
     let init_then_measure = network_up.wait().then(|_| init_then_measure);

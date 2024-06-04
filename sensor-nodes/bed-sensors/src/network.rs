@@ -10,7 +10,7 @@ use protocol::SensorMessage;
 
 use crate::channel::Channel;
 
-type Msg = SensorMessage<6>;
+type Msg = SensorMessage<4>;
 
 async fn get_messages(publish: &Channel, msg: &mut Msg) {
     msg.values.clear();
@@ -49,14 +49,14 @@ pub async fn send_published(
     network_up: &Signal<NoopRawMutex, ()>,
 ) {
     let mut rx_buffer = [0; 800];
-    let mut tx_buffer = [0; Msg::ENCODED_SIZE * 4];
+    let mut tx_buffer = [0; Msg::ENCODED_SIZE * 2];
 
     let mut msg = Msg::new();
     let mut encoded_msg_buffer = [0; Msg::ENCODED_SIZE];
 
     let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
     socket.set_timeout(Some(Duration::from_secs(5)));
-    let host_addr = Ipv4Address::new(192, 168, 1, 46);
+    let host_addr = Ipv4Address::new(192, 168, 1, 43);
     let host_port = 1234;
 
     loop {

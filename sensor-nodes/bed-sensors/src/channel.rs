@@ -12,8 +12,8 @@ struct ErrorEvent {
 }
 
 pub struct Channel {
-    queue: PriorityChannel<NoopRawMutex, PriorityValue, priority_channel::Max, 40>,
-    recent_errors: Mutex<NoopRawMutex, Vec<ErrorEvent, 20>>,
+    queue: PriorityChannel<NoopRawMutex, PriorityValue, priority_channel::Max, 20>,
+    recent_errors: Mutex<NoopRawMutex, Vec<ErrorEvent, 5>>,
 }
 
 impl Channel {

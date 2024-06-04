@@ -11,7 +11,7 @@ embassy-stm32 = { version = "0.1.0", features = [ "defmt", "stm32f401cc",
 "unstable-pac", "memory-x", "time-driver-tim1", "time", "exti" ]  }
 embassy-net = { version = "0.4.0", features = ["defmt", "proto-ipv4", "tcp", "dhcpv4","medium-ethernet"] }
 embassy-net-wiznet = { version = "0.1.0", features = ["defmt"] }
-embassy-sync = { version = "0.5.0", features = ["defmt"] }
+embassy-sync = { version = "0.6.0", features = ["defmt"] }
 embassy-executor = { version = "0.5.0", features = ["arch-cortex-m",
 "executor-thread", "defmt", "integrated-timers", "executor-interrupt"] }
 embassy-embedded-hal = { version = "0.1.0" }
@@ -23,9 +23,9 @@ defmt-rtt = "0.4"
 
 cortex-m = { version = "0.7.6", features = ["inline-asm", "critical-section-single-core"] }
 cortex-m-rt = "0.7.0"
-embedded-hal = "0.2.6"
+embedded-hal = "1.0.0"
 embedded-hal-async = "1.0"
-embedded-hal-bus = { version = "0.1", features = ["async", "defmt-03"] }
+embedded-hal-bus = { version = "0.2", features = ["async", "defmt-03"] }
 embedded-io-async = { version = "0.6.1", features = ["defmt-03"] }
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 futures = { version = "0.3.17", default-features = false, features = ["async-await"] }
@@ -35,7 +35,7 @@ rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
 static_cell = "2.0.0"
 
 # sensors
-bosch-bme680 = { version = "1.0.2", git = "https://github.com/dvdsk/async-bosch-bme680" }
+bosch-bme680 = { version = "1.0.2", path = "/home/david/Documents/async-bosch-bme680" }
 max44009 = { version = "0.2", git = "https://github.com/dvdsk/max44009-rs" }
 sht31 = { version = "0.3.0", git = "https://github.com/dvdsk/SHT31-rs", features = ["postcard"] }
 # mhzx = { version = "0.3.0", git = "https://github.com/dvdsk/mhzx", features = ["postcard"] }
@@ -44,16 +44,17 @@ sps30-async = { version = "0.2.0", path = "/home/david/tmp/sps30", features = ["
 
 # encoding
 protocol = { path = "../../crates/protocol" }
+# fasthash = { version = "0.4.0", default-features = false }
 
 [patch.crates-io]
-embassy-stm32 = {git = "https://github.com/embassy-rs/embassy", rev = "128575a" }
-embassy-net = {git = "https://github.com/embassy-rs/embassy", rev = "128575a" }
-embassy-net-wiznet = {git = "https://github.com/embassy-rs/embassy", rev = "128575a" }
-embassy-sync = {git = "https://github.com/embassy-rs/embassy", rev = "128575a" }
-embassy-executor = {git = "https://github.com/embassy-rs/embassy", rev = "128575a" }
-embassy-embedded-hal = {git = "https://github.com/embassy-rs/embassy", rev = "128575a" }
-embassy-time = {git = "https://github.com/embassy-rs/embassy", rev = "128575a" }
-embassy-futures = {git = "https://github.com/embassy-rs/embassy", rev = "128575a" }
+embassy-stm32 = {git = "https://github.com/embassy-rs/embassy", rev = "039d8ed" }
+embassy-net = {git = "https://github.com/embassy-rs/embassy", rev = "039d8ed" }
+embassy-net-wiznet = {git = "https://github.com/embassy-rs/embassy", rev = "039d8ed" }
+embassy-sync = {git = "https://github.com/embassy-rs/embassy", rev = "039d8ed" }
+embassy-executor = {git = "https://github.com/embassy-rs/embassy", rev = "039d8ed" }
+embassy-embedded-hal = {git = "https://github.com/embassy-rs/embassy", rev = "039d8ed" }
+embassy-time = {git = "https://github.com/embassy-rs/embassy", rev = "039d8ed" }
+embassy-futures = {git = "https://github.com/embassy-rs/embassy", rev = "039d8ed" }
 
 [profile.dev]
 opt-level = "s"
