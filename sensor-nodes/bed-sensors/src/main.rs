@@ -34,7 +34,7 @@ mod channel;
 mod network;
 mod sensors;
 mod error_cache;
-use crate::channel::Channel;
+use crate::channel::Queues;
 
 embassy_stm32::bind_interrupts!(struct Irqs {
     I2C1_EV => embassy_stm32::i2c::EventInterruptHandler<embassy_stm32::peripherals::I2C1>;
@@ -73,14 +73,6 @@ async fn net_task(stack: &'static Stack<Device<'static>>) -> ! {
     stack.run().await
 }
 
-async fn gen_random_number() -> u64 {
-    let seed = 5u64;
-    let mut rng = SmallRng::seed_from_u64(seed);
-    let seed = rng.gen();
-    info!("Seed: {}", seed);
-    seed
-}
-
 // 84 Mhz clock stm32f401
 fn config() -> Config {
     use embassy_stm32::rcc::{
@@ -112,8 +104,7 @@ fn config() -> Config {
 async fn main(spawner: Spawner) {
     let p = embassy_stm32::init(config());
     // let dog = IndependentWatchdog::new(p.IWDG, 20 * 1000 * 1000);
-    let publish = Channel::new();
-    let seed = gen_random_number().await;
+    let publish = Queues::new();
 
     let mut usart_config = usart::Config::default();
     usart_config.baudrate = 9600;
@@ -207,7 +198,7 @@ async fn main(spawner: Spawner) {
             dns_servers,
         }),
         RESOURCES.init(StackResources::<2>::new()),
-        seed,
+        384,
     ));
 
     // Launch network task
@@ -217,6 +208,7 @@ async fn main(spawner: Spawner) {
     let spawner = EXECUTOR_HIGH.start(embassy_stm32::interrupt::USART6);
     unwrap!(spawner.spawn(print_if_running_task()));
 
+    Timer::after_secs(999).await;
     let network_up: Signal<NoopRawMutex, ()> = Signal::new();
     network_up.signal(());
     let send_published = network::send_published(stack, &publish, &network_up);
@@ -225,21 +217,21 @@ async fn main(spawner: Spawner) {
     // let send_and_pet_dog = join::join(&mut send_published, keep_dog_happy);
     let send_and_pet_dog = &mut send_published;
 
-    let init_then_measure = sensors::init_then_measure(&publish, i2c, usart_mhz, usart_sps30);
-    let init_then_measure = network_up.wait().then(|_| init_then_measure);
-    let res = select::select(send_and_pet_dog, init_then_measure).await;
-    let unrecoverable_err = match res {
-        Either::First(_) => defmt::unreachable!(),
-        Either::Second(Ok(())) => defmt::unreachable!(),
-        Either::Second(Err(err)) => err,
-    };
-
-    let send_critical_error = join::join(
-        publish.send_critical_error(unrecoverable_err.clone()),
-        send_published,
-    );
-    error!("unrecoverable error, resetting: {}", unrecoverable_err);
-    send_critical_error.await; // if this takes too long the dog will get us
+    // let init_then_measure = sensors::init_then_measure(&publish, i2c, usart_mhz, usart_sps30);
+    // let init_then_measure = network_up.wait().then(|_| init_then_measure);
+    // let res = select::select(send_and_pet_dog, init_then_measure).await;
+    // let unrecoverable_err = match res {
+    //     Either::First(_) => defmt::unreachable!(),
+    //     Either::Second(Ok(())) => defmt::unreachable!(),
+    //     Either::Second(Err(err)) => err,
+    // };
+    //
+    // let send_critical_error = join::join(
+    //     publish.send_critical_error(unrecoverable_err.clone()),
+    //     send_published,
+    // );
+    // error!("unrecoverable error, resetting: {}", unrecoverable_err);
+    // send_critical_error.await; // if this takes too long the dog will get us
 }
 
 async fn keep_dog_happy<'a>(mut dog: IndependentWatchdog<'a, IWDG>) {

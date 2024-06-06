@@ -8,11 +8,11 @@ use embassy_time::{with_timeout, Duration, Instant, Timer};
 use embedded_io_async::Write;
 use protocol::SensorMessage;
 
-use crate::channel::Channel;
+use crate::channel::Queues;
 
 type Msg = SensorMessage<4>;
 
-async fn get_messages(publish: &Channel, msg: &mut Msg) {
+async fn get_messages(publish: &Queues, msg: &mut Msg) {
     msg.values.clear();
     let next = publish.receive().await;
     let low_priority = next.low_priority();
@@ -45,10 +45,10 @@ async fn get_messages(publish: &Channel, msg: &mut Msg) {
 
 pub async fn send_published(
     stack: &Stack<impl Driver>,
-    publish: &Channel,
+    publish: &Queues,
     network_up: &Signal<NoopRawMutex, ()>,
 ) {
-    let mut rx_buffer = [0; 800];
+    let mut rx_buffer = [0; 200];
     let mut tx_buffer = [0; Msg::ENCODED_SIZE * 2];
 
     let mut msg = Msg::new();

@@ -5,7 +5,7 @@ use embassy_time::{Duration, Instant, Timer};
 use embedded_hal_async::i2c::I2c;
 use max44009::Max44009;
 
-use crate::channel::Channel;
+use crate::channel::Queues;
 
 use protocol::large_bedroom::{
     bed::Button,
@@ -19,7 +19,7 @@ fn sig_lux_diff(old: f32, new: f32) -> bool {
     diff > old / 20.0 || -diff > old / 20.0
 }
 
-async fn report_lux<I2C>(mut max44: Max44009<I2C>, publish: &Channel)
+async fn report_lux<I2C>(mut max44: Max44009<I2C>, publish: &Queues)
 where
     I2C: I2c,
     I2C::Error: defmt::Format,
@@ -37,7 +37,7 @@ where
                 let err = protocol::make_error_string(err);
                 let err = SensorError::Max44(err);
                 let err = bed::Error::Running(err);
-                let _ignore = publish.send_error(err);
+                let _ignore = publish.queue_error(err);
                 continue;
             }
             Err(_) => continue,
@@ -61,7 +61,7 @@ where
 async fn watch_button(
     mut input: ExtiInput<'static>,
     event: impl Fn(protocol::Press) -> Button,
-    channel: &Channel,
+    channel: &Queues,
 ) {
     let mut went_high_at: Option<Instant> = None;
     loop {
@@ -95,7 +95,7 @@ pub struct ButtonInputs {
     pub lower_outer: ExtiInput<'static>,
 }
 
-pub async fn read<I2C>(max44: Max44009<I2C>, /*inputs: ButtonInputs,*/ publish: &Channel)
+pub async fn read<I2C>(max44: Max44009<I2C>, /*inputs: ButtonInputs,*/ publish: &Queues)
 where
     I2C: I2c,
     I2C::Error: defmt::Format,

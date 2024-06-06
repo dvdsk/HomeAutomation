@@ -7,7 +7,7 @@ use embedded_hal_async::delay::DelayNs;
 use embedded_hal_async::i2c::I2c;
 
 use mhzx::MHZ;
-use protocol::large_bedroom::bed::{Device, Error, Reading, SensorError};
+use protocol::large_bedroom::bed::{Device, Reading};
 
 use bosch_bme680::{Bme680, MeasurementData};
 use protocol::make_error_string;
@@ -16,7 +16,9 @@ use sht31::SHT31;
 use sps30_async as sps30;
 use sps30_async::Sps30;
 
-use crate::channel::Channel;
+use crate::error_cache::SensorError;
+use crate::error_cache::Error;
+use crate::channel::Queues;
 
 const SPS30_UART_BUF_SIZE: usize = 100;
 const SPS30_DRIVER_BUF_SIZE: usize = 2 * SPS30_UART_BUF_SIZE;
@@ -26,7 +28,7 @@ pub async fn read<I2C, TX1, RX1, TX2, RX2>(
     mut bme: Bme680<I2C, impl DelayNs>,
     mut mhz: MHZ<TX1, RX1>,
     mut sps: Sps30<SPS30_DRIVER_BUF_SIZE, TX2, RX2, Delay>,
-    publish: &Channel,
+    publish: &Queues,
 ) where
     I2C: I2c,
     I2C::Error: defmt::Format,
@@ -43,10 +45,9 @@ pub async fn read<I2C, TX1, RX1, TX2, RX2>(
     //  - send measure command before sleep
     //  - then read
     if let Err(err) = sht.measure().await {
-        let err = protocol::make_error_string(err);
         let err = SensorError::Sht31(err);
         let err = Error::Running(err);
-        publish.send_error(err)
+        publish.queue_error(err)
     }
     Timer::after_secs(1).await;
 
@@ -77,10 +78,9 @@ pub async fn read<I2C, TX1, RX1, TX2, RX2>(
         //  - send measure command before sleep
         //  - then read
         if let Err(err) = sht.measure().await {
-            let err = protocol::make_error_string(err);
             let err = SensorError::Sht31(err);
             let err = Error::Running(err);
-            publish.send_error(err)
+            publish.queue_error(err)
         }
         Timer::after_secs(1).await;
     }
@@ -91,7 +91,7 @@ fn publish_sps_result<TxError, RxError>(
         Result<Option<sps30::Measurement>, sps30::Error<TxError, RxError>>,
         embassy_time::TimeoutError,
     >,
-    publish: &Channel,
+    publish: &Queues,
 ) where
     TxError: fmt::Debug + defmt::Format,
     RxError: fmt::Debug + defmt::Format,
@@ -124,14 +124,13 @@ fn publish_sps_result<TxError, RxError>(
             defmt::todo!("no idea when we hit this");
         }
         Ok(Err(err)) => {
-            let err = make_error_string(err);
             let err = SensorError::Sps30(err);
             let err = Error::Running(err);
-            publish.send_error(err)
+            publish.queue_error(err)
         }
         Err(_timeout) => {
             let err = Error::Timeout(Device::Sps30);
-            publish.send_error(err)
+            publish.queue_error(err)
         }
     }
 }
@@ -141,7 +140,7 @@ fn publish_mhz_result<TxError, RxError>(
         Result<mhzx::Measurement, mhzx::Error<TxError, RxError>>,
         embassy_time::TimeoutError,
     >,
-    publish: &Channel,
+    publish: &Queues,
 ) where
     TxError: fmt::Debug + defmt::Format,
     RxError: fmt::Debug + defmt::Format,
@@ -151,21 +150,20 @@ fn publish_mhz_result<TxError, RxError>(
             publish.send_p0(Reading::Co2(co2));
         }
         Ok(Err(err)) => {
-            let err = make_error_string(err);
             let err = SensorError::Mhz14(err);
             let err = Error::Running(err);
-            publish.send_error(err)
+            publish.queue_error(err)
         }
         Err(_timeout) => {
             let err = Error::Timeout(Device::Mhz14);
-            publish.send_error(err)
+            publish.queue_error(err)
         }
     }
 }
 
 fn publish_sht_result(
     sht_res: Result<Result<sht31::prelude::Reading, sht31::SHTError>, embassy_time::TimeoutError>,
-    publish: &Channel,
+    publish: &Queues,
 ) {
     match sht_res {
         Ok(Ok(sht31::Reading {
@@ -176,21 +174,20 @@ fn publish_sht_result(
             publish.send_p0(Reading::Humidity(humidity));
         }
         Ok(Err(err)) => {
-            let err = make_error_string(err);
             let err = SensorError::Sht31(err);
             let err = Error::Running(err);
-            publish.send_error(err)
+            publish.queue_error(err)
         }
         Err(_timeout) => {
             let err = Error::Timeout(Device::Sht31);
-            publish.send_error(err)
+            publish.queue_error(err)
         }
     }
 }
 
 fn publish_bme_result<E: fmt::Debug>(
     bme_res: Result<MeasurementData, bosch_bme680::BmeError<E>>,
-    publish: &Channel,
+    publish: &Queues,
 ) {
     match bme_res {
         Ok(MeasurementData {
@@ -203,10 +200,9 @@ fn publish_bme_result<E: fmt::Debug>(
             publish.send_p0(Reading::Pressure(pressure));
         }
         Err(err) => {
-            let err = make_error_string(err);
             let err = SensorError::Bme680(err);
             let err = Error::Running(err);
-            publish.send_error(err)
+            publish.queue_error(err)
         }
     }
 }

@@ -9,11 +9,11 @@ use embassy_sync::mutex::Mutex;
 use embassy_time::{with_timeout, Delay, Duration};
 use max44009::{Max44009, SlaveAddr};
 use mhzx::MHZ;
-use protocol::large_bedroom::bed::{Device, Error, SensorError};
-use crate::error_cache::make_error_string;
+use protocol::large_bedroom::bed::Device;
 use sps30_async::Sps30;
 
-use crate::channel::Channel;
+use crate::channel::Queues;
+use crate::error_cache::{Error, SensorError};
 
 pub mod fast;
 pub mod slow;
@@ -22,11 +22,11 @@ pub mod slow;
 // while we are measuring
 
 pub async fn init_then_measure(
-    publish: &Channel,
+    publish: &Queues,
     i2c: Mutex<NoopRawMutex, I2c<'static, Async>>,
     usart_mhz: Uart<'static, Async>,
     usart_sps: Uart<'static, Async>,
-) -> Result<(), protocol::large_bedroom::bed::Error> {
+) -> Result<(), Error> {
 
     info!("initializing sensors");
     let bme_config = bosch_bme680::Configuration::default();
@@ -42,7 +42,6 @@ pub async fn init_then_measure(
     )
     .await
     .map_err(|_| Error::SetupTimedOut(Device::Bme680))?
-    .map_err(|err| make_error_string(err))
     .map_err(SensorError::Bme680)
     .map_err(Error::Setup)?;
 
@@ -57,7 +56,6 @@ pub async fn init_then_measure(
     )
     .await
     .map_err(|_| Error::SetupTimedOut(Device::Max44))?
-    .map_err(|err| make_error_string(err))
     .map_err(SensorError::Max44)
     .map_err(Error::Setup)?;
 
@@ -77,7 +75,6 @@ pub async fn init_then_measure(
     let sps30 = with_timeout(Duration::from_millis(100), Sps30::from_tx_rx(tx, rx, Delay))
         .await
         .map_err(|_| Error::SetupTimedOut(Device::Sps30))?
-        .map_err(|err| make_error_string(err))
         .map_err(SensorError::Sps30)
         .map_err(Error::Setup)?;
 
