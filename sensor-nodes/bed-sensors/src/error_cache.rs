@@ -6,32 +6,24 @@ use core::fmt;
 // use heapless::LinearMap;
 use protocol::large_bedroom::bed::{self, Device};
 use protocol::make_error_string;
+
+use crate::sensors::{I2cError, UartError};
 /// static global error fmt message cache
 // use protocol::large_bedroom::bed::Error;
 
 // static ERROR_CACHE: Mutex<CriticalSectionRawMutex, LinearMap<u32, heapless::String<200>, 20>> =
 //     Mutex::new(LinearMap::new());
 
-#[derive(PartialEq, Eq, Clone)]
-pub enum SensorError<TxError, RxError, I2cError>
-where
-    TxError: defmt::Format + fmt::Debug,
-    RxError: defmt::Format + fmt::Debug,
-    I2cError: defmt::Format + fmt::Debug,
-{
-    Mhz14(mhzx::Error<TxError, RxError>),
-    Sps30(sps30_async::Error<TxError, RxError>),
+#[derive(PartialEq, Eq)]
+pub enum SensorError {
+    Mhz14(mhzx::Error<UartError, UartError>),
+    Sps30(sps30_async::Error<UartError, UartError>),
     Sht31(sht31::SHTError),
     Bme680(bosch_bme680::BmeError<I2cError>),
     Max44(max44009::Error<I2cError>),
 }
 
-impl<TxError, RxError, I2cError> Into<bed::SensorError> for SensorError<TxError, RxError, I2cError>
-where
-    TxError: defmt::Format + fmt::Debug,
-    RxError: defmt::Format + fmt::Debug,
-    I2cError: defmt::Format + fmt::Debug,
-{
+impl Into<bed::SensorError> for SensorError {
     fn into(self) -> bed::SensorError {
         match self {
             SensorError::Mhz14(e) => bed::SensorError::Mhz14(make_error_string(e)),
@@ -43,25 +35,15 @@ where
     }
 }
 
-#[derive(PartialEq, Eq, Clone)]
-pub enum Error<TxError, RxError, I2cError>
-where
-    TxError: defmt::Format + fmt::Debug,
-    RxError: defmt::Format + fmt::Debug,
-    I2cError: defmt::Format + fmt::Debug,
-{
-    Running(SensorError<TxError, RxError, I2cError>),
-    Setup(SensorError<TxError, RxError, I2cError>),
+#[derive(PartialEq, Eq)]
+pub enum Error {
+    Running(SensorError),
+    Setup(SensorError),
     Timeout(Device),
     SetupTimedOut(Device),
 }
 
-impl<TxError, RxError, I2cError> Into<bed::Error> for Error<TxError, RxError, I2cError>
-where
-    TxError: defmt::Format + fmt::Debug,
-    RxError: defmt::Format + fmt::Debug,
-    I2cError: defmt::Format + fmt::Debug,
-{
+impl Into<bed::Error> for Error {
     fn into(self) -> bed::Error {
         match self {
             Error::Running(e) => bed::Error::Running(e.into()),

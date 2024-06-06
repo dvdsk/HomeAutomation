@@ -1,43 +1,27 @@
 use core::fmt;
 
-use defmt::unwrap;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::priority_channel::{self, PriorityChannel};
-use embassy_time::{Duration, Instant};
+use embassy_time::Instant;
 use heapless::Vec;
 use protocol::large_bedroom::bed::Reading;
 
 use crate::error_cache;
 
-struct ErrorEvent<T, R, I>
-where
-    T: defmt::Format + fmt::Debug,
-    R: defmt::Format + fmt::Debug,
-    I: defmt::Format + fmt::Debug,
-{
-    error: error_cache::Error<T, R, I>,
+struct ErrorEvent {
+    error: error_cache::Error,
     at: Instant,
 }
 
-pub struct Queues<T, R, I>
-where
-    T: defmt::Format + fmt::Debug,
-    R: defmt::Format + fmt::Debug,
-    I: defmt::Format + fmt::Debug,
-{
+pub struct Queues {
     sensor_queue: PriorityChannel<NoopRawMutex, PriorityValue, priority_channel::Max, 20>,
-    error_queue: Channel<NoopRawMutex, error_cache::Error<T, R, I>, 20>,
-    recent_errors: Mutex<NoopRawMutex, Vec<ErrorEvent<T, R, I>, 5>>,
+    error_queue: Channel<NoopRawMutex, error_cache::Error, 20>,
+    recent_errors: Mutex<NoopRawMutex, Vec<error_cache::Error, 5>>,
 }
 
-impl<T, R, I> Queues<T, R, I>
-where
-    T: defmt::Format + fmt::Debug + PartialEq,
-    R: defmt::Format + fmt::Debug + PartialEq,
-    I: defmt::Format + fmt::Debug + PartialEq,
-{
+impl Queues {
     pub fn new() -> Self {
         Self {
             sensor_queue: PriorityChannel::new(),
@@ -59,46 +43,42 @@ where
         self.sensor_queue.try_receive().ok()
     }
 
-    pub fn queue_error(&self, error: error_cache::Error<T, R, I>) {
-        let mut recent_errors = unwrap!(self.recent_errors.try_lock());
+    pub fn queue_error(&self, _error: error_cache::Error) {
+        // let mut recent_errors = unwrap!(self.recent_errors.try_lock());
+        //
+        // let mut to_remove: Vec<usize, 20> = Vec::new();
+        // for (idx, event) in recent_errors.iter().enumerate() {
+        //     if event.at.elapsed() > Duration::from_secs(60) {
+        //         unwrap!(to_remove.push(idx));
+        //     } else if event.error == error {
+        //         return;
+        //     }
+        // }
+        //
+        // for idx in to_remove.iter().rev() {
+        //     recent_errors.swap_remove(*idx);
+        // }
+        // let full = self.error_queue.try_send(error).is_err();
 
-        let mut to_remove: Vec<usize, 20> = Vec::new();
-        for (idx, event) in recent_errors.iter().enumerate() {
-            if event.at.elapsed() > Duration::from_secs(60) {
-                unwrap!(to_remove.push(idx));
-            } else if event.error == error {
-                return;
-            }
-        }
-
-        for idx in to_remove.iter().rev() {
-            recent_errors.swap_remove(*idx);
-        }
-        let full = self.error_queue.try_send(error.clone()).is_err();
-
-        if !full {
-            let _ignore_full = recent_errors.push(ErrorEvent {
-                error,
-                at: Instant::now(),
-            });
-        }
+        // if !full {
+        //     let _ignore_full = recent_errors.push(ErrorEvent {
+        //         error,
+        //         at: Instant::now(),
+        //     });
+        // }
     }
 
     pub fn send_p0(&self, value: Reading) {
         let entry = PriorityValue {
             priority: 0,
-            value: protocol::Reading::LargeBedroom(
-                protocol::large_bedroom::Reading::Bed(value),
-                ),
+            value: protocol::Reading::LargeBedroom(protocol::large_bedroom::Reading::Bed(value)),
         };
         let _ignore_full = self.sensor_queue.try_send(entry);
     }
     pub fn send_p1(&self, value: Reading) {
         let entry = PriorityValue {
             priority: 1,
-            value: protocol::Reading::LargeBedroom(
-                protocol::large_bedroom::Reading::Bed(value),
-                ),
+            value: protocol::Reading::LargeBedroom(protocol::large_bedroom::Reading::Bed(value)),
         };
         let _ignore_full = self.sensor_queue.try_send(entry);
     }
@@ -106,9 +86,7 @@ where
     pub fn send_p2(&self, value: Reading) {
         let entry = PriorityValue {
             priority: 2,
-            value: protocol::Reading::LargeBedroom(
-                protocol::large_bedroom::Reading::Bed(value),
-                ),
+            value: protocol::Reading::LargeBedroom(protocol::large_bedroom::Reading::Bed(value)),
         };
         let _ignore_full = self.sensor_queue.try_send(entry);
     }

@@ -1,46 +1,36 @@
-use core::fmt;
-
 use defmt::unwrap;
 use embassy_futures::{join, yield_now};
 use embassy_time::{with_timeout, Delay, Duration, Timer};
-use embedded_hal_async::delay::DelayNs;
-use embedded_hal_async::i2c::I2c;
 
 use mhzx::MHZ;
 use protocol::large_bedroom::bed::{Device, Reading};
 
 use bosch_bme680::{Bme680, MeasurementData};
-use protocol::make_error_string;
 use sht31::mode::{Sht31Measure, Sht31Reader, SingleShot};
 use sht31::SHT31;
 use sps30_async as sps30;
 use sps30_async::Sps30;
 
-use crate::error_cache::SensorError;
-use crate::error_cache::Error;
 use crate::channel::Queues;
+use crate::error_cache::Error;
+use crate::error_cache::SensorError;
+
+use super::{I2cError, UartError};
 
 const SPS30_UART_BUF_SIZE: usize = 100;
 const SPS30_DRIVER_BUF_SIZE: usize = 2 * SPS30_UART_BUF_SIZE;
 
-pub async fn read<I2C, TX1, RX1, TX2, RX2>(
-    mut sht: SHT31<SingleShot, I2C>,
-    mut bme: Bme680<I2C, impl DelayNs>,
-    mut mhz: MHZ<TX1, RX1>,
-    mut sps: Sps30<SPS30_DRIVER_BUF_SIZE, TX2, RX2, Delay>,
-    publish: &Queues,
-) where
-    I2C: I2c,
-    I2C::Error: defmt::Format,
-    TX1: embedded_io_async::Write,
-    TX1::Error: defmt::Format,
-    RX1: embedded_io_async::Read,
-    RX1::Error: defmt::Format,
-    TX2: embedded_io_async::Write,
-    TX2::Error: defmt::Format,
-    RX2: embedded_io_async::Read,
-    RX2::Error: defmt::Format,
-{
+use super::concrete_types::ConcreteRx as Rx;
+use super::concrete_types::ConcreteSharedI2c as I2c;
+use super::concrete_types::ConcreteTx as Tx;
+
+pub async fn read(
+    mut sht: SHT31<SingleShot, I2c<'_, 'static>>,
+    mut bme: Bme680<I2c<'_, 'static>, Delay>,
+    mut mhz: MHZ<Tx<'_>, Rx<'_>>,
+    mut sps: Sps30<SPS30_DRIVER_BUF_SIZE, Tx<'_>, Rx<'_>, Delay>,
+    publish: &'_ Queues,
+) {
     // sht works in two steps
     //  - send measure command before sleep
     //  - then read
@@ -86,16 +76,13 @@ pub async fn read<I2C, TX1, RX1, TX2, RX2>(
     }
 }
 
-fn publish_sps_result<TxError, RxError>(
+fn publish_sps_result(
     sps_res: Result<
-        Result<Option<sps30::Measurement>, sps30::Error<TxError, RxError>>,
+        Result<Option<sps30::Measurement>, sps30::Error<UartError, UartError>>,
         embassy_time::TimeoutError,
     >,
     publish: &Queues,
-) where
-    TxError: fmt::Debug + defmt::Format,
-    RxError: fmt::Debug + defmt::Format,
-{
+) {
     match sps_res {
         Ok(Ok(Some(sps30::Measurement {
             mass_pm1_0,
@@ -135,16 +122,13 @@ fn publish_sps_result<TxError, RxError>(
     }
 }
 
-fn publish_mhz_result<TxError, RxError>(
+fn publish_mhz_result(
     mhz_res: Result<
-        Result<mhzx::Measurement, mhzx::Error<TxError, RxError>>,
+        Result<mhzx::Measurement, mhzx::Error<UartError, UartError>>,
         embassy_time::TimeoutError,
     >,
     publish: &Queues,
-) where
-    TxError: fmt::Debug + defmt::Format,
-    RxError: fmt::Debug + defmt::Format,
-{
+) {
     match mhz_res {
         Ok(Ok(mhzx::Measurement { co2, .. })) => {
             publish.send_p0(Reading::Co2(co2));
@@ -185,8 +169,8 @@ fn publish_sht_result(
     }
 }
 
-fn publish_bme_result<E: fmt::Debug>(
-    bme_res: Result<MeasurementData, bosch_bme680::BmeError<E>>,
+fn publish_bme_result(
+    bme_res: Result<MeasurementData, bosch_bme680::BmeError<I2cError>>,
     publish: &Queues,
 ) {
     match bme_res {

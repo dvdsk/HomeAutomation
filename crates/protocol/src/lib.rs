@@ -181,7 +181,13 @@ impl Reading {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SensorMessage<const MAX_ITEMS: usize> {
-    pub values: heapless::Vec<Result<Reading, Error>, MAX_ITEMS>,
+    pub values: heapless::Vec<Reading, MAX_ITEMS>,
+    pub version: u8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ErrorReport {
+    pub error: Error,
     pub version: u8,
 }
 

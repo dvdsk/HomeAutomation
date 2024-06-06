@@ -217,7 +217,7 @@ async fn main(spawner: Spawner) {
     // let send_and_pet_dog = join::join(&mut send_published, keep_dog_happy);
     let send_and_pet_dog = &mut send_published;
 
-    // let init_then_measure = sensors::init_then_measure(&publish, i2c, usart_mhz, usart_sps30);
+    let init_then_measure = sensors::init_then_measure(&publish, i2c, usart_mhz, usart_sps30);
     // let init_then_measure = network_up.wait().then(|_| init_then_measure);
     // let res = select::select(send_and_pet_dog, init_then_measure).await;
     // let unrecoverable_err = match res {

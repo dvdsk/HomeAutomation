@@ -1,5 +1,5 @@
 use defmt::info;
-use embassy_embedded_hal::shared_bus;
+use embassy_embedded_hal::shared_bus::{self, I2cDeviceError};
 use embassy_futures::join;
 use embassy_stm32::i2c::I2c;
 use embassy_stm32::mode::Async;
@@ -20,6 +20,22 @@ pub mod slow;
 
 // Todo make failed init not critical. Keep trying init in background
 // while we are measuring
+//
+pub type I2cError = I2cDeviceError<embassy_stm32::i2c::Error>;
+pub type UartError = embassy_stm32::usart::Error;
+
+pub mod concrete_types {
+    use embassy_embedded_hal::shared_bus;
+    use embassy_stm32::i2c::I2c;
+    use embassy_stm32::mode::Async;
+    use embassy_stm32::usart::{RingBufferedUartRx, UartTx};
+    use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+    use shared_bus::asynch::i2c::I2cDevice;
+
+    pub type ConcreteSharedI2c<'a, 'b> = I2cDevice<'a, NoopRawMutex, I2c<'b, Async>>;
+    pub type ConcreteTx<'a> = UartTx<'a, Async>;
+    pub type ConcreteRx<'a> = RingBufferedUartRx<'a>;
+}
 
 pub async fn init_then_measure(
     publish: &Queues,
@@ -27,16 +43,14 @@ pub async fn init_then_measure(
     usart_mhz: Uart<'static, Async>,
     usart_sps: Uart<'static, Async>,
 ) -> Result<(), Error> {
-
     info!("initializing sensors");
-    let bme_config = bosch_bme680::Configuration::default();
     let bme = with_timeout(
         Duration::from_secs(2),
         bosch_bme680::Bme680::new(
             shared_bus::asynch::i2c::I2cDevice::new(&i2c),
             bosch_bme680::DeviceAddress::Secondary,
             Delay,
-            &bme_config,
+            &bosch_bme680::Configuration::default(),
             20,
         ),
     )
