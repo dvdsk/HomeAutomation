@@ -1,24 +1,18 @@
-use core::fmt;
-
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::priority_channel::{self, PriorityChannel};
-use embassy_time::Instant;
-use heapless::Vec;
+use embassy_time::{Duration, Instant};
+use heapless::HistoryBuffer;
 use protocol::large_bedroom::bed::Reading;
 
 use crate::error_cache;
 
-struct ErrorEvent {
-    error: error_cache::Error,
-    at: Instant,
-}
-
 pub struct Queues {
     sensor_queue: PriorityChannel<NoopRawMutex, PriorityValue, priority_channel::Max, 20>,
     error_queue: Channel<NoopRawMutex, error_cache::Error, 20>,
-    recent_errors: Mutex<NoopRawMutex, Vec<error_cache::Error, 5>>,
+    recent_errors: Mutex<NoopRawMutex, HistoryBuffer<error_cache::Error, 20>>,
+    recent_is_since: Instant,
 }
 
 impl Queues {
@@ -26,7 +20,8 @@ impl Queues {
         Self {
             sensor_queue: PriorityChannel::new(),
             error_queue: Channel::new(),
-            recent_errors: Mutex::new(Vec::new()),
+            recent_errors: Mutex::new(HistoryBuffer::new()),
+            recent_is_since: Instant::now(),
         }
     }
 
@@ -43,29 +38,20 @@ impl Queues {
         self.sensor_queue.try_receive().ok()
     }
 
-    pub fn queue_error(&self, _error: error_cache::Error) {
-        // let mut recent_errors = unwrap!(self.recent_errors.try_lock());
-        //
-        // let mut to_remove: Vec<usize, 20> = Vec::new();
-        // for (idx, event) in recent_errors.iter().enumerate() {
-        //     if event.at.elapsed() > Duration::from_secs(60) {
-        //         unwrap!(to_remove.push(idx));
-        //     } else if event.error == error {
-        //         return;
-        //     }
-        // }
-        //
-        // for idx in to_remove.iter().rev() {
-        //     recent_errors.swap_remove(*idx);
-        // }
-        // let full = self.error_queue.try_send(error).is_err();
+    pub fn queue_error(&self, error: error_cache::Error) {
+        // unwrap safe: is not used in interrupts
+        let mut recent_errors = defmt::unwrap!(self.recent_errors.try_lock());
+        if self.recent_is_since.elapsed() > Duration::from_secs(60 * 5) {
+            recent_errors.clear();
+        }
+        if recent_errors.contains(&error) {
+            return;
+        }
 
-        // if !full {
-        //     let _ignore_full = recent_errors.push(ErrorEvent {
-        //         error,
-        //         at: Instant::now(),
-        //     });
-        // }
+        let Ok(()) = self.error_queue.try_send(error.clone()) else {
+            return;
+        };
+        recent_errors.write(error)
     }
 
     pub fn send_p0(&self, value: Reading) {

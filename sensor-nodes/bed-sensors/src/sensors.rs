@@ -32,7 +32,7 @@ pub mod concrete_types {
     use embassy_sync::blocking_mutex::raw::NoopRawMutex;
     use shared_bus::asynch::i2c::I2cDevice;
 
-    pub type ConcreteSharedI2c<'a, 'b> = I2cDevice<'a, NoopRawMutex, I2c<'b, Async>>;
+    pub type ConcreteSharedI2c<'a> = I2cDevice<'a, NoopRawMutex, I2c<'static, Async>>;
     pub type ConcreteTx<'a> = UartTx<'a, Async>;
     pub type ConcreteRx<'a> = RingBufferedUartRx<'a>;
 }

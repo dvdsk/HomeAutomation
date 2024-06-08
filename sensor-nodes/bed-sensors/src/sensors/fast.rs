@@ -17,7 +17,7 @@ fn sig_lux_diff(old: f32, new: f32) -> bool {
     diff > old / 20.0 || -diff > old / 20.0
 }
 
-async fn report_lux(mut max44: Max44009<I2c<'_, 'static>>, publish: &Queues) {
+async fn report_lux(mut max44: Max44009<I2c<'_>>, publish: &Queues) {
     let mut prev_lux = f32::MAX;
     let mut last_lux = Instant::now();
     const MIN_INTERVAL: Duration = Duration::from_secs(1);
@@ -88,7 +88,7 @@ pub struct ButtonInputs {
     pub lower_outer: ExtiInput<'static>,
 }
 
-pub async fn read(max44: Max44009<I2c<'_, 'static>>, /*inputs: ButtonInputs,*/ publish: &Queues) {
+pub async fn read(max44: Max44009<I2c<'_>>, /*inputs: ButtonInputs,*/ publish: &Queues) {
     // let watch_buttons_1 = join5(
     //     watch_button(inputs.top_left, BedButton::TopLeft, publish),
     //     watch_button(inputs.top_right, BedButton::TopRight, publish),

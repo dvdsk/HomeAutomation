@@ -1,16 +1,16 @@
 #![no_std]
 #![no_main]
 
-use defmt::{error, info, trace, unwrap};
+use defmt::{error, trace, unwrap};
 use embassy_executor::Spawner;
+use embassy_futures::select;
 use embassy_futures::select::Either;
-use embassy_futures::{join, select};
 use embassy_net::{Ipv4Address, Ipv4Cidr, Stack, StackResources};
 use embassy_net_wiznet::{chip::W5500, Device, Runner, State};
-use embassy_stm32::interrupt;
 use embassy_stm32::exti::ExtiInput;
 use embassy_stm32::gpio::{Level, Output, Pull, Speed};
 use embassy_stm32::i2c::{self, I2c};
+use embassy_stm32::interrupt;
 use embassy_stm32::mode::Async;
 use embassy_stm32::peripherals::IWDG;
 use embassy_stm32::spi::{Config as SpiConfig, Spi};
@@ -21,19 +21,19 @@ use embassy_stm32::Config;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
-use embassy_time::{Delay, Timer};
+use embassy_time::{Delay, Instant, Timer};
 use embedded_hal_bus::spi::ExclusiveDevice;
 use futures::{pin_mut, FutureExt};
 use heapless::Vec;
-use rand::{rngs::SmallRng, Rng, SeedableRng};
 use static_cell::StaticCell;
 
 use {defmt_rtt as _, panic_probe as _};
 
 mod channel;
+mod error_cache;
 mod network;
 mod sensors;
-mod error_cache;
+mod rng;
 use crate::channel::Queues;
 
 embassy_stm32::bind_interrupts!(struct Irqs {
@@ -55,6 +55,20 @@ unsafe fn USART6() {
 #[embassy_executor::task]
 async fn print_if_running_task() -> ! {
     loop {
+        // let mut now = Instant::now();
+        // let mut biggest = 0;
+        // for _ in 0..1000 {
+        //     Timer::after_millis(1).await;
+        //     let new_now = Instant::now();
+        //     let elapsed = (new_now - now).as_millis();
+        //     now = new_now;
+        //
+        //     if elapsed > biggest {
+        //         biggest = elapsed;
+        //     }
+        // }
+        // defmt::info!("still running, largest delay was: {}ms", biggest);
+
         Timer::after_secs(1).await;
         defmt::info!("still running");
     }
@@ -103,8 +117,9 @@ fn config() -> Config {
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     let p = embassy_stm32::init(config());
+    let seed = rng::generate_seed_blocking();
+    defmt::info!("random seed: {}", seed);
     // let dog = IndependentWatchdog::new(p.IWDG, 20 * 1000 * 1000);
-    let publish = Queues::new();
 
     let mut usart_config = usart::Config::default();
     usart_config.baudrate = 9600;
@@ -149,6 +164,7 @@ async fn main(spawner: Spawner) {
     );
     let i2c: Mutex<NoopRawMutex, _> = Mutex::new(i2c);
 
+    /*
     // let buttons = ButtonInputs {
     //     top_left: ExtiInput::new(p.PA13, p.EXTI13, Pull::Down),
     //     top_right: ExtiInput::new(p.PA14, p.EXTI14, Pull::Down),
@@ -159,6 +175,7 @@ async fn main(spawner: Spawner) {
     //     lower_center: ExtiInput::new(p.PA15, p.EXTI15, Pull::Down),
     //     lower_outer: ExtiInput::new(p.PB5, p.EXTI5, Pull::Down),
     // };
+    */
 
     let mut spi_cfg = SpiConfig::default();
     spi_cfg.frequency = Hertz(50_000_000); // up to 50m works
@@ -171,16 +188,10 @@ async fn main(spawner: Spawner) {
     let w5500_reset = Output::new(p.PB1, Level::High, Speed::VeryHigh);
 
     let mac_addr = [0x02, 234, 3, 4, 82, 231];
-    static STATE: StaticCell<State<8, 8>> = StaticCell::new();
-    let state = STATE.init(State::<8, 8>::new());
-    let (device, runner) = embassy_net_wiznet::new(
-        mac_addr,
-        state,
-        spi,
-        w5500_int,
-        w5500_reset,
-    )
-    .await;
+    static STATE: StaticCell<State<3, 2>> = StaticCell::new();
+    let state = STATE.init(State::<3, 2>::new());
+    let (device, runner) =
+        embassy_net_wiznet::new(mac_addr, state, spi, w5500_int, w5500_reset).await;
     unwrap!(spawner.spawn(ethernet_task(runner)));
 
     // Init network stack
@@ -188,7 +199,7 @@ async fn main(spawner: Spawner) {
     unwrap!(dns_servers.push(Ipv4Address([192, 168, 1, 1])));
     unwrap!(dns_servers.push(Ipv4Address([192, 168, 1, 1])));
     unwrap!(dns_servers.push(Ipv4Address([192, 168, 1, 1])));
-    static STACK: StaticCell<Stack<Device<'static>>> = StaticCell::new();
+    static STACK: StaticCell<Stack<Device>> = StaticCell::new();
     static RESOURCES: StaticCell<StackResources<2>> = StaticCell::new();
     let stack = &*STACK.init(Stack::new(
         device,
@@ -198,7 +209,7 @@ async fn main(spawner: Spawner) {
             dns_servers,
         }),
         RESOURCES.init(StackResources::<2>::new()),
-        384,
+        seed,
     ));
 
     // Launch network task
@@ -208,30 +219,25 @@ async fn main(spawner: Spawner) {
     let spawner = EXECUTOR_HIGH.start(embassy_stm32::interrupt::USART6);
     unwrap!(spawner.spawn(print_if_running_task()));
 
-    Timer::after_secs(999).await;
-    let network_up: Signal<NoopRawMutex, ()> = Signal::new();
-    network_up.signal(());
-    let send_published = network::send_published(stack, &publish, &network_up);
+    let publish = Queues::new();
+    let send_published = network::send_published(stack, &publish);
     pin_mut!(send_published);
     // let keep_dog_happy = keep_dog_happy(dog);
     // let send_and_pet_dog = join::join(&mut send_published, keep_dog_happy);
     let send_and_pet_dog = &mut send_published;
 
     let init_then_measure = sensors::init_then_measure(&publish, i2c, usart_mhz, usart_sps30);
-    // let init_then_measure = network_up.wait().then(|_| init_then_measure);
-    // let res = select::select(send_and_pet_dog, init_then_measure).await;
-    // let unrecoverable_err = match res {
-    //     Either::First(_) => defmt::unreachable!(),
-    //     Either::Second(Ok(())) => defmt::unreachable!(),
-    //     Either::Second(Err(err)) => err,
-    // };
-    //
-    // let send_critical_error = join::join(
-    //     publish.send_critical_error(unrecoverable_err.clone()),
-    //     send_published,
-    // );
-    // error!("unrecoverable error, resetting: {}", unrecoverable_err);
-    // send_critical_error.await; // if this takes too long the dog will get us
+    let res = select::select(send_and_pet_dog, init_then_measure).await;
+    let unrecoverable_err = match res {
+        Either::First(_) => defmt::unreachable!(),
+        Either::Second(Ok(())) => defmt::unreachable!(),
+        Either::Second(Err(err)) => err,
+    };
+
+    // at this point no other errors have occurred
+    error!("unrecoverable error, resetting: {}", unrecoverable_err);
+    publish.queue_error(unrecoverable_err);
+    send_published.await; // if this takes too long the dog will get us
 }
 
 async fn keep_dog_happy<'a>(mut dog: IndependentWatchdog<'a, IWDG>) {

@@ -1,20 +1,9 @@
-use core::fmt;
-
-// use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-// use embassy_sync::blocking_mutex::Mutex;
-// use fasthash::{murmur3, Murmur3Hasher, SeaHasher};
-// use heapless::LinearMap;
 use protocol::large_bedroom::bed::{self, Device};
 use protocol::make_error_string;
 
 use crate::sensors::{I2cError, UartError};
-/// static global error fmt message cache
-// use protocol::large_bedroom::bed::Error;
 
-// static ERROR_CACHE: Mutex<CriticalSectionRawMutex, LinearMap<u32, heapless::String<200>, 20>> =
-//     Mutex::new(LinearMap::new());
-
-#[derive(PartialEq, Eq)]
+#[derive(defmt::Format, PartialEq, Eq, Clone)]
 pub enum SensorError {
     Mhz14(mhzx::Error<UartError, UartError>),
     Sps30(sps30_async::Error<UartError, UartError>),
@@ -35,7 +24,7 @@ impl Into<bed::SensorError> for SensorError {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(defmt::Format, PartialEq, Eq, Clone)]
 pub enum Error {
     Running(SensorError),
     Setup(SensorError),

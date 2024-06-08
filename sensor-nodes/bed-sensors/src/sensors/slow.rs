@@ -1,5 +1,5 @@
 use defmt::unwrap;
-use embassy_futures::{join, yield_now};
+use embassy_futures::join;
 use embassy_time::{with_timeout, Delay, Duration, Timer};
 
 use mhzx::MHZ;
@@ -24,9 +24,10 @@ use super::concrete_types::ConcreteRx as Rx;
 use super::concrete_types::ConcreteSharedI2c as I2c;
 use super::concrete_types::ConcreteTx as Tx;
 
+#[inline(always)]
 pub async fn read(
-    mut sht: SHT31<SingleShot, I2c<'_, 'static>>,
-    mut bme: Bme680<I2c<'_, 'static>, Delay>,
+    mut sht: SHT31<SingleShot, I2c<'_>>,
+    mut bme: Bme680<I2c<'_>, Delay>,
     mut mhz: MHZ<Tx<'_>, Rx<'_>>,
     mut sps: Sps30<SPS30_DRIVER_BUF_SIZE, Tx<'_>, Rx<'_>, Delay>,
     publish: &'_ Queues,
@@ -44,24 +45,15 @@ pub async fn read(
     loop {
         defmt::info!("this is where we break");
         let sht_read = with_timeout(Duration::from_millis(100), sht.read());
-        yield_now().await;
-        let bme_measure = bme.measure();
-        yield_now().await;
+        let bme_measure = bme.measure(); // can not hang
         let mhz_measure = with_timeout(Duration::from_millis(100), mhz.read_co2());
-        yield_now().await;
         let sps_measure = with_timeout(Duration::from_millis(100), sps.read_measurement());
-        yield_now().await; // with this yield enabled the program hangs within 12 seconds
         let (bme_res, sht_res, mhz_res, sps_res) =
             join::join4(bme_measure, sht_read, mhz_measure, sps_measure).await;
-        // let (bme_res, sht_res, mhz_res) = join::join3(bme_measure, sht_read, mhz_measure).await;
-        yield_now().await;
 
         publish_bme_result(bme_res, publish);
-        yield_now().await;
         publish_sht_result(sht_res, publish);
-        yield_now().await;
         publish_mhz_result(mhz_res, publish);
-        yield_now().await;
         publish_sps_result(sps_res, publish);
 
         // sht works in two steps

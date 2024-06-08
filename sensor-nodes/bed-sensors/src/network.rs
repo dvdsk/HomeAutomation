@@ -1,9 +1,7 @@
-use defmt::{info, unwrap, warn};
+use defmt::{debug, info, unwrap, warn};
 use embassy_net::driver::Driver;
 use embassy_net::tcp::TcpSocket;
 use embassy_net::{Ipv4Address, Stack};
-use embassy_sync::blocking_mutex::raw::NoopRawMutex;
-use embassy_sync::signal::Signal;
 use embassy_time::{with_timeout, Duration, Instant, Timer};
 use embedded_io_async::Write;
 use protocol::SensorMessage;
@@ -46,19 +44,20 @@ async fn get_messages(publish: &Queues, msg: &mut Msg) {
 pub async fn send_published(
     stack: &Stack<impl Driver>,
     publish: &Queues,
-    network_up: &Signal<NoopRawMutex, ()>,
 ) {
-    let mut rx_buffer = [0; 200];
-    let mut tx_buffer = [0; Msg::ENCODED_SIZE * 2];
+    let mut rx_buffer = [0; 1024];
+    let mut tx_buffer = [0; 1024];
+    // let mut tx_buffer = [0; Msg::ENCODED_SIZE * 2];
 
     let mut msg = Msg::new();
     let mut encoded_msg_buffer = [0; Msg::ENCODED_SIZE];
 
     let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
-    socket.set_timeout(Some(Duration::from_secs(5)));
-    let host_addr = Ipv4Address::new(192, 168, 1, 43);
+    // socket.set_timeout(Some(Duration::from_secs(5)));
+    let host_addr = Ipv4Address::new(192, 168, 1, 46);
     let host_port = 1234;
 
+    debug!("Configured socket and connecting");
     loop {
         let connected = socket.remote_endpoint().is_some();
         if !connected {
@@ -70,7 +69,6 @@ pub async fn send_published(
                 info!("(re-)connected");
                 // prevent out-dated data from being send
                 publish.clear().await;
-                network_up.signal(());
             }
         }
 
