@@ -17,6 +17,7 @@ use crate::error_cache::{Error, SensorError};
 
 pub mod fast;
 pub mod slow;
+pub mod retry;
 
 // Todo make failed init not critical. Keep trying init in background
 // while we are measuring
