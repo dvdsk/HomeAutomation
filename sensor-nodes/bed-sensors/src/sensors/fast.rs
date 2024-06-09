@@ -2,14 +2,11 @@ use defmt::warn;
 use embassy_futures::yield_now;
 use embassy_stm32::exti::ExtiInput;
 use embassy_time::{Duration, Instant, Timer};
-use max44009::Max44009;
-
-use crate::channel::Queues;
-use crate::error_cache::{Error, SensorError};
 
 use protocol::large_bedroom::{bed::Button, bed::Reading};
 
-use super::concrete_types::ConcreteSharedI2c as I2c;
+use crate::channel::Queues;
+use super::retry::Max44Driver;
 
 fn sig_lux_diff(old: f32, new: f32) -> bool {
     let diff = old - new;
@@ -17,7 +14,7 @@ fn sig_lux_diff(old: f32, new: f32) -> bool {
     diff > old / 20.0 || -diff > old / 20.0
 }
 
-async fn report_lux(mut max44: Max44009<I2c<'_>>, publish: &Queues) {
+async fn report_lux(mut max44: Max44Driver<'_>, publish: &Queues) {
     let mut prev_lux = f32::MAX;
     let mut last_lux = Instant::now();
     const MIN_INTERVAL: Duration = Duration::from_secs(1);
@@ -25,11 +22,9 @@ async fn report_lux(mut max44: Max44009<I2c<'_>>, publish: &Queues) {
     // todo!("reinit devices after error");
     loop {
         Timer::after_millis(50).await;
-        let lux = match max44.read_lux().await {
+        let lux = match max44.try_measure().await {
             Ok(lux) => lux,
             Err(err) if last_lux.elapsed() > MIN_INTERVAL => {
-                let err = SensorError::Max44(err);
-                let err = Error::Running(err);
                 let _ignore = publish.queue_error(err);
                 continue;
             }
@@ -88,7 +83,7 @@ pub struct ButtonInputs {
     pub lower_outer: ExtiInput<'static>,
 }
 
-pub async fn read(max44: Max44009<I2c<'_>>, /*inputs: ButtonInputs,*/ publish: &Queues) {
+pub async fn read(max44: Max44Driver<'_>, /*inputs: ButtonInputs,*/ publish: &Queues) {
     // let watch_buttons_1 = join5(
     //     watch_button(inputs.top_left, BedButton::TopLeft, publish),
     //     watch_button(inputs.top_right, BedButton::TopRight, publish),

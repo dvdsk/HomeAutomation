@@ -1,13 +1,12 @@
 use defmt::unwrap;
 use embassy_futures::join;
-use embassy_time::{with_timeout, Delay, Duration, Timer};
+use embassy_time::{with_timeout, Delay, Duration};
+use embassy_time::{Instant, Timer};
 
 use mhzx::MHZ;
 use protocol::large_bedroom::bed::{Device, Reading};
 
-use bosch_bme680::{Bme680, MeasurementData};
-use sht31::mode::{Sht31Measure, Sht31Reader, SingleShot};
-use sht31::SHT31;
+use bosch_bme680::MeasurementData;
 use sps30_async as sps30;
 use sps30_async::Sps30;
 
@@ -15,37 +14,30 @@ use crate::channel::Queues;
 use crate::error_cache::Error;
 use crate::error_cache::SensorError;
 
-use super::{I2cError, UartError};
+use super::retry::{Bme680Driver, Sht31Driver};
+use super::UartError;
 
 const SPS30_UART_BUF_SIZE: usize = 100;
 const SPS30_DRIVER_BUF_SIZE: usize = 2 * SPS30_UART_BUF_SIZE;
 
 use super::concrete_types::ConcreteRx as Rx;
-use super::concrete_types::ConcreteSharedI2c as I2c;
 use super::concrete_types::ConcreteTx as Tx;
 
 #[inline(always)]
 pub async fn read(
-    mut sht: SHT31<SingleShot, I2c<'_>>,
-    mut bme: Bme680<I2c<'_>, Delay>,
+    mut sht: Sht31Driver<'_>,
+    mut bme: Bme680Driver<'_>,
     mut mhz: MHZ<Tx<'_>, Rx<'_>>,
     mut sps: Sps30<SPS30_DRIVER_BUF_SIZE, Tx<'_>, Rx<'_>, Delay>,
     publish: &'_ Queues,
 ) {
-    // sht works in two steps
-    //  - send measure command before sleep
-    //  - then read
-    if let Err(err) = sht.measure().await {
-        let err = SensorError::Sht31(err);
-        let err = Error::Running(err);
-        publish.queue_error(err)
-    }
-    Timer::after_secs(1).await;
-
+    let mut next_sample = Instant::now();
     loop {
-        defmt::info!("this is where we break");
-        let sht_read = with_timeout(Duration::from_millis(100), sht.read());
-        let bme_measure = bme.measure(); // can not hang
+        Timer::at(next_sample).await;
+        next_sample = Instant::now() + Duration::from_secs(1);
+
+        let sht_read = with_timeout(Duration::from_millis(100), sht.try_measure());
+        let bme_measure = bme.try_measure(); // can not hang
         let mhz_measure = with_timeout(Duration::from_millis(100), mhz.read_co2());
         let sps_measure = with_timeout(Duration::from_millis(100), sps.read_measurement());
         let (bme_res, sht_res, mhz_res, sps_res) =
@@ -55,16 +47,6 @@ pub async fn read(
         publish_sht_result(sht_res, publish);
         publish_mhz_result(mhz_res, publish);
         publish_sps_result(sps_res, publish);
-
-        // sht works in two steps
-        //  - send measure command before sleep
-        //  - then read
-        if let Err(err) = sht.measure().await {
-            let err = SensorError::Sht31(err);
-            let err = Error::Running(err);
-            publish.queue_error(err)
-        }
-        Timer::after_secs(1).await;
     }
 }
 
@@ -138,7 +120,7 @@ fn publish_mhz_result(
 }
 
 fn publish_sht_result(
-    sht_res: Result<Result<sht31::prelude::Reading, sht31::SHTError>, embassy_time::TimeoutError>,
+    sht_res: Result<Result<sht31::prelude::Reading, Error>, embassy_time::TimeoutError>,
     publish: &Queues,
 ) {
     match sht_res {
@@ -149,11 +131,7 @@ fn publish_sht_result(
             publish.send_p0(Reading::Temperature(temperature));
             publish.send_p0(Reading::Humidity(humidity));
         }
-        Ok(Err(err)) => {
-            let err = SensorError::Sht31(err);
-            let err = Error::Running(err);
-            publish.queue_error(err)
-        }
+        Ok(Err(err)) => publish.queue_error(err),
         Err(_timeout) => {
             let err = Error::Timeout(Device::Sht31);
             publish.queue_error(err)
@@ -161,10 +139,7 @@ fn publish_sht_result(
     }
 }
 
-fn publish_bme_result(
-    bme_res: Result<MeasurementData, bosch_bme680::BmeError<I2cError>>,
-    publish: &Queues,
-) {
+fn publish_bme_result(bme_res: Result<MeasurementData, Error>, publish: &Queues) {
     match bme_res {
         Ok(MeasurementData {
             pressure,
@@ -175,10 +150,6 @@ fn publish_bme_result(
             publish.send_p0(Reading::GassResistance(gas_resistance));
             publish.send_p0(Reading::Pressure(pressure));
         }
-        Err(err) => {
-            let err = SensorError::Bme680(err);
-            let err = Error::Running(err);
-            publish.queue_error(err)
-        }
+        Err(err) => publish.queue_error(err),
     }
 }

@@ -20,10 +20,9 @@ use embassy_stm32::wdg::IndependentWatchdog;
 use embassy_stm32::Config;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::mutex::Mutex;
-use embassy_sync::signal::Signal;
-use embassy_time::{Delay, Instant, Timer};
+use embassy_time::{Delay, Timer};
 use embedded_hal_bus::spi::ExclusiveDevice;
-use futures::{pin_mut, FutureExt};
+use futures::pin_mut;
 use heapless::Vec;
 use static_cell::StaticCell;
 
@@ -32,8 +31,8 @@ use {defmt_rtt as _, panic_probe as _};
 mod channel;
 mod error_cache;
 mod network;
-mod sensors;
 mod rng;
+mod sensors;
 use crate::channel::Queues;
 
 embassy_stm32::bind_interrupts!(struct Irqs {
@@ -54,21 +53,24 @@ unsafe fn USART6() {
 
 #[embassy_executor::task]
 async fn print_if_running_task() -> ! {
-    loop {
-        // let mut now = Instant::now();
-        // let mut biggest = 0;
-        // for _ in 0..1000 {
-        //     Timer::after_millis(1).await;
-        //     let new_now = Instant::now();
-        //     let elapsed = (new_now - now).as_millis();
-        //     now = new_now;
-        //
-        //     if elapsed > biggest {
-        //         biggest = elapsed;
-        //     }
-        // }
-        // defmt::info!("still running, largest delay was: {}ms", biggest);
+    // use embassy_time::Instant;
+    // loop {
+    //     let mut now = Instant::now();
+    //     let mut biggest = 0;
+    //     for _ in 0..1000 {
+    //         Timer::after_millis(1).await;
+    //         let new_now = Instant::now();
+    //         let elapsed = (new_now - now).as_millis();
+    //         now = new_now;
+    //
+    //         if elapsed > biggest {
+    //             biggest = elapsed;
+    //         }
+    //     }
+    //     defmt::info!("still running, largest delay was: {}ms", biggest);
+    // }
 
+    loop {
         Timer::after_secs(1).await;
         defmt::info!("still running");
     }
@@ -175,7 +177,7 @@ async fn main(spawner: Spawner) {
     //     lower_center: ExtiInput::new(p.PA15, p.EXTI15, Pull::Down),
     //     lower_outer: ExtiInput::new(p.PB5, p.EXTI5, Pull::Down),
     // };
-    */
+     */
 
     let mut spi_cfg = SpiConfig::default();
     spi_cfg.frequency = Hertz(50_000_000); // up to 50m works

@@ -1,5 +1,5 @@
 use defmt::info;
-use embassy_embedded_hal::shared_bus::{self, I2cDeviceError};
+use embassy_embedded_hal::shared_bus::I2cDeviceError;
 use embassy_futures::join;
 use embassy_stm32::i2c::I2c;
 use embassy_stm32::mode::Async;
@@ -7,13 +7,13 @@ use embassy_stm32::usart::Uart;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{with_timeout, Delay, Duration};
-use max44009::{Max44009, SlaveAddr};
 use mhzx::MHZ;
 use protocol::large_bedroom::bed::Device;
 use sps30_async::Sps30;
 
 use crate::channel::Queues;
 use crate::error_cache::{Error, SensorError};
+use crate::sensors::retry::{Bme680Driver, Max44Driver, Sht31Driver};
 
 pub mod fast;
 pub mod slow;
@@ -45,39 +45,9 @@ pub async fn init_then_measure(
     usart_sps: Uart<'static, Async>,
 ) -> Result<(), Error> {
     info!("initializing sensors");
-    let bme = with_timeout(
-        Duration::from_secs(2),
-        bosch_bme680::Bme680::new(
-            shared_bus::asynch::i2c::I2cDevice::new(&i2c),
-            bosch_bme680::DeviceAddress::Secondary,
-            Delay,
-            &bosch_bme680::Configuration::default(),
-            20,
-        ),
-    )
-    .await
-    .map_err(|_| Error::SetupTimedOut(Device::Bme680))?
-    .map_err(SensorError::Bme680)
-    .map_err(Error::Setup)?;
-
-    defmt::info!("hi");
-    let mut max44009 = Max44009::new(
-        shared_bus::asynch::i2c::I2cDevice::new(&i2c),
-        SlaveAddr::default(),
-    );
-    with_timeout(
-        Duration::from_millis(250),
-        max44009.set_measurement_mode(max44009::MeasurementMode::Continuous),
-    )
-    .await
-    .map_err(|_| Error::SetupTimedOut(Device::Max44))?
-    .map_err(SensorError::Max44)
-    .map_err(Error::Setup)?;
-
-    let sht = sht31::SHT31::new(shared_bus::asynch::i2c::I2cDevice::new(&i2c), Delay)
-        .with_mode(sht31::mode::SingleShot)
-        .with_unit(sht31::TemperatureUnit::Celsius)
-        .with_accuracy(sht31::Accuracy::High);
+    let bme = Bme680Driver::new(&i2c);
+    let max44009 = Max44Driver::new(&i2c);
+    let sht = Sht31Driver::new(&i2c);
 
     let (tx, rx) = usart_mhz.split();
     let mut usart_buf = [0u8; 9 * 10]; // 9 byte messages
