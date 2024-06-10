@@ -1,3 +1,4 @@
+use embassy_futures::select::{self, Either};
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_sync::mutex::Mutex;
@@ -15,6 +16,11 @@ pub struct Queues {
     recent_is_since: Instant,
 }
 
+pub enum QueueItem {
+    Reading(PriorityValue),
+    Error(error_cache::Error),
+}
+
 impl Queues {
     pub fn new() -> Self {
         Self {
@@ -30,7 +36,19 @@ impl Queues {
         self.recent_errors.lock().await.clear();
     }
 
-    pub async fn receive(&self) -> PriorityValue {
+    pub async fn receive(&self) -> QueueItem {
+        if let Ok(val) = self.sensor_queue.try_receive() {
+            return QueueItem::Reading(val);
+        }
+
+        let race = select::select(self.sensor_queue.receive(), self.error_queue.receive());
+        match race.await {
+            Either::First(reading) => QueueItem::Reading(reading),
+            Either::Second(error) => QueueItem::Error(error),
+        }
+    }
+
+    pub async fn receive_reading(&self) -> PriorityValue {
         self.sensor_queue.receive().await
     }
 

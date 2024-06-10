@@ -191,10 +191,36 @@ pub struct ErrorReport {
     pub version: u8,
 }
 
+pub const SENSOR_MSG: u8 = 0;
+pub const ERROR_REPORT: u8 = 1;
+
+pub fn decode<const M: usize>(
+    mut bytes: impl AsMut<[u8]>,
+) -> Result<Result<SensorMessage<M>, ErrorReport>, DecodeError> {
+    let bytes = bytes.as_mut();
+    let msg_type = bytes[0];
+    let bytes = &mut bytes[1..];
+
+    if msg_type == SENSOR_MSG {
+        Ok(Ok(SensorMessage::<M>::decode(&mut bytes[1..])?))
+    } else if msg_type == ERROR_REPORT {
+        Ok(Err(ErrorReport::decode(&mut bytes[1..])?))
+    } else {
+        Err(DecodeError::IncorrectMsgType(msg_type))
+    }
+}
+
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "thiserror", derive(thiserror::Error))]
-#[cfg_attr(feature = "thiserror", error("Could not decode SensorMessage: {0}"))]
-pub struct DecodeError(pub postcard::Error);
+pub enum DecodeError {
+    #[cfg_attr(feature = "thiserror", error("Could not decode SensorMessage: {0}"))]
+    CorruptEncoding(postcard::Error),
+    #[cfg_attr(
+        feature = "thiserror",
+        error("Got an unknown message type, expected zero or one got: {}")
+    )]
+    IncorrectMsgType(u8),
+}
 
 impl<const MAX_ITEMS: usize> SensorMessage<MAX_ITEMS> {
     /// the 2x is the max overhead from COBS encoding the encoded data
@@ -225,11 +251,32 @@ impl<const MAX_ITEMS: usize> SensorMessage<MAX_ITEMS> {
     }
 
     pub fn decode(mut bytes: impl AsMut<[u8]>) -> Result<Self, DecodeError> {
-        postcard::from_bytes_cobs(bytes.as_mut()).map_err(DecodeError)
+        postcard::from_bytes_cobs(bytes.as_mut()).map_err(DecodeError::CorruptEncoding)
     }
 
     pub fn version(&self) -> u8 {
         self.version
+    }
+}
+
+impl ErrorReport {
+    /// the 2x is the max overhead from COBS encoding the encoded data
+    /// +2 is for the version
+    /// +4 covers the length of the heapless list
+    pub const ENCODED_SIZE: usize = 2 * (Error::POSTCARD_MAX_SIZE + 2);
+
+    pub fn new(error: Error) -> Self {
+        Self { error, version: 0 }
+    }
+
+    /// Buffer should be at least Self::ENCODED_SIZE long. The returned slice contains
+    /// the serialized data. It can be shorter then the input buffer.
+    pub fn encode_slice<'a>(&self, buf: &'a mut [u8]) -> &'a mut [u8] {
+        postcard::to_slice_cobs(self, buf).expect("Encoding should not fail")
+    }
+
+    pub fn decode(mut bytes: impl AsMut<[u8]>) -> Result<Self, DecodeError> {
+        postcard::from_bytes_cobs(bytes.as_mut()).map_err(DecodeError::CorruptEncoding)
     }
 }
 

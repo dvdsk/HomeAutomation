@@ -50,7 +50,7 @@ impl Actuator {
     }
 
     pub fn decode(mut bytes: impl AsMut<[u8]>) -> Result<Self, crate::DecodeError> {
-        postcard::from_bytes_cobs(bytes.as_mut()).map_err(crate::DecodeError)
+        postcard::from_bytes_cobs(bytes.as_mut()).map_err(crate::DecodeError::CorruptEncoding)
     }
 
     pub fn version(&self) -> u8 {
