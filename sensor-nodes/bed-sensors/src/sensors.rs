@@ -63,8 +63,8 @@ pub async fn init_then_measure(
         .map_err(SensorError::Sps30)
         .map_err(Error::Setup)?;
 
-    let sensors_fast = fast::read(max44009, /*buttons,*/ &publish);
-    let sensors_slow = slow::read(sht, bme, mhz, sps30, &publish);
+    let sensors_fast = fast::read(max44009, /*buttons,*/ publish);
+    let sensors_slow = slow::read(sht, bme, mhz, sps30, publish);
     join::join(sensors_fast, sensors_slow).await;
 
     defmt::unreachable!();

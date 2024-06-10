@@ -242,7 +242,7 @@ async fn main(spawner: Spawner) {
     send_published.await; // if this takes too long the dog will get us
 }
 
-async fn keep_dog_happy<'a>(mut dog: IndependentWatchdog<'a, IWDG>) {
+async fn keep_dog_happy(mut dog: IndependentWatchdog<'_, IWDG>) {
     loop {
         dog.unleash();
         Timer::after_secs(8).await;

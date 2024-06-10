@@ -155,7 +155,7 @@ impl<D: Driver> ReInitOnErrorDriver<D> {
                             Err(err) => {
                                 let new_self = Self::Uninit { parts };
                                 let err = Error::Running(err);
-                                return (new_self, Err(err));
+                                (new_self, Err(err))
                             }
                         }
                     }

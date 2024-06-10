@@ -74,8 +74,8 @@ pub fn generate_seed_blocking() -> u64 {
 
         // while not status register end of conversion bit is set
         while !p.ADC1.sr.read().eoc().bit_is_set() {}
-        let value = p.ADC1.dr.read().bits();
-        value
+        
+        p.ADC1.dr.read().bits()
     };
 
     let mut seed = [0u8; 16];

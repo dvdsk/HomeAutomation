@@ -12,9 +12,9 @@ pub enum SensorError {
     Max44(max44009::Error<I2cError>),
 }
 
-impl Into<bed::SensorError> for SensorError {
-    fn into(self) -> bed::SensorError {
-        match self {
+impl From<SensorError> for bed::SensorError {
+    fn from(val: SensorError) -> Self {
+        match val {
             SensorError::Mhz14(e) => bed::SensorError::Mhz14(make_error_string(e)),
             SensorError::Sps30(e) => bed::SensorError::Sps30(make_error_string(e)),
             SensorError::Sht31(e) => bed::SensorError::Sht31(make_error_string(e)),
@@ -32,9 +32,9 @@ pub enum Error {
     SetupTimedOut(Device),
 }
 
-impl Into<bed::Error> for Error {
-    fn into(self) -> bed::Error {
-        match self {
+impl From<Error> for bed::Error {
+    fn from(val: Error) -> Self {
+        match val {
             Error::Running(e) => bed::Error::Running(e.into()),
             Error::Setup(e) => bed::Error::Setup(e.into()),
             Error::Timeout(dev) => bed::Error::Timeout(dev),

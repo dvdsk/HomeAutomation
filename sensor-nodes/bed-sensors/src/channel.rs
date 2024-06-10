@@ -32,7 +32,7 @@ impl Queues {
     }
 
     pub async fn clear(&self) {
-        while let Ok(_) = self.sensor_queue.try_receive() {}
+        while self.sensor_queue.try_receive().is_ok() {}
         self.recent_errors.lock().await.clear();
     }
 

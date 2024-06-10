@@ -25,7 +25,7 @@ async fn report_lux(mut max44: Max44Driver<'_>, publish: &Queues) {
         let lux = match max44.try_measure().await {
             Ok(lux) => lux,
             Err(err) if last_lux.elapsed() > MIN_INTERVAL => {
-                let _ignore = publish.queue_error(err);
+                publish.queue_error(err);
                 continue;
             }
             Err(_) => continue,
@@ -62,7 +62,7 @@ async fn watch_button(
                     continue;
                 };
                 let event = (event)(protocol::Press(press));
-                let _ignore_full = channel.send_p2(Reading::Button(event));
+                channel.send_p2(Reading::Button(event));
             }
         } else {
             input.wait_for_rising_edge().await;
