@@ -191,22 +191,50 @@ pub struct ErrorReport {
     pub version: u8,
 }
 
-pub const SENSOR_MSG: u8 = 0;
-pub const ERROR_REPORT: u8 = 1;
+#[derive(Debug)]
+pub enum Msg<const M: usize> {
+    Readings(SensorMessage<M>),
+    ErrorReport(ErrorReport),
+}
 
-pub fn decode<const M: usize>(
-    mut bytes: impl AsMut<[u8]>,
-) -> Result<Result<SensorMessage<M>, ErrorReport>, DecodeError> {
-    let bytes = bytes.as_mut();
-    let msg_type = bytes[0];
-    let bytes = &mut bytes[1..];
+impl<const M: usize> Msg<M> {
+    pub const READINGS: u8 = 1;
+    pub const ERROR_REPORT: u8 = 2;
 
-    if msg_type == SENSOR_MSG {
-        Ok(Ok(SensorMessage::<M>::decode(&mut bytes[1..])?))
-    } else if msg_type == ERROR_REPORT {
-        Ok(Err(ErrorReport::decode(&mut bytes[1..])?))
-    } else {
-        Err(DecodeError::IncorrectMsgType(msg_type))
+    pub fn header(&self) -> u8 {
+        let header = match self {
+            Msg::Readings(_) => Self::READINGS,
+            Msg::ErrorReport(_) => Self::ERROR_REPORT,
+        };
+        assert_ne!(header, 0, "0 is reserved for cobs encoding");
+        header
+    }
+
+    pub fn decode(mut bytes: impl AsMut<[u8]>) -> Result<Self, DecodeError> {
+        let bytes = bytes.as_mut();
+        assert!(!bytes.is_empty(), "can not decode nothing (zero bytes)");
+
+        let msg_type = bytes[0];
+        let mut bytes = &mut bytes[1..];
+
+        if msg_type == Self::READINGS {
+            Ok(Self::Readings(SensorMessage::<M>::decode(&mut bytes)?))
+        } else if msg_type == Self::ERROR_REPORT {
+            Ok(Self::ErrorReport(ErrorReport::decode(&mut bytes)?))
+        } else {
+            Err(DecodeError::IncorrectMsgType(msg_type))
+        }
+    }
+
+    #[cfg(feature = "alloc")]
+    pub fn encode(&self) -> Vec<u8> {
+        let mut bytes = match self {
+            Msg::Readings(readings) => readings.encode(),
+            Msg::ErrorReport(report) => report.encode(),
+        };
+
+        bytes.insert(0, self.header());
+        bytes
     }
 }
 
@@ -267,6 +295,11 @@ impl ErrorReport {
 
     pub fn new(error: Error) -> Self {
         Self { error, version: 0 }
+    }
+
+    #[cfg(feature = "alloc")]
+    pub fn encode(&self) -> Vec<u8> {
+        postcard::to_allocvec_cobs(self).expect("Encoding should not fail")
     }
 
     /// Buffer should be at least Self::ENCODED_SIZE long. The returned slice contains

@@ -4,6 +4,7 @@ use std::thread;
 
 use color_eyre::eyre::WrapErr;
 use color_eyre::{Help, Result};
+use data_server::SubMessage;
 
 mod tui;
 
@@ -27,8 +28,8 @@ fn main() -> Result<()> {
             .next()
             .wrap_err("Error getting next reading from server")?
         {
-            Ok(reading) => Update::Reading(reading),
-            Err(error) => Update::Error(error),
+            SubMessage::Reading(reading) => Update::Reading(reading),
+            SubMessage::ErrorReport(error) => Update::Error(error),
         };
 
         tx.send(update).unwrap();

@@ -1,5 +1,6 @@
 use clap::Parser;
 use color_eyre::Result;
+use protocol::{Msg, SensorMessage};
 use std::io::{ErrorKind, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::sync::mpsc::{self, Sender};
@@ -31,7 +32,6 @@ fn main() {
         send_error(&tx, error);
     }
 
-    let mut msg: protocol::SensorMessage<20> = protocol::SensorMessage::new();
     let addr = SocketAddr::from(([127, 0, 0, 1], cli.update_port));
     info!("connecting to dataserver on: {}", cli.update_port);
 
@@ -47,15 +47,16 @@ fn main() {
         };
 
         loop {
-            msg.values.clear();
             let result = rx.recv().unwrap();
-            msg.values.push(result).expect("capacity > 0");
-            while let Ok(result) = rx.try_recv() {
-                let res = msg.values.push(result);
-                if res.is_err() {
-                    break;
+            let msg = match result {
+                Ok(reading) => {
+                    let mut readings = SensorMessage::<1>::new();
+                    readings.values.push(reading).expect("capacity allows one push");
+                    Msg::Readings(readings)
                 }
-            }
+                Err(report) => Msg::ErrorReport(protocol::ErrorReport::new(report)),
+            };
+
             debug!("Sending message: {msg:?}");
             let bytes = msg.encode();
             if stream.write_all(&bytes).is_err() {

@@ -30,6 +30,7 @@ async fn handle_client(stream: TcpStream, tx: Sender<Event>) {
     let mut reader = BufStream::new(stream);
     let mut buf = Vec::new();
     loop {
+        buf.clear();
         let n_read = match reader.read_until(0, &mut buf).await {
             Err(e) => {
                 warn!("Connection failed/closed: {e}");
@@ -37,20 +38,31 @@ async fn handle_client(stream: TcpStream, tx: Sender<Event>) {
             }
             Ok(bytes) => bytes,
         };
-        let msg = &mut buf[0..n_read];
-        let msg = match SensorMessage::<6>::decode(msg) {
+
+        let bytes = &mut buf[0..n_read];
+        if bytes.is_empty() { //eof
+            warn!("end of stream");
+            return;
+        }
+
+        tracing::trace!("{:?}", &bytes);
+        let decoded = match protocol::Msg::<50>::decode(bytes) {
             Ok(msg) => msg,
             Err(e) => {
                 warn!("decode failed: {e:?}");
                 return;
             }
         };
-        let values = msg.values;
-        for value in values.into_iter() {
-            tx.send(Event::NewReading(value)).await.unwrap();
+        match decoded {
+            protocol::Msg::Readings(readings) => {
+                for value in readings.values {
+                    tx.send(Event::NewReading(Ok(value))).await.unwrap();
+                }
+            }
+            protocol::Msg::ErrorReport(report) => {
+                tx.send(Event::NewReading(Err(report.error))).await.unwrap()
+            }
         }
-
-        buf.clear();
     }
 }
 
@@ -59,42 +71,30 @@ enum Event {
     NewReading(Result<Reading, protocol::Error>),
 }
 
-async fn spread_updates(
-    mut events: mpsc::Receiver<Event>,
-    events_tx: &mpsc::Sender<Event>,
-) -> Result<()> {
+async fn spread_updates(mut events: mpsc::Receiver<Event>) -> Result<()> {
     let mut subscribers = Vec::new();
 
     while let Some(event) = events.recv().await {
-        let reading = match event {
+        let msg = match event {
             Event::NewSub(sub) => {
                 subscribers.push(sub);
                 continue;
             }
-            Event::NewReading(reading) => reading,
-        };
-
-        let mut msg: SensorMessage<50> = SensorMessage::new();
-        msg.values.push(reading).expect("capacity should be > 0");
-
-        while let Ok(event) = events.try_recv() {
-            match event {
-                Event::NewSub(sub) => {
-                    subscribers.push(sub);
-                    continue;
-                }
-                Event::NewReading(reading) => {
-                    if let Err(failed_to_push) = msg.values.push(reading) {
-                        // re queue
-                        events_tx
-                            .send(Event::NewReading(failed_to_push))
-                            .await
-                            .unwrap();
-                        break;
-                    }
-                }
+            Event::NewReading(Ok(reading)) => {
+                // TODO use futures-util's peekable with next_if
+                // to get up to 49 extra messages for efficiency
+                let mut readings: SensorMessage<50> = SensorMessage::new();
+                readings
+                    .values
+                    .push(reading)
+                    .expect("capacity should be > 0");
+                protocol::Msg::Readings(readings)
             }
-        }
+            Event::NewReading(Err(err)) => {
+                let report = protocol::ErrorReport::new(err);
+                protocol::Msg::ErrorReport(report)
+            }
+        };
 
         let bytes = msg.encode();
         let subs = mem::take(&mut subscribers);
@@ -171,7 +171,7 @@ async fn main() -> Result<()> {
     select! {
         e = register_subs(subscribe_port, &tx) => e,
         e = handle_data_sources(update_port, &tx) => e,
-        e = spread_updates(rx, &tx) => e,
+        e = spread_updates(rx) => e,
     }
 }
 
