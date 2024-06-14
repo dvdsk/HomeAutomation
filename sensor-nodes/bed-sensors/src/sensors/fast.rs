@@ -15,9 +15,10 @@ fn sig_lux_diff(old: f32, new: f32) -> bool {
 }
 
 async fn report_lux(mut max44: Max44Driver<'_>, publish: &Queues) {
+    const MIN_INTERVAL: Duration = Duration::from_secs(1);
+
     let mut prev_lux = f32::MAX;
     let mut last_lux = Instant::now();
-    const MIN_INTERVAL: Duration = Duration::from_secs(1);
 
     // todo!("reinit devices after error");
     loop {
@@ -32,9 +33,9 @@ async fn report_lux(mut max44: Max44Driver<'_>, publish: &Queues) {
         };
 
         if sig_lux_diff(prev_lux, lux) {
-            publish.send_p2(Reading::Brightness(lux))
+            publish.send_p2(Reading::Brightness(lux));
         } else if last_lux.elapsed() > MIN_INTERVAL {
-            publish.send_p1(Reading::Brightness(lux))
+            publish.send_p1(Reading::Brightness(lux));
         } else {
             yield_now().await;
             continue;
@@ -48,7 +49,7 @@ async fn report_lux(mut max44: Max44Driver<'_>, publish: &Queues) {
 #[allow(dead_code)]
 async fn watch_button(
     mut input: ExtiInput<'static>,
-    event: impl Fn(protocol::Press) -> Button,
+    event: impl Fn(protocol::button::Press) -> Button,
     channel: &Queues,
 ) {
     let mut went_high_at: Option<Instant> = None;
@@ -61,7 +62,7 @@ async fn watch_button(
                     warn!("extremely long button press registered, skipping");
                     continue;
                 };
-                let event = (event)(protocol::Press(press));
+                let event = (event)(protocol::button::Press(press));
                 channel.send_p2(Reading::Button(event));
             }
         } else {

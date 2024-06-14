@@ -10,7 +10,6 @@ use embassy_net_wiznet::{chip::W5500, Device, Runner, State};
 use embassy_stm32::exti::ExtiInput;
 use embassy_stm32::gpio::{Level, Output, Pull, Speed};
 use embassy_stm32::i2c::{self, I2c};
-use embassy_stm32::interrupt;
 use embassy_stm32::mode::Async;
 use embassy_stm32::peripherals::IWDG;
 use embassy_stm32::spi::{Config as SpiConfig, Spi};
@@ -41,40 +40,6 @@ embassy_stm32::bind_interrupts!(struct Irqs {
     USART1 => embassy_stm32::usart::InterruptHandler<embassy_stm32::peripherals::USART1>;
     USART2 => embassy_stm32::usart::InterruptHandler<embassy_stm32::peripherals::USART2>;
 });
-
-use embassy_executor::InterruptExecutor;
-static EXECUTOR_HIGH: InterruptExecutor = InterruptExecutor::new();
-
-use embassy_stm32::interrupt::InterruptExt;
-#[interrupt]
-unsafe fn USART6() {
-    EXECUTOR_HIGH.on_interrupt()
-}
-
-#[embassy_executor::task]
-async fn print_if_running_task() -> ! {
-    // use embassy_time::Instant;
-    // loop {
-    //     let mut now = Instant::now();
-    //     let mut biggest = 0;
-    //     for _ in 0..1000 {
-    //         Timer::after_millis(1).await;
-    //         let new_now = Instant::now();
-    //         let elapsed = (new_now - now).as_millis();
-    //         now = new_now;
-    //
-    //         if elapsed > biggest {
-    //             biggest = elapsed;
-    //         }
-    //     }
-    //     defmt::info!("still running, largest delay was: {}ms", biggest);
-    // }
-
-    loop {
-        Timer::after_secs(1).await;
-        defmt::info!("still running");
-    }
-}
 
 type EthernetSPI = ExclusiveDevice<Spi<'static, Async>, Output<'static>, Delay>;
 #[embassy_executor::task]
@@ -139,7 +104,7 @@ async fn main(spawner: Spawner) {
     ));
 
     let mut usart_config = usart::Config::default();
-    usart_config.baudrate = 115200;
+    usart_config.baudrate = 115_200;
     usart_config.data_bits = DataBits::DataBits8;
     usart_config.stop_bits = StopBits::STOP1;
     // usart_config.parity = Parity::ParityEven;
@@ -217,10 +182,6 @@ async fn main(spawner: Spawner) {
     // Launch network task
     unwrap!(spawner.spawn(net_task(stack)));
 
-    embassy_stm32::interrupt::USART6.set_priority(embassy_stm32::interrupt::Priority::P6);
-    let spawner = EXECUTOR_HIGH.start(embassy_stm32::interrupt::USART6);
-    unwrap!(spawner.spawn(print_if_running_task()));
-
     let publish = Queues::new();
     let send_published = network::send_published(stack, &publish);
     pin_mut!(send_published);
@@ -231,7 +192,7 @@ async fn main(spawner: Spawner) {
     let init_then_measure = sensors::init_then_measure(&publish, i2c, usart_mhz, usart_sps30);
     let res = select::select(send_and_pet_dog, init_then_measure).await;
     let unrecoverable_err = match res {
-        Either::First(_) => defmt::unreachable!(),
+        Either::First(network::ConnDownTooLong) => cortex_m::peripheral::SCB::sys_reset(),
         Either::Second(Ok(())) => defmt::unreachable!(),
         Either::Second(Err(err)) => err,
     };

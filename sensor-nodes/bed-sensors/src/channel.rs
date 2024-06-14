@@ -57,6 +57,7 @@ impl Queues {
     }
 
     pub fn queue_error(&self, error: error_cache::Error) {
+        defmt::debug!("queueing error: {:?}", error);
         // unwrap safe: is not used in interrupts
         let mut recent_errors = defmt::unwrap!(self.recent_errors.try_lock());
         if self.recent_is_since.elapsed() > Duration::from_secs(60 * 5) {
@@ -69,7 +70,7 @@ impl Queues {
         let Ok(()) = self.error_queue.try_send(error.clone()) else {
             return;
         };
-        recent_errors.write(error)
+        recent_errors.write(error);
     }
 
     pub fn send_p0(&self, value: Reading) {

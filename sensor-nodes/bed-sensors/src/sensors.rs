@@ -6,18 +6,20 @@ use embassy_stm32::mode::Async;
 use embassy_stm32::usart::Uart;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::mutex::Mutex;
-use embassy_time::{with_timeout, Delay, Duration};
+use embassy_time::Delay;
 use mhzx::MHZ;
 use protocol::large_bedroom::bed::Device;
 use sps30_async::Sps30;
 
 use crate::channel::Queues;
 use crate::error_cache::{Error, SensorError};
-use crate::sensors::retry::{Bme680Driver, Max44Driver, Sht31Driver};
+use crate::sensors::retry::{Bme680Driver, Max44Driver, Sht31Driver, Sps30Driver};
+
+use self::retry::Driver;
 
 pub mod fast;
-pub mod slow;
 pub mod retry;
+pub mod slow;
 
 // Todo make failed init not critical. Keep trying init in background
 // while we are measuring
@@ -38,6 +40,9 @@ pub mod concrete_types {
     pub type ConcreteRx<'a> = RingBufferedUartRx<'a>;
 }
 
+const SPS30_UART_BUF_SIZE: usize = 100;
+const SPS30_DRIVER_BUF_SIZE: usize = 2 * SPS30_UART_BUF_SIZE;
+
 pub async fn init_then_measure(
     publish: &Queues,
     i2c: Mutex<NoopRawMutex, I2c<'static, Async>>,
@@ -45,9 +50,9 @@ pub async fn init_then_measure(
     usart_sps: Uart<'static, Async>,
 ) -> Result<(), Error> {
     info!("initializing sensors");
-    let bme = Bme680Driver::new(&i2c);
-    let max44009 = Max44Driver::new(&i2c);
-    let sht = Sht31Driver::new(&i2c);
+    let bme = Bme680Driver::new(&i2c, Device::Bme680);
+    let max44009 = Max44Driver::new(&i2c, Device::Max44);
+    let sht = Sht31Driver::new(&i2c, Device::Sht31);
 
     let (tx, rx) = usart_mhz.split();
     let mut usart_buf = [0u8; 9 * 10]; // 9 byte messages
@@ -55,17 +60,49 @@ pub async fn init_then_measure(
     let mhz = MHZ::from_tx_rx(tx, rx);
 
     let (tx, rx) = usart_sps.split();
-    let mut usart_buf = [0u8; 100];
+    let mut usart_buf = [0u8; SPS30_UART_BUF_SIZE];
     let rx = rx.into_ring_buffered(&mut usart_buf);
-    let sps30 = with_timeout(Duration::from_millis(100), Sps30::from_tx_rx(tx, rx, Delay))
-        .await
-        .map_err(|_| Error::SetupTimedOut(Device::Sps30))?
-        .map_err(SensorError::Sps30)
-        .map_err(Error::Setup)?;
+    let sps30 = Sps30Driver::init(tx, rx);
 
     let sensors_fast = fast::read(max44009, /*buttons,*/ publish);
     let sensors_slow = slow::read(sht, bme, mhz, sps30, publish);
     join::join(sensors_fast, sensors_slow).await;
 
     defmt::unreachable!();
+}
+
+use concrete_types::ConcreteRx as Rx;
+use concrete_types::ConcreteTx as Tx;
+impl<'a> Driver for MHZ<Tx<'a>, Rx<'a>> {
+    type Measurement = mhzx::Measurement;
+
+    #[inline(always)]
+    async fn try_measure(&mut self) -> Result<Self::Measurement, crate::error_cache::Error> {
+        self.read_co2()
+            .await
+            .map_err(SensorError::Mhz14)
+            .map_err(Error::Running)
+    }
+
+    #[inline(always)]
+    fn device(&self) -> protocol::large_bedroom::bed::Device {
+        Device::Mhz14
+    }
+}
+
+impl<'a> Driver for Sps30<SPS30_DRIVER_BUF_SIZE, Tx<'a>, Rx<'a>, Delay> {
+    type Measurement = sps30_async::Measurement;
+
+    #[inline(always)]
+    async fn try_measure(&mut self) -> Result<Self::Measurement, crate::error_cache::Error> {
+        self.read_measurement()
+            .await
+            .map_err(SensorError::Sps30)
+            .map_err(Error::Running)
+    }
+
+    #[inline(always)]
+    fn device(&self) -> protocol::large_bedroom::bed::Device {
+        Device::Sps30
+    }
 }
