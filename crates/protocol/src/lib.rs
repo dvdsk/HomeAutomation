@@ -209,11 +209,9 @@ pub type ErrorString = heapless::String<200>;
 // https://github.com/rust-lang/rust/issues/103765
 // at that point try switching this to fmt::Display
 pub fn make_error_string(e: impl core::fmt::Debug) -> ErrorString {
-    defmt::info!("making error string");
     use core::fmt::Write;
 
     let mut s = ErrorString::new();
     core::write!(s, "{e:?}").ok();
-    defmt::info!("done");
     s
 }
