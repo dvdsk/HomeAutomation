@@ -128,7 +128,7 @@ pub fn run(rx: mpsc::Receiver<Update>) -> Result<(), std::io::Error> {
                 readings.add(reading);
             }
             Ok(Update::Error(err)) => {
-                tracing::warn!("sensor error: {err:?}");
+                readings.add_error(err)
             }
             _ => (),
         }

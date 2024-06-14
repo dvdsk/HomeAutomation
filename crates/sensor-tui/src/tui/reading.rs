@@ -1,6 +1,6 @@
 use histogram::Histogram;
-use protocol::large_bedroom::Error;
-use protocol::{Reading, Tomato, TomatoItem};
+use protocol::Error;
+use protocol::{tomato::Tomato, tomato::TomatoItem, Reading};
 use ratatui::{text::Line, widgets::Bar};
 use std::collections::HashMap;
 use std::{collections::VecDeque, time::Instant};
@@ -11,6 +11,7 @@ pub struct SensorInfo {
     timing: Histogram,
     history: VecDeque<(Instant, f32)>,
     condition: Result<(), Error>,
+    log: Vec<(Instant, Error)>,
 }
 
 impl SensorInfo {
@@ -53,8 +54,7 @@ pub struct Readings {
     pub data: HashMap<TreeKey, SensorInfo>,
 }
 
-fn add_leaf(name: String, val: f32, tree: &mut TreeItem<'static, TreeKey>, key: TreeKey) {
-    let text = format!("{}: {}", name, val);
+fn add_leaf(text: String, tree: &mut TreeItem<'static, TreeKey>, key: TreeKey) {
     let new_item = TreeItem::new_leaf(key, text.clone());
     // todo is exists its fine handle that
     let _ignore_existing = tree.add_child(new_item); // errors when identifier already exists
@@ -127,6 +127,33 @@ impl Readings {
         self.record_data(reading);
     }
 
+    pub fn add_error(&mut self, error: Error) {
+        self.update_tree_err(&error);
+        self.record_error(error);
+    }
+
+    fn record_error(&mut self, error: Error) {
+        for broken in error.affected_readings() {
+            let (key, name, _) = extract_leaf_info(&broken);
+
+            if let Some(info) = self.data.get_mut(&key) {
+                info.condition = Err(error.clone());
+                info.log.push((Instant::now(), error.clone()));
+            } else {
+                self.data.insert(
+                    key,
+                    SensorInfo {
+                        name,
+                        timing: Histogram::new(4, 24).unwrap(),
+                        history: VecDeque::new(),
+                        condition: Err(error.clone()),
+                        log: vec![(Instant::now(), error.clone())],
+                    },
+                );
+            }
+        }
+    }
+
     fn record_data(&mut self, reading: Reading) {
         let (key, name, val) = extract_leaf_info(&reading);
 
@@ -148,6 +175,7 @@ impl Readings {
                     timing: Histogram::new(4, 24).unwrap(),
                     history,
                     condition: Ok(()),
+                    log: Vec::new(),
                 },
             );
         }
@@ -164,7 +192,8 @@ impl Readings {
         loop {
             match tomato.inner() {
                 TomatoItem::Leaf(val) => {
-                    add_leaf(tomato.name(), val, tree, key);
+                    let text = format!("{}: {}", tomato.name(), val);
+                    add_leaf(text, tree, key);
                     return;
                 }
                 TomatoItem::Node(inner) => {
@@ -172,6 +201,31 @@ impl Readings {
                     tomato = inner;
                 }
             };
+        }
+    }
+
+    fn update_tree_err(&mut self, error: &Error) {
+        for broken in error.affected_readings() {
+            let (key, _, _) = extract_leaf_info(&broken);
+
+            let mut tree = add_root(&broken as &dyn Tomato, &mut self.ground);
+            let mut tomato = match broken.inner() {
+                TomatoItem::Leaf(_) => unreachable!("no values at level 0"),
+                TomatoItem::Node(inner) => inner,
+            };
+            loop {
+                match tomato.inner() {
+                    TomatoItem::Leaf(_) => {
+                        let text = format!("{}: {:?}", tomato.name(), error);
+                        add_leaf(text, tree, key);
+                        return;
+                    }
+                    TomatoItem::Node(inner) => {
+                        tree = add_node(tomato, tree);
+                        tomato = inner;
+                    }
+                };
+            }
         }
     }
 
