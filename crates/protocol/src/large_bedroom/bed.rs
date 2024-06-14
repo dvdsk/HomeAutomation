@@ -1,6 +1,6 @@
 use crate::button_enum;
 #[cfg(feature = "alloc")]
-use crate::{Tomato, TomatoItem};
+use crate::tomato::{Tomato, TomatoId, TomatoItem};
 
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
@@ -96,8 +96,8 @@ impl Tomato for Reading {
         TomatoItem::Leaf(val)
     }
 
-    fn id(&self) -> crate::TomatoId {
-        ReadingDiscriminants::from(self) as crate::TomatoId
+    fn id(&self) -> TomatoId {
+        ReadingDiscriminants::from(self) as TomatoId
     }
 }
 
@@ -110,10 +110,22 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn broken_readings(&self) -> &[ReadingDiscriminants] {
+    pub fn affected_readings(&self) -> &'static [Reading] {
         match self {
-            Self::Running(sensor_err) | Self::Setup(sensor_err) => sensor_err.broken_readings(),
-            Self::SetupTimedOut(device) | Self::Timeout(device) => device.broken_readings(),
+            Self::Running(sensor_err) | Self::Setup(sensor_err) => sensor_err.device(),
+            Self::SetupTimedOut(device) | Self::Timeout(device) => device.clone(),
+        }
+        .broken_readings()
+    }
+}
+
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Error::Running(e) => write!(f, "{} ran into error: {e}", e.device()),
+            Error::Setup(e) => write!(f, "{} errored during setup: {e}", e.device()),
+            Error::SetupTimedOut(d) => write!(f, "{d} timed out during setup"),
+            Error::Timeout(d) => write!(f, "{d} timed out running"),
         }
     }
 }
@@ -127,20 +139,31 @@ pub enum SensorError {
     Sps30(heapless::String<200>),
 }
 
+impl core::fmt::Display for SensorError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            SensorError::Sht31(e) => write!(f, "{e}"),
+            SensorError::Bme680(e) => write!(f, "{e}"),
+            SensorError::Max44(e) => write!(f, "{e}"),
+            SensorError::Mhz14(e) => write!(f, "{e}"),
+            SensorError::Sps30(e) => write!(f, "{e}"),
+        }
+    }
+}
+
 impl MaxSize for SensorError {
     const POSTCARD_MAX_SIZE: usize = 201;
 }
 
 impl SensorError {
-    pub fn broken_readings(&self) -> &[ReadingDiscriminants] {
-        let device = match self {
+    pub fn device(&self) -> Device {
+        match self {
             SensorError::Sht31(_) => Device::Sht31,
             SensorError::Bme680(_) => Device::Bme680,
             SensorError::Max44(_) => Device::Max44,
             SensorError::Mhz14(_) => Device::Mhz14,
             SensorError::Sps30(_) => Device::Sps30,
-        };
-        device.broken_readings()
+        }
     }
 }
 
@@ -153,30 +176,36 @@ pub enum Device {
     Sps30,
 }
 
-impl Device {
-    pub fn broken_readings(&self) -> &'static [ReadingDiscriminants] {
+impl core::fmt::Display for Device {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Device::Sht31 => &[
-                ReadingDiscriminants::Temperature,
-                ReadingDiscriminants::Humidity,
-            ],
-            Device::Bme680 => &[
-                ReadingDiscriminants::GassResistance,
-                ReadingDiscriminants::Pressure,
-            ],
-            Device::Max44 => &[ReadingDiscriminants::Brightness],
-            Device::Mhz14 => &[ReadingDiscriminants::Co2],
+            Device::Sht31 => write!(f, "Sht31"),
+            Device::Bme680 => write!(f, "Bme680"),
+            Device::Max44 => write!(f, "Max44"),
+            Device::Mhz14 => write!(f, "Mhz14"),
+            Device::Sps30 => write!(f, "Sps30"),
+        }
+    }
+}
+
+impl Device {
+    pub fn broken_readings(&self) -> &'static [Reading] {
+        match self {
+            Device::Sht31 => &[Reading::Temperature(0.0), Reading::Humidity(0.0)],
+            Device::Bme680 => &[Reading::GassResistance(0.0), Reading::Pressure(0.0)],
+            Device::Max44 => &[Reading::Brightness(0.0)],
+            Device::Mhz14 => &[Reading::Co2(0)],
             Device::Sps30 => &[
-                ReadingDiscriminants::MassPm1_0,
-                ReadingDiscriminants::MassPm2_5,
-                ReadingDiscriminants::MassPm4_0,
-                ReadingDiscriminants::MassPm10,
-                ReadingDiscriminants::MassPm0_5,
-                ReadingDiscriminants::NumberPm1_0,
-                ReadingDiscriminants::NumberPm2_5,
-                ReadingDiscriminants::NumberPm4_0,
-                ReadingDiscriminants::NumberPm10,
-                ReadingDiscriminants::TypicalParticleSize,
+                Reading::MassPm1_0(0.0),
+                Reading::MassPm2_5(0.0),
+                Reading::MassPm4_0(0.0),
+                Reading::MassPm10(0.0),
+                Reading::MassPm0_5(0.0),
+                Reading::NumberPm1_0(0.0),
+                Reading::NumberPm2_5(0.0),
+                Reading::NumberPm4_0(0.0),
+                Reading::NumberPm10(0.0),
+                Reading::TypicalParticleSize(0.0),
             ],
         }
     }

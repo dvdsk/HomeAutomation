@@ -2,7 +2,7 @@ use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "alloc")]
-use crate::{all_nodes, Tomato};
+use crate::all_nodes;
 
 pub mod bed;
 pub mod desk;
@@ -19,10 +19,42 @@ pub enum Reading {
 #[cfg(feature = "alloc")]
 all_nodes! {Reading; ReadingDiscriminants; Bed, Desk}
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
+#[derive(
+    strum::EnumDiscriminants,
+    Clone,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    Eq,
+    PartialEq,
+)]
 pub enum Error {
     Bed(bed::Error),
     Desk(desk::Error),
+}
+
+impl Error {
+    pub fn broken_readings(&self) -> impl Iterator<Item = Reading> {
+        match self {
+            Error::Bed(error) => error
+                .affected_readings()
+                .into_iter()
+                .cloned()
+                .map(Reading::Bed),
+            Error::Desk(_) => todo!(),
+        }
+    }
+}
+
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Error::Bed(error) => write!(f, "{}", error),
+            Error::Desk(error) => write!(f, "{}", error),
+        }
+    }
 }
 
 #[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]

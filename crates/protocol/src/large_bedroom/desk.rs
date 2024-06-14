@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::button_enum;
 #[cfg(feature = "alloc")]
-use crate::{Tomato, TomatoItem};
+use crate::tomato::{Tomato, TomatoItem};
 
 button_enum! {
     /// No these are not borg, these are buttons on a string of cat5.
@@ -42,38 +42,38 @@ impl Tomato for Reading {
         TomatoItem::Leaf(val)
     }
 
-    fn id(&self) -> crate::TomatoId {
-        ReadingDiscriminants::from(self) as crate::TomatoId
+    fn id(&self) -> crate::tomato::TomatoId {
+        ReadingDiscriminants::from(self) as crate::tomato::TomatoId
     }
 }
 
 #[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
 pub enum Error {
     Running(SensorError),
-    Setup(SetupError),
+    Setup(SensorError),
     SetupTimedOut(Device),
     Timeout(Device),
 }
 
 impl Error {
-    pub fn broken_readings(&self) -> &[ReadingDiscriminants] {
+    pub fn affected_readings(&self) -> &'static [Reading] {
         match self {
-            Self::Running(sensor_err) => sensor_err.broken_readings(),
-            Self::Setup(sensor_err) => sensor_err.broken_readings(),
-            Self::SetupTimedOut(device) | Self::Timeout(device) => device.broken_readings(),
+            Self::Running(sensor_err) => sensor_err.device().affected_readings(),
+            Self::Setup(sensor_err) => sensor_err.device().affected_readings(),
+            Self::SetupTimedOut(device) | Self::Timeout(device) => device.affected_readings(),
         }
     }
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, Eq, PartialEq)]
-pub enum SetupError {
-    BmeError(heapless::String<200>),
-    Gpio(heapless::String<200>),
-    I2c(heapless::String<200>),
-}
-
-impl MaxSize for SetupError {
-    const POSTCARD_MAX_SIZE: usize = 200+1;
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Error::Running(e) => write!(f, "{} ran into error: {e}", e.device()),
+            Error::Setup(e) => write!(f, "{} errored during setup: {e}", e.device()),
+            Error::SetupTimedOut(d) => write!(f, "{d} timed out during setup"),
+            Error::Timeout(d) => write!(f, "{d} timed out while running"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, Eq, PartialEq)]
@@ -83,28 +83,24 @@ pub enum SensorError {
 }
 
 impl MaxSize for SensorError {
-    const POSTCARD_MAX_SIZE: usize = 200+1;
+    const POSTCARD_MAX_SIZE: usize = 200 + 1;
 }
 
 impl SensorError {
-    pub fn broken_readings(&self) -> &'static [ReadingDiscriminants] {
-        let device = match self {
+    pub fn device(&self) -> Device {
+        match self {
             SensorError::BmeError(_) => Device::Bme280,
             SensorError::Gpio(_) => Device::Gpio,
-        };
-
-        device.broken_readings()
+        }
     }
 }
 
-impl SetupError {
-    pub fn broken_readings(&self) -> &'static [ReadingDiscriminants] {
-        let device = match self {
-            SetupError::BmeError(_) | SetupError::I2c(_) => Device::Bme280,
-            SetupError::Gpio(_) => Device::Gpio,
-        };
-
-        device.broken_readings()
+impl core::fmt::Display for SensorError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            SensorError::BmeError(e) => write!(f, "{e}"),
+            SensorError::Gpio(e) => write!(f, "{e}"),
+        }
     }
 }
 
@@ -114,13 +110,19 @@ pub enum Device {
     Gpio,
 }
 
-impl Device {
-    pub fn broken_readings(&self) -> &'static [ReadingDiscriminants] {
+impl core::fmt::Display for Device {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Device::Bme280 => &[
-                ReadingDiscriminants::Temperature,
-                ReadingDiscriminants::Humidity,
-            ],
+            Device::Bme280 => write!(f, "Bme280"),
+            Device::Gpio => write!(f, "Gpio"),
+        }
+    }
+}
+
+impl Device {
+    pub fn affected_readings(&self) -> &'static [Reading] {
+        match self {
+            Device::Bme280 => &[Reading::Temperature(0.0), Reading::Humidity(0.0)],
             Device::Gpio => todo!(),
         }
     }
