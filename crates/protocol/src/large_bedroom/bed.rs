@@ -1,6 +1,7 @@
+use crate::button::Press;
 use crate::button_enum;
 #[cfg(feature = "alloc")]
-use crate::tomato::{Tomato, TomatoId, TomatoItem};
+use crate::tomato::{Tomato, TomatoId, TomatoItem, TomatoLeaf};
 
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
@@ -70,30 +71,59 @@ pub enum Reading {
 }
 
 #[cfg(feature = "alloc")]
+macro_rules! put_in_tree {
+    ([$($reading:expr),+]) => {
+        [$(crate::Reading::LargeBedroom(
+            crate::large_bedroom::Reading::Bed($reading),
+        )),+]
+    };
+}
+
+#[cfg(feature = "alloc")]
+fn leaf(val: &f32, device: Device, from_same_device: &'static [crate::Reading]) -> TomatoLeaf {
+    TomatoLeaf {
+        val: *val,
+        device: device.as_str(),
+        from_same_device,
+    }
+}
+
+#[cfg(feature = "alloc")]
 impl Tomato for Reading {
     fn inner<'a>(&'a self) -> TomatoItem<'a> {
-        let val = match self {
-            Reading::Brightness(val) => *val,
-            Reading::Temperature(val) => *val,
-            Reading::Humidity(val) => *val,
-            Reading::GassResistance(val) => *val,
-            Reading::Pressure(val) => *val,
-            Reading::Co2(val) => *val as f32,
-            Reading::WeightLeft(val) => *val as f32,
-            Reading::WeightRight(val) => *val as f32,
-            Reading::Button(val) => (*val).into(),
-            Reading::MassPm1_0(val) => *val,
-            Reading::MassPm2_5(val) => *val,
-            Reading::MassPm4_0(val) => *val,
-            Reading::MassPm10(val) => *val,
-            Reading::MassPm0_5(val) => *val,
-            Reading::NumberPm1_0(val) => *val,
-            Reading::NumberPm2_5(val) => *val,
-            Reading::NumberPm4_0(val) => *val,
-            Reading::NumberPm10(val) => *val,
-            Reading::TypicalParticleSize(val) => *val,
+        let (val, device) = match self {
+            Reading::Brightness(val) => (*val, Device::Max44),
+            Reading::Temperature(val) => (*val, Device::Sht31),
+            Reading::Humidity(val) => (*val, Device::Sht31),
+            Reading::GassResistance(val) => (*val, Device::Bme680),
+            Reading::Pressure(val) => (*val, Device::Bme680),
+            Reading::Co2(val) => (*val as f32, Device::Mhz14),
+            Reading::WeightLeft(val) => (*val as f32, Device::Nau7802Left),
+            Reading::WeightRight(val) => (*val as f32, Device::Nau7802Right),
+            Reading::Button(val) => ((*val).into(), Device::Gpio),
+            Reading::MassPm1_0(val) => (*val, Device::Sps30),
+            Reading::MassPm2_5(val) => (*val, Device::Sps30),
+            Reading::MassPm4_0(val) => (*val, Device::Sps30),
+            Reading::MassPm10(val) => (*val, Device::Sps30),
+            Reading::MassPm0_5(val) => (*val, Device::Sps30),
+            Reading::NumberPm1_0(val) => (*val, Device::Sps30),
+            Reading::NumberPm2_5(val) => (*val, Device::Sps30),
+            Reading::NumberPm4_0(val) => (*val, Device::Sps30),
+            Reading::NumberPm10(val) => (*val, Device::Sps30),
+            Reading::TypicalParticleSize(val) => (*val, Device::Sps30),
         };
-        TomatoItem::Leaf(val)
+
+        // let related = todo!();
+
+            // Reading::Brightness(val) => leaf(val, Device::Max44, &[]),
+            // Reading::Temperature(val) => {
+            //     leaf(val, Device::Sht31, &put_in_tree!([Reading::Humidity(0.0)]))
+            // }
+        TomatoItem::Leaf(TomatoLeaf {
+            val,
+            device: device.as_str(),
+            from_same_device: todo!(),
+        })
     }
 
     fn id(&self) -> TomatoId {
@@ -137,6 +167,8 @@ pub enum SensorError {
     Max44(heapless::String<200>),
     Mhz14(heapless::String<200>),
     Sps30(heapless::String<200>),
+    Nau7802Left(heapless::String<200>),
+    Nau7802Right(heapless::String<200>),
 }
 
 impl core::fmt::Display for SensorError {
@@ -147,6 +179,8 @@ impl core::fmt::Display for SensorError {
             SensorError::Max44(e) => write!(f, "{e}"),
             SensorError::Mhz14(e) => write!(f, "{e}"),
             SensorError::Sps30(e) => write!(f, "{e}"),
+            SensorError::Nau7802Left(e) => write!(f, "{e}"),
+            SensorError::Nau7802Right(e) => write!(f, "{e}"),
         }
     }
 }
@@ -163,6 +197,8 @@ impl SensorError {
             SensorError::Max44(_) => Device::Max44,
             SensorError::Mhz14(_) => Device::Mhz14,
             SensorError::Sps30(_) => Device::Sps30,
+            SensorError::Nau7802Left(_) => Device::Nau7802Left,
+            SensorError::Nau7802Right(_) => Device::Nau7802Right,
         }
     }
 }
@@ -174,21 +210,31 @@ pub enum Device {
     Max44,
     Mhz14,
     Sps30,
+    Nau7802Left,
+    Nau7802Right,
+    Gpio,
 }
 
 impl core::fmt::Display for Device {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Device::Sht31 => write!(f, "Sht31"),
-            Device::Bme680 => write!(f, "Bme680"),
-            Device::Max44 => write!(f, "Max44"),
-            Device::Mhz14 => write!(f, "Mhz14"),
-            Device::Sps30 => write!(f, "Sps30"),
-        }
+        write!(f, "{}", self.as_str())
     }
 }
 
 impl Device {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Device::Sht31 => "Sht31",
+            Device::Bme680 => "Bme680",
+            Device::Max44 => "Max44",
+            Device::Mhz14 => "Mhz14",
+            Device::Sps30 => "Sps30",
+            Device::Nau7802Left => "Nau7802Left",
+            Device::Nau7802Right => "Nau7802Right",
+            Device::Gpio => "Gpio",
+        }
+    }
+
     pub fn broken_readings(&self) -> &'static [Reading] {
         match self {
             Device::Sht31 => &[Reading::Temperature(0.0), Reading::Humidity(0.0)],
@@ -206,6 +252,18 @@ impl Device {
                 Reading::NumberPm4_0(0.0),
                 Reading::NumberPm10(0.0),
                 Reading::TypicalParticleSize(0.0),
+            ],
+            Device::Nau7802Left => &[Reading::WeightLeft(0)],
+            Device::Nau7802Right => &[Reading::WeightRight(0)],
+            Device::Gpio => &[
+                Reading::Button(Button::TopLeft(Press(0))),
+                Reading::Button(Button::TopRight(Press(0))),
+                Reading::Button(Button::MiddleInner(Press(0))),
+                Reading::Button(Button::MiddleCenter(Press(0))),
+                Reading::Button(Button::MiddleOuter(Press(0))),
+                Reading::Button(Button::LowerInner(Press(0))),
+                Reading::Button(Button::LowerCenter(Press(0))),
+                Reading::Button(Button::LowerOuter(Press(0))),
             ],
         }
     }

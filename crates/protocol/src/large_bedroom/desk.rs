@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::button_enum;
 #[cfg(feature = "alloc")]
-use crate::tomato::{Tomato, TomatoItem};
+use crate::tomato::{Tomato, TomatoItem, TomatoLeaf};
 
 button_enum! {
     /// No these are not borg, these are buttons on a string of cat5.
@@ -33,13 +33,17 @@ pub enum Reading {
 #[cfg(feature = "alloc")]
 impl Tomato for Reading {
     fn inner<'a>(&'a self) -> TomatoItem<'a> {
-        let val = match self {
-            Reading::Temperature(val) => *val,
-            Reading::Humidity(val) => *val,
-            Reading::Pressure(val) => *val,
+        let (val, device) = match self {
+            Reading::Temperature(val) => (*val, Device::Bme280),
+            Reading::Humidity(val) => (*val, Device::Bme280),
+            Reading::Pressure(val) => (*val, Device::Bme280),
             Reading::Button(val) => return TomatoItem::Node(val),
         };
-        TomatoItem::Leaf(val)
+        TomatoItem::Leaf(TomatoLeaf {
+            val,
+            device: device.as_str(),
+            from_same_device: &[], // TODO
+        })
     }
 
     fn id(&self) -> crate::tomato::TomatoId {
@@ -112,14 +116,17 @@ pub enum Device {
 
 impl core::fmt::Display for Device {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Device::Bme280 => write!(f, "Bme280"),
-            Device::Gpio => write!(f, "Gpio"),
-        }
+        write!(f, "{}", self.as_str())
     }
 }
 
 impl Device {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Device::Bme280 => "Bme280",
+            Device::Gpio => "Gpio",
+        }
+    }
     pub fn affected_readings(&self) -> &'static [Reading] {
         match self {
             Device::Bme280 => &[Reading::Temperature(0.0), Reading::Humidity(0.0)],

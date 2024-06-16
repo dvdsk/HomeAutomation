@@ -76,7 +76,11 @@ macro_rules! button_enum {
         #[cfg(feature = "alloc")]
         impl crate::tomato::Tomato for $name {
             fn inner<'a>(&'a self) -> crate::tomato::TomatoItem<'a> {
-                crate::tomato::TomatoItem::Leaf((*self).into())
+                crate::tomato::TomatoItem::Leaf(crate::tomato::TomatoLeaf {
+                    val: (*self).into(), 
+                    device: "GPIO",
+                    from_same_device: &[], // TODO
+                })
             }
             fn name(&self) -> String {
                 let dbg_repr = format!("{:?}", self);
