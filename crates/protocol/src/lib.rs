@@ -9,10 +9,24 @@ pub mod small_bedroom;
 pub mod button;
 pub(crate) use button::button_enum;
 
+// #[cfg(feature = "alloc")]
+// pub mod device_tree;
 #[cfg(feature = "alloc")]
-pub mod tomato;
-#[cfg(feature = "alloc")]
-pub(crate) use tomato::all_nodes;
+pub mod reading_tree;
+
+#[derive(Debug)]
+pub enum Unit {
+    Pa,
+    C,
+    RH,
+    Lux,
+    Ohm,
+    Ppm,
+    MicrogramPerM3,
+    NumberPerCm3,
+    NanoMeter,
+    None, // for buttons
+}
 
 #[derive(
     strum::EnumDiscriminants,
@@ -23,14 +37,34 @@ pub(crate) use tomato::all_nodes;
     Serialize,
     Deserialize,
     MaxSize,
+    PartialEq,
 )]
 #[strum_discriminants(derive(Hash))]
 pub enum Reading {
     LargeBedroom(large_bedroom::Reading),
-    // SmallBedroom(small_bedroom::Reading),
+    SmallBedroom(small_bedroom::Reading),
     // Test,
 }
 
+#[cfg(feature = "alloc")]
+impl Reading {
+    pub fn from_same_device(&self) -> &'static [Reading] {
+        use reading_tree::Tree;
+        self.leaf().from_same_device()
+    }
+    pub fn range(&self) -> core::ops::Range<f32> {
+        use reading_tree::Tree;
+        self.leaf().range
+    }
+    pub fn resolution(&self) -> f32 {
+        use reading_tree::Tree;
+        self.leaf().resolution
+    }
+    pub fn device(&self) -> Device {
+        use reading_tree::Tree;
+        self.leaf().device
+    }
+}
 impl Reading {
     pub fn version() -> u8 {
         0u8
@@ -38,7 +72,7 @@ impl Reading {
 }
 
 #[cfg(feature = "alloc")]
-all_nodes! {Reading; ReadingDiscriminants; LargeBedroom} //, Test}
+reading_tree::all_nodes! {Reading; ReadingDiscriminants; LargeBedroom, SmallBedroom}
 
 #[derive(
     strum::EnumDiscriminants,
@@ -54,10 +88,30 @@ pub enum Error {
     LargeBedroom(large_bedroom::Error),
 }
 
-impl Error {
-    pub fn affected_readings(&self) -> impl Iterator<Item = Reading> {
+#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, PartialEq, Eq, Hash)]
+pub enum Device {
+    LargeBedroom(large_bedroom::Device),
+    SmallBedroom(small_bedroom::Device),
+}
+impl Device {
+    pub fn affected_readings(&self) -> &'static [Reading] {
         match self {
-            Error::LargeBedroom(error) => error.broken_readings().map(Reading::LargeBedroom),
+            Device::LargeBedroom(dev) => dev.affected_readings(),
+            Device::SmallBedroom(dev) => dev.affected_readings(),
+        }
+    }
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Device::LargeBedroom(dev) => dev.as_str(),
+            Device::SmallBedroom(dev) => dev.as_str(),
+        }
+    }
+}
+
+impl Error {
+    pub fn device(&self) -> Device {
+        match self {
+            Error::LargeBedroom(error) => Device::LargeBedroom(error.device()),
         }
     }
 }

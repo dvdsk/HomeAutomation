@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
     Deserialize,
     postcard::experimental::max_size::MaxSize,
     defmt::Format,
+    PartialEq,
+    Eq,
 )]
 pub struct Press(pub u16);
 
@@ -38,7 +40,9 @@ impl Press {
 macro_rules! button_enum {
     (
         $(#[$outer:meta])*
-        $name:ident {$($variant:ident,)*}) => {
+        $name:ident {$($variant:ident,)*}
+        $device:expr;
+    ) => {
         #[derive(strum::VariantNames)]
         #[derive(
             Clone,
@@ -47,7 +51,9 @@ macro_rules! button_enum {
 			serde::Serialize,
 			serde::Deserialize,
             defmt::Format,
-            postcard::experimental::max_size::MaxSize
+            postcard::experimental::max_size::MaxSize,
+            PartialEq,
+            Eq,
         )]
         $(#[$outer])* // docs
         /// SAFETY: must be repr(u8) or id fn will create undefined behaviour
@@ -74,12 +80,15 @@ macro_rules! button_enum {
         }
 
         #[cfg(feature = "alloc")]
-        impl crate::tomato::Tomato for $name {
-            fn inner<'a>(&'a self) -> crate::tomato::TomatoItem<'a> {
-                crate::tomato::TomatoItem::Leaf(crate::tomato::TomatoLeaf {
-                    val: (*self).into(), 
-                    device: "GPIO",
-                    from_same_device: &[], // TODO
+        impl crate::reading_tree::Tree for $name {
+            fn inner<'a>(&'a self) -> crate::reading_tree::Item<'a> {
+                crate::reading_tree::Item::Leaf(crate::reading_tree::ReadingInfo {
+                    val: (*self).into(),
+                    device: $device,
+                    description: "button",
+                    range: 0.0..3.0,
+                    resolution: 1.0,
+                    unit: crate::Unit::None,
                 })
             }
             fn name(&self) -> String {
@@ -90,13 +99,13 @@ macro_rules! button_enum {
                     .unwrap_or("-")
                     .to_string()
             }
-            fn id(&self) -> crate::tomato::TomatoId {
+            fn id(&self) -> crate::reading_tree::Id {
                 // SAFETY: Because `Self` is marked `repr(u8)`, its layout is a
                 // `repr(C)` `union` between `repr(C)` structs, each of which
                 // has the `u8` discriminant as its first field, so we can read
                 // the discriminant without offsetting the pointer.
                 let discriminant = unsafe { *<*const _>::from(self).cast::<u8>() };
-                discriminant as crate::tomato::TomatoId
+                discriminant as crate::reading_tree::Id
             }
         }
     };

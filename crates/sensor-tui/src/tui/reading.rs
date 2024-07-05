@@ -1,6 +1,6 @@
 use histogram::Histogram;
 use protocol::Error;
-use protocol::{tomato::Tomato, tomato::TomatoItem, Reading};
+use protocol::{ReadingTree::Tomato, ReadingTree::TomatoItem, Reading};
 use ratatui::{text::Line, widgets::Bar};
 use std::collections::HashMap;
 use std::{collections::VecDeque, time::Instant};

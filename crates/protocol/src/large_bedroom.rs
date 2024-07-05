@@ -2,13 +2,21 @@ use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "alloc")]
-use crate::all_nodes;
+use crate::reading_tree;
 
 pub mod bed;
 pub mod desk;
 
 #[derive(
-    strum::EnumDiscriminants, Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize,
+    strum::EnumDiscriminants,
+    Clone,
+    Copy,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    PartialEq,
 )]
 #[strum_discriminants(derive(Hash))]
 pub enum Reading {
@@ -17,7 +25,7 @@ pub enum Reading {
 }
 
 #[cfg(feature = "alloc")]
-all_nodes! {Reading; ReadingDiscriminants; Bed, Desk}
+reading_tree::all_nodes! {Reading; ReadingDiscriminants; Bed, Desk}
 
 #[derive(
     strum::EnumDiscriminants,
@@ -36,14 +44,10 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn broken_readings(&self) -> impl Iterator<Item = Reading> {
+    pub fn device(&self) -> Device {
         match self {
-            Error::Bed(error) => error
-                .affected_readings()
-                .into_iter()
-                .cloned()
-                .map(Reading::Bed),
-            Error::Desk(_) => todo!(),
+            Error::Bed(error) => Device::Bed(error.device()),
+            Error::Desk(error) => Device::Desk(error.device()),
         }
     }
 }
@@ -57,10 +61,25 @@ impl core::fmt::Display for Error {
     }
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
+#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq, Hash)]
 pub enum Device {
     Bed(bed::Device),
     Desk(desk::Device),
+}
+impl Device {
+    pub(crate) fn affected_readings(&self) -> &'static [crate::Reading] {
+        match self {
+            Self::Bed(dev) => dev.affected_readings(),
+            Self::Desk(dev) => dev.affected_readings(),
+        }
+    }
+
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            Self::Bed(dev) => dev.as_str(),
+            Self::Desk(dev) => dev.as_str(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize)]

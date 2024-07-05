@@ -1,7 +1,9 @@
 use crate::button::Press;
 use crate::button_enum;
 #[cfg(feature = "alloc")]
-use crate::tomato::{Tomato, TomatoId, TomatoItem, TomatoLeaf};
+use crate::reading_tree::{Id, Item, ReadingInfo, Tree};
+#[cfg(feature = "alloc")]
+use crate::Unit;
 
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
@@ -28,10 +30,11 @@ button_enum! {
         LowerCenter,
         LowerOuter,
     }
+    crate::Device::LargeBedroom(crate::large_bedroom::Device::Bed(Device::Gpio));
 }
 
 #[derive(
-    strum::EnumDiscriminants, Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize,
+    strum::EnumDiscriminants, Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize, PartialEq,
 )]
 #[strum_discriminants(derive(Hash))]
 pub enum Reading {
@@ -57,7 +60,7 @@ pub enum Reading {
     /// Mass Concentration PM10 \[μg/m³\]
     MassPm10(f32),
     /// Number Concentration PM0.5 \[#/cm³\]
-    MassPm0_5(f32),
+    NumberPm0_5(f32),
     /// Number Concentration PM1.0 \[#/cm³\]
     NumberPm1_0(f32),
     /// Number Concentration PM2.5 \[#/cm³\]
@@ -71,63 +74,172 @@ pub enum Reading {
 }
 
 #[cfg(feature = "alloc")]
-macro_rules! put_in_tree {
-    ([$($reading:expr),+]) => {
-        [$(crate::Reading::LargeBedroom(
-            crate::large_bedroom::Reading::Bed($reading),
-        )),+]
-    };
-}
-
-#[cfg(feature = "alloc")]
-fn leaf(val: &f32, device: Device, from_same_device: &'static [crate::Reading]) -> TomatoLeaf {
-    TomatoLeaf {
-        val: *val,
-        device: device.as_str(),
-        from_same_device,
-    }
-}
-
-#[cfg(feature = "alloc")]
-impl Tomato for Reading {
-    fn inner<'a>(&'a self) -> TomatoItem<'a> {
-        let (val, device) = match self {
-            Reading::Brightness(val) => (*val, Device::Max44),
-            Reading::Temperature(val) => (*val, Device::Sht31),
-            Reading::Humidity(val) => (*val, Device::Sht31),
-            Reading::GassResistance(val) => (*val, Device::Bme680),
-            Reading::Pressure(val) => (*val, Device::Bme680),
-            Reading::Co2(val) => (*val as f32, Device::Mhz14),
-            Reading::WeightLeft(val) => (*val as f32, Device::Nau7802Left),
-            Reading::WeightRight(val) => (*val as f32, Device::Nau7802Right),
-            Reading::Button(val) => ((*val).into(), Device::Gpio),
-            Reading::MassPm1_0(val) => (*val, Device::Sps30),
-            Reading::MassPm2_5(val) => (*val, Device::Sps30),
-            Reading::MassPm4_0(val) => (*val, Device::Sps30),
-            Reading::MassPm10(val) => (*val, Device::Sps30),
-            Reading::MassPm0_5(val) => (*val, Device::Sps30),
-            Reading::NumberPm1_0(val) => (*val, Device::Sps30),
-            Reading::NumberPm2_5(val) => (*val, Device::Sps30),
-            Reading::NumberPm4_0(val) => (*val, Device::Sps30),
-            Reading::NumberPm10(val) => (*val, Device::Sps30),
-            Reading::TypicalParticleSize(val) => (*val, Device::Sps30),
+impl Tree for Reading {
+    fn inner<'a>(&'a self) -> Item<'a> {
+        let (val, device, range, resolution, unit, description) = match self {
+            Reading::Brightness(val) => (
+                *val,
+                Device::Max44.rooted(),
+                0.045..188.000,
+                0.045,
+                Unit::Lux,
+                "Brightness",
+            ),
+            Reading::Temperature(val) => (
+                *val,
+                Device::Sht31.rooted(),
+                -10.0..45.0,
+                0.01,
+                Unit::C,
+                "Temperature",
+            ),
+            Reading::Humidity(val) => (
+                *val,
+                Device::Sht31.rooted(),
+                0.0..100.0,
+                0.01,
+                Unit::RH,
+                "Relative humidity",
+            ),
+            // air quality: comp_gas = log(R_gas[ohm]) + 0.04 log(Ohm)/%rh * hum[%rh]
+            Reading::GassResistance(val) => (
+                *val,
+                Device::Bme680.rooted(),
+                0.0..1_000_000.0,
+                1.0,
+                Unit::Ohm,
+                "Gass resistance",
+            ),
+            // record air pressure
+            // - 1.081hPa (dead sea 430 below normal sea level)
+            // - 870hPa (middle of a tornado)
+            Reading::Pressure(val) => (
+                *val,
+                Device::Bme680.rooted(),
+                87_000.0..108_100.0,
+                0.18,
+                Unit::Pa,
+                "Air pressure",
+            ),
+            Reading::Co2(val) => (
+                *val as f32,
+                Device::Mhz14.rooted(),
+                400.0..2_000.0,
+                1.0,
+                Unit::Ppm,
+                "Co2 concentration",
+            ),
+            Reading::WeightLeft(val) => (
+                *val as f32,
+                Device::Nau7802Left.rooted(),
+                0.0..2.0_f32.exp2(),
+                1.0,
+                Unit::Ohm,
+                "Left weight sensor resistance",
+            ),
+            Reading::WeightRight(val) => (
+                *val as f32,
+                Device::Nau7802Right.rooted(),
+                0.0..2.0_f32.exp2(),
+                1.0,
+                Unit::Ohm,
+                "Right weight sensor resistance",
+            ),
+            Reading::Button(button) => return button.inner(),
+            Reading::MassPm1_0(val) => (
+                *val,
+                Device::Sps30.rooted(),
+                0.0..1000.0,
+                0.1,
+                Unit::MicrogramPerM3,
+                "Mass concentration particles between 0.3 to 1.0 μm",
+            ),
+            Reading::MassPm2_5(val) => (
+                *val,
+                Device::Sps30.rooted(),
+                0.0..1000.0,
+                0.1,
+                Unit::MicrogramPerM3,
+                "Mass concentration particles between 0.3 to 2.5 μm",
+            ),
+            Reading::MassPm4_0(val) => (
+                *val,
+                Device::Sps30.rooted(),
+                0.0..1000.0,
+                0.1,
+                Unit::MicrogramPerM3,
+                "Mass concentration particles between 0.3 to 4.0 μm",
+            ),
+            Reading::MassPm10(val) => (
+                *val,
+                Device::Sps30.rooted(),
+                0.0..1000.0,
+                0.1,
+                Unit::MicrogramPerM3,
+                "Mass concentration particles between 0.3 to 10.0 μm",
+            ),
+            Reading::NumberPm0_5(val) => (
+                *val,
+                Device::Sps30.rooted(),
+                0.0..3000.0,
+                0.1,
+                Unit::NumberPerCm3,
+                "Concentration of particles between 0.3 to 0.5 μm",
+            ),
+            Reading::NumberPm1_0(val) => (
+                *val,
+                Device::Sps30.rooted(),
+                0.0..3000.0,
+                0.1,
+                Unit::NumberPerCm3,
+                "Concentration of particles between 0.3 to 1.0 μm",
+            ),
+            Reading::NumberPm2_5(val) => (
+                *val,
+                Device::Sps30.rooted(),
+                0.0..3000.0,
+                0.1,
+                Unit::NumberPerCm3,
+                "Concentration of particles between 0.3 to 2.5 μm",
+            ),
+            Reading::NumberPm4_0(val) => (
+                *val,
+                Device::Sps30.rooted(),
+                0.0..3000.0,
+                0.1,
+                Unit::NumberPerCm3,
+                "Concentration of particles between 0.3 to 4.0 μm",
+            ),
+            Reading::NumberPm10(val) => (
+                *val,
+                Device::Sps30.rooted(),
+                0.0..3000.0,
+                0.1,
+                Unit::NumberPerCm3,
+                "Concentration of particles between 0.3 to 10.5 μm",
+            ),
+            Reading::TypicalParticleSize(val) => (
+                *val,
+                Device::Sps30.rooted(),
+                0.0..10_000.0,
+                0.5,
+                Unit::NanoMeter,
+                "Typical particle size",
+            ),
         };
 
-        // let related = todo!();
-
-            // Reading::Brightness(val) => leaf(val, Device::Max44, &[]),
-            // Reading::Temperature(val) => {
-            //     leaf(val, Device::Sht31, &put_in_tree!([Reading::Humidity(0.0)]))
-            // }
-        TomatoItem::Leaf(TomatoLeaf {
+        Item::Leaf(ReadingInfo {
             val,
-            device: device.as_str(),
-            from_same_device: todo!(),
+            device,
+            resolution,
+            range,
+            unit,
+            description,
         })
     }
 
-    fn id(&self) -> TomatoId {
-        ReadingDiscriminants::from(self) as TomatoId
+    fn id(&self) -> Id {
+        ReadingDiscriminants::from(self) as Id
     }
 }
 
@@ -140,12 +252,11 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn affected_readings(&self) -> &'static [Reading] {
+    pub(crate) fn device(&self) -> Device {
         match self {
             Self::Running(sensor_err) | Self::Setup(sensor_err) => sensor_err.device(),
             Self::SetupTimedOut(device) | Self::Timeout(device) => device.clone(),
         }
-        .broken_readings()
     }
 }
 
@@ -203,7 +314,7 @@ impl SensorError {
     }
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
+#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq, Hash)]
 pub enum Device {
     Sht31,
     Bme680,
@@ -221,6 +332,14 @@ impl core::fmt::Display for Device {
     }
 }
 
+macro_rules! tree {
+    [$($reading:expr),+] => {
+        [$(crate::Reading::LargeBedroom(
+            crate::large_bedroom::Reading::Bed($reading),
+        )),+]
+    };
+}
+
 impl Device {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -235,27 +354,29 @@ impl Device {
         }
     }
 
-    pub fn broken_readings(&self) -> &'static [Reading] {
+    /// Note the order in which these occur is the order in which
+    /// they will be stored, do not change it!
+    pub fn affected_readings(&self) -> &'static [crate::Reading] {
         match self {
-            Device::Sht31 => &[Reading::Temperature(0.0), Reading::Humidity(0.0)],
-            Device::Bme680 => &[Reading::GassResistance(0.0), Reading::Pressure(0.0)],
-            Device::Max44 => &[Reading::Brightness(0.0)],
-            Device::Mhz14 => &[Reading::Co2(0)],
-            Device::Sps30 => &[
+            Device::Sht31 => &tree![Reading::Temperature(0.0), Reading::Humidity(0.0)],
+            Device::Bme680 => &tree![Reading::GassResistance(0.0), Reading::Pressure(0.0)],
+            Device::Max44 => &tree![Reading::Brightness(0.0)],
+            Device::Mhz14 => &tree![Reading::Co2(0)],
+            Device::Sps30 => &tree![
                 Reading::MassPm1_0(0.0),
                 Reading::MassPm2_5(0.0),
                 Reading::MassPm4_0(0.0),
                 Reading::MassPm10(0.0),
-                Reading::MassPm0_5(0.0),
+                Reading::NumberPm0_5(0.0),
                 Reading::NumberPm1_0(0.0),
                 Reading::NumberPm2_5(0.0),
                 Reading::NumberPm4_0(0.0),
                 Reading::NumberPm10(0.0),
-                Reading::TypicalParticleSize(0.0),
+                Reading::TypicalParticleSize(0.0)
             ],
-            Device::Nau7802Left => &[Reading::WeightLeft(0)],
-            Device::Nau7802Right => &[Reading::WeightRight(0)],
-            Device::Gpio => &[
+            Device::Nau7802Left => &tree![Reading::WeightLeft(0)],
+            Device::Nau7802Right => &tree![Reading::WeightRight(0)],
+            Device::Gpio => &tree![
                 Reading::Button(Button::TopLeft(Press(0))),
                 Reading::Button(Button::TopRight(Press(0))),
                 Reading::Button(Button::MiddleInner(Press(0))),
@@ -263,8 +384,12 @@ impl Device {
                 Reading::Button(Button::MiddleOuter(Press(0))),
                 Reading::Button(Button::LowerInner(Press(0))),
                 Reading::Button(Button::LowerCenter(Press(0))),
-                Reading::Button(Button::LowerOuter(Press(0))),
+                Reading::Button(Button::LowerOuter(Press(0)))
             ],
         }
+    }
+
+    fn rooted(self) -> crate::Device {
+        crate::Device::LargeBedroom(crate::large_bedroom::Device::Bed(self))
     }
 }

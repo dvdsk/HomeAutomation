@@ -1,9 +1,9 @@
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
-use crate::button_enum;
 #[cfg(feature = "alloc")]
-use crate::tomato::{Tomato, TomatoItem, TomatoLeaf};
+use crate::reading_tree::{Item, ReadingInfo, Tree};
+use crate::{button_enum, Unit};
 
 button_enum! {
     /// No these are not borg, these are buttons on a string of cat5.
@@ -17,10 +17,19 @@ button_enum! {
         TwoOfThree,
         ThreeOfThree,
     }
+    crate::Device::LargeBedroom(crate::large_bedroom::Device::Desk(Device::Gpio));
 }
 
 #[derive(
-    strum::EnumDiscriminants, Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize,
+    strum::EnumDiscriminants,
+    Clone,
+    Copy,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    PartialEq,
 )]
 #[strum_discriminants(derive(Hash))]
 pub enum Reading {
@@ -31,23 +40,40 @@ pub enum Reading {
 }
 
 #[cfg(feature = "alloc")]
-impl Tomato for Reading {
-    fn inner<'a>(&'a self) -> TomatoItem<'a> {
-        let (val, device) = match self {
-            Reading::Temperature(val) => (*val, Device::Bme280),
-            Reading::Humidity(val) => (*val, Device::Bme280),
-            Reading::Pressure(val) => (*val, Device::Bme280),
-            Reading::Button(val) => return TomatoItem::Node(val),
+impl Tree for Reading {
+    fn inner<'a>(&'a self) -> Item<'a> {
+        let leaf = match self {
+            Reading::Temperature(val) => ReadingInfo {
+                val: *val,
+                device: Device::Bme280.rooted(),
+                resolution: 0.01,
+                range: -10.0..45.0,
+                unit: Unit::C,
+                description: "Temperature",
+            },
+            Reading::Humidity(val) => ReadingInfo {
+                val: *val,
+                device: Device::Bme280.rooted(),
+                resolution: 0.008,
+                range: 0.0..100.0,
+                unit: Unit::RH,
+                description: "Temperature",
+            },
+            Reading::Pressure(val) => ReadingInfo {
+                val: *val,
+                device: Device::Bme280.rooted(),
+                range: 87_000.0..108_100.0,
+                resolution: 0.18,
+                unit: Unit::Pa,
+                description: "Air pressure",
+            },
+            Reading::Button(val) => return Item::Node(val as &dyn Tree),
         };
-        TomatoItem::Leaf(TomatoLeaf {
-            val,
-            device: device.as_str(),
-            from_same_device: &[], // TODO
-        })
+        Item::Leaf(leaf)
     }
 
-    fn id(&self) -> crate::tomato::TomatoId {
-        ReadingDiscriminants::from(self) as crate::tomato::TomatoId
+    fn id(&self) -> crate::reading_tree::Id {
+        ReadingDiscriminants::from(self) as crate::reading_tree::Id
     }
 }
 
@@ -60,11 +86,11 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn affected_readings(&self) -> &'static [Reading] {
+    pub fn device(&self) -> Device {
         match self {
-            Self::Running(sensor_err) => sensor_err.device().affected_readings(),
-            Self::Setup(sensor_err) => sensor_err.device().affected_readings(),
-            Self::SetupTimedOut(device) | Self::Timeout(device) => device.affected_readings(),
+            Self::Running(sensor_err) => sensor_err.device(),
+            Self::Setup(sensor_err) => sensor_err.device(),
+            Self::SetupTimedOut(device) | Self::Timeout(device) => device.clone(),
         }
     }
 }
@@ -108,7 +134,7 @@ impl core::fmt::Display for SensorError {
     }
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
+#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq, Hash)]
 pub enum Device {
     Bme280,
     Gpio,
@@ -120,16 +146,27 @@ impl core::fmt::Display for Device {
     }
 }
 
+macro_rules! rtree {
+    [$($reading:expr),+] => {
+        [$(crate::Reading::LargeBedroom(
+            crate::large_bedroom::Reading::Desk($reading),
+        )),+]
+    };
+}
+
 impl Device {
+    pub fn rooted(self) -> crate::Device {
+        crate::Device::LargeBedroom(crate::large_bedroom::Device::Desk(self))
+    }
     pub fn as_str(&self) -> &'static str {
         match self {
             Device::Bme280 => "Bme280",
             Device::Gpio => "Gpio",
         }
     }
-    pub fn affected_readings(&self) -> &'static [Reading] {
+    pub fn affected_readings(&self) -> &'static [crate::Reading] {
         match self {
-            Device::Bme280 => &[Reading::Temperature(0.0), Reading::Humidity(0.0)],
+            Device::Bme280 => &rtree![Reading::Temperature(0.0), Reading::Humidity(0.0)],
             Device::Gpio => todo!(),
         }
     }
