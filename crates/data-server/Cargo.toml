@@ -15,3 +15,6 @@ protocol = { path = "/home/david/Documents/HomeAutomation/crates/protocol", feat
 tokio = { version = "1.37.0", features = ["rt", "macros", "net", "sync", "io-util"] }
 tokio-stream = { version = "0.1.15", features = ["net"] }
 thiserror = "1.0.61"
+
+[dev-dependencies]
+reserve-port = "2"
