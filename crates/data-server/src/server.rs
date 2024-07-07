@@ -29,7 +29,6 @@ pub async fn handle_client(stream: TcpStream, tx: Sender<Event>) {
             return;
         }
 
-        tracing::trace!("{:?}", &bytes);
         let decoded = match protocol::Msg::<50>::decode(bytes) {
             Ok(msg) => msg,
             Err(e) => {

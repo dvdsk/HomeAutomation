@@ -470,17 +470,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bitspec"
-version = "0.1.0"
-dependencies = [
- "log",
- "num",
- "rand",
- "serde",
- "serde_derive",
-]
-
-[[package]]
 name = "bitvec"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -576,7 +565,6 @@ checksum = "514de17de45fdb8dc022b1a7975556c53c86f9f0aa5f534b98977b171857c2c9"
 [[package]]
 name = "byteseries"
 version = "0.4.0"
-source = "git+https://github.com/dvdsk/byteseries#75e1bd67ab2f0c8bbca5cb84930f5cf885b41e27"
 dependencies = [
  "arraydeque",
  "itertools 0.13.0",
@@ -843,6 +831,7 @@ dependencies = [
  "clap",
  "color-eyre",
  "protocol",
+ "reserve-port",
  "thiserror",
  "tokio",
  "tokio-stream",
@@ -855,16 +844,18 @@ dependencies = [
 name = "data-store"
 version = "0.1.0"
 dependencies = [
- "bitspec",
  "byteseries",
  "clap",
  "color-eyre",
  "data-server",
  "futures",
  "futures-concurrency",
+ "num",
  "protocol",
+ "reserve-port",
  "serde",
  "smallvec 2.0.0-alpha.6",
+ "temp-dir",
  "thiserror",
  "time",
  "tokio",
@@ -2485,6 +2476,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "reserve-port"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9838134a2bfaa8e1f40738fcc972ac799de6e0e06b5157acb95fc2b05a0ea283"
+dependencies = [
+ "lazy_static",
+ "thiserror",
+]
+
+[[package]]
 name = "ron"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2878,6 +2879,12 @@ name = "tap"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
+
+[[package]]
+name = "temp-dir"
+version = "0.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f227968ec00f0e5322f9b8173c7a0cbcff6181a0a5b28e9892491c286277231"
 
 [[package]]
 name = "thiserror"

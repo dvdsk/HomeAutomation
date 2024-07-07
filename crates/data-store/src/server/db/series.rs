@@ -1,3 +1,4 @@
+use std::fs::create_dir_all;
 use std::io;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -8,20 +9,30 @@ use color_eyre::{Result, Section};
 use protocol::reading_tree::{Item, ReadingInfo, Tree};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
-use tracing::info;
+use tracing::{info, instrument};
+
+use byteseries::file::OpenError as FileOpenError;
+use series::data::OpenError as DataOpenError;
+use series::Error::Open;
 
 mod resampler;
-use crate::api;
+mod bitspec;
 
 use self::resampler::Resampler;
 
 use super::Data;
 
 #[derive(Debug)]
+struct Meta {
+    reading: protocol::Reading,
+    field: bitspec::MetaField<f32>,
+    set_at: Instant,
+}
+
+#[derive(Debug)]
 pub(crate) struct Series {
     line: Vec<u8>,
-    field_set_at: Vec<Instant>,
-    fields: Vec<bitspec::MetaField<f32>>,
+    meta: Vec<Meta>,
     byteseries: ByteSeries,
 }
 
@@ -36,13 +47,22 @@ impl Series {
         let path = base_path(reading);
         let readings = reading.device().affected_readings();
         let specs = to_speclist(readings);
-
         let fields = bitspec::speclist_to_fields(specs);
+        let meta = readings
+            .iter()
+            .zip(fields.iter())
+            .map(|(reading, field)| Meta {
+                reading: reading.clone(),
+                field: field.clone(),
+                set_at: Instant::now(),
+            })
+            .collect();
+
         let payload_size = fields
             .iter()
             .map(|spec| spec.length as usize)
             .sum::<usize>()
-            / 8;
+            .div_ceil(8);
         let resampler = Resampler::from_fields(fields.clone(), payload_size);
         let resample_configs = vec![downsample::Config {
             max_gap: None,
@@ -54,10 +74,6 @@ impl Series {
             resampler.clone(),
             resample_configs.clone(),
         );
-
-        use byteseries::file::OpenError as FileOpenError;
-        use series::data::OpenError as DataOpenError;
-        use series::Error::Open;
 
         let expected_header = Header {
             readings: readings.to_vec(),
@@ -87,24 +103,30 @@ impl Series {
             Err(Open(DataOpenError::File(FileOpenError::Io(e))))
                 if e.kind() == io::ErrorKind::NotFound =>
             {
+                if let Some(dirs) = path.parent() {
+                    create_dir_all(dirs)
+                        .wrap_err("Could not create dirs structure for reading")
+                        .with_note(|| format!("dirs: {}", dirs.display()))?
+                }
+                // compile_error!("create directory structure");
                 info!("creating new byteseries");
                 ByteSeries::new_with_resamplers(
-                    path,
+                    &path,
                     payload_size,
                     expected_header,
                     resampler,
                     resample_configs,
                 )
-                .wrap_err("Could not create new byteseries")?
+                .wrap_err("Could not create new byteseries")
+                .with_note(|| format!("path: {}", path.display()))?
             }
             Err(e) => return Err(e).wrap_err("Could not open existing byteseries")?,
         };
 
         Ok(Self {
             line: vec![0; payload_size],
-            field_set_at: Vec::new(),
+            meta,
             byteseries,
-            fields,
         })
     }
 
@@ -117,16 +139,19 @@ impl Series {
             .position(|local_id| local_id == reading.id())
             .expect("series are grouped by devices, elements come from affected_readings");
 
-        let field = &self.fields[index];
-        field.encode::<f32>(reading.leaf().val, &mut self.line);
-        self.field_set_at[index] = Instant::now();
+        {
+            let meta = &mut self.meta[index];
+            meta.field.encode::<f32>(reading.leaf().val, &mut self.line);
+            meta.set_at = Instant::now();
+        }
 
         if self
-            .field_set_at
+            .meta
             .iter()
+            .map(|Meta { set_at, .. }| set_at)
             .all(|set| set.elapsed().as_millis() < 500)
         {
-            let time = OffsetDateTime::now_utc() - self.field_set_at[0].elapsed();
+            let time = OffsetDateTime::now_utc() - self.meta[index].set_at.elapsed();
             self.byteseries
                 .push_line(time.unix_timestamp() as u64, &self.line)
                 .wrap_err("Could not write to timeseries on disk")?;
@@ -135,25 +160,42 @@ impl Series {
         Ok(())
     }
 
-    fn read(
+    /// # Panics
+    /// If any of the requested readings are not part of this series.
+    pub fn read(
         &mut self,
-        reading: &protocol::Reading,
+        readings: &[protocol::Reading],
         start: OffsetDateTime,
         end: OffsetDateTime,
         n: usize,
-    ) -> Result<(Vec<OffsetDateTime>, Vec<Vec<f32>>), api::ServerError> {
+    ) -> Result<(Vec<OffsetDateTime>, Vec<Vec<f32>>), byteseries::series::Error> {
         let range = start.unix_timestamp() as u64..=end.unix_timestamp() as u64;
-        let mut resampler = Resampler::from_fields(self.fields.clone(), self.line.len());
+        let fields = readings
+            .iter()
+            .map(|requested| {
+                self.meta
+                    .iter()
+                    .find(|meta| *requested == meta.reading)
+                    .map(|meta| meta.field.clone())
+                    .expect(
+                        "caller of read makes sure all readings are\
+                        part of this series",
+                    )
+            })
+            .collect();
+        let mut resampler = Resampler::from_fields(fields, self.line.len());
 
         let mut timestamps = Vec::with_capacity(n * 2);
         let mut interleaved_data = Vec::with_capacity(n * 2);
+
         self.byteseries.read_n(
             n,
             range,
             &mut resampler,
             &mut timestamps,
             &mut interleaved_data,
-        );
+        )?;
+
         let time = timestamps
             .into_iter()
             .map(|ts| {
@@ -176,7 +218,9 @@ impl Series {
     }
 }
 
+#[instrument(level = "debug", skip(data))]
 pub(crate) async fn store(data: &Data, reading: &protocol::Reading) -> Result<()> {
+    tracing::debug!("storing received reading: {reading:?}");
     let mut data = data.0.lock().await;
 
     let key = reading.device();

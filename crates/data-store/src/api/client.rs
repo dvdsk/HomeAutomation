@@ -74,7 +74,7 @@ impl Client {
         end: OffsetDateTime,
         reading: protocol::Reading,
         n: usize,
-    ) -> Result<Vec<(OffsetDateTime, f32)>, Error> {
+    ) -> Result<(Vec<OffsetDateTime>, Vec<f32>), Error> {
         let request = super::Request::GetData {
             reading,
             start,
@@ -82,7 +82,7 @@ impl Client {
             n,
         };
         match self.send_receive(request.clone()).await? {
-            super::Response::GetData(data) => return Ok(data),
+            super::Response::GetData { time, data } => return Ok((time, data)),
             response => Err(Error::IncorrectResponse {
                 request: format!("{request:?}"),
                 response: format!("{response:?}"),

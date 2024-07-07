@@ -1,3 +1,4 @@
+use super::bitspec;
 use smallvec::smallvec;
 
 #[derive(Debug, Clone)]
@@ -26,7 +27,6 @@ impl byteseries::Resampler for Resampler {
 impl byteseries::Decoder for Resampler {
     type Item = smallvec::SmallVec<f32, 8>;
 
-    // PERF: make item a smallVec <05-07-24, dvdsk noreply@davidsk.dev>
     fn decode_payload(&mut self, payload: &[u8]) -> Self::Item {
         self.fields
             .iter()

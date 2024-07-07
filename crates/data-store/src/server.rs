@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 mod clients;
 mod db;
 
-// used from tests
+// used from main and tests
 pub async fn run(data_server: SocketAddr, client_port: u16) -> Result<()> {
     let data = db::Data(Arc::new(Mutex::new(HashMap::new())));
     let error = (

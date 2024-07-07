@@ -18,21 +18,24 @@ use crate::api;
 pub(crate) async fn run(data_server_addr: SocketAddr, data: Data) -> Result<()> {
     let mut sub = AsyncSubscriber::connect(data_server_addr)
         .await
-        .wrap_err("failed to connect")
-        .with_suggestion(|| format!("verify the server is listening on: {data_server_addr}"))?;
+        .wrap_err("data-store server failed to subscribe with data-server")
+        .with_suggestion(|| {
+            format!("verify data data-server is listening on: {data_server_addr}")
+        })?;
+    tracing::info!("connected to data-server at: {data_server_addr:?}");
 
     loop {
         let res = match sub
             .next()
             .await
-            .wrap_err("Error getting next reading from server")?
+            .wrap_err("Error getting next message from data-server")?
         {
             SubMessage::Reading(reading) => series::store(&data, &reading).await,
             SubMessage::ErrorReport(_) => continue,
         };
 
         if let Err(e) = res {
-            tracing::error!("Error processing new reading: {e}");
+            tracing::error!("Error processing new reading: {e:?}");
         }
     }
 }
@@ -56,15 +59,21 @@ impl Data {
         start: OffsetDateTime,
         end: OffsetDateTime,
         n: usize,
-    ) -> Result<Vec<(OffsetDateTime, f32)>, api::ServerError> {
+    ) -> Result<(Vec<OffsetDateTime>, Vec<f32>), api::ServerError> {
         let key = reading.device();
-        let series = self.0
-            .lock()
-            .await
+        let mut all_series = self.0.lock().await;
+        let series = all_series
             .get_mut(&key)
-            .ok_or(api::ServerError::NotInStore { reading })?;
-    
-        // series.
-        
+            .ok_or_else(|| api::ServerError::NotInStore {
+                reading: reading.clone(),
+            })?;
+
+        let (time, mut data) = series
+            .read(&[reading], start, end, n)
+            .map_err(|e| api::ServerError::ReadingFromStore(e.to_string()))?;
+        Ok((
+            time,
+            data.pop().expect("one reading is put in so one comes out"),
+        ))
     }
 }

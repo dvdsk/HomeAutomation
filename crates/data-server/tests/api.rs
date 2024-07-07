@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use color_eyre::Result;
 use data_server::server;
-use data_server::subscribe::SubMessage;
+use data_server::subscriber::SubMessage;
 use protocol::large_bedroom;
 use protocol::large_bedroom::bed;
 use protocol::Reading;

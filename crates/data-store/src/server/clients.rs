@@ -72,6 +72,9 @@ async fn perform_request(request: api::Request, data: &Data) -> Result<api::Resp
             start,
             end,
             n,
-        } => api::Response::GetData(data.get(reading, start, end, n).await?),
+        } => {
+            let (time, data) = data.get(reading, start, end, n).await?;
+            api::Response::GetData { time, data }
+        }
     })
 }

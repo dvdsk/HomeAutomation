@@ -4,7 +4,7 @@ use std::vec;
 
 use protocol::{DecodeError, Msg};
 use tokio::io::AsyncBufReadExt;
-use tracing::trace;
+use tracing::{instrument, trace};
 
 #[derive(Debug)]
 pub enum SubMessage {
@@ -71,17 +71,17 @@ impl AsyncSubscriber {
             return Ok(val);
         }
 
+        self.buf.clear();
         let n_read = self
             .reader
             .read_until(0, &mut self.buf)
             .await
             .map_err(SubscribeError::ConnFailed)?;
-        dbg!(n_read);
-        dbg!(&self.buf[..n_read]);
         decode_buffer_and_return_first(n_read, &mut self.buf, &mut self.values)
     }
 }
 
+#[instrument(level="trace")]
 fn decode_buffer_and_return_first(
     n_read: usize,
     buf: &mut Vec<u8>,
@@ -95,7 +95,7 @@ fn decode_buffer_and_return_first(
 
     buf.resize(n_read, 0); // ensure stop delimiter in bytes
     let bytes = &mut buf[0..n_read];
-    trace!("{:?}", &bytes);
+    trace!("New message from data-server to decode, bytes: {bytes:?}");
     let decoded: Msg<50> = Msg::decode(bytes).map_err(SubscribeError::DecodeFailed)?;
     match decoded {
         Msg::Readings(readings) => {
@@ -119,7 +119,10 @@ fn decode_buffer_and_return_first(
 pub enum SubscribeError {
     #[error("The connection to the subscribe server failed, error: {0}")]
     ConnFailed(std::io::Error),
-    #[error("Could not decode message, is protocol lib up to date on server and client? Decoderror: {0:?}")]
+    #[error(
+        "Could not decode message, is protocol lib up to date on server \
+        and client? Or has the server crashed? Decoderror: {0:?}"
+    )]
     DecodeFailed(DecodeError),
     #[error("Connection ended")]
     ConnEnded,
