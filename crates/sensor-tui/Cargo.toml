@@ -9,12 +9,12 @@ authors.workspace = true
 [dependencies]
 color-eyre = "0.6.3"
 crossterm = "0.27.0"
-histogram = "0.10.1"
-ratatui = "0.26.2"
+histogram = "0.11"
+ratatui = "0.27"
 tracing = "0.1.40"
 tracing-error = "0.2.0"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-tui-tree-widget = { version = "0.20.0", git = "https://github.com/dvdsk/tui-rs-tree-widget" }
+tui-tree-widget = { version = "0.21.0", git = "https://github.com/dvdsk/tui-rs-tree-widget" }
 
 protocol = { workspace = true, features = ["alloc"] }
 data-server = { workspace = true }

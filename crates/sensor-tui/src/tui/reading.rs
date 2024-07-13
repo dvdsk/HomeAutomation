@@ -249,7 +249,9 @@ pub struct ChartParts<'a> {
 fn histogram_bars(hist: &Histogram) -> Vec<Bar<'static>> {
     let percentiles = hist
         .percentiles(&[25.0, 50.0, 75.0, 90.0, 95.0, 100.0])
+        .unwrap()
         .unwrap();
+
     percentiles
         .into_iter()
         .map(|(p, bucket)| {
