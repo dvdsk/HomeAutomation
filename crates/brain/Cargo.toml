@@ -7,8 +7,8 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-protocol = { path = "../protocol" }
-data-server = { path = "../data-server" }
+protocol = { workspace = true, features = ["alloc"] }
+data-server = { workspace = true }
 
 futures = "0.3"
 tokio = { version = "1", features = ["full"] }

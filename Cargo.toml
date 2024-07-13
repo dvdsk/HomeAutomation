@@ -1,7 +1,12 @@
 [workspace]
 resolver = "2"
 members = ["crates/*"]
-exclude = ["sensor-nodes/bed-sensors"]
+exclude = ["sensor-nodes/*"]
+
+[workspace.dependencies]
+data-server = { path = "crates/data-server" }
+data-store = { path = "crates/data-store" }
+protocol = { path = "crates/protocol" }
 
 [workspace.package]
 rust-version = "1.78"

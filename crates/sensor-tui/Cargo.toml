@@ -16,5 +16,6 @@ tracing-error = "0.2.0"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tui-tree-widget = { version = "0.20.0", git = "https://github.com/dvdsk/tui-rs-tree-widget" }
 
-protocol = { path = "/home/david/Documents/HomeAutomation/crates/protocol" }
-data-server = { path = "/home/david/Documents/HomeAutomation/crates/data-server" }
+protocol = { workspace = true, features = ["alloc"] }
+data-server = { workspace = true }
+data-store = { workspace = true }

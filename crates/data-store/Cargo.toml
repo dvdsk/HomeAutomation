@@ -19,8 +19,8 @@ tracing-error = "0.2.0"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 time = { version = "0.3", features = ["serde"] }
 
-protocol = { path = "../protocol", features = ["alloc"] }
-data-server = { path = "../data-server" }
+protocol = { workspace = true, features = ["alloc"] }
+data-server = { workspace = true }
 
 # byteseries = { git = "https://github.com/dvdsk/byteseries", features = ["smallvec"] }
 byteseries = { path = "/home/david/Documents/byteseries" }
