@@ -2,6 +2,7 @@ use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
 use crate::button::Press;
+#[cfg(feature = "alloc")]
 use crate::reading_tree::{Item, Tree};
 
 crate::button_enum! {
@@ -28,6 +29,7 @@ pub enum Reading {
     ButtonPanel(ButtonPanel),
 }
 
+#[cfg(feature = "alloc")]
 impl Tree for Reading {
     fn inner<'a>(&'a self) -> Item<'a> {
         match self {
@@ -35,7 +37,7 @@ impl Tree for Reading {
         }
     }
 
-    fn id(&self) -> crate::reading_tree::Id {
+    fn branch_id(&self) -> crate::reading_tree::Id {
         ReadingDiscriminants::from(self) as crate::reading_tree::Id
     }
 }

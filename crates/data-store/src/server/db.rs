@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::path::Path;
 use std::sync::Arc;
 
 use time::OffsetDateTime;
@@ -15,7 +16,7 @@ use series::Series;
 use crate::api;
 
 // TODO make resistant to data_server going down
-pub(crate) async fn run(data_server_addr: SocketAddr, data: Data) -> Result<()> {
+pub(crate) async fn run(data_server_addr: SocketAddr, data: Data, data_dir: &Path) -> Result<()> {
     let mut sub = AsyncSubscriber::connect(data_server_addr)
         .await
         .wrap_err("data-store server failed to subscribe with data-server")
@@ -30,7 +31,7 @@ pub(crate) async fn run(data_server_addr: SocketAddr, data: Data) -> Result<()> 
             .await
             .wrap_err("Error getting next message from data-server")?
         {
-            SubMessage::Reading(reading) => series::store(&data, &reading).await,
+            SubMessage::Reading(reading) => series::store(&data, &reading, data_dir).await,
             SubMessage::ErrorReport(_) => continue,
         };
 

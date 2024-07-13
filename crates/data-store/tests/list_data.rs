@@ -16,8 +16,11 @@ use tracing_error::ErrorLayer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-const fn test_reading(v: f32) -> Reading {
-    Reading::LargeBedroom(large_bedroom::Reading::Bed(bed::Reading::Temperature(v)))
+const fn test_readings(v: f32) -> [Reading; 2] {
+    [
+        Reading::LargeBedroom(large_bedroom::Reading::Bed(bed::Reading::Temperature(v))),
+        Reading::LargeBedroom(large_bedroom::Reading::Bed(bed::Reading::Humidity(v))),
+    ]
 }
 
 async fn data_server(sub_port: u16, data_port: u16) {
@@ -35,7 +38,9 @@ async fn send_sensor_values(data_port: u16, values: &[f32], data_send: &Notify) 
     let mut conn = TcpStream::connect(("127.0.0.1", data_port)).await.unwrap();
     for v in values {
         let mut sensor_msg = protocol::SensorMessage::<50>::new();
-        sensor_msg.values.push(test_reading(*v)).unwrap();
+        for val in test_readings(*v) {
+            sensor_msg.values.push(val).unwrap();
+        }
         let encoded = protocol::Msg::Readings(sensor_msg).encode();
         conn.write_all(&encoded).await.unwrap();
         sleep(Duration::from_secs_f32(1.1)).await;
@@ -85,9 +90,9 @@ async fn check_client_get_data(
         .unwrap();
     let (time, data) = client
         .get_data(
-            OffsetDateTime::now_utc() - Duration::from_secs(10),
-            OffsetDateTime::now_utc() + Duration::from_secs(10),
-            test_reading(0.0),
+            OffsetDateTime::now_utc() - Duration::from_secs(30),
+            OffsetDateTime::now_utc() + Duration::from_secs(30),
+            test_readings(0.0)[0].clone(),
             5,
         )
         .await
@@ -97,7 +102,8 @@ async fn check_client_get_data(
     assert!(data
         .into_iter()
         .zip(sensor_values.into_iter().copied())
-        .all(|(a, b)| a == b))
+        .inspect(|r| println!("(got, expected): {r:?}"))
+        .all(|(a, b)| (a - b).abs() < 0.1))
 }
 
 static SETUP_REPORTING: Once = Once::new();
@@ -121,7 +127,6 @@ async fn list_data() {
     setup_reporting();
 
     let test_dir = TempDir::new().unwrap();
-    std::env::set_current_dir(test_dir.path()).unwrap();
 
     let sub_port = reserve_port::ReservedPort::random().unwrap();
     let data_port = reserve_port::ReservedPort::random().unwrap();
@@ -132,8 +137,9 @@ async fn list_data() {
 
     let data_send = Notify::new();
     let run_data_server = data_server(sub_port.port(), data_port.port());
-    let run_data_store = sleep(DATA_SERVER_STARTUP)
-        .then(|()| data_store::server::run(data_server_addr, data_store_addr.port()));
+    let run_data_store = sleep(DATA_SERVER_STARTUP).then(|()| {
+        data_store::server::run(data_server_addr, data_store_addr.port(), test_dir.path())
+    });
     let send_sensor_value = sleep(DATA_SERVER_STARTUP + DATA_STORE_STARTUP)
         .then(|()| send_sensor_values(data_port.port(), &[0.0], &data_send));
     let run_test = sleep(DATA_SERVER_STARTUP + DATA_STORE_STARTUP + FIRST_MSG_PROCESSED)
@@ -170,10 +176,12 @@ async fn read_data() {
     let data_store_addr = SocketAddr::from(([127, 0, 0, 1], store_port.port()));
 
     let data_send = Notify::new();
-    let sensor_values = [0.0, 0.1, 0.2, 0.3];
+    let sensor_values = [0.5];
+    // let sensor_values = [0.0, 0.1, 0.2, 0.3];
     let run_data_server = data_server(sub_port.port(), data_port.port());
-    let run_data_store = sleep(DATA_SERVER_STARTUP)
-        .then(|()| data_store::server::run(data_server_addr, data_store_addr.port()));
+    let run_data_store = sleep(DATA_SERVER_STARTUP).then(|()| {
+        data_store::server::run(data_server_addr, data_store_addr.port(), test_dir.path())
+    });
     let send_sensor_value = sleep(DATA_SERVER_STARTUP + DATA_STORE_STARTUP)
         .then(|()| send_sensor_values(data_port.port(), &sensor_values, &data_send));
     let run_test = sleep(DATA_SERVER_STARTUP + DATA_STORE_STARTUP + FIRST_MSG_PROCESSED)

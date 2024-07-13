@@ -40,7 +40,8 @@ where
         + std::ops::SubAssign
         + std::ops::DivAssign
         + std::ops::MulAssign
-        + std::marker::Copy,
+        + std::marker::Copy
+        + core::fmt::Debug,
 {
     pub fn decode<D>(&self, line: &[u8]) -> D
     where
@@ -49,7 +50,8 @@ where
             + std::ops::Add
             + std::ops::SubAssign
             + std::ops::MulAssign
-            + std::ops::AddAssign,
+            + std::ops::AddAssign
+            + core::fmt::Debug,
     {
         let int_repr: u32 = compression::decode(line, self.offset, self.length);
         let mut decoded: D = num::cast(int_repr).unwrap();
@@ -67,7 +69,7 @@ where
             + std::ops::Add
             + std::ops::SubAssign
             + std::ops::AddAssign
-            + std::ops::DivAssign,
+            + std::ops::DivAssign
     {
         numb -= num::cast(self.decode_add).unwrap();
         numb /= num::cast(self.decode_scale).unwrap();

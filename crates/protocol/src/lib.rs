@@ -9,8 +9,6 @@ pub mod small_bedroom;
 pub mod button;
 pub(crate) use button::button_enum;
 
-// #[cfg(feature = "alloc")]
-// pub mod device_tree;
 #[cfg(feature = "alloc")]
 pub mod reading_tree;
 

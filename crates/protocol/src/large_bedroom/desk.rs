@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "alloc")]
 use crate::reading_tree::{Item, ReadingInfo, Tree};
-use crate::{button_enum, Unit};
+#[cfg(feature = "alloc")]
+use crate::Unit;
+use crate::button_enum;
 
 button_enum! {
     /// No these are not borg, these are buttons on a string of cat5.
@@ -50,6 +52,7 @@ impl Tree for Reading {
                 range: -10.0..45.0,
                 unit: Unit::C,
                 description: "Temperature",
+                branch_id: self.branch_id(),
             },
             Reading::Humidity(val) => ReadingInfo {
                 val: *val,
@@ -58,6 +61,7 @@ impl Tree for Reading {
                 range: 0.0..100.0,
                 unit: Unit::RH,
                 description: "Temperature",
+                branch_id: self.branch_id(),
             },
             Reading::Pressure(val) => ReadingInfo {
                 val: *val,
@@ -66,13 +70,14 @@ impl Tree for Reading {
                 resolution: 0.18,
                 unit: Unit::Pa,
                 description: "Air pressure",
+                branch_id: self.branch_id(),
             },
             Reading::Button(val) => return Item::Node(val as &dyn Tree),
         };
         Item::Leaf(leaf)
     }
 
-    fn id(&self) -> crate::reading_tree::Id {
+    fn branch_id(&self) -> crate::reading_tree::Id {
         ReadingDiscriminants::from(self) as crate::reading_tree::Id
     }
 }

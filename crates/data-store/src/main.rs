@@ -1,8 +1,8 @@
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use clap::Parser;
 use color_eyre::eyre::Result;
-
 
 #[derive(Parser)]
 #[command(name = "data server")]
@@ -14,13 +14,16 @@ struct Cli {
 
     #[arg(short, long)]
     client_port: u16,
+
+    #[arg(short, long, default_value = ".")]
+    data_dir: PathBuf,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     setup_tracing().unwrap();
     let cli = Cli::parse();
-    data_store::server::run(cli.data_server, cli.client_port).await
+    data_store::server::run(cli.data_server, cli.client_port, &cli.data_dir).await
 }
 
 fn setup_tracing() -> Result<()> {

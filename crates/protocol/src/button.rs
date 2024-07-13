@@ -89,6 +89,7 @@ macro_rules! button_enum {
                     range: 0.0..3.0,
                     resolution: 1.0,
                     unit: crate::Unit::None,
+                    branch_id: self.branch_id(),
                 })
             }
             fn name(&self) -> String {
@@ -99,7 +100,7 @@ macro_rules! button_enum {
                     .unwrap_or("-")
                     .to_string()
             }
-            fn id(&self) -> crate::reading_tree::Id {
+            fn branch_id(&self) -> crate::reading_tree::Id {
                 // SAFETY: Because `Self` is marked `repr(u8)`, its layout is a
                 // `repr(C)` `union` between `repr(C)` structs, each of which
                 // has the `u8` discriminant as its first field, so we can read

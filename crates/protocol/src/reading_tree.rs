@@ -8,6 +8,7 @@ pub struct ReadingInfo {
     pub range: core::ops::Range<f32>,
     pub unit: Unit,
     pub description: &'static str,
+    pub branch_id: u8,
 }
 
 impl ReadingInfo {
@@ -45,7 +46,7 @@ pub trait Tree: core::fmt::Debug {
             .unwrap_or("-")
             .to_string()
     }
-    fn id(&self) -> Id;
+    fn branch_id(&self) -> Id;
 }
 
 macro_rules! all_nodes {
@@ -59,7 +60,7 @@ macro_rules! all_nodes {
                 }
             }
 
-            fn id(&self) -> crate::reading_tree::Id {
+            fn branch_id(&self) -> crate::reading_tree::Id {
                 $variant::from(self) as crate::reading_tree::Id
             }
         }

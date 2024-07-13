@@ -34,7 +34,15 @@ button_enum! {
 }
 
 #[derive(
-    strum::EnumDiscriminants, Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize, PartialEq,
+    strum::EnumDiscriminants,
+    Clone,
+    Copy,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    PartialEq,
 )]
 #[strum_discriminants(derive(Hash))]
 pub enum Reading {
@@ -88,7 +96,8 @@ impl Tree for Reading {
             Reading::Temperature(val) => (
                 *val,
                 Device::Sht31.rooted(),
-                -10.0..45.0,
+                0.0..100.0, // FIXME revert
+                // -10.0..45.0,
                 0.01,
                 Unit::C,
                 "Temperature",
@@ -235,10 +244,11 @@ impl Tree for Reading {
             range,
             unit,
             description,
+            branch_id: self.branch_id(),
         })
     }
 
-    fn id(&self) -> Id {
+    fn branch_id(&self) -> Id {
         ReadingDiscriminants::from(self) as Id
     }
 }
@@ -356,7 +366,7 @@ impl Device {
 
     /// Note the order in which these occur is the order in which
     /// they will be stored, do not change it!
-    pub fn affected_readings(&self) -> &'static [crate::Reading] {
+    pub const fn affected_readings(&self) -> &'static [crate::Reading] {
         match self {
             Device::Sht31 => &tree![Reading::Temperature(0.0), Reading::Humidity(0.0)],
             Device::Bme680 => &tree![Reading::GassResistance(0.0), Reading::Pressure(0.0)],
@@ -389,6 +399,7 @@ impl Device {
         }
     }
 
+    #[cfg(feature = "alloc")]
     fn rooted(self) -> crate::Device {
         crate::Device::LargeBedroom(crate::large_bedroom::Device::Bed(self))
     }
