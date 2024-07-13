@@ -31,7 +31,7 @@ pub enum Reading {
 
 #[cfg(feature = "alloc")]
 impl Tree for Reading {
-    fn inner<'a>(&'a self) -> Item<'a> {
+    fn inner(&self) -> Item<'_> {
         match self {
             Reading::ButtonPanel(inner) => return Item::Node(inner),
         }

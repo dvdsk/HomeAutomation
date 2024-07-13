@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use serde::{Deserialize, Serialize};
 
-use super::MetaField;
+use super::field::Field;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct RangeWithRes {
@@ -18,27 +18,29 @@ pub struct LengthWithOps {
 }
 
 impl From<RangeWithRes> for LengthWithOps {
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
     fn from(field: RangeWithRes) -> Self {
         let given_range = field.range.end - field.range.start;
-        let needed_range = given_range as f32 / field.resolution as f32;
-        let length = needed_range.log2().ceil() as u8;
+        let needed_range = given_range / field.resolution;
+        let length = needed_range.log2().ceil() as u32;
+        let length = length.try_into().expect("max field length is 256 bits");
         let decode_scale = field.resolution;
 
         let decode_add = field.range.start;
         LengthWithOps {
-            decode_scale,
             length,
+            decode_scale,
             decode_add,
         }
     }
 }
 
-pub fn speclist_to_fields(input: Vec<LengthWithOps>) -> Vec<MetaField<f32>> {
+pub fn speclist_to_fields(input: Vec<LengthWithOps>) -> Vec<Field<f32>> {
     let mut res = Vec::new();
 
     let mut start_bit = 0;
     for field in input {
-        res.push(MetaField::<f32> {
+        res.push(Field::<f32> {
             offset: start_bit,
             length: field.length,
             decode_scale: field.decode_scale,

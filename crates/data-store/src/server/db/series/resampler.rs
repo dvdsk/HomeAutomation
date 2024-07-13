@@ -3,15 +3,15 @@ use smallvec::smallvec;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Resampler {
-    pub(crate) fields: Vec<bitspec::MetaField<f32>>,
+    pub(crate) fields: Vec<bitspec::Field<f32>>,
     pub(crate) payload_size: usize,
 }
 
 impl Resampler {
-    pub(crate) fn from_fields(fields: Vec<bitspec::MetaField<f32>>, payload_size: usize) -> Self {
+    pub(crate) fn from_fields(fields: Vec<bitspec::Field<f32>>, payload_size: usize) -> Self {
         Self {
-            payload_size,
             fields,
+            payload_size,
         }
     }
 }
@@ -43,7 +43,7 @@ impl byteseries::Encoder for Resampler {
     fn encode_item(&mut self, item: &Self::Item) -> Vec<u8> {
         let mut encoded = vec![0u8; self.payload_size];
         for (field, item) in self.fields.iter().zip(item) {
-            field.encode::<f32>(*item, &mut encoded);
+            field.encode(*item, &mut encoded);
         }
         encoded
     }

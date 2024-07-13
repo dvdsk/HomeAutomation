@@ -15,12 +15,9 @@ use serde::{Deserialize, Serialize};
 pub struct Press(pub u16);
 
 impl Press {
+    #[must_use]
     pub fn is_long(&self) -> bool {
-        if self.0 > 300 {
-            true
-        } else {
-            false
-        }
+        self.0 > 300
     }
 }
 
@@ -29,13 +26,14 @@ impl Press {
 /// used to quickly find out if a button event is a long or short press.
 ///
 /// Example:
-///
+/// ```
 /// button_enum! {
 ///     DeskButton {
 ///         OneOfFour,
 ///         TwoOfFour,
 ///     }
 /// }
+/// ```
 ///  
 macro_rules! button_enum {
     (
@@ -63,6 +61,7 @@ macro_rules! button_enum {
         }
 
         impl $name {
+            #[must_use]
             pub fn press(&self) -> crate::button::Press {
                 match self {
                     $(Self::$variant(d) => *d,)*
@@ -70,18 +69,18 @@ macro_rules! button_enum {
             }
         }
 
-        impl Into<f32> for $name {
-            fn into(self) -> f32 {
-                match self {
-                    $(Self::$variant(p) if p.is_long() => 2.0,)*
-                    $(Self::$variant(_) => 1.0,)*
+        impl From<$name> for f32 {
+            fn from(val: $name) -> Self {
+                match val {
+                    $($name::$variant(p) if p.is_long() => 2.0,)*
+                    $($name::$variant(_) => 1.0,)*
                 }
             }
         }
 
         #[cfg(feature = "alloc")]
         impl crate::reading_tree::Tree for $name {
-            fn inner<'a>(&'a self) -> crate::reading_tree::Item<'a> {
+            fn inner(&self) -> crate::reading_tree::Item<'_> {
                 crate::reading_tree::Item::Leaf(crate::reading_tree::ReadingInfo {
                     val: (*self).into(),
                     device: $device,

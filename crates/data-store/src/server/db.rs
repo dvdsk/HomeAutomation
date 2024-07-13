@@ -50,7 +50,7 @@ impl Data {
             .lock()
             .await
             .keys()
-            .flat_map(|device| device.affected_readings())
+            .flat_map(protocol::Device::affected_readings)
             .cloned()
             .collect()
     }

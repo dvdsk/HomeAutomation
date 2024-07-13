@@ -2,5 +2,5 @@ mod compression;
 mod field;
 mod spec;
 
-pub use field::MetaField;
+pub use field::Field;
 pub use spec::{LengthWithOps, RangeWithRes, speclist_to_fields};

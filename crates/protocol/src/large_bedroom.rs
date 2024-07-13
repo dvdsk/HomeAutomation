@@ -44,6 +44,7 @@ pub enum Error {
 }
 
 impl Error {
+    #[must_use]
     pub fn device(&self) -> Device {
         match self {
             Error::Bed(error) => Device::Bed(error.device()),
@@ -55,8 +56,8 @@ impl Error {
 impl core::fmt::Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Error::Bed(error) => write!(f, "{}", error),
-            Error::Desk(error) => write!(f, "{}", error),
+            Error::Bed(error) => write!(f, "{error}"),
+            Error::Desk(error) => write!(f, "{error}"),
         }
     }
 }
@@ -90,12 +91,14 @@ pub enum Actuator {
 
 impl Actuator {
     #[cfg(feature = "alloc")]
+    #[must_use]
     pub fn encode(&self) -> Vec<u8> {
         postcard::to_allocvec_cobs(self).expect("Encoding should not fail")
     }
 
-    /// Buffer should be at least Self::ENCODED_SIZE long. The returned slice contains
+    /// Buffer should be at least `Self::ENCODED_SIZE` long. The returned slice contains
     /// the serialized data. It can be shorter then the input buffer.
+    #[must_use]
     pub fn encode_slice<'a>(&self, buf: &'a mut [u8]) -> &'a mut [u8] {
         postcard::to_slice_cobs(self, buf).expect("Encoding should not fail")
     }
@@ -104,6 +107,7 @@ impl Actuator {
         postcard::from_bytes_cobs(bytes.as_mut()).map_err(crate::DecodeError::CorruptEncoding)
     }
 
+    #[must_use]
     pub fn version(&self) -> u8 {
         0
     }

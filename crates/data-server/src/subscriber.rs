@@ -9,7 +9,7 @@ use tracing::{instrument, trace};
 #[derive(Debug)]
 pub enum SubMessage {
     Reading(protocol::Reading),
-    ErrorReport(protocol::Error),
+    ErrorReport(Box<protocol::Error>),
 }
 
 pub struct Subscriber {
@@ -31,7 +31,7 @@ impl Subscriber {
         })
     }
 
-    pub fn next(&mut self) -> Result<SubMessage, SubscribeError> {
+    pub fn next_msg(&mut self) -> Result<SubMessage, SubscribeError> {
         if let Some(val) = self.values.next() {
             return Ok(val);
         }
@@ -45,6 +45,7 @@ impl Subscriber {
     }
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub struct AsyncSubscriber {
     reader: tokio::io::BufReader<tokio::net::TcpStream>,
     buf: Vec<u8>,
@@ -81,7 +82,7 @@ impl AsyncSubscriber {
     }
 }
 
-#[instrument(level="trace")]
+#[instrument(level = "trace")]
 fn decode_buffer_and_return_first(
     n_read: usize,
     buf: &mut Vec<u8>,
@@ -90,7 +91,7 @@ fn decode_buffer_and_return_first(
     assert!(buffer.next().is_none());
 
     if n_read == 0 {
-        return Err(SubscribeError::ConnEnded)?;
+        return Err(SubscribeError::ConnEnded);
     }
 
     buf.resize(n_read, 0); // ensure stop delimiter in bytes
@@ -103,12 +104,12 @@ fn decode_buffer_and_return_first(
                 .values
                 .iter()
                 .map(Clone::clone)
-                .map(|v| SubMessage::Reading(v))
+                .map(SubMessage::Reading)
                 .collect::<Vec<_>>()
                 .into_iter();
         }
         Msg::ErrorReport(report) => {
-            *buffer = vec![SubMessage::ErrorReport(report.error)].into_iter()
+            *buffer = vec![SubMessage::ErrorReport(Box::new(report.error))].into_iter();
         }
     }
 

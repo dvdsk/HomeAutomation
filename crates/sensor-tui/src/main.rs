@@ -25,7 +25,7 @@ fn main() -> Result<()> {
 
     loop {
         let update = match sub
-            .next()
+            .next_msg()
             .wrap_err("Error getting next reading from server")?
         {
             SubMessage::Reading(reading) => Update::Reading(reading),

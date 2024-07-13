@@ -25,7 +25,7 @@ use super::Data;
 #[derive(Debug)]
 struct Meta {
     reading: protocol::Reading,
-    field: bitspec::MetaField<f32>,
+    field: bitspec::Field<f32>,
     set_at: Option<Instant>,
 }
 
@@ -39,7 +39,7 @@ pub(crate) struct Series {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 struct Header {
     readings: Vec<protocol::Reading>,
-    encoding: Vec<bitspec::MetaField<f32>>,
+    encoding: Vec<bitspec::Field<f32>>,
 }
 
 impl Series {
@@ -85,7 +85,7 @@ impl Series {
         let byteseries = try_create_new_if_open_failed(
             res,
             expected_header,
-            path,
+            &path,
             payload_size,
             resampler,
             resample_configs,
@@ -108,7 +108,7 @@ impl Series {
             .expect("series are grouped by devices, elements come from affected_readings");
 
         let meta = &mut self.meta[index];
-        meta.field.encode::<f32>(reading.leaf().val, &mut self.line);
+        meta.field.encode(reading.leaf().val, &mut self.line);
         meta.set_at = Some(Instant::now());
 
         if self
@@ -186,7 +186,7 @@ impl Series {
         let mut data = vec![Vec::new(); len];
         for interleaved in interleaved_data {
             for (interleaved, data) in interleaved.into_iter().zip(data.iter_mut()) {
-                data.push(interleaved)
+                data.push(interleaved);
             }
         }
         Ok((time, data))
@@ -196,7 +196,7 @@ impl Series {
 fn try_create_new_if_open_failed(
     res: Result<(ByteSeries, Header), series::Error>,
     expected_header: Header,
-    path: PathBuf,
+    path: &Path,
     payload_size: usize,
     resampler: Resampler,
     resample_configs: Vec<downsample::Config>,
@@ -206,19 +206,17 @@ fn try_create_new_if_open_failed(
             if opened_file_header == expected_header {
                 Ok(byteseries)
             } else {
-                return Err(eyre!("header in file does not match readings"))
+                Err(eyre!("header in file does not match readings"))
                     .with_note(|| {
                         format!(
-                            "header in the just existing (opened) byteseries: {:?}",
-                            opened_file_header
+                            "header in the just existing (opened) byteseries: {opened_file_header:?}",
                         )
                     })
                     .with_note(|| {
                         format!(
-                            "header for the data we want to write: {:?}",
-                            expected_header
+                            "header for the data we want to write: {expected_header:?}",
                         )
-                    });
+                    })
             }
         }
         Err(Open(DataOpenError::File(FileOpenError::Io(e))))
@@ -245,7 +243,7 @@ fn try_create_new_if_open_failed(
             .wrap_err("Could not create new byteseries")
             .with_note(|| format!("path: {}", path.display()))
         }
-        Err(e) => return Err(e).wrap_err("Could not open existing byteseries")?,
+        Err(e) => Err(e).wrap_err("Could not open existing byteseries")?,
     }
 }
 
@@ -260,7 +258,7 @@ pub(crate) async fn store(data: &Data, reading: &protocol::Reading, data_dir: &P
             .append(reading)
             .wrap_err("failed to append to existing timeseries")?;
     } else {
-        let mut series = Series::open_or_create(&reading, data_dir)
+        let mut series = Series::open_or_create(reading, data_dir)
             .wrap_err("Could not open new series")
             .with_note(|| format!("reading was: {reading:?}"))?;
         series

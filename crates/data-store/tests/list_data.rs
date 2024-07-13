@@ -37,7 +37,7 @@ async fn data_server(sub_port: u16, data_port: u16) {
 async fn send_sensor_values(data_port: u16, values: &[f32], data_send: &Notify) {
     let mut conn = TcpStream::connect(("127.0.0.1", data_port)).await.unwrap();
     for v in values {
-        let mut sensor_msg = protocol::SensorMessage::<50>::new();
+        let mut sensor_msg = protocol::SensorMessage::<50>::default();
         for val in test_readings(*v) {
             sensor_msg.values.push(val).unwrap();
         }

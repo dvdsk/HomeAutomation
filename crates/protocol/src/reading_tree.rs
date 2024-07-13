@@ -12,6 +12,7 @@ pub struct ReadingInfo {
 }
 
 impl ReadingInfo {
+    #[must_use]
     pub fn from_same_device(&self) -> &'static [Reading] {
         self.device.affected_readings()
     }
@@ -25,8 +26,8 @@ pub enum Item<'a> {
 }
 
 pub trait Tree: core::fmt::Debug {
-    fn inner<'a>(&'a self) -> Item<'a>;
-    fn leaf<'a>(&'a self) -> ReadingInfo
+    fn inner(&self) -> Item<'_>;
+    fn leaf(&self) -> ReadingInfo
     where
         Self: Sized,
     {
@@ -39,11 +40,10 @@ pub trait Tree: core::fmt::Debug {
         }
     }
     fn name(&self) -> String {
-        let dbg_repr = format!("{:?}", self);
+        let dbg_repr = format!("{self:?}");
         dbg_repr
             .split_once('(')
-            .map(|(name, _)| name)
-            .unwrap_or("-")
+            .map_or("_", |(name, _)| name)
             .to_string()
     }
     fn branch_id(&self) -> Id;
@@ -52,7 +52,7 @@ pub trait Tree: core::fmt::Debug {
 macro_rules! all_nodes {
     ($name:ident; $variant:ident; $($var:ident),*) => {
         impl crate::reading_tree::Tree for $name {
-            fn inner<'a>(&'a self) -> crate::reading_tree::Item<'a> {
+            fn inner(&self) -> crate::reading_tree::Item<'_> {
                 match self {
                     $(
                     $name::$var(inner) => crate::reading_tree::Item::Node(inner as &dyn crate::reading_tree::Tree)

@@ -24,7 +24,8 @@ pub async fn handle_client(stream: TcpStream, tx: Sender<Event>) {
         };
 
         let bytes = &mut buf[0..n_read];
-        if bytes.is_empty() { //eof
+        if bytes.is_empty() {
+            //eof
             warn!("end of stream");
             return;
         }
@@ -42,16 +43,17 @@ pub async fn handle_client(stream: TcpStream, tx: Sender<Event>) {
                     tx.send(Event::NewReading(Ok(value))).await.unwrap();
                 }
             }
-            protocol::Msg::ErrorReport(report) => {
-                tx.send(Event::NewReading(Err(report.error))).await.unwrap()
-            }
+            protocol::Msg::ErrorReport(report) => tx
+                .send(Event::NewReading(Err(Box::new(report.error))))
+                .await
+                .unwrap(),
         }
     }
 }
 
 pub enum Event {
     NewSub(TcpStream),
-    NewReading(Result<Reading, protocol::Error>),
+    NewReading(Result<Reading, Box<protocol::Error>>),
 }
 
 pub async fn spread_updates(mut events: mpsc::Receiver<Event>) -> Result<()> {
@@ -66,7 +68,7 @@ pub async fn spread_updates(mut events: mpsc::Receiver<Event>) -> Result<()> {
             Event::NewReading(Ok(reading)) => {
                 // TODO use futures-util's peekable with next_if
                 // to get up to 49 extra messages for efficiency
-                let mut readings: SensorMessage<50> = SensorMessage::new();
+                let mut readings: SensorMessage<50> = SensorMessage::default();
                 readings
                     .values
                     .push(reading)
@@ -74,14 +76,14 @@ pub async fn spread_updates(mut events: mpsc::Receiver<Event>) -> Result<()> {
                 protocol::Msg::Readings(readings)
             }
             Event::NewReading(Err(err)) => {
-                let report = protocol::ErrorReport::new(err);
+                let report = protocol::ErrorReport::new(*err);
                 protocol::Msg::ErrorReport(report)
             }
         };
 
         let bytes = msg.encode();
         let subs = mem::take(&mut subscribers);
-        for mut sub in subs.into_iter() {
+        for mut sub in subs {
             if let Err(e) = sub.write_all(&bytes).await {
                 warn!("Error writing to subscriber: {e}");
             } else {

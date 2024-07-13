@@ -1,4 +1,5 @@
 #[inline]
+#[allow(clippy::cast_possible_truncation)]
 pub fn decode(line: &[u8], bit_offset: u8, length: u8) -> u32 {
     let start_byte = (bit_offset / 8) as usize;
     let stop_byte = ((bit_offset + length) / 8) as usize;
@@ -8,23 +9,24 @@ pub fn decode(line: &[u8], bit_offset: u8, length: u8) -> u32 {
     let stop_mask = !(!0 >> used_bits);
 
     //decode first bit (never needs shifting (lowest part is used))
-    let mut decoded: u32 = (line[start_byte] & start_mask) as u32;
+    let mut decoded: u32 = u32::from(line[start_byte] & start_mask);
     let mut bits_read = 8 - (bit_offset % 8);
     //if we have more bits
     if length > 8 {
         //decode middle bits, no masking needed
         for byte in &line[start_byte + 1..stop_byte] {
-            decoded |= (*byte as u32) << bits_read;
+            decoded |= u32::from(*byte) << bits_read;
             bits_read += 8;
         }
     }
     let stop_byte = ((bit_offset + length).div_ceil(8) - 1) as usize; //starts at 0
-    decoded |= ((line[stop_byte] & stop_mask) as u32) << (bits_read - (8 - used_bits));
+    decoded |= u32::from(line[stop_byte] & stop_mask) << (bits_read - (8 - used_bits));
 
     decoded
 }
 
 #[inline]
+#[allow(clippy::cast_possible_truncation)]
 pub fn encode(to_encode: u32, line: &mut [u8], bit_offset: u8, length: u8) {
     let start_mask = !0 >> (bit_offset % 8);
 
@@ -37,7 +39,7 @@ pub fn encode(to_encode: u32, line: &mut [u8], bit_offset: u8, length: u8) {
 
     if length > 8 {
         //decode middle bits, no masking needed
-        for byte in line[start_byte + 1..stop_byte].iter_mut() {
+        for byte in &mut line[start_byte + 1..stop_byte] {
             *byte |= (to_encode >> bits_written) as u8;
             bits_written += 8;
         }

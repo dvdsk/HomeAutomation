@@ -83,7 +83,10 @@ pub enum Reading {
 
 #[cfg(feature = "alloc")]
 impl Tree for Reading {
-    fn inner<'a>(&'a self) -> Item<'a> {
+    #[must_use]
+    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::cast_precision_loss)]
+    fn inner(&self) -> Item<'_> {
         let (val, device, range, resolution, unit, description) = match self {
             Reading::Brightness(val) => (
                 *val,
@@ -96,8 +99,7 @@ impl Tree for Reading {
             Reading::Temperature(val) => (
                 *val,
                 Device::Sht31.rooted(),
-                0.0..100.0, // FIXME revert
-                // -10.0..45.0,
+                -10.0..45.0,
                 0.01,
                 Unit::C,
                 "Temperature",
@@ -131,7 +133,7 @@ impl Tree for Reading {
                 "Air pressure",
             ),
             Reading::Co2(val) => (
-                *val as f32,
+                f32::from(*val),
                 Device::Mhz14.rooted(),
                 400.0..2_000.0,
                 1.0,
@@ -248,6 +250,7 @@ impl Tree for Reading {
         })
     }
 
+    #[must_use]
     fn branch_id(&self) -> Id {
         ReadingDiscriminants::from(self) as Id
     }
@@ -262,6 +265,7 @@ pub enum Error {
 }
 
 impl Error {
+    #[must_use]
     pub(crate) fn device(&self) -> Device {
         match self {
             Self::Running(sensor_err) | Self::Setup(sensor_err) => sensor_err.device(),
@@ -295,13 +299,13 @@ pub enum SensorError {
 impl core::fmt::Display for SensorError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            SensorError::Sht31(e) => write!(f, "{e}"),
-            SensorError::Bme680(e) => write!(f, "{e}"),
-            SensorError::Max44(e) => write!(f, "{e}"),
-            SensorError::Mhz14(e) => write!(f, "{e}"),
-            SensorError::Sps30(e) => write!(f, "{e}"),
-            SensorError::Nau7802Left(e) => write!(f, "{e}"),
-            SensorError::Nau7802Right(e) => write!(f, "{e}"),
+            SensorError::Sht31(e)
+            | SensorError::Bme680(e)
+            | SensorError::Max44(e)
+            | SensorError::Mhz14(e)
+            | SensorError::Sps30(e)
+            | SensorError::Nau7802Left(e)
+            | SensorError::Nau7802Right(e) => write!(f, "{e}"),
         }
     }
 }
@@ -311,6 +315,7 @@ impl MaxSize for SensorError {
 }
 
 impl SensorError {
+    #[must_use]
     pub fn device(&self) -> Device {
         match self {
             SensorError::Sht31(_) => Device::Sht31,
@@ -351,6 +356,7 @@ macro_rules! tree {
 }
 
 impl Device {
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             Device::Sht31 => "Sht31",
@@ -366,6 +372,7 @@ impl Device {
 
     /// Note the order in which these occur is the order in which
     /// they will be stored, do not change it!
+    #[must_use]
     pub const fn affected_readings(&self) -> &'static [crate::Reading] {
         match self {
             Device::Sht31 => &tree![Reading::Temperature(0.0), Reading::Humidity(0.0)],
@@ -400,6 +407,7 @@ impl Device {
     }
 
     #[cfg(feature = "alloc")]
+    #[must_use]
     fn rooted(self) -> crate::Device {
         crate::Device::LargeBedroom(crate::large_bedroom::Device::Bed(self))
     }

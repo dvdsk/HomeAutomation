@@ -28,7 +28,7 @@ pub enum Error {
     #[error("Error while sending request: {0}")]
     Receiving(std::io::Error),
     #[error("Server ran into an error while processing our request: {0}")]
-    ServerError(super::ServerError),
+    Server(super::ServerError),
     #[error("Server closed connection before it awnserd")]
     ConnectionClosed,
 }
@@ -51,7 +51,7 @@ impl Client {
     async fn send_receive(&mut self, request: super::Request) -> Result<super::Response, Error> {
         self.stream.send(request).await.map_err(Error::Sending)?;
         match self.stream.try_next().await.map_err(Error::Receiving)? {
-            Some(super::Response::Error(e)) => Err(Error::ServerError(e)),
+            Some(super::Response::Error(e)) => Err(Error::Server(e)),
             Some(response) => Ok(response),
             None => Err(Error::ConnectionClosed),
         }
@@ -60,7 +60,7 @@ impl Client {
     pub async fn list_data(&mut self) -> Result<Vec<protocol::Reading>, Error> {
         let request = super::Request::ListData;
         match self.send_receive(request.clone()).await? {
-            super::Response::ListData(list) => return Ok(list),
+            super::Response::ListData(list) => Ok(list),
             response => Err(Error::IncorrectResponse {
                 request: format!("{request:?}"),
                 response: format!("{response:?}"),
@@ -82,7 +82,7 @@ impl Client {
             n,
         };
         match self.send_receive(request.clone()).await? {
-            super::Response::GetData { time, data } => return Ok((time, data)),
+            super::Response::GetData { time, data } => Ok((time, data)),
             response => Err(Error::IncorrectResponse {
                 request: format!("{request:?}"),
                 response: format!("{response:?}"),

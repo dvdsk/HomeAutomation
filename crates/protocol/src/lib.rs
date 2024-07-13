@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "alloc"), no_std)]
+#![allow(clippy::missing_panics_doc, clippy::missing_errors_doc)]
 
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
@@ -46,24 +47,29 @@ pub enum Reading {
 
 #[cfg(feature = "alloc")]
 impl Reading {
+    #[must_use]
     pub fn from_same_device(&self) -> &'static [Reading] {
         use reading_tree::Tree;
         self.leaf().from_same_device()
     }
+    #[must_use]
     pub fn range(&self) -> core::ops::Range<f32> {
         use reading_tree::Tree;
         self.leaf().range
     }
+    #[must_use]
     pub fn resolution(&self) -> f32 {
         use reading_tree::Tree;
         self.leaf().resolution
     }
+    #[must_use]
     pub fn device(&self) -> Device {
         use reading_tree::Tree;
         self.leaf().device
     }
 }
 impl Reading {
+    #[must_use]
     pub fn version() -> u8 {
         0u8
     }
@@ -92,12 +98,14 @@ pub enum Device {
     SmallBedroom(small_bedroom::Device),
 }
 impl Device {
+    #[must_use]
     pub fn affected_readings(&self) -> &'static [Reading] {
         match self {
             Device::LargeBedroom(dev) => dev.affected_readings(),
             Device::SmallBedroom(dev) => dev.affected_readings(),
         }
     }
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             Device::LargeBedroom(dev) => dev.as_str(),
@@ -107,6 +115,7 @@ impl Device {
 }
 
 impl Error {
+    #[must_use]
     pub fn device(&self) -> Device {
         match self {
             Error::LargeBedroom(error) => Device::LargeBedroom(error.device()),
@@ -117,7 +126,7 @@ impl Error {
 impl core::fmt::Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Error::LargeBedroom(error) => write!(f, "{}", error),
+            Error::LargeBedroom(error) => write!(f, "{error}"),
         }
     }
 }
@@ -128,6 +137,7 @@ pub struct SensorMessage<const MAX_ITEMS: usize> {
     pub version: u8,
 }
 
+#[allow(clippy::large_enum_variant)] // can not use Box on embedded
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ErrorReport {
     pub error: Error,
@@ -135,6 +145,7 @@ pub struct ErrorReport {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)] // can not use Box on embedded
 pub enum Msg<const M: usize> {
     Readings(SensorMessage<M>),
     ErrorReport(ErrorReport),
@@ -144,6 +155,7 @@ impl<const M: usize> Msg<M> {
     pub const READINGS: u8 = 1;
     pub const ERROR_REPORT: u8 = 2;
 
+    #[must_use]
     pub fn header(&self) -> u8 {
         let header = match self {
             Msg::Readings(_) => Self::READINGS,
@@ -170,6 +182,7 @@ impl<const M: usize> Msg<M> {
     }
 
     #[cfg(feature = "alloc")]
+    #[must_use]
     pub fn encode(&self) -> Vec<u8> {
         let mut bytes = match self {
             Msg::Readings(readings) => readings.encode(),
@@ -193,30 +206,34 @@ pub enum DecodeError {
     IncorrectMsgType(u8),
 }
 
+impl<const MAX_ITEMS: usize> Default for SensorMessage<MAX_ITEMS> {
+    fn default() -> Self {
+        Self {
+            values: heapless::Vec::new(),
+            version: 0,
+        }
+    }
+}
 impl<const MAX_ITEMS: usize> SensorMessage<MAX_ITEMS> {
     /// the 2x is the max overhead from COBS encoding the encoded data
     /// +2 is for the version
     /// +4 covers the length of the heapless list
     pub const ENCODED_SIZE: usize = 2 * (MAX_ITEMS * Reading::POSTCARD_MAX_SIZE + 2 + 4);
 
-    pub fn new() -> Self {
-        Self {
-            values: heapless::Vec::new(),
-            version: 0,
-        }
-    }
-
+    #[must_use]
     pub fn space_left(&self) -> bool {
         self.values.len() < self.values.capacity()
     }
 
     #[cfg(feature = "alloc")]
+    #[must_use]
     pub fn encode(&self) -> Vec<u8> {
         postcard::to_allocvec_cobs(self).expect("Encoding should not fail")
     }
 
-    /// Buffer should be at least Self::ENCODED_SIZE long. The returned slice contains
+    /// Buffer should be at least `Self::ENCODED_SIZE` long. The returned slice contains
     /// the serialized data. It can be shorter then the input buffer.
+    #[must_use]
     pub fn encode_slice<'a>(&self, buf: &'a mut [u8]) -> &'a mut [u8] {
         postcard::to_slice_cobs(self, buf).expect("Encoding should not fail")
     }
@@ -225,6 +242,7 @@ impl<const MAX_ITEMS: usize> SensorMessage<MAX_ITEMS> {
         postcard::from_bytes_cobs(bytes.as_mut()).map_err(DecodeError::CorruptEncoding)
     }
 
+    #[must_use]
     pub fn version(&self) -> u8 {
         self.version
     }
@@ -236,17 +254,20 @@ impl ErrorReport {
     /// +4 covers the length of the heapless list
     pub const ENCODED_SIZE: usize = 2 * (Error::POSTCARD_MAX_SIZE + 2);
 
+    #[must_use]
     pub fn new(error: Error) -> Self {
         Self { error, version: 0 }
     }
 
     #[cfg(feature = "alloc")]
+    #[must_use]
     pub fn encode(&self) -> Vec<u8> {
         postcard::to_allocvec_cobs(self).expect("Encoding should not fail")
     }
 
-    /// Buffer should be at least Self::ENCODED_SIZE long. The returned slice contains
+    /// Buffer should be at least `Self::ENCODED_SIZE` long. The returned slice contains
     /// the serialized data. It can be shorter then the input buffer.
+    #[must_use]
     pub fn encode_slice<'a>(&self, buf: &'a mut [u8]) -> &'a mut [u8] {
         postcard::to_slice_cobs(self, buf).expect("Encoding should not fail")
     }
