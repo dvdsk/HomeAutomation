@@ -35,7 +35,7 @@ const TEST_READING: Reading =
 
 async fn send_sensor_value(data_port: u16) -> Result<Done> {
     tokio::time::sleep(Duration::from_millis(100)).await;
-    let mut sensor_msg = protocol::SensorMessage::<50>::new();
+    let mut sensor_msg = protocol::SensorMessage::<50>::default();
     sensor_msg.values.push(TEST_READING).unwrap();
     let encoded = protocol::Msg::Readings(sensor_msg).encode();
 
@@ -50,7 +50,7 @@ async fn subscribe_and_receive(sub_port: u16) -> Result<Done> {
     let mut sub = data_server::AsyncSubscriber::connect(("127.0.0.1", sub_port))
         .await
         .unwrap();
-    let received = sub.next().await.unwrap();
+    let received = sub.next_msg().await.unwrap();
     dbg!(&received);
     assert!(matches!(received, SubMessage::Reading(TEST_READING)));
 

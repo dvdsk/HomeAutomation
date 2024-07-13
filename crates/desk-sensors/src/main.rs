@@ -7,7 +7,6 @@ use std::sync::mpsc::{self, Sender};
 use std::time::Duration;
 use tracing::{debug, info, warn};
 
-mod buttons;
 mod sensors;
 
 #[derive(Parser)]
@@ -27,7 +26,6 @@ fn main() {
     setup_tracing().unwrap();
 
     let (tx, rx) = mpsc::channel();
-    buttons::start_monitoring(tx.clone());
     if let Err(error) = sensors::start_monitoring(tx.clone()) {
         send_error(&tx, error);
     }
@@ -50,7 +48,7 @@ fn main() {
             let result = rx.recv().unwrap();
             let msg = match result {
                 Ok(reading) => {
-                    let mut readings = SensorMessage::<1>::new();
+                    let mut readings = SensorMessage::<1>::default();
                     readings.values.push(reading).expect("capacity allows one push");
                     Msg::Readings(readings)
                 }

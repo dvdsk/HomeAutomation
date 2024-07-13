@@ -67,7 +67,7 @@ impl AsyncSubscriber {
         })
     }
 
-    pub async fn next(&mut self) -> Result<SubMessage, SubscribeError> {
+    pub async fn next_msg(&mut self) -> Result<SubMessage, SubscribeError> {
         if let Some(val) = self.values.next() {
             return Ok(val);
         }

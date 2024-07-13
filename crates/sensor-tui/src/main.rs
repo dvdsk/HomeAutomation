@@ -10,7 +10,7 @@ mod tui;
 
 enum Update {
     Reading(protocol::Reading),
-    Error(protocol::Error),
+    Error(Box<protocol::Error>),
 }
 
 fn main() -> Result<()> {

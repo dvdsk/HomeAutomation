@@ -24,17 +24,6 @@ impl Press {
 /// turns an enum of empty variants into one with [`Press`](crate::Press) inside each variant also
 /// adds a method `press(&self)` that returns an instance of [`Press`](crate::Press). It can be
 /// used to quickly find out if a button event is a long or short press.
-///
-/// Example:
-/// ```
-/// button_enum! {
-///     DeskButton {
-///         OneOfFour,
-///         TwoOfFour,
-///     }
-/// }
-/// ```
-///  
 macro_rules! button_enum {
     (
         $(#[$outer:meta])*

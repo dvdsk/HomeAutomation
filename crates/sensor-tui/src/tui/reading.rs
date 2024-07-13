@@ -1,6 +1,9 @@
 use histogram::Histogram;
+use protocol::reading_tree::ReadingInfo;
+use protocol::reading_tree::{Item, Tree};
 use protocol::Error;
-use protocol::{ReadingTree::Tomato, ReadingTree::TomatoItem, Reading};
+use protocol::Reading;
+
 use ratatui::{text::Line, widgets::Bar};
 use std::collections::HashMap;
 use std::{collections::VecDeque, time::Instant};
@@ -10,12 +13,12 @@ pub struct SensorInfo {
     name: String,
     timing: Histogram,
     history: VecDeque<(Instant, f32)>,
-    condition: Result<(), Error>,
+    condition: Result<(), Box<Error>>,
     log: Vec<(Instant, Error)>,
 }
 
 impl SensorInfo {
-    fn last_at(&self) -> Result<Instant, Error> {
+    fn last_at(&self) -> Result<Instant, Box<Error>> {
         self.condition.clone()?;
 
         let last = self
@@ -69,10 +72,10 @@ fn add_leaf(text: String, tree: &mut TreeItem<'static, TreeKey>, key: TreeKey) {
 }
 
 fn add_root<'a>(
-    tomato: &dyn Tomato,
+    tomato: &dyn Tree,
     ground: &'a mut Vec<TreeItem<'static, TreeKey>>,
 ) -> &'a mut TreeItem<'static, TreeKey> {
-    let key = [tomato.id(); 6];
+    let key = [tomato.branch_id(); 6];
     let exists = ground.iter().any(|item| *item.identifier() == key);
     if !exists {
         let new_root = TreeItem::new(key, tomato.name(), vec![]).unwrap();
@@ -86,10 +89,10 @@ fn add_root<'a>(
 }
 
 fn add_node<'a>(
-    tomato: &dyn Tomato,
+    tomato: &dyn Tree,
     tree: &'a mut TreeItem<'static, TreeKey>,
 ) -> &'a mut TreeItem<'static, TreeKey> {
-    let key = [tomato.id(); 6];
+    let key = [tomato.branch_id(); 6];
     let new_item = TreeItem::new(key, tomato.name(), Vec::new()).unwrap();
     // add just in case it was not there yet
     let _ignore_existing = tree.add_child(new_item);
@@ -103,16 +106,16 @@ fn add_node<'a>(
 
 fn extract_leaf_info(reading: &Reading) -> (TreeKey, String, f32) {
     let mut key = [0u8; 6];
-    key[0] = reading.id();
+    key[0] = reading.branch_id();
 
-    let mut reading = reading as &dyn Tomato;
+    let mut reading = reading as &dyn Tree;
     for byte in &mut key[1..] {
         reading = match reading.inner() {
-            TomatoItem::Node(inner) => {
-                *byte = inner.id();
+            Item::Node(inner) => {
+                *byte = inner.branch_id();
                 inner
             }
-            TomatoItem::Leaf(val) => {
+            Item::Leaf(ReadingInfo { val, .. }) => {
                 let name = reading.name();
                 return (key, name, val);
             }
@@ -127,18 +130,18 @@ impl Readings {
         self.record_data(reading);
     }
 
-    pub fn add_error(&mut self, error: Error) {
+    pub fn add_error(&mut self, error: Box<Error>) {
         self.update_tree_err(&error);
         self.record_error(error);
     }
 
-    fn record_error(&mut self, error: Error) {
-        for broken in error.affected_readings() {
+    fn record_error(&mut self, error: Box<Error>) {
+        for broken in error.device().affected_readings() {
             let (key, name, _) = extract_leaf_info(&broken);
 
             if let Some(info) = self.data.get_mut(&key) {
                 info.condition = Err(error.clone());
-                info.log.push((Instant::now(), error.clone()));
+                info.log.push((Instant::now(), (*error).clone()));
             } else {
                 self.data.insert(
                     key,
@@ -147,7 +150,7 @@ impl Readings {
                         timing: Histogram::new(4, 24).unwrap(),
                         history: VecDeque::new(),
                         condition: Err(error.clone()),
-                        log: vec![(Instant::now(), error.clone())],
+                        log: vec![(Instant::now(), (*error).clone())],
                     },
                 );
             }
@@ -184,19 +187,19 @@ impl Readings {
     fn update_tree(&mut self, reading: &Reading) {
         let (key, _, _) = extract_leaf_info(reading);
 
-        let mut tree = add_root(reading as &dyn Tomato, &mut self.ground);
+        let mut tree = add_root(reading as &dyn Tree, &mut self.ground);
         let mut tomato = match reading.inner() {
-            TomatoItem::Leaf(_) => unreachable!("no values at level 0"),
-            TomatoItem::Node(inner) => inner,
+            Item::Leaf(_) => unreachable!("no values at level 0"),
+            Item::Node(inner) => inner,
         };
         loop {
             match tomato.inner() {
-                TomatoItem::Leaf(val) => {
+                Item::Leaf(ReadingInfo { val, .. }) => {
                     let text = format!("{}: {}", tomato.name(), val);
                     add_leaf(text, tree, key);
                     return;
                 }
-                TomatoItem::Node(inner) => {
+                Item::Node(inner) => {
                     tree = add_node(tomato, tree);
                     tomato = inner;
                 }
@@ -205,22 +208,22 @@ impl Readings {
     }
 
     fn update_tree_err(&mut self, error: &Error) {
-        for broken in error.affected_readings() {
+        for broken in error.device().affected_readings() {
             let (key, _, _) = extract_leaf_info(&broken);
 
-            let mut tree = add_root(&broken as &dyn Tomato, &mut self.ground);
+            let mut tree = add_root(broken as &dyn Tree, &mut self.ground);
             let mut tomato = match broken.inner() {
-                TomatoItem::Leaf(_) => unreachable!("no values at level 0"),
-                TomatoItem::Node(inner) => inner,
+                Item::Leaf(_) => unreachable!("no values at level 0"),
+                Item::Node(inner) => inner,
             };
             loop {
                 match tomato.inner() {
-                    TomatoItem::Leaf(_) => {
+                    Item::Leaf(_) => {
                         let text = format!("{}: {:?}", tomato.name(), error);
                         add_leaf(text, tree, key);
                         return;
                     }
-                    TomatoItem::Node(inner) => {
+                    Item::Node(inner) => {
                         tree = add_node(tomato, tree);
                         tomato = inner;
                     }

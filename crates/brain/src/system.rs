@@ -8,6 +8,7 @@ use crate::input::jobs::Jobs;
 
 #[derive(Debug, Clone)]
 pub struct System {
+    #[allow(dead_code)]
     pub jobs: Jobs,
     pub lights: Lighting,
     // pub mpd: Mpd,

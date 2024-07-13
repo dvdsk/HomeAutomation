@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
-use data_server::{AsyncSubscriber, SubscribeError};
+use data_server::subscriber::SubscribeError;
+use data_server::{AsyncSubscriber, SubMessage};
 use std::time::Duration;
 use tokio::sync::broadcast;
 use tracing::{error, warn};
@@ -24,11 +25,11 @@ pub async fn subscribe(event_tx: broadcast::Sender<Event>, data_server: SocketAd
         };
 
         loop {
-            match sub.next().await {
-                Ok(Ok(reading)) => {
+            match sub.next_msg().await {
+                Ok(SubMessage::Reading(reading)) => {
                     event_tx.send(Event::Sensor(reading)).unwrap();
                 }
-                Ok(Err(_)) => continue,
+                Ok(SubMessage::ErrorReport(_)) => continue,
                 Err(e) => {
                     warn!("Error while subscribed to sensor readings: {e}, retrying...");
                     break;

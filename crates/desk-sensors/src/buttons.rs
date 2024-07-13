@@ -1,12 +1,12 @@
 use embedded_hal_async::digital::Wait;
-use protocol::{make_error_string, Press, Reading};
+use protocol::{make_error_string, button::Press, Reading};
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
 use tracing::{debug, error, info, trace};
 
 use std::thread;
 
-use protocol::large_bedroom::desk::{Button, SetupError};
+use protocol::large_bedroom::desk::Button;
 
 use crate::{send_error, send_reading};
 

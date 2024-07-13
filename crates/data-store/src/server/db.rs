@@ -27,7 +27,7 @@ pub(crate) async fn run(data_server_addr: SocketAddr, data: Data, data_dir: &Pat
 
     loop {
         let res = match sub
-            .next()
+            .next_msg()
             .await
             .wrap_err("Error getting next message from data-server")?
         {
