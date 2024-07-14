@@ -8,6 +8,15 @@ data-server = { path = "crates/data-server" }
 data-store = { path = "crates/data-store" }
 protocol = { path = "crates/protocol" }
 
+tokio = "1.38"
+color-eyre = "0.6.3"
+tracing = "0.1.40"
+tracing-error = "0.2.0"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+time = "0.3.36"
+clap = "4"
+thiserror = "1"
+
 [workspace.package]
 rust-version = "1.78"
 edition = "2021"
