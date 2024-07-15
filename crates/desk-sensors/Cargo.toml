@@ -10,7 +10,7 @@ linux-embedded-hal = "0.4"
 gpiocdev-embedded-hal = { version = "0.1.1", features = ["async_tokio"] }
 bme280 = { version = "0.5", git = "https://github.com/dvdsk/bme280-rs", features = ["postcard", "serde", "with_std"] }
 
-clap = { workspace = true, features = ["derive"] }
+clap = { workspace = true}
 color-eyre = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace =true, features = ["env-filter"] }

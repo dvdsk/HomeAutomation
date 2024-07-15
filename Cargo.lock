@@ -599,9 +599,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.1.2"
+version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47de7e88bbbd467951ae7f5a6f34f70d1b4d9cfce53d5fd70f74ebe118b3db56"
+checksum = "324c74f2155653c90b04f25b2a47a8a631360cb908f92a772695f430c7e31052"
 
 [[package]]
 name = "cfg-if"
@@ -2559,6 +2559,7 @@ checksum = "61697e0a1c7e512e84a621326239844a24d8207b4669b41bc18b32ea5cbf988b"
 name = "sensor-tui"
 version = "0.0.0"
 dependencies = [
+ "clap",
  "color-eyre",
  "crossterm",
  "data-server",
@@ -2566,6 +2567,8 @@ dependencies = [
  "histogram",
  "protocol",
  "ratatui",
+ "time",
+ "tokio",
  "tracing",
  "tracing-error",
  "tracing-subscriber",

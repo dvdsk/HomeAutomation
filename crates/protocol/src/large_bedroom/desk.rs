@@ -176,7 +176,11 @@ impl Device {
     #[must_use]
     pub fn affected_readings(&self) -> &'static [crate::Reading] {
         match self {
-            Device::Bme280 => &rtree![Reading::Temperature(0.0), Reading::Humidity(0.0)],
+            Device::Bme280 => &rtree![
+                Reading::Temperature(0.0),
+                Reading::Humidity(0.0),
+                Reading::Pressure(0.0)
+            ],
             Device::Gpio => todo!(),
         }
     }

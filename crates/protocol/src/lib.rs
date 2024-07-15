@@ -201,7 +201,7 @@ pub enum DecodeError {
     CorruptEncoding(postcard::Error),
     #[cfg_attr(
         feature = "thiserror",
-        error("Got an unknown message type, expected zero or one got: {}")
+        error("Got an unknown message type, expected zero or one got: {0}")
     )]
     IncorrectMsgType(u8),
 }
