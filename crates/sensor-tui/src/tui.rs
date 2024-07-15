@@ -8,13 +8,13 @@ use ratatui::{
     style::{Color, Style},
     widgets::ListState,
 };
-use std::{collections::HashMap, io::stdout, sync::mpsc, time::Duration};
+use std::{collections::HashMap, io::stdout, net::SocketAddr, sync::mpsc, time::Duration};
 use tui_tree_widget::TreeState;
 
 mod reading;
 use reading::Readings;
 mod render;
-use crate::Update;
+use crate::{trace_dbg, Update};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ActiveList {
@@ -31,15 +31,19 @@ impl ActiveList {
         }
     }
 
-    // fn swap(self) -> Self {
-    //     match self {
-    //         Self::Readings => Self::Actuators,
-    //         Self::Actuators => Self::Readings,
-    //     }
-    // }
+    fn swap(self) -> Self {
+        match self {
+            Self::Readings => Self::Actuators,
+            Self::Actuators => Self::Readings,
+        }
+    }
 }
 
-pub fn run(rx: mpsc::Receiver<Update>) -> Result<(), std::io::Error> {
+pub fn run(
+    rx: mpsc::Receiver<Update>,
+    shutdown_tx: mpsc::Sender<color_eyre::Result<Update>>,
+    data_store: SocketAddr
+) -> Result<(), std::io::Error> {
     let mut readings = Readings {
         ground: Vec::new(),
         data: HashMap::new(),
@@ -50,7 +54,7 @@ pub fn run(rx: mpsc::Receiver<Update>) -> Result<(), std::io::Error> {
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
     terminal.clear()?;
 
-    let active_list = ActiveList::Readings;
+    let mut active_list = ActiveList::Readings;
     let mut reading_list_state = TreeState::default();
     let mut actuator_list_state = ListState::default();
     let actuators = vec![
@@ -61,14 +65,12 @@ pub fn run(rx: mpsc::Receiver<Update>) -> Result<(), std::io::Error> {
     let mut plot_buf = Vec::new();
 
     loop {
-        let data = reading_list_state
-            .selected()
-            .first()
-            .map(|key| readings.data.get(key))
-            .flatten();
+        let data = reading_list_state.selected()
+            .last() // unique leaf id
+            .and_then(|key| readings.data.get_mut(key));
 
         let (chart, histogram) = if let Some(data) = data {
-            (data.chart(&mut plot_buf), data.histogram())
+            (data.chart(&mut plot_buf, data_store), data.histogram())
         } else {
             (None, readings.histogram_all())
         };
@@ -103,12 +105,10 @@ pub fn run(rx: mpsc::Receiver<Update>) -> Result<(), std::io::Error> {
                         break;
                     }
                     if key.code == KeyCode::Left {
-                        reading_list_state.key_left();
-                        // active_list = active_list.swap();
+                        active_list = active_list.swap();
                     }
                     if key.code == KeyCode::Right {
-                        reading_list_state.key_right();
-                        // active_list = active_list.swap();
+                        active_list = active_list.swap();
                     }
                     if key.code == KeyCode::Down {
                         reading_list_state.key_down();
@@ -116,9 +116,9 @@ pub fn run(rx: mpsc::Receiver<Update>) -> Result<(), std::io::Error> {
                     if key.code == KeyCode::Up {
                         reading_list_state.key_up();
                     }
-                    // if key.code == KeyCode::Enter {
-                    // reading_list_state.
-                    // }
+                    if key.code == KeyCode::Enter {
+                        reading_list_state.toggle_selected();
+                    }
                 }
             }
         }
@@ -127,14 +127,13 @@ pub fn run(rx: mpsc::Receiver<Update>) -> Result<(), std::io::Error> {
             Ok(Update::Reading(reading)) => {
                 readings.add(reading);
             }
-            Ok(Update::Error(err)) => {
-                readings.add_error(err)
-            }
+            Ok(Update::Error(err)) => readings.add_error(err),
             _ => (),
         }
     }
 
     stdout().execute(LeaveAlternateScreen)?;
     disable_raw_mode()?;
+    shutdown_tx.send(Ok(Update::Shutdown)).unwrap();
     Ok(())
 }

@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 use std::sync::mpsc;
 use std::thread;
 
+use clap::Parser;
 use color_eyre::eyre::WrapErr;
 use color_eyre::{Help, Result};
 use data_server::SubMessage;
@@ -11,28 +12,68 @@ mod tui;
 enum Update {
     Reading(protocol::Reading),
     Error(Box<protocol::Error>),
+    Shutdown,
+}
+
+fn receive_data(
+    mut sub: data_server::Subscriber,
+    tx: mpsc::Sender<Result<Update>>,
+) {
+    loop {
+        let update = sub
+            .next_msg()
+            .wrap_err("Error getting next reading from server")
+            .map(|msg| match msg {
+                SubMessage::Reading(reading) => Update::Reading(reading),
+                SubMessage::ErrorReport(error) => Update::Error(error),
+            });
+
+        let err = update.is_err();
+        tx.send(update).unwrap();
+        if err {
+            break;
+        }
+    }
+}
+
+#[derive(Parser)]
+#[command(name = "sensor tui")]
+#[command(version = "1.0")]
+#[command(about = "View sensor values")]
+struct Cli {
+    /// server where we can subscribe for sensor data updates
+    #[arg(short, long, default_value_t = SocketAddr::from(([192,168,1,43], 1235)))]
+    data_server: SocketAddr,
+
+    /// server where we can fetch historical sensor data
+    #[arg(short='s', long, default_value_t = SocketAddr::from(([127,0,0,1], 1236)))]
+    data_store: SocketAddr,
 }
 
 fn main() -> Result<()> {
     setup_tracing().unwrap();
-    let addr = SocketAddr::from(([192, 168, 1, 43], 1235));
-    let mut sub = data_server::Subscriber::connect(addr)
-        .wrap_err("failed to connect")
-        .with_suggestion(|| format!("verify the server is listening on: {addr}"))?;
 
-    let (tx, rx) = mpsc::channel();
-    thread::spawn(|| tui::run(rx));
+    let Cli {
+        data_server,
+        data_store,
+    } = Cli::parse();
+    let sub = data_server::Subscriber::connect(data_server)
+        .wrap_err("failed to connect")
+        .with_suggestion(|| format!("verify the server is listening on: {data_server}"))?;
+
+    let (tx1, rx1) = mpsc::channel();
+    let (tx2, rx2) = mpsc::channel();
+
+    let tx1_clone = tx1.clone();
+    thread::spawn(move || receive_data(sub, tx1_clone));
+    thread::spawn(move || tui::run(rx2, tx1, data_store));
 
     loop {
-        let update = match sub
-            .next_msg()
-            .wrap_err("Error getting next reading from server")?
-        {
-            SubMessage::Reading(reading) => Update::Reading(reading),
-            SubMessage::ErrorReport(error) => Update::Error(error),
+        let update = rx1.recv()??;
+        if let Update::Shutdown = update {
+            break Ok(());
         };
-
-        tx.send(update).unwrap();
+        tx2.send(update).unwrap()
     }
 }
 

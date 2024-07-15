@@ -77,7 +77,7 @@ fn detail_view(frame: &mut Frame, layout: Rect, chart: ChartParts, histogram: &[
     let y_margin = f64::max(y_range * 0.5, 0.001 * y_bounds[0].abs());
     let y_bounds = [y_bounds[0] - y_margin, y_bounds[1] + y_margin];
 
-    let x_labels = vec!["0".into(), format_time(x_bounds[1]).into()];
+    let x_labels = vec![format_time(x_bounds[1]).into(), "0".into()];
     let y_labels = vec![
         format!("{:.3}", y_bounds[0]).into(),
         format!("{:.3}", y_bounds[1]).into(),
@@ -133,7 +133,7 @@ pub(crate) fn render_top(
             .areas(layout);
 
     frame.render_stateful_widget(
-        Tree::new(&readings)
+        Tree::new(readings)
             .expect("all item identifiers should be unique")
             .block(
                 Block::default()
