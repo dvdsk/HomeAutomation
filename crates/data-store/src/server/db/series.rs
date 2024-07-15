@@ -63,10 +63,20 @@ impl Series {
             .sum::<usize>()
             .div_ceil(8);
         let resampler = Resampler::from_fields(fields.clone(), payload_size);
-        let resample_configs = vec![downsample::Config {
-            max_gap: None,
-            bucket_size: 10,
-        }];
+        let resample_configs = vec![
+            downsample::Config {
+                max_gap: None,
+                bucket_size: 10,
+            },
+            downsample::Config {
+                max_gap: None,
+                bucket_size: 100,
+            },
+            downsample::Config {
+                max_gap: None,
+                bucket_size: 1000,
+            },
+        ];
 
         let path = base_path(reading);
         let path = dir.join(path);
@@ -104,8 +114,11 @@ impl Series {
             .affected_readings()
             .iter()
             .map(|r| r.leaf().branch_id)
-            .position(|local_id| local_id == reading.leaf().branch_id)
-            .expect("series are grouped by devices, elements come from affected_readings");
+            .position(|id_in_list| id_in_list == reading.leaf().branch_id)
+            .expect(
+                "reading.device.affected_readings() is a list that contains \
+                reading.branch_id()",
+            );
 
         let meta = &mut self.meta[index];
         meta.field.encode(reading.leaf().val, &mut self.line);
@@ -204,6 +217,7 @@ fn try_create_new_if_open_failed(
     match res {
         Ok((byteseries, opened_file_header)) => {
             if opened_file_header == expected_header {
+                info!("Opened existing byteseries from: {}", path.display());
                 Ok(byteseries)
             } else {
                 Err(eyre!("header in file does not match readings"))

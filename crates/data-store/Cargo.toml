@@ -12,14 +12,14 @@ server = []
 default = ["api", "server"]
 
 [dependencies]
-clap = { workspace = true, features = ["derive"] }
+clap = { workspace = true }
 color-eyre = { workspace = true }
 tracing = { workspace = true }
 tracing-error = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 time = { workspace = true, features = ["serde"] }
 
-protocol = { workspace = true, features = ["alloc"] }
+protocol = { workspace = true, features = ["alloc", "thiserror"] }
 data-server = { workspace = true }
 
 # byteseries = { git = "https://github.com/dvdsk/byteseries", features = ["smallvec"] }

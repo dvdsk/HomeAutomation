@@ -6,34 +6,30 @@ use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::Mutex;
 
-use color_eyre::eyre::WrapErr;
-use color_eyre::{Result, Section};
-use data_server::{AsyncSubscriber, SubMessage};
+use color_eyre::Result;
+use data_server::SubMessage;
 
 mod series;
 use series::Series;
 
 use crate::api;
 
-// TODO make resistant to data_server going down
+mod reconnecting;
+use reconnecting::ReconnectingSubscriber;
+
 pub(crate) async fn run(data_server_addr: SocketAddr, data: Data, data_dir: &Path) -> Result<()> {
-    let mut sub = AsyncSubscriber::connect(data_server_addr)
-        .await
-        .wrap_err("data-store server failed to subscribe with data-server")
-        .with_suggestion(|| {
-            format!("verify data data-server is listening on: {data_server_addr}")
-        })?;
-    tracing::info!("connected to data-server at: {data_server_addr:?}");
+    tracing::warn!("testing");
+    let mut sub = ReconnectingSubscriber::new(data_server_addr);
 
     loop {
-        let res = match sub
-            .next_msg()
-            .await
-            .wrap_err("Error getting next message from data-server")?
-        {
+        let msg = sub.next_msg().await;
+        tracing::trace!("got msg: {msg:?}");
+
+        let res = match msg {
             SubMessage::Reading(reading) => series::store(&data, &reading, data_dir).await,
             SubMessage::ErrorReport(_) => continue,
         };
+
 
         if let Err(e) = res {
             tracing::error!("Error processing new reading: {e:?}");
