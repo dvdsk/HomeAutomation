@@ -23,7 +23,7 @@ struct Cli {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-    setup_tracing().unwrap();
+    setup_tracing();
 
     let Cli {
         subscribe_port,
@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
     }
 }
 
-fn setup_tracing() -> Result<()> {
+fn setup_tracing() {
     use tracing_error::ErrorLayer;
     use tracing_subscriber::{self, layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
@@ -58,5 +58,4 @@ fn setup_tracing() -> Result<()> {
         .with(file_subscriber)
         .with(ErrorLayer::default())
         .init();
-    Ok(())
 }

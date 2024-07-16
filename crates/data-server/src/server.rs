@@ -10,7 +10,7 @@ use protocol::{Reading, SensorMessage};
 
 use tracing::{info, warn};
 
-pub async fn handle_client(stream: TcpStream, tx: Sender<Event>) {
+pub async fn handle_client(stream: TcpStream, queue: Sender<Event>) {
     let mut reader = BufStream::new(stream);
     let mut buf = Vec::new();
     loop {
@@ -40,13 +40,16 @@ pub async fn handle_client(stream: TcpStream, tx: Sender<Event>) {
         match decoded {
             protocol::Msg::Readings(readings) => {
                 for value in readings.values {
-                    tx.send(Event::NewReading(Ok(value))).await.unwrap();
+                    queue
+                        .send(Event::NewReading(Ok(value)))
+                        .await
+                        .expect("fn spread_updates should stay running");
                 }
             }
-            protocol::Msg::ErrorReport(report) => tx
+            protocol::Msg::ErrorReport(report) => queue
                 .send(Event::NewReading(Err(Box::new(report.error))))
                 .await
-                .unwrap(),
+                .expect("fn spread_updates should stay running"),
         }
     }
 }
@@ -59,7 +62,12 @@ pub enum Event {
 pub async fn spread_updates(mut events: mpsc::Receiver<Event>) -> Result<()> {
     let mut subscribers = Vec::new();
 
-    while let Some(event) = events.recv().await {
+    loop {
+        let event = events
+            .recv()
+            .await
+            .expect("queue is kept open by register_subs");
+
         let msg = match event {
             Event::NewSub(sub) => {
                 subscribers.push(sub);
@@ -91,8 +99,6 @@ pub async fn spread_updates(mut events: mpsc::Receiver<Event>) -> Result<()> {
             }
         }
     }
-
-    Ok(())
 }
 
 pub async fn handle_data_sources(port: u16, share: &mpsc::Sender<Event>) -> Result<()> {
@@ -129,7 +135,9 @@ pub async fn register_subs(port: u16, tx: &mpsc::Sender<Event>) -> Result<()> {
         match res {
             Ok((stream, source)) => {
                 info!("new subscriber connected from: {source}");
-                tx.send(Event::NewSub(stream)).await.unwrap();
+                tx.send(Event::NewSub(stream))
+                    .await
+                    .expect("spread_updates (rx) never ends");
             }
             Err(e) => {
                 warn!("new connection failed: {e}");
