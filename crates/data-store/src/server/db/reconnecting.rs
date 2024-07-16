@@ -1,6 +1,6 @@
 use data_server::subscriber::SubscribeError;
 use tokio::time::sleep;
-use tracing::warn;
+use tracing::{info, warn};
 use std::time::Duration;
 use data_server::{AsyncSubscriber, SubMessage};
 use std::net::SocketAddr;
@@ -27,7 +27,10 @@ impl ReconnectingSubscriber {
                 }
 
                 match AsyncSubscriber::connect(self.addr).await {
-                    Ok(conn) => break conn,
+                    Ok(conn) => {
+                        info!("Successfully (re)connected to data-server");
+                        break conn;
+                    }
                     Err(e) => warn!("Failed to (re)connect: {e}"),
                 }
                 sleep(retry_period).await;
@@ -43,7 +46,7 @@ impl ReconnectingSubscriber {
                     panic!("Critical error while receiving msg from data-server: {e}")
                 }
                 Err(issue) => {
-                    warn!("reconnecting, conn issue while getting next_msg: {issue}")
+                    warn!("Conn issue while getting next_msg: {issue}, reconnecting")
                 }
             };
         }
