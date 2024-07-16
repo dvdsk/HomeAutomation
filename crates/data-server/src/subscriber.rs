@@ -1,5 +1,6 @@
 use std::io::{BufRead, BufReader};
-use std::net::{TcpStream, ToSocketAddrs};
+use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
+use std::time::Duration;
 use std::vec;
 
 use protocol::{DecodeError, Msg};
@@ -19,8 +20,9 @@ pub struct Subscriber {
 }
 
 impl Subscriber {
-    pub fn connect(addr: impl ToSocketAddrs) -> Result<Self, SubscribeError> {
-        let conn = TcpStream::connect(addr).map_err(SubscribeError::ConnFailed)?;
+    pub fn connect(addr: impl Into<SocketAddr>) -> Result<Self, SubscribeError> {
+        let conn = TcpStream::connect_timeout(&addr.into(), Duration::from_millis(400))
+            .map_err(SubscribeError::ConnFailed)?;
         let reader = BufReader::new(conn);
         let buf = Vec::new();
 
