@@ -1,11 +1,13 @@
-use std::io::{BufRead, BufReader};
-use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
+use std::io::{BufRead, BufReader, Write};
+use std::net::{SocketAddr, TcpStream};
 use std::time::Duration;
 use std::vec;
 
 use protocol::{DecodeError, Msg};
-use tokio::io::AsyncBufReadExt;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use tracing::{instrument, trace};
+
+pub mod reconnecting;
 
 #[derive(Debug)]
 pub enum SubMessage {
@@ -20,9 +22,17 @@ pub struct Subscriber {
 }
 
 impl Subscriber {
-    pub fn connect(addr: impl Into<SocketAddr>) -> Result<Self, SubscribeError> {
-        let conn = TcpStream::connect_timeout(&addr.into(), Duration::from_millis(400))
+    pub fn connect(addr: impl Into<SocketAddr>, name: &str) -> Result<Self, SubscribeError> {
+        let mut conn = TcpStream::connect_timeout(&addr.into(), Duration::from_millis(400))
             .map_err(SubscribeError::ConnFailed)?;
+        let name_len: u8 = name
+            .len()
+            .try_into()
+            .map_err(|_| SubscribeError::NameTooLong)?;
+        conn.write_all(&[name_len])
+            .map_err(SubscribeError::FailedToWriteName)?;
+        conn.write_all(name.as_bytes())
+            .map_err(SubscribeError::FailedToWriteName)?;
         let reader = BufReader::new(conn);
         let buf = Vec::new();
 
@@ -55,10 +65,23 @@ pub struct AsyncSubscriber {
 }
 
 impl AsyncSubscriber {
-    pub async fn connect(addr: impl tokio::net::ToSocketAddrs) -> Result<Self, SubscribeError> {
-        let conn = tokio::net::TcpStream::connect(addr)
+    pub async fn connect(
+        addr: impl tokio::net::ToSocketAddrs,
+        name: &str,
+    ) -> Result<Self, SubscribeError> {
+        let mut conn = tokio::net::TcpStream::connect(addr)
             .await
             .map_err(SubscribeError::ConnFailed)?;
+        let name_len: u8 = name
+            .len()
+            .try_into()
+            .map_err(|_| SubscribeError::NameTooLong)?;
+        conn.write_all(&[name_len])
+            .await
+            .map_err(SubscribeError::FailedToWriteName)?;
+        conn.write_all(name.as_bytes())
+            .await
+            .map_err(SubscribeError::FailedToWriteName)?;
         let reader = tokio::io::BufReader::new(conn);
         let buf = Vec::new();
 
@@ -129,4 +152,8 @@ pub enum SubscribeError {
     DecodeFailed(DecodeError),
     #[error("Connection ended")]
     ConnEnded,
+    #[error("A subscribers name must be smaller then 256 bytes long")]
+    NameTooLong,
+    #[error("Could not send name to data-server: {0}")]
+    FailedToWriteName(std::io::Error),
 }

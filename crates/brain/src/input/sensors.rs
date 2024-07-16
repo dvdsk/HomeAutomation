@@ -11,7 +11,7 @@ use crate::controller::Event;
 pub async fn subscribe(event_tx: broadcast::Sender<Event>, data_server: SocketAddr) {
     loop {
         let mut sub = loop {
-            match AsyncSubscriber::connect(data_server).await {
+            match AsyncSubscriber::connect(data_server, "ha-brain").await {
                 Ok(sub) => break sub,
                 Err(SubscribeError::DecodeFailed(e)) => {
                     error!("Decode failed: {e:?}. is protocol lib up to date? Exiting");

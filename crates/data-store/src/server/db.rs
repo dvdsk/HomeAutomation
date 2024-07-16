@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
 
+use data_server::subscriber::reconnecting;
 use time::OffsetDateTime;
 use tokio::sync::Mutex;
 
@@ -14,12 +15,8 @@ use series::Series;
 
 use crate::api;
 
-mod reconnecting;
-use reconnecting::ReconnectingSubscriber;
-
 pub(crate) async fn run(data_server_addr: SocketAddr, data: Data, data_dir: &Path) -> Result<()> {
-    tracing::warn!("testing");
-    let mut sub = ReconnectingSubscriber::new(data_server_addr);
+    let mut sub = reconnecting::Subscriber::new(data_server_addr, "ha-data-store".to_string());
 
     loop {
         let msg = sub.next_msg().await;
@@ -29,7 +26,6 @@ pub(crate) async fn run(data_server_addr: SocketAddr, data: Data, data_dir: &Pat
             SubMessage::Reading(reading) => series::store(&data, &reading, data_dir).await,
             SubMessage::ErrorReport(_) => continue,
         };
-
 
         if let Err(e) = res {
             tracing::error!("Error processing new reading: {e:?}");

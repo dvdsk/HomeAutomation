@@ -23,13 +23,13 @@ const fn test_readings(v: f32) -> [Reading; 2] {
     ]
 }
 
-async fn data_server(sub_port: u16, data_port: u16) {
+async fn data_server(sub_port: impl Into<SocketAddr>, data_port: impl Into<SocketAddr>) {
     use data_server::server;
 
     let (tx, rx) = mpsc::channel(2000);
     tokio::select! {
-        e = server::register_subs(sub_port, &tx) => e.unwrap(),
-        e = server::handle_data_sources(data_port, &tx) => e.unwrap(),
+        e = server::register_subs(sub_port.into(), &tx) => e.unwrap(),
+        e = server::handle_data_sources(data_port.into(), &tx) => e.unwrap(),
         e = server::spread_updates(rx) => e.unwrap(),
     };
 }
@@ -136,7 +136,10 @@ async fn list_data() {
     let data_store_addr = SocketAddr::from(([127, 0, 0, 1], store_port.port()));
 
     let data_send = Notify::new();
-    let run_data_server = data_server(sub_port.port(), data_port.port());
+    let run_data_server = data_server(
+        ([127, 0, 0, 1], sub_port.port()),
+        ([127, 0, 0, 1], data_port.port()),
+    );
     let run_data_store = sleep(DATA_SERVER_STARTUP).then(|()| {
         data_store::server::run(data_server_addr, data_store_addr.port(), test_dir.path())
     });
@@ -178,7 +181,10 @@ async fn read_data() {
     let data_send = Notify::new();
     let sensor_values = [0.5];
     // let sensor_values = [0.0, 0.1, 0.2, 0.3];
-    let run_data_server = data_server(sub_port.port(), data_port.port());
+    let run_data_server = data_server(
+        ([127, 0, 0, 1], sub_port.port()),
+        ([127, 0, 0, 1], data_port.port()),
+    );
     let run_data_store = sleep(DATA_SERVER_STARTUP).then(|()| {
         data_store::server::run(data_server_addr, data_store_addr.port(), test_dir.path())
     });

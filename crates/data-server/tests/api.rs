@@ -1,3 +1,4 @@
+use std::net::SocketAddr;
 use std::time::Duration;
 
 use color_eyre::Result;
@@ -19,11 +20,14 @@ enum Done {
     Test,
 }
 
-async fn run_server(sub_port: u16, data_port: u16) -> Result<Done> {
+async fn run_server(
+    sub_port: impl Into<SocketAddr>,
+    data_port: impl Into<SocketAddr>,
+) -> Result<Done> {
     let (tx, rx) = mpsc::channel(2000);
     select! {
-        e = server::register_subs(sub_port, &tx) => e?,
-        e = server::handle_data_sources(data_port, &tx) => e?,
+        e = server::register_subs(sub_port.into(), &tx) => e?,
+        e = server::handle_data_sources(data_port.into(), &tx) => e?,
         e = server::spread_updates(rx) => e?,
     };
 
@@ -47,9 +51,10 @@ async fn send_sensor_value(data_port: u16) -> Result<Done> {
 
 async fn subscribe_and_receive(sub_port: u16) -> Result<Done> {
     tokio::time::sleep(Duration::from_millis(100)).await;
-    let mut sub = data_server::AsyncSubscriber::connect(("127.0.0.1", sub_port))
-        .await
-        .unwrap();
+    let mut sub =
+        data_server::AsyncSubscriber::connect(("127.0.0.1", sub_port), "api_integration_tests")
+            .await
+            .unwrap();
     let received = sub.next_msg().await.unwrap();
     dbg!(&received);
     assert!(matches!(received, SubMessage::Reading(TEST_READING)));
@@ -62,7 +67,7 @@ async fn main() {
     let sub_port = reserve_port::ReservedPort::random().unwrap();
     let data_port = reserve_port::ReservedPort::random().unwrap();
     let res = select! {
-        e = run_server(sub_port.port(), data_port.port()) => e,
+        e = run_server(([127,0,0,1], sub_port.port()), ([127,0,0,1], data_port.port())) => e,
         e = send_sensor_value(data_port.port()) => e,
         e = subscribe_and_receive(sub_port.port()) => e,
     };

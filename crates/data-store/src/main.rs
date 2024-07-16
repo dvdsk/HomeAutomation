@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use color_eyre::eyre::Result;
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(name = "data server")]
 #[command(version = "1.0")]
 #[command(about = "Receives sensor events and spreads those to subscribed services")]
@@ -24,6 +24,8 @@ struct Cli {
 async fn main() -> Result<()> {
     setup_tracing().unwrap();
     let cli = Cli::parse();
+    tracing::info!("started data-server, args: {cli:?}");
+
     data_store::server::run(cli.data_server, cli.client_port, &cli.data_dir).await
 }
 

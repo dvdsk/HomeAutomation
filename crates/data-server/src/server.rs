@@ -1,16 +1,19 @@
 use color_eyre::eyre::Context;
 use std::mem;
 use std::net::SocketAddr;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufStream};
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufStream};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{self, Sender};
+use tokio::time::timeout;
 
 use color_eyre::{Result, Section};
 use protocol::{Reading, SensorMessage};
 
 use tracing::{info, warn};
 
-pub async fn handle_client(stream: TcpStream, queue: Sender<Event>) {
+pub async fn handle_data_source(stream: TcpStream, queue: Sender<Event>) {
     let mut reader = BufStream::new(stream);
     let mut buf = Vec::new();
     loop {
@@ -59,6 +62,16 @@ pub enum Event {
     NewReading(Result<Reading, Box<protocol::Error>>),
 }
 
+pub async fn handle_sub_conn(mut sub: TcpStream, mut tx: mpsc::Receiver<Arc<[u8]>>) {
+    loop {
+        let msg = tx.recv().await.expect("updates always keep coming");
+        if let Err(e) = timeout(Duration::from_secs(2), sub.write_all(&msg)).await {
+            warn!("Subscriber connection failed: {e}");
+            break;
+        }
+    }
+}
+
 pub async fn spread_updates(mut events: mpsc::Receiver<Event>) -> Result<()> {
     let mut subscribers = Vec::new();
 
@@ -70,11 +83,14 @@ pub async fn spread_updates(mut events: mpsc::Receiver<Event>) -> Result<()> {
 
         let msg = match event {
             Event::NewSub(sub) => {
-                subscribers.push(sub);
+                let (tx, rx) = tokio::sync::mpsc::channel(100);
+                tokio::spawn(handle_sub_conn(sub, rx));
+                subscribers.push(tx);
                 continue;
             }
             Event::NewReading(Ok(reading)) => {
-                // TODO use futures-util's peekable with next_if
+                // PERF:
+                // use futures-util's peekable with next_if
                 // to get up to 49 extra messages for efficiency
                 let mut readings: SensorMessage<50> = SensorMessage::default();
                 readings
@@ -90,30 +106,29 @@ pub async fn spread_updates(mut events: mpsc::Receiver<Event>) -> Result<()> {
         };
 
         let bytes = msg.encode();
+        let bytes: Arc<[u8]> = Arc::from(bytes.into_boxed_slice());
+
         let subs = mem::take(&mut subscribers);
-        for mut sub in subs {
-            if let Err(e) = sub.write_all(&bytes).await {
-                warn!("Error writing to subscriber: {e}");
-            } else {
+        for sub in subs {
+            if sub.try_send(bytes.clone()).is_ok() {
                 subscribers.push(sub);
             }
         }
     }
 }
 
-pub async fn handle_data_sources(port: u16, share: &mpsc::Sender<Event>) -> Result<()> {
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+pub async fn handle_data_sources(addr: SocketAddr, share: &mpsc::Sender<Event>) -> Result<()> {
     let listener = TcpListener::bind(addr)
         .await
         .wrap_err("Could not start listening for new subscribers")
-        .with_note(|| format!("trying to listen on port: {port}"))?;
+        .with_note(|| format!("trying to listen on: {addr}"))?;
 
     loop {
         let res = listener.accept().await;
         match res {
             Ok((stream, source)) => {
                 info!("new data source connected from: {source}");
-                tokio::spawn(handle_client(stream, share.clone()));
+                tokio::spawn(handle_data_source(stream, share.clone()));
             }
             Err(e) => {
                 println!("new connection failed: {e}");
@@ -123,18 +138,26 @@ pub async fn handle_data_sources(port: u16, share: &mpsc::Sender<Event>) -> Resu
     }
 }
 
-pub async fn register_subs(port: u16, tx: &mpsc::Sender<Event>) -> Result<()> {
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+pub async fn register_subs(addr: SocketAddr, tx: &mpsc::Sender<Event>) -> Result<()> {
     let listener = TcpListener::bind(addr)
         .await
         .wrap_err("Could not start receiving updates")
-        .with_note(|| format!("trying to listen on port: {port}"))?;
+        .with_note(|| format!("trying to listen on: {addr}"))?;
 
     loop {
         let res = listener.accept().await;
         match res {
-            Ok((stream, source)) => {
-                info!("new subscriber connected from: {source}");
+            Ok((mut stream, source)) => {
+                match check_sub(&mut stream).await {
+                    Ok(name) => info!("new subscriber '{name}' connected from: {source}"),
+                    Err(e) => {
+                        warn!(
+                            "newly connected subscriber from: {source} failed to\
+                            pass check: {e}, disconnecting"
+                        );
+                        continue;
+                    }
+                }
                 tx.send(Event::NewSub(stream))
                     .await
                     .expect("spread_updates (rx) never ends");
@@ -145,4 +168,29 @@ pub async fn register_subs(port: u16, tx: &mpsc::Sender<Event>) -> Result<()> {
             }
         };
     }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum CheckErr {
+    #[error("Could not read name length: {0}")]
+    ReadLen(std::io::Error),
+    #[error("Timed out reading subscriber name")]
+    Timeout,
+    #[error("Name could not be parsed: {0}")]
+    ParseName(std::string::FromUtf8Error),
+}
+
+async fn check_sub(stream: &mut TcpStream) -> Result<String, CheckErr> {
+    let name_len = timeout(Duration::from_millis(200), stream.read_u8())
+        .await
+        .map_err(|_| CheckErr::Timeout)?
+        .map_err(CheckErr::ReadLen)?;
+    let mut buf = vec![0; name_len as usize];
+    timeout(Duration::from_millis(200), stream.read_exact(&mut buf))
+        .await
+        .map_err(|_| CheckErr::Timeout)?
+        .map_err(CheckErr::ReadLen)?;
+
+    let name = String::from_utf8(buf).map_err(CheckErr::ParseName)?;
+    Ok(name)
 }

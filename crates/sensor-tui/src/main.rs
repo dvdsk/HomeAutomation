@@ -58,7 +58,7 @@ fn main() -> Result<()> {
         data_store,
     } = Cli::parse();
 
-    let sub = data_server::Subscriber::connect(data_server)
+    let sub = data_server::Subscriber::connect(data_server, "ha-tui")
         .wrap_err("failed to connect")
         .with_suggestion(|| format!("verify the server is listening on: {data_server}"))?;
 

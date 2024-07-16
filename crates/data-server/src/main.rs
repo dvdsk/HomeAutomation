@@ -1,9 +1,11 @@
-use tokio::sync::mpsc;
-use tokio::select;
+use std::net::SocketAddr;
 
+use tokio::select;
+use tokio::sync::mpsc;
+
+use clap::Parser;
 use color_eyre::Result;
 use tracing::info;
-use clap::Parser;
 
 use data_server::server;
 
@@ -12,13 +14,13 @@ use data_server::server;
 #[command(version = "1.0")]
 #[command(about = "Receives sensor events and spreads those to subscribed services")]
 struct Cli {
-    /// Optional name to operate on
+    /// addr to which subscribers can connect
     #[arg(short, long)]
-    subscribe_port: u16,
+    subscribe_addr: SocketAddr,
 
-    /// Sets a custom config file
+    /// addr to which data-source can supply msg's
     #[arg(short, long)]
-    update_port: u16,
+    update_addr: SocketAddr,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -26,18 +28,18 @@ async fn main() -> Result<()> {
     setup_tracing();
 
     let Cli {
-        subscribe_port,
-        update_port,
+        subscribe_addr,
+        update_addr,
     } = Cli::parse();
-    assert_ne!(subscribe_port, update_port);
+    assert_ne!(subscribe_addr, update_addr);
 
-    info!("listening for updates on port: {update_port}");
-    info!("serving subscribers on port: {subscribe_port}");
+    info!("listening for updates on: {update_addr}");
+    info!("serving subscribers on: {subscribe_addr}");
 
     let (tx, rx) = mpsc::channel(2000);
     select! {
-        e = server::register_subs(subscribe_port, &tx) => e,
-        e = server::handle_data_sources(update_port, &tx) => e,
+        e = server::register_subs(subscribe_addr, &tx) => e,
+        e = server::handle_data_sources(update_addr, &tx) => e,
         e = server::spread_updates(rx) => e,
     }
 }
