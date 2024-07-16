@@ -49,6 +49,22 @@ pub trait Tree: core::fmt::Debug {
     fn branch_id(&self) -> Id;
 }
 
+macro_rules! impl_zero {
+    ($name:ident; $($var:ident),*) => {
+        impl $name {
+            #[must_use]
+            pub fn is_same_as(&self, other: &Self) -> bool {
+                match (self, other) {
+                    $(($name::$var(a), $name::$var(b)) => a.is_same_as(b),)*
+                    (_, _) => false,
+                }
+            }
+        }
+
+    };
+}
+pub(crate) use impl_zero;
+
 macro_rules! all_nodes {
     ($name:ident; $variant:ident; $($var:ident),*) => {
         impl crate::reading_tree::Tree for $name {
@@ -63,8 +79,9 @@ macro_rules! all_nodes {
             fn branch_id(&self) -> crate::reading_tree::Id {
                 $variant::from(self) as crate::reading_tree::Id
             }
+
         }
+        crate::reading_tree::impl_zero!{$name; $($var),*}
     };
 }
-
 pub(crate) use all_nodes;

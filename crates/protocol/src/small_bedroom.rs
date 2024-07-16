@@ -23,7 +23,15 @@ crate::button_enum! {
 }
 
 #[derive(
-    strum::EnumDiscriminants, Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize, PartialEq,
+    strum::EnumDiscriminants,
+    Clone,
+    Copy,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    PartialEq,
 )]
 pub enum Reading {
     ButtonPanel(ButtonPanel),
@@ -42,17 +50,15 @@ impl Tree for Reading {
     }
 }
 
-#[derive(
-    Clone,
-    Debug,
-    defmt::Format,
-    Serialize,
-    Deserialize,
-    MaxSize,
-    Hash,
-    PartialEq,
-    Eq,
-)]
+impl Reading {
+    pub fn is_same_as(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::ButtonPanel(a), Self::ButtonPanel(b)) => a.is_same_as(b)
+        }
+    }
+}
+
+#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Hash, PartialEq, Eq)]
 pub enum Device {
     Gpio,
 }
@@ -75,7 +81,7 @@ impl Device {
                 ButtonPanel::BottomLeft(Press(0)),
                 ButtonPanel::BottomMiddle(Press(0)),
                 ButtonPanel::BOttomRight(Press(0))
-            ],
+            ]
         }
     }
 

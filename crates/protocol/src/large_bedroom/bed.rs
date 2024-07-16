@@ -256,6 +256,33 @@ impl Tree for Reading {
     }
 }
 
+impl Reading {
+    pub fn is_same_as(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Brightness(_), Self::Brightness(_)) => true,
+            (Self::Temperature(_), Self::Temperature(_)) => true,
+            (Self::Humidity(_), Self::Humidity(_)) => true,
+            (Self::GassResistance(_), Self::GassResistance(_)) => true,
+            (Self::Pressure(_), Self::Pressure(_)) => true,
+            (Self::Co2(_), Self::Co2(_)) => true,
+            (Self::WeightLeft(_), Self::WeightLeft(0)) => true,
+            (Self::WeightRight(_), Self::WeightRight(0)) => true,
+            (Self::MassPm1_0(_), Self::MassPm1_0(_)) => true,
+            (Self::MassPm2_5(_), Self::MassPm2_5(_)) => true,
+            (Self::MassPm4_0(_), Self::MassPm4_0(_)) => true,
+            (Self::MassPm10(_), Self::MassPm10(_)) => true,
+            (Self::NumberPm0_5(_), Self::NumberPm0_5(_)) => true,
+            (Self::NumberPm1_0(_), Self::NumberPm1_0(_)) => true,
+            (Self::NumberPm2_5(_), Self::NumberPm2_5(_)) => true,
+            (Self::NumberPm4_0(_), Self::NumberPm4_0(_)) => true,
+            (Self::NumberPm10(_), Self::NumberPm10(_)) => true,
+            (Self::TypicalParticleSize(_), Self::TypicalParticleSize(_)) => true,
+            (Self::Button(a), Self::Button(b)) => a.is_same_as(b),
+            _ => false,
+        }
+    }
+}
+
 #[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
 pub enum Error {
     Running(SensorError),

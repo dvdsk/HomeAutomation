@@ -84,6 +84,19 @@ impl Tree for Reading {
     }
 }
 
+impl Reading {
+    #[must_use]
+    pub fn is_same_as(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Reading::Temperature(_), Self::Temperature(_)) => true,
+            (Reading::Humidity(_), Self::Humidity(_)) => true,
+            (Reading::Pressure(_), Self::Pressure(_)) => true,
+            (Reading::Button(a), Self::Button(b)) => a.is_same_as(b),
+            _ => false,
+        }
+    }
+}
+
 #[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
 pub enum Error {
     Running(SensorError),

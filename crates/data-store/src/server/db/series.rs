@@ -162,13 +162,14 @@ impl Series {
             .map(|requested| {
                 self.meta
                     .iter()
-                    .find(|meta| *requested == meta.reading)
+                    .find(|meta| requested.is_same_as(&meta.reading))
                     .inspect(|meta| info!("meta used for decoding: {meta:?}"))
                     .map(|meta| meta.field.clone())
-                    .expect(
-                        "caller of read makes sure all readings are\
-                        part of this series",
-                    )
+                    .expect(&format!(
+                        "caller of read makes sure all readings are part of this \
+                        series.\n\tseries: {:?},\n\trequested: {:?}",
+                        self.meta, readings
+                    ))
             })
             .collect();
         let mut resampler = Resampler::from_fields(fields, self.line.len());

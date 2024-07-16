@@ -97,6 +97,15 @@ macro_rules! button_enum {
                 discriminant as crate::reading_tree::Id
             }
         }
+
+        impl $name {
+            pub fn is_same_as(&self, other: &Self) -> bool {
+                match (self, other) {
+                    $(($name::$variant(_), $name::$variant(_)) => true,)*
+                    (_, _) => false,
+                }
+            }
+        }
     };
 }
 pub(crate) use button_enum;
