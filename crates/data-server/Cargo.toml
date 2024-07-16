@@ -16,7 +16,7 @@ tracing = { workspace = true }
 tracing-error = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
-protocol = { workspace = true, features = ["alloc"] }
+protocol = { workspace = true, features = ["alloc", "thiserror"] }
 tokio = { workspace = true, features = ["rt", "macros", "net", "sync", "io-util"] }
 tokio-stream = { version = "0.1.15", features = ["net"] }
 thiserror = "1.0.61"
