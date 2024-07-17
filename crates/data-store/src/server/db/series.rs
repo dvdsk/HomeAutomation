@@ -140,7 +140,7 @@ impl Series {
             self.byteseries
                 .push_line(time.unix_timestamp() as u64, &self.line)
                 .wrap_err("Could not write to timeseries on disk")?;
-            tracing::debug!("encoded data stored in byteseries");
+            self.line.fill(0);
         }
 
         Ok(())
@@ -264,7 +264,6 @@ fn try_create_new_if_open_failed(
 
 #[instrument(level = "debug", skip(data))]
 pub(crate) async fn store(data: &Data, reading: &protocol::Reading, data_dir: &Path) -> Result<()> {
-    tracing::debug!("storing received reading: {reading:?}");
     let mut data = data.0.lock().await;
 
     let key = reading.device();

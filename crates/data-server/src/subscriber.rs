@@ -5,7 +5,7 @@ use std::vec;
 
 use protocol::{DecodeError, Msg};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
-use tracing::{instrument, trace};
+use tracing::instrument;
 
 pub mod reconnecting;
 
@@ -121,7 +121,6 @@ fn decode_buffer_and_return_first(
 
     buf.resize(n_read, 0); // ensure stop delimiter in bytes
     let bytes = &mut buf[0..n_read];
-    trace!("New message from data-server to decode, bytes: {bytes:?}");
     let decoded: Msg<50> = Msg::decode(bytes).map_err(SubscribeError::DecodeFailed)?;
     match decoded {
         Msg::Readings(readings) => {

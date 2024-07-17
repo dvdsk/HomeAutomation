@@ -20,8 +20,6 @@ pub(crate) async fn run(data_server_addr: SocketAddr, data: Data, data_dir: &Pat
 
     loop {
         let msg = sub.next_msg().await;
-        tracing::trace!("got msg: {msg:?}");
-
         let res = match msg {
             SubMessage::Reading(reading) => series::store(&data, &reading, data_dir).await,
             SubMessage::ErrorReport(_) => continue,
