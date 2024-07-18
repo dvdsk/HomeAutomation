@@ -1,0 +1,17 @@
+[package]
+name = "text-widget"
+version = "0.1.0"
+rust-version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+clap.workspace = true
+color-eyre = { workspace = true }
+protocol = { workspace = true, features = ["alloc", "thiserror"] }
+data-server = { workspace = true }
+data-store = { workspace = true }
+nucleo-matcher = "0.3.1"
+tokio = { workspace = true}
+gethostname = "0.5.0"
