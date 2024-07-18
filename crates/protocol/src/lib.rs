@@ -1,6 +1,8 @@
 #![cfg_attr(not(feature = "alloc"), no_std)]
 #![allow(clippy::missing_panics_doc, clippy::missing_errors_doc)]
 
+use core::fmt::Display;
+
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
@@ -25,6 +27,23 @@ pub enum Unit {
     NumberPerCm3,
     NanoMeter,
     None, // for buttons
+}
+
+impl Display for Unit {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Unit::Pa => f.write_str("Pa"),
+            Unit::C => f.write_str("°C"),
+            Unit::RH => f.write_str("%RH"),
+            Unit::Lux => f.write_str("lx"),
+            Unit::Ohm => f.write_str("Ω"),
+            Unit::Ppm => f.write_str("ppm"),
+            Unit::MicrogramPerM3 => f.write_str("µg/m³"),
+            Unit::NumberPerCm3 => f.write_str("#/cm³"),
+            Unit::NanoMeter => f.write_str("nm"),
+            Unit::None => f.write_str(""),
+        }
+    }
 }
 
 #[derive(

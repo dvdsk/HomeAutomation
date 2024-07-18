@@ -57,7 +57,7 @@ async fn main() {
     println!("Showing results for: {best_scored:?}");
     let now = OffsetDateTime::now_utc();
     let data = client
-        .get_data(now - Duration::minutes(60), now, best_scored, 10)
+        .get_data(now - Duration::minutes(5), now, best_scored, 10)
         .await
         .unwrap();
 

@@ -4,6 +4,7 @@ use crate::{Device, Reading, Unit};
 pub struct ReadingInfo {
     pub val: f32,
     pub device: Device,
+    /// smallest step size the data can make
     pub resolution: f32,
     pub range: core::ops::Range<f32>,
     pub unit: Unit,
@@ -15,6 +16,28 @@ impl ReadingInfo {
     #[must_use]
     pub fn from_same_device(&self) -> &'static [Reading] {
         self.device.affected_readings()
+    }
+
+    /// useful for printing/formatting floats
+    /// # Example
+    /// ```rust
+    /// use crate::Reading;
+    /// use crate::large_bedroom;
+    /// use crate::large_bedroom::desk;
+    ///
+    /// let reading =
+    /// Reading::LargeBedroom(large_bedroom::Reading(desk::Reading::Temperature(22.428124);
+    ///
+    /// let info = reading.leaf();
+    /// let printed = format!("{0:.1$}", info.val, info.precision());
+    /// assert_eq!(printed, "22.42");
+    /// ```
+    pub fn precision(&self) -> usize {
+        if self.resolution > 1.0 {
+            0
+        } else {
+            self.resolution.log10().abs() as usize
+        }
     }
 }
 
