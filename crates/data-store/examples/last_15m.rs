@@ -3,7 +3,7 @@ use protocol::Reading;
 use std::net::SocketAddr;
 
 use data_store::api::Client;
-use nucleo::pattern::{AtomKind, CaseMatching, Normalization};
+use nucleo_matcher::pattern::{AtomKind, CaseMatching, Normalization};
 use time::{Duration, OffsetDateTime};
 
 use clap::Parser;
@@ -44,7 +44,7 @@ async fn main() {
         .map(|r| {
             (
                 pattern.score(
-                    nucleo::Utf32Str::new(to_path(&r).as_str(), &mut buf),
+                    nucleo_matcher::Utf32Str::new(to_path(&r).as_str(), &mut buf),
                     &mut matcher,
                 ),
                 r,

@@ -114,17 +114,7 @@ impl App {
             };
 
             terminal.draw(|frame| {
-                render::all(
-                    frame,
-                    &readings.ground,
-                    &mut self.reading_list_state,
-                    actuators.clone(),
-                    &mut actuator_list_state,
-                    self.active_list,
-                    &histogram,
-                    chart,
-                    &self.history_length,
-                );
+                render::app(frame, self, &readings.ground, chart, &histogram);
             })?;
 
             if self.reading_list_state.selected().is_empty() {
