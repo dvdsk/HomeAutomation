@@ -6,54 +6,22 @@ use protocol::Reading;
 
 use ratatui::{text::Line, widgets::Bar};
 use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::sync::{Arc, Mutex, TryLockError};
-use std::thread;
+use std::sync::TryLockError;
 use std::time::Instant;
 use time::OffsetDateTime;
 use tui_tree_widget::TreeItem;
 
-use crate::trace_dbg;
+mod fetch;
+use fetch::StoredHistory;
 
 #[derive(Debug)]
 pub struct SensorInfo {
-    name: String,
     timing: Histogram,
-    reading: Reading,
+    pub reading: Reading,
     recent_history: Vec<(OffsetDateTime, f32)>,
-    old_history: Arc<Mutex<Vec<(OffsetDateTime, f32)>>>,
-    fetching: Option<thread::JoinHandle<()>>,
+    pub stored_history: StoredHistory,
     condition: Result<(), Box<Error>>,
     log: Vec<(Instant, Error)>,
-}
-
-fn fetch_history(
-    history: Arc<Mutex<Vec<(OffsetDateTime, f32)>>>,
-    reading: Reading,
-    addr: SocketAddr,
-) {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_io()
-        .build()
-        .unwrap();
-
-    let data = rt.block_on(async {
-        let mut api = data_store::api::Client::connect(addr).await.unwrap();
-        trace_dbg!(api.list_data().await);
-        trace_dbg!(api.get_data(
-            OffsetDateTime::now_utc() - time::Duration::minutes(15),
-            OffsetDateTime::now_utc(),
-            reading,
-            300,
-        )
-        .await)
-        .unwrap()
-    });
-
-    let mut history = history.lock().unwrap();
-    for (t, y) in data.0.into_iter().zip(data.1) {
-        history.push((t, y))
-    }
 }
 
 impl SensorInfo {
@@ -71,12 +39,8 @@ impl SensorInfo {
         histogram_bars(&self.timing)
     }
 
-    pub fn chart<'a>(
-        &mut self,
-        plot_buf: &'a mut Vec<(f64, f64)>,
-        data_store: SocketAddr,
-    ) -> Option<ChartParts<'a>> {
-        let guard = match self.old_history.try_lock() {
+    pub fn chart<'a>(&mut self, plot_buf: &'a mut Vec<(f64, f64)>) -> Option<ChartParts<'a>> {
+        let guard = match self.stored_history.data.try_lock() {
             Ok(list) => Some(list),
             Err(TryLockError::WouldBlock) => None,
             Err(other) => panic!(
@@ -91,6 +55,7 @@ impl SensorInfo {
             .first()
             .map(|(t, _)| t)
             .or_else(|| self.recent_history.first().map(|(t, _)| t))?;
+        tracing::debug!("reference: {reference:?}");
 
         let first_recent = self
             .recent_history
@@ -109,15 +74,8 @@ impl SensorInfo {
             plot_buf.push(xy);
         }
 
-        if old_history.is_empty() && self.fetching.is_none() {
-            let old_history = self.old_history.clone();
-            let reading = self.reading.clone();
-            let handle = thread::spawn(move || fetch_history(old_history, reading, data_store));
-            self.fetching = Some(handle);
-        }
-
         Some(ChartParts {
-            name: self.name.clone(),
+            reading: self.reading.clone(),
             data: plot_buf,
         })
     }
@@ -213,7 +171,7 @@ impl Readings {
 
     fn record_error(&mut self, error: Box<Error>) {
         for broken in error.device().affected_readings() {
-            let (key, name, _) = extract_leaf_info(broken);
+            let (key, _, _) = extract_leaf_info(broken);
 
             if let Some(info) = self.data.get_mut(&key) {
                 info.condition = Err(error.clone());
@@ -222,14 +180,12 @@ impl Readings {
                 self.data.insert(
                     key,
                     SensorInfo {
-                        name,
                         reading: broken.clone(),
                         timing: Histogram::new(4, 24).unwrap(),
                         recent_history: Vec::new(),
+                        stored_history: StoredHistory::new(),
                         condition: Err(error.clone()),
                         log: vec![(Instant::now(), (*error).clone())],
-                        old_history: Arc::new(Mutex::new(Vec::new())),
-                        fetching: None,
                     },
                 );
             }
@@ -237,7 +193,7 @@ impl Readings {
     }
 
     fn record_data(&mut self, reading: Reading) {
-        let (key, name, val) = extract_leaf_info(&reading);
+        let (key, _, val) = extract_leaf_info(&reading);
         let time = OffsetDateTime::now_utc();
 
         if let Some(info) = self.data.get_mut(&key) {
@@ -253,14 +209,12 @@ impl Readings {
             self.data.insert(
                 key,
                 SensorInfo {
-                    name,
                     reading,
                     timing: Histogram::new(4, 24).unwrap(),
                     recent_history: history,
-                    old_history: Arc::new(Mutex::new(Vec::new())),
+                    stored_history: StoredHistory::new(),
                     condition: Ok(()),
                     log: Vec::new(),
-                    fetching: None,
                 },
             );
         }
@@ -276,8 +230,14 @@ impl Readings {
         };
         loop {
             match tomato.inner() {
-                Item::Leaf(ReadingInfo { val, .. }) => {
-                    let text = format!("{}: {}", tomato.name(), val);
+                Item::Leaf(info) => {
+                    let text = format!(
+                        "{0}: {1:.2$} {3}",
+                        tomato.name(),
+                        info.val,
+                        info.precision(),
+                        info.unit
+                    );
                     add_leaf(text, tree, key);
                     return;
                 }
@@ -324,7 +284,7 @@ impl Readings {
 }
 
 pub struct ChartParts<'a> {
-    pub name: String,
+    pub reading: Reading,
     pub data: &'a [(f64, f64)],
 }
 

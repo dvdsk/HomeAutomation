@@ -46,7 +46,7 @@ struct Cli {
     data_server: SocketAddr,
 
     /// server where we can fetch historical sensor data
-    #[arg(short='s', long, default_value_t = SocketAddr::from(([127,0,0,1], 1236)))]
+    #[arg(short='s', long, default_value_t = SocketAddr::from(([192,168,1,43], 1236)))]
     data_store: SocketAddr,
 }
 

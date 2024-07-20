@@ -101,7 +101,7 @@ async fn main() {
     loop {
         let new = wait_for_update(&mut client, &reading).await;
         let info = new.leaf();
-        let to_print = format!("{0:.1$}{2}", info.val, info.precision(), info.unit);
+        let to_print = format!("{0:.1$} {2}", info.val, info.precision(), info.unit);
         let use_json = cli.json;
         if use_json {
             println!("{{\"msg\": \"{to_print}\"}}");

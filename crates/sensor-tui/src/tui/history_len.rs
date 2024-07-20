@@ -1,0 +1,113 @@
+use crossterm::event::KeyCode;
+use ratatui::{
+    style::{Color, Modifier, Style},
+    text::Span,
+};
+use std::time::Duration;
+
+mod parse_duration;
+use parse_duration::parse_duration;
+
+use self::parse_duration::fmt_dur;
+
+#[derive(Debug, Clone, Copy)]
+pub enum State {
+    Empty,
+    Invalid,
+    Valid,
+    Fetching,
+    Fetched,
+}
+
+pub struct HistoryLen {
+    pub text_input: String,
+    pub editing: bool,
+    pub state: State,
+    pub dur: Duration,
+}
+
+impl Default for HistoryLen {
+    fn default() -> Self {
+        let dur = Duration::from_secs(15 * 60);
+        let text_input = fmt_dur(dur);
+        Self {
+            text_input,
+            editing: false,
+            state: State::Empty,
+            dur,
+        }
+    }
+}
+
+impl HistoryLen {
+    pub(crate) fn process(&mut self, key: KeyCode) {
+        match key {
+            KeyCode::Char(c) => {
+                self.text_input.push(c);
+            }
+            KeyCode::Backspace => {
+                self.text_input.pop();
+            }
+            _other => (),
+        }
+
+        if let Ok(dur) = parse_duration(&self.text_input) {
+            self.state = State::Valid;
+            self.dur = dur;
+        } else if self.text_input.is_empty() {
+            self.state = State::Empty;
+        } else {
+            self.state = State::Invalid;
+        }
+    }
+
+    pub(crate) fn render_x_label(&self, upper_x_bound: f64) -> Span {
+        let mut text = self.text_input.clone();
+        if self.editing {
+            text.push_str("_");
+        }
+        match self.state {
+            State::Empty => {
+                let style = Style::default()
+                    .fg(Color::Red)
+                    .add_modifier(Modifier::SLOW_BLINK);
+                Span::raw(text).style(style)
+            }
+            State::Invalid => {
+                let style = Style::default()
+                    .fg(Color::Red)
+                    .add_modifier(Modifier::ITALIC);
+                Span::raw(text).style(style)
+            }
+            State::Valid => {
+                let style = Style::default().add_modifier(Modifier::ITALIC);
+                Span::raw(text).style(style)
+            }
+            State::Fetching => {
+                let style = Style::default().add_modifier(Modifier::ITALIC);
+                text.push_str(" (fetching)");
+                Span::raw(text).style(style)
+            }
+            State::Fetched => {
+                if self.editing {
+                    Span::raw(text)
+                } else {
+                    Span::raw(fmt_dur(Duration::from_secs_f64(upper_x_bound)))
+                }
+            }
+        }
+    }
+
+    pub(crate) fn exit_editing(&mut self) {
+        self.editing = false;
+        self.state = match self.state {
+            State::Empty | State::Invalid => State::Fetched,
+            State::Valid | State::Fetching | State::Fetched => self.state,
+        }
+    }
+
+    pub(crate) fn start_editing(&mut self) {
+        self.editing = true;
+        self.text_input.clear();
+    }
+}

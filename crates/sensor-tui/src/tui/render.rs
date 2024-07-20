@@ -1,3 +1,4 @@
+use protocol::reading_tree::Tree as _;
 use ratatui::{
     self,
     layout::{Constraint, Layout, Rect},
@@ -12,7 +13,7 @@ use tui_tree_widget::{Tree, TreeItem, TreeState};
 
 use super::{
     reading::{ChartParts, TreeKey},
-    ActiveList,
+    ActiveList, HistoryLen,
 };
 
 pub(crate) fn all(
@@ -24,6 +25,7 @@ pub(crate) fn all(
     active_list: ActiveList,
     histogram: &[Bar],
     chart: Option<ChartParts>,
+    history_len: &HistoryLen,
 ) {
     let area = frame.size();
     let [top, bottom] = Layout::vertical([Constraint::Min(10), Constraint::Min(10)])
@@ -39,23 +41,35 @@ pub(crate) fn all(
         actuator_list_state,
         active_list,
     );
-    render_lower(frame, bottom, histogram, chart);
+    render_lower(frame, bottom, histogram, chart, history_len);
 }
 
-fn render_lower(frame: &mut Frame, layout: Rect, histogram: &[Bar], chart: Option<ChartParts>) {
+fn render_lower(
+    frame: &mut Frame,
+    layout: Rect,
+    histogram: &[Bar],
+    chart: Option<ChartParts>,
+    history_len: &HistoryLen,
+) {
     match chart {
-        Some(chart) => detail_view(frame, layout, chart, histogram),
+        Some(chart) => detail_view(frame, layout, chart, histogram, history_len),
         None => global_view(frame, layout, histogram),
     }
 }
 
-fn detail_view(frame: &mut Frame, layout: Rect, chart: ChartParts, histogram: &[Bar]) {
+fn detail_view(
+    frame: &mut Frame,
+    layout: Rect,
+    chart: ChartParts,
+    histogram: &[Bar],
+    history_len: &HistoryLen,
+) {
     let [top, lower] = Layout::vertical([Constraint::Percentage(65), Constraint::Percentage(35)])
         .flex(ratatui::layout::Flex::Legacy)
         .areas(layout);
 
     let dataset = Dataset::default()
-        .name(chart.name)
+        .name(chart.reading.name())
         .marker(symbols::Marker::Dot)
         .graph_type(GraphType::Line)
         .style(Style::default())
@@ -77,10 +91,12 @@ fn detail_view(frame: &mut Frame, layout: Rect, chart: ChartParts, histogram: &[
     let y_margin = f64::max(y_range * 0.5, 0.001 * y_bounds[0].abs());
     let y_bounds = [y_bounds[0] - y_margin, y_bounds[1] + y_margin];
 
-    let x_labels = vec![format_time(x_bounds[1]).into(), "0".into()];
+    let left_x_label = history_len.render_x_label(x_bounds[1]);
+    let x_labels = vec![left_x_label, "0".into()];
+
     let y_labels = vec![
-        format!("{:.3}", y_bounds[0]).into(),
-        format!("{:.3}", y_bounds[1]).into(),
+        format!("{0:.1$}", y_bounds[0], chart.reading.leaf().precision()).into(),
+        format!("{0:.1$}", y_bounds[1], chart.reading.leaf().precision()).into(),
     ];
 
     let x_axis = Axis::default()
@@ -89,7 +105,7 @@ fn detail_view(frame: &mut Frame, layout: Rect, chart: ChartParts, histogram: &[
         .bounds(x_bounds)
         .labels(x_labels);
     let y_axis = Axis::default()
-        .title("Value")
+        .title(chart.reading.leaf().unit.to_string())
         .style(Style::default())
         .bounds(y_bounds)
         .labels(y_labels);
@@ -164,17 +180,4 @@ pub(crate) fn render_top(
         horizontal[1],
         actuator_list_state,
     );
-}
-
-fn format_time(seconds: f64) -> String {
-    let seconds = seconds as u32;
-    if seconds < 60 {
-        format!("{}s ago", seconds)
-    } else if seconds < 600 {
-        let m = seconds / 60;
-        let s = seconds % 60;
-        format!("{m}:{s:0>1} ago")
-    } else {
-        format!("{}m ago", seconds / 60)
-    }
 }

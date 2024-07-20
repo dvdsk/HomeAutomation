@@ -1,5 +1,5 @@
 use crossterm::{
-    event::{self, KeyCode, KeyEventKind, KeyModifiers},
+    event::{self, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
@@ -14,10 +14,16 @@ use tui_tree_widget::TreeState;
 mod reading;
 use reading::Readings;
 mod render;
-use crate::{trace_dbg, Update};
+use crate::Update;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+mod history_len;
+use history_len::HistoryLen;
+
+use self::reading::TreeKey;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 enum ActiveList {
+    #[default]
     Readings,
     Actuators,
 }
@@ -39,101 +45,176 @@ impl ActiveList {
     }
 }
 
+#[derive(Debug, Default, Clone, Copy)]
+enum InputMode {
+    #[default]
+    Normal,
+    EditingBounds,
+}
+
 pub fn run(
     rx: mpsc::Receiver<Update>,
     shutdown_tx: mpsc::Sender<color_eyre::Result<Update>>,
-    data_store: SocketAddr
+    data_store: SocketAddr,
 ) -> Result<(), std::io::Error> {
-    let mut readings = Readings {
-        ground: Vec::new(),
-        data: HashMap::new(),
-    };
+    App::default().run(rx, shutdown_tx, data_store)
+}
 
-    stdout().execute(EnterAlternateScreen)?;
-    enable_raw_mode()?;
-    let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
-    terminal.clear()?;
+#[derive(Default)]
+struct App {
+    input_mode: InputMode,
+    active_list: ActiveList,
+    show_histogram: bool,
+    reading_list_state: TreeState<TreeKey>,
+    history_length: HistoryLen,
+}
 
-    let mut active_list = ActiveList::Readings;
-    let mut reading_list_state = TreeState::default();
-    let mut actuator_list_state = ListState::default();
-    let actuators = vec![
-        "placeholder 1".to_owned(),
-        "placeholder 2".to_owned(),
-        "placeholder 3".to_owned(),
-    ];
-    let mut plot_buf = Vec::new();
-
-    loop {
-        let data = reading_list_state.selected()
-            .last() // unique leaf id
-            .and_then(|key| readings.data.get_mut(key));
-
-        let (chart, histogram) = if let Some(data) = data {
-            (data.chart(&mut plot_buf, data_store), data.histogram())
-        } else {
-            (None, readings.histogram_all())
+impl App {
+    pub fn run(
+        &mut self,
+        rx: mpsc::Receiver<Update>,
+        shutdown_tx: mpsc::Sender<color_eyre::Result<Update>>,
+        data_store: SocketAddr,
+    ) -> Result<(), std::io::Error> {
+        let mut readings = Readings {
+            ground: Vec::new(),
+            data: HashMap::new(),
         };
 
-        terminal.draw(|frame| {
-            render::all(
-                frame,
-                &readings.ground,
-                &mut reading_list_state,
-                actuators.clone(),
-                &mut actuator_list_state,
-                active_list,
-                &histogram,
-                chart,
-            );
-        })?;
+        stdout().execute(EnterAlternateScreen)?;
+        enable_raw_mode()?;
+        let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
+        terminal.clear()?;
 
-        if reading_list_state.selected().is_empty() {
-            reading_list_state.select_first();
-        }
+        let mut actuator_list_state = ListState::default();
+        let actuators = vec![
+            "placeholder 1".to_owned(),
+            "placeholder 2".to_owned(),
+            "placeholder 3".to_owned(),
+        ];
+        let mut plot_buf = Vec::new();
 
-        if event::poll(Duration::from_millis(16))? {
-            if let event::Event::Key(key) = event::read()? {
-                tracing::trace!("key pressed: {key:?}");
-                if key.kind == KeyEventKind::Press {
-                    if key.code == KeyCode::Char('q') {
-                        break;
-                    }
-                    if key.code == KeyCode::Char('c')
-                        && key.modifiers.contains(KeyModifiers::CONTROL)
-                    {
-                        break;
-                    }
-                    if key.code == KeyCode::Left {
-                        active_list = active_list.swap();
-                    }
-                    if key.code == KeyCode::Right {
-                        active_list = active_list.swap();
-                    }
-                    if key.code == KeyCode::Down {
-                        reading_list_state.key_down();
-                    }
-                    if key.code == KeyCode::Up {
-                        reading_list_state.key_up();
-                    }
-                    if key.code == KeyCode::Enter {
-                        reading_list_state.toggle_selected();
+        loop {
+            let data = self
+                .reading_list_state
+                .selected()
+                .last() // unique leaf id
+                .and_then(|key| readings.data.get_mut(key));
+
+            let plot_open = data.is_some();
+            let (chart, histogram) = if let Some(data) = data {
+                data.stored_history.update_if_needed(
+                    data_store,
+                    data.reading.clone(),
+                    &mut self.history_length,
+                );
+                (data.chart(&mut plot_buf), data.histogram())
+            } else {
+                (None, readings.histogram_all())
+            };
+
+            terminal.draw(|frame| {
+                render::all(
+                    frame,
+                    &readings.ground,
+                    &mut self.reading_list_state,
+                    actuators.clone(),
+                    &mut actuator_list_state,
+                    self.active_list,
+                    &histogram,
+                    chart,
+                    &self.history_length,
+                );
+            })?;
+
+            if self.reading_list_state.selected().is_empty() {
+                self.reading_list_state.select_first();
+            }
+
+            if event::poll(Duration::from_millis(16))? {
+                if let event::Event::Key(key) = event::read()? {
+                    tracing::trace!("key pressed: {key:?}");
+                    if key.kind == KeyEventKind::Press {
+                        let res = match self.input_mode {
+                            InputMode::Normal => self.handle_key_normal_mode(key, plot_open),
+                            InputMode::EditingBounds => self.handle_key_bounds_mode(key),
+                        };
+
+                        if let ShouldExit::Yes = res {
+                            break;
+                        }
                     }
                 }
+            };
+
+            match rx.try_recv() {
+                Ok(Update::Reading(reading)) => {
+                    readings.add(reading);
+                }
+                Ok(Update::Error(err)) => readings.add_error(err),
+                _ => (),
             }
         }
 
-        match rx.try_recv() {
-            Ok(Update::Reading(reading)) => {
-                readings.add(reading);
-            }
-            Ok(Update::Error(err)) => readings.add_error(err),
-            _ => (),
-        }
+        stdout().execute(LeaveAlternateScreen)?;
+        disable_raw_mode()?;
+        shutdown_tx.send(Ok(Update::Shutdown)).unwrap();
+        Ok(())
     }
 
-    stdout().execute(LeaveAlternateScreen)?;
-    disable_raw_mode()?;
-    shutdown_tx.send(Ok(Update::Shutdown)).unwrap();
-    Ok(())
+    fn handle_key_normal_mode(&mut self, key: KeyEvent, plot_open: bool) -> ShouldExit {
+        match key.code {
+            KeyCode::Char('q') => {
+                return ShouldExit::Yes;
+            }
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                return ShouldExit::Yes;
+            }
+            KeyCode::Left => {
+                self.active_list = self.active_list.swap();
+            }
+            KeyCode::Right => {
+                self.active_list = self.active_list.swap();
+            }
+            KeyCode::Down => {
+                self.reading_list_state.key_down();
+            }
+            KeyCode::Up => {
+                self.reading_list_state.key_up();
+            }
+            KeyCode::Enter => {
+                self.reading_list_state.toggle_selected();
+            }
+            KeyCode::Char('b') => {
+                if plot_open {
+                    self.history_length.start_editing();
+                    self.input_mode = InputMode::EditingBounds;
+                }
+            }
+            KeyCode::Char('h') => {
+                self.show_histogram = !self.show_histogram;
+            }
+            _other => (),
+        }
+        ShouldExit::No
+    }
+
+    fn handle_key_bounds_mode(&mut self, key: KeyEvent) -> ShouldExit {
+        match key.code {
+            KeyCode::Esc => {
+                self.history_length.exit_editing();
+                self.input_mode = InputMode::Normal;
+            }
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                return ShouldExit::Yes;
+            }
+            other => self.history_length.process(other),
+        }
+        ShouldExit::No
+    }
+}
+
+enum ShouldExit {
+    Yes,
+    No,
 }
