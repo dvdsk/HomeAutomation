@@ -24,3 +24,4 @@ data-server = { workspace = true }
 data-store = { workspace = true }
 time = { workspace = true }
 thiserror.workspace = true
+itertools = "0.13.0"

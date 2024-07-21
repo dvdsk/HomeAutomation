@@ -61,7 +61,7 @@ impl HistoryLen {
         }
     }
 
-    pub(crate) fn render_x_label(&self, upper_x_bound: f64) -> Span {
+    pub(crate) fn style_left_x_label(&self, org_label: Span<'static>) -> Span<'static> {
         let mut text = self.text_input.clone();
         if self.editing {
             text.push_str("_");
@@ -92,7 +92,7 @@ impl HistoryLen {
                 if self.editing {
                     Span::raw(text)
                 } else {
-                    Span::raw(fmt_dur(Duration::from_secs_f64(upper_x_bound)))
+                    org_label
                 }
             }
         }

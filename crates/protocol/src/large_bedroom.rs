@@ -84,12 +84,12 @@ impl Device {
 }
 
 #[derive(Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize)]
-pub enum Actuator {
+pub enum Affector {
     CleanSensor,
     CalibrateCo2,
 }
 
-impl Actuator {
+impl Affector {
     #[cfg(feature = "alloc")]
     #[must_use]
     pub fn encode(&self) -> Vec<u8> {

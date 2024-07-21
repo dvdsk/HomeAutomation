@@ -2586,6 +2586,7 @@ dependencies = [
  "data-server",
  "data-store",
  "histogram",
+ "itertools",
  "protocol",
  "ratatui",
  "thiserror",

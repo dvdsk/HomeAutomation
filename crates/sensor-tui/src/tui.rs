@@ -25,7 +25,7 @@ use self::reading::TreeKey;
 enum ActiveList {
     #[default]
     Readings,
-    Actuators,
+    Affectors,
 }
 
 impl ActiveList {
@@ -39,8 +39,8 @@ impl ActiveList {
 
     fn swap(self) -> Self {
         match self {
-            Self::Readings => Self::Actuators,
-            Self::Actuators => Self::Readings,
+            Self::Readings => Self::Affectors,
+            Self::Affectors => Self::Readings,
         }
     }
 }
@@ -86,8 +86,8 @@ impl App {
         let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
         terminal.clear()?;
 
-        let mut actuator_list_state = ListState::default();
-        let actuators = vec![
+        let mut affectors_list_state = ListState::default();
+        let affectors = vec![
             "placeholder 1".to_owned(),
             "placeholder 2".to_owned(),
             "placeholder 3".to_owned(),
