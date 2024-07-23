@@ -9,7 +9,7 @@ use color_eyre::{Result, Section};
 use protocol::reading_tree::{Item, ReadingInfo, Tree};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
-use tracing::{info, instrument};
+use tracing::{info, instrument, trace};
 
 use byteseries::file::OpenError as FileOpenError;
 use series::data::OpenError as DataOpenError;
@@ -163,7 +163,7 @@ impl Series {
                 self.meta
                     .iter()
                     .find(|meta| requested.is_same_as(&meta.reading))
-                    .inspect(|meta| info!("meta used for decoding: {meta:?}"))
+                    .inspect(|meta| trace!("meta used for decoding: {meta:?}"))
                     .map(|meta| meta.field.clone())
                     .expect(&format!(
                         "caller of read makes sure all readings are part of this \
