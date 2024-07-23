@@ -15,7 +15,7 @@ fn sig_lux_diff(old: f32, new: f32) -> bool {
 }
 
 async fn report_lux(mut max44: Max44Driver<'_>, publish: &Queues) {
-    const MIN_INTERVAL: Duration = Duration::from_secs(1);
+    const MAX_INTERVAL: Duration = Duration::from_secs(1);
 
     let mut prev_lux = f32::MAX;
     let mut last_lux = Instant::now();
@@ -25,7 +25,7 @@ async fn report_lux(mut max44: Max44Driver<'_>, publish: &Queues) {
         Timer::after_millis(50).await;
         let lux = match max44.try_measure().await {
             Ok(lux) => lux,
-            Err(err) if last_lux.elapsed() > MIN_INTERVAL => {
+            Err(err) if last_lux.elapsed() > MAX_INTERVAL => {
                 publish.queue_error(err);
                 continue;
             }
@@ -34,7 +34,7 @@ async fn report_lux(mut max44: Max44Driver<'_>, publish: &Queues) {
 
         if sig_lux_diff(prev_lux, lux) {
             publish.send_p2(Reading::Brightness(lux));
-        } else if last_lux.elapsed() > MIN_INTERVAL {
+        } else if last_lux.elapsed() > MAX_INTERVAL {
             publish.send_p1(Reading::Brightness(lux));
         } else {
             yield_now().await;

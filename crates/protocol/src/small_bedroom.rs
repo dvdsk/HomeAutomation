@@ -51,6 +51,7 @@ impl Tree for Reading {
 }
 
 impl Reading {
+    #[must_use]
     pub fn is_same_as(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::ButtonPanel(a), Self::ButtonPanel(b)) => a.is_same_as(b)

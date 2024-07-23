@@ -78,6 +78,8 @@ macro_rules! button_enum {
                     resolution: 1.0,
                     unit: crate::Unit::None,
                     branch_id: self.branch_id(),
+                    min_sample_interval: core::time::Duration::from_millis(2),
+                    temporal_resolution: core::time::Duration::from_millis(1),
                 })
             }
             fn name(&self) -> String {
@@ -99,6 +101,7 @@ macro_rules! button_enum {
         }
 
         impl $name {
+            #[must_use]
             pub fn is_same_as(&self, other: &Self) -> bool {
                 match (self, other) {
                     $(($name::$variant(_), $name::$variant(_)) => true,)*

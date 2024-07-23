@@ -87,15 +87,22 @@ impl Tree for Reading {
     #[allow(clippy::too_many_lines)]
     #[allow(clippy::cast_precision_loss)]
     fn inner(&self) -> Item<'_> {
+        // temporal resolution should be 1
+        let mut min_sample_interval = Duration::from_secs(5);
+        let mut temporal_resolution = Duration::from_millis(1);
         let (val, device, range, resolution, unit, description) = match self {
-            Reading::Brightness(val) => (
-                *val,
-                Device::Max44.rooted(),
-                0.045..188.000,
-                0.045,
-                Unit::Lux,
-                "Brightness",
-            ),
+            Reading::Brightness(val) => {
+                min_sample_interval = Duration::from_millis(50);
+                temporal_resolution = Duration::from_millis(50);
+                (
+                    *val,
+                    Device::Max44.rooted(),
+                    0.045..188.000,
+                    0.045,
+                    Unit::Lux,
+                    "Brightness",
+                )
+            }
             Reading::Temperature(val) => (
                 *val,
                 Device::Sht31.rooted(),
@@ -247,6 +254,8 @@ impl Tree for Reading {
             unit,
             description,
             branch_id: self.branch_id(),
+            temporal_resolution,
+            min_sample_interval,
         })
     }
 
@@ -257,26 +266,27 @@ impl Tree for Reading {
 }
 
 impl Reading {
+    #[must_use]
     pub fn is_same_as(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Brightness(_), Self::Brightness(_)) => true,
-            (Self::Temperature(_), Self::Temperature(_)) => true,
-            (Self::Humidity(_), Self::Humidity(_)) => true,
-            (Self::GassResistance(_), Self::GassResistance(_)) => true,
-            (Self::Pressure(_), Self::Pressure(_)) => true,
-            (Self::Co2(_), Self::Co2(_)) => true,
-            (Self::WeightLeft(_), Self::WeightLeft(0)) => true,
-            (Self::WeightRight(_), Self::WeightRight(0)) => true,
-            (Self::MassPm1_0(_), Self::MassPm1_0(_)) => true,
-            (Self::MassPm2_5(_), Self::MassPm2_5(_)) => true,
-            (Self::MassPm4_0(_), Self::MassPm4_0(_)) => true,
-            (Self::MassPm10(_), Self::MassPm10(_)) => true,
-            (Self::NumberPm0_5(_), Self::NumberPm0_5(_)) => true,
-            (Self::NumberPm1_0(_), Self::NumberPm1_0(_)) => true,
-            (Self::NumberPm2_5(_), Self::NumberPm2_5(_)) => true,
-            (Self::NumberPm4_0(_), Self::NumberPm4_0(_)) => true,
-            (Self::NumberPm10(_), Self::NumberPm10(_)) => true,
-            (Self::TypicalParticleSize(_), Self::TypicalParticleSize(_)) => true,
+            (Self::Brightness(_), Self::Brightness(_))
+            | (Self::Temperature(_), Self::Temperature(_))
+            | (Self::Humidity(_), Self::Humidity(_))
+            | (Self::GassResistance(_), Self::GassResistance(_))
+            | (Self::Pressure(_), Self::Pressure(_))
+            | (Self::Co2(_), Self::Co2(_))
+            | (Self::WeightLeft(_), Self::WeightLeft(0))
+            | (Self::WeightRight(_), Self::WeightRight(0))
+            | (Self::MassPm1_0(_), Self::MassPm1_0(_))
+            | (Self::MassPm2_5(_), Self::MassPm2_5(_))
+            | (Self::MassPm4_0(_), Self::MassPm4_0(_))
+            | (Self::MassPm10(_), Self::MassPm10(_))
+            | (Self::NumberPm0_5(_), Self::NumberPm0_5(_))
+            | (Self::NumberPm1_0(_), Self::NumberPm1_0(_))
+            | (Self::NumberPm2_5(_), Self::NumberPm2_5(_))
+            | (Self::NumberPm4_0(_), Self::NumberPm4_0(_))
+            | (Self::NumberPm10(_), Self::NumberPm10(_))
+            | (Self::TypicalParticleSize(_), Self::TypicalParticleSize(_)) => true,
             (Self::Button(a), Self::Button(b)) => a.is_same_as(b),
             _ => false,
         }

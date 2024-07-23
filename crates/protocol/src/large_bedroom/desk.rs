@@ -1,3 +1,6 @@
+#[cfg(feature = "alloc")]
+use core::time::Duration;
+
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
@@ -54,6 +57,8 @@ impl Tree for Reading {
                 unit: Unit::C,
                 description: "Temperature",
                 branch_id: self.branch_id(),
+                min_sample_interval: Duration::from_secs(5),
+                temporal_resolution: Duration::from_secs(1),
             },
             Reading::Humidity(val) => ReadingInfo {
                 val: *val,
@@ -63,6 +68,8 @@ impl Tree for Reading {
                 unit: Unit::RH,
                 description: "Temperature",
                 branch_id: self.branch_id(),
+                min_sample_interval: Duration::from_secs(5),
+                temporal_resolution: Duration::from_secs(1),
             },
             Reading::Pressure(val) => ReadingInfo {
                 val: *val,
@@ -72,6 +79,8 @@ impl Tree for Reading {
                 unit: Unit::Pa,
                 description: "Air pressure",
                 branch_id: self.branch_id(),
+                min_sample_interval: Duration::from_secs(5),
+                temporal_resolution: Duration::from_secs(1),
             },
             Reading::Button(val) => return Item::Node(val as &dyn Tree),
         };
@@ -88,9 +97,9 @@ impl Reading {
     #[must_use]
     pub fn is_same_as(&self, other: &Self) -> bool {
         match (self, other) {
-            (Reading::Temperature(_), Self::Temperature(_)) => true,
-            (Reading::Humidity(_), Self::Humidity(_)) => true,
-            (Reading::Pressure(_), Self::Pressure(_)) => true,
+            (Reading::Temperature(_), Self::Temperature(_))
+            | (Reading::Humidity(_), Self::Humidity(_))
+            | (Reading::Pressure(_), Self::Pressure(_)) => true,
             (Reading::Button(a), Self::Button(b)) => a.is_same_as(b),
             _ => false,
         }

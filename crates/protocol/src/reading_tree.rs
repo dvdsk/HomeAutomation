@@ -1,3 +1,5 @@
+use core::time::Duration;
+
 use crate::{Device, Reading, Unit};
 
 #[derive(Debug)]
@@ -6,6 +8,8 @@ pub struct ReadingInfo {
     pub device: Device,
     /// smallest step size the data can make
     pub resolution: f32,
+    pub temporal_resolution: Duration,
+    pub min_sample_interval: Duration,
     pub range: core::ops::Range<f32>,
     pub unit: Unit,
     pub description: &'static str,
