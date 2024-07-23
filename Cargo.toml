@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["crates/*"]
-exclude = ["sensor-nodes/*"]
+exclude = ["sensor-nodes/bed-sensors"]
 
 [workspace.dependencies]
 data-server = { path = "crates/data-server" }

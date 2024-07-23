@@ -15,21 +15,22 @@ pub struct Field<T> {
 impl<T> Field<T>
 where
     T: num::cast::NumCast
-        + std::fmt::Display
-        + std::ops::Add
-        + std::ops::SubAssign
-        + std::ops::DivAssign
-        + std::ops::MulAssign
-        + std::marker::Copy,
+        + core::ops::Add
+        + core::ops::SubAssign
+        + core::ops::DivAssign
+        + core::ops::MulAssign
+        + core::marker::Copy
+        + core::fmt::Display
+        + core::fmt::Debug,
 {
     pub fn decode<D>(&self, line: &[u8]) -> D
     where
         D: num::cast::NumCast
-            + std::fmt::Display
-            + std::ops::Add
-            + std::ops::SubAssign
-            + std::ops::MulAssign
-            + std::ops::AddAssign,
+            + core::fmt::Display
+            + core::ops::Add
+            + core::ops::SubAssign
+            + core::ops::MulAssign
+            + core::ops::AddAssign,
     {
         let int_repr: u32 = compression::decode(line, self.offset, self.length);
         let mut decoded: D = num::cast(int_repr).unwrap();
@@ -42,16 +43,18 @@ where
     pub fn encode(&self, mut numb: T, line: &mut [u8])
     where
         T: num::cast::NumCast
-            + std::fmt::Display
-            + std::ops::Add
-            + std::ops::SubAssign
-            + std::ops::AddAssign
-            + std::ops::DivAssign,
+            + core::fmt::Display
+            + core::ops::Add
+            + core::ops::SubAssign
+            + core::ops::AddAssign
+            + core::ops::DivAssign,
     {
         numb -= num::cast(self.decode_add).unwrap();
         numb /= num::cast(self.decode_scale).unwrap();
 
-        let to_encode: u32 = num::cast(numb).unwrap();
+        let to_encode: u32 = num::cast(numb).expect(&format!(
+            "could not cast numb to u32, numb: {numb}, field: {self:?}",
+        ));
 
         compression::encode(to_encode, line, self.offset, self.length);
     }

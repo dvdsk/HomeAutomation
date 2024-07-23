@@ -77,6 +77,7 @@ impl Reading {
         self.leaf().range
     }
     #[must_use]
+    /// the step between the two closest datapoints that are not the same
     pub fn resolution(&self) -> f32 {
         use reading_tree::Tree;
         self.leaf().resolution
