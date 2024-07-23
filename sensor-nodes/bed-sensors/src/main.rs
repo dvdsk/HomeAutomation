@@ -158,7 +158,7 @@ async fn main(spawner: Spawner) {
     static STATE: StaticCell<State<3, 2>> = StaticCell::new();
     let state = STATE.init(State::<3, 2>::new());
     let (device, runner) =
-        embassy_net_wiznet::new(mac_addr, state, spi, w5500_int, w5500_reset).await;
+        unwrap!(embassy_net_wiznet::new(mac_addr, state, spi, w5500_int, w5500_reset).await);
     unwrap!(spawner.spawn(ethernet_task(runner)));
 
     // Init network stack
@@ -167,15 +167,15 @@ async fn main(spawner: Spawner) {
     unwrap!(dns_servers.push(Ipv4Address([192, 168, 1, 1])));
     unwrap!(dns_servers.push(Ipv4Address([192, 168, 1, 1])));
     static STACK: StaticCell<Stack<Device>> = StaticCell::new();
-    static RESOURCES: StaticCell<StackResources<2>> = StaticCell::new();
+    static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
     let stack = &*STACK.init(Stack::new(
         device,
         embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
-            address: Ipv4Cidr::new(Ipv4Address([192, 168, 1, 6]), 24),
+            address: Ipv4Cidr::new(Ipv4Address([192, 168, 1, 7]), 24),
             gateway: Some(Ipv4Address([192, 168, 1, 1])),
             dns_servers,
         }),
-        RESOURCES.init(StackResources::<2>::new()),
+        RESOURCES.init(StackResources::<3>::new()),
         seed,
     ));
 

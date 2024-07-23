@@ -52,23 +52,23 @@ rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
 # fasthash = { version = "0.4.0", default-features = false }
 
 [patch.crates-io]
-# embassy-stm32 = {git = "https://github.com/embassy-rs/embassy", rev = "039d8ed" }
-# embassy-net = {git = "https://github.com/embassy-rs/embassy", rev = "039d8ed" }
-# embassy-net-wiznet = {git = "https://github.com/embassy-rs/embassy", rev = "039d8ed" }
-# embassy-sync = {git = "https://github.com/embassy-rs/embassy", rev = "039d8ed" }
-# embassy-executor = {git = "https://github.com/embassy-rs/embassy", rev = "039d8ed" }
-# embassy-embedded-hal = {git = "https://github.com/embassy-rs/embassy", rev = "039d8ed" }
-# embassy-time = {git = "https://github.com/embassy-rs/embassy", rev = "039d8ed" }
-# embassy-futures = {git = "https://github.com/embassy-rs/embassy", rev = "039d8ed" }
+embassy-stm32 = {git = "https://github.com/embassy-rs/embassy", rev = "2537fc6" }
+embassy-net = {git = "https://github.com/embassy-rs/embassy", rev = "2537fc6" }
+embassy-net-wiznet = {git = "https://github.com/embassy-rs/embassy", rev = "2537fc6" }
+embassy-sync = {git = "https://github.com/embassy-rs/embassy", rev = "2537fc6" }
+embassy-executor = {git = "https://github.com/embassy-rs/embassy", rev = "2537fc6" }
+embassy-embedded-hal = {git = "https://github.com/embassy-rs/embassy", rev = "2537fc6" }
+embassy-time = {git = "https://github.com/embassy-rs/embassy", rev = "2537fc6" }
+embassy-futures = {git = "https://github.com/embassy-rs/embassy", rev = "2537fc6" }
 
-embassy-stm32 = {path = "../../../embassy/embassy-stm32" }
-embassy-net = {path = "../../../embassy/embassy-net" }
-embassy-net-wiznet = {path = "../../../embassy/embassy-net-wiznet" }
-embassy-sync = {path = "../../../embassy/embassy-sync" }
-embassy-executor = {path = "../../../embassy/embassy-executor" }
-embassy-embedded-hal = {path = "../../../embassy/embassy-embedded-hal" }
-embassy-time = {path = "../../../embassy/embassy-time" }
-embassy-futures = {path = "../../../embassy/embassy-futures" }
+# embassy-stm32 = {path = "../../../embassy/embassy-stm32" }
+# embassy-net = {path = "../../../embassy/embassy-net" }
+# embassy-net-wiznet = {path = "../../../embassy/embassy-net-wiznet" }
+# embassy-sync = {path = "../../../embassy/embassy-sync" }
+# embassy-executor = {path = "../../../embassy/embassy-executor" }
+# embassy-embedded-hal = {path = "../../../embassy/embassy-embedded-hal" }
+# embassy-time = {path = "../../../embassy/embassy-time" }
+# embassy-futures = {path = "../../../embassy/embassy-futures" }
 
 [profile.dev]
 opt-level = "s"

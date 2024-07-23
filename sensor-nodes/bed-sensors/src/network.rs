@@ -11,7 +11,7 @@ use crate::channel::{PriorityValue, QueueItem, Queues};
 type Msg = SensorMessage<10>;
 
 async fn collect_pending(publish: &Queues, reading: PriorityValue) -> SensorMessage<10> {
-    let mut msg = Msg::new();
+    let mut msg = Msg::default();
     let low_priority = reading.low_priority();
     unwrap!(msg.values.push(reading.value));
 

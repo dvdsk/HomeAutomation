@@ -31,7 +31,6 @@ impl<'a> Sps30Driver<'a> {
                 .map_err(Error::Running);
         }
 
-        defmt::info!("initializing sps30");
         self.driver
             .reset()
             .await
@@ -43,7 +42,6 @@ impl<'a> Sps30Driver<'a> {
             .map_err(SensorError::Sps30)
             .map_err(Error::Setup)?;
 
-        defmt::debug!("sps30 init complete");
         self.is_init = true;
         self.driver
             .read_measurement()
@@ -51,7 +49,6 @@ impl<'a> Sps30Driver<'a> {
             .map_err(SensorError::Sps30)
             .map_err(Error::Running)
     }
-
 }
 
 impl<'a> Driver for Sps30Driver<'a> {

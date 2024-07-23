@@ -37,12 +37,12 @@ where
     }
 }
 
-async fn order_measurements_every_second(signals: &[Signal]) {
+async fn order_measurements_every_period(signals: &[Signal]) {
     loop {
         for signal in signals {
             signal.signal(());
         }
-        Timer::after_secs(1).await;
+        Timer::after_secs(5).await;
     }
 }
 
@@ -57,7 +57,7 @@ pub async fn read(
     let signals = [const { Signal::new() }; 4];
 
     join5(
-        order_measurements_every_second(&signals),
+        order_measurements_every_period(&signals),
         measure_and_send_on_signal(sht, |res| publish_sht_result(res, &publish), &signals[0]),
         measure_and_send_on_signal(bme, |res| publish_bme_result(res, &publish), &signals[1]),
         measure_and_send_on_signal(mhz, |res| publish_mhz_result(res, &publish), &signals[2]),
@@ -73,18 +73,19 @@ fn publish_sps_result(sps_res: Result<sps30::Measurement, Error>, publish: &Queu
             mass_pm2_5,
             mass_pm4_0,
             mass_pm10,
-            mass_pm0_5,
             number_pm1_0,
             number_pm2_5,
             number_pm4_0,
             number_pm10,
             typical_particle_size,
+            ..
+            // mass_pm0_5,
         }) => {
             publish.send_p0(Reading::MassPm1_0(mass_pm1_0));
             publish.send_p0(Reading::MassPm2_5(mass_pm2_5));
             publish.send_p0(Reading::MassPm4_0(mass_pm4_0));
             publish.send_p0(Reading::MassPm10(mass_pm10));
-            publish.send_p0(Reading::MassPm0_5(mass_pm0_5));
+            // publish.send_p0(Reading::MassPm0_5(mass_pm0_5));
             publish.send_p0(Reading::NumberPm1_0(number_pm1_0));
             publish.send_p0(Reading::NumberPm2_5(number_pm2_5));
             publish.send_p0(Reading::NumberPm4_0(number_pm4_0));
