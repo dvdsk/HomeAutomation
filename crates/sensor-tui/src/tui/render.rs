@@ -8,6 +8,8 @@ use ratatui::{
 };
 use tui_tree_widget::{Tree, TreeItem};
 
+use crate::trace_dbg;
+
 use super::{
     reading::{ChartParts, TreeKey},
     ActiveList, App,
@@ -22,10 +24,13 @@ pub(crate) fn app(
     chart: Option<ChartParts>,
     histogram: &[Bar],
 ) {
-    let [list_constraint, graph_constraint] = if chart.is_some() {
+    let [list_constraint, graph_constraint] = if chart.is_some() | app.show_histogram {
         let list_height = 2 + app.reading_list_state.flatten(readings).len();
         if (frame.size().height as f32) / 3. > list_height as f32 {
-            [Constraint::Min(list_height as u16), Constraint::Percentage(100)]
+            [
+                Constraint::Min(list_height as u16),
+                Constraint::Percentage(100),
+            ]
         } else {
             [Constraint::Ratio(1, 3), Constraint::Ratio(2, 3)]
         }
@@ -40,7 +45,7 @@ pub(crate) fn app(
             .areas(area);
 
     render_readings_and_actuators(frame, top, app, readings);
-    render_graphs(frame, bottom, app, histogram, chart);
+    render_graph_and_hist(frame, bottom, app, histogram, chart);
     render_footer(frame, footer, app);
 }
 
@@ -59,7 +64,7 @@ fn render_footer(frame: &mut Frame, layout: Rect, app: &mut App) {
     frame.render_widget(text, layout)
 }
 
-fn render_graphs(
+fn render_graph_and_hist(
     frame: &mut Frame,
     layout: Rect,
     app: &mut App,

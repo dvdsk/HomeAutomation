@@ -125,6 +125,7 @@ impl App {
                 if let event::Event::Key(key) = event::read()? {
                     tracing::trace!("key pressed: {key:?}");
                     if key.kind == KeyEventKind::Press {
+                        self.handle_key_all_modes(key);
                         let res = match self.input_mode {
                             InputMode::Normal => self.handle_key_normal_mode(key, plot_open),
                             InputMode::EditingBounds => self.handle_key_bounds_mode(key),
@@ -157,23 +158,11 @@ impl App {
             KeyCode::Char('q') => {
                 return ShouldExit::Yes;
             }
-            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                return ShouldExit::Yes;
-            }
             KeyCode::Left => {
                 self.active_list = self.active_list.swap();
             }
             KeyCode::Right => {
                 self.active_list = self.active_list.swap();
-            }
-            KeyCode::Down => {
-                self.reading_list_state.key_down();
-            }
-            KeyCode::Up => {
-                self.reading_list_state.key_up();
-            }
-            KeyCode::Enter => {
-                self.reading_list_state.toggle_selected();
             }
             KeyCode::Char('b') => {
                 if plot_open {
@@ -195,10 +184,26 @@ impl App {
                 self.history_length.exit_editing();
                 self.input_mode = InputMode::Normal;
             }
+            other => self.history_length.process(other),
+        }
+        ShouldExit::No
+    }
+
+    fn handle_key_all_modes(&mut self, key: KeyEvent) -> ShouldExit {
+        match key.code {
+            KeyCode::Down => {
+                self.reading_list_state.key_down();
+            }
+            KeyCode::Up => {
+                self.reading_list_state.key_up();
+            }
+            KeyCode::Enter => {
+                self.reading_list_state.toggle_selected();
+            }
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 return ShouldExit::Yes;
             }
-            other => self.history_length.process(other),
+            _other => (),
         }
         ShouldExit::No
     }

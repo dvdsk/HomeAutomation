@@ -55,7 +55,6 @@ impl SensorInfo {
             .first()
             .map(|(t, _)| t)
             .or_else(|| self.recent_history.first().map(|(t, _)| t))?;
-        tracing::debug!("reference: {reference:?}");
 
         let first_recent = self
             .recent_history
