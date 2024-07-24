@@ -1,7 +1,6 @@
 use protocol::Reading;
 
 use serde::{Deserialize, Serialize};
-use time::OffsetDateTime;
 
 mod client;
 pub use client::Client;
@@ -14,8 +13,8 @@ pub(crate) enum Request {
     ListData,
     GetData {
         reading: Reading,
-        start: OffsetDateTime,
-        end: OffsetDateTime,
+        start: jiff::Timestamp,
+        end: jiff::Timestamp,
         n: usize,
     },
 }
@@ -32,7 +31,7 @@ pub enum ServerError {
 pub(crate) enum Response {
     ListData(Vec<Reading>),
     GetData {
-        time: Vec<OffsetDateTime>,
+        time: Vec<jiff::Timestamp>,
         data: Vec<f32>,
     },
     Error(ServerError),

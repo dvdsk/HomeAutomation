@@ -4,13 +4,11 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use time::OffsetDateTime;
 use tokio::sync::Notify;
 use tokio::time::sleep;
 use tracing::{debug, warn};
 
 use crate::tui::history_len::{self, HistoryLen};
-
 
 #[derive(Debug)]
 struct Fetching {
@@ -19,7 +17,7 @@ struct Fetching {
     history_length: Duration,
 }
 
-type Data = Arc<Mutex<Vec<(OffsetDateTime, f32)>>>;
+type Data = Arc<Mutex<Vec<(jiff::Timestamp, f32)>>>;
 
 #[derive(Debug)]
 pub struct StoredHistory {
@@ -84,7 +82,7 @@ impl StoredHistory {
 }
 
 fn fetch_history(
-    history: Arc<Mutex<Vec<(OffsetDateTime, f32)>>>,
+    history: Arc<Mutex<Vec<(jiff::Timestamp, f32)>>>,
     reading: Reading,
     addr: SocketAddr,
     length: Duration,
@@ -106,7 +104,11 @@ fn fetch_history(
         return;
     };
 
-    debug!("got data from {:?} till {:?}", data.0.first(), data.0.last());
+    debug!(
+        "got data from {:?} till {:?}",
+        data.0.first(),
+        data.0.last()
+    );
     let mut history = history.lock().unwrap();
     history.clear();
     for (t, y) in data.0.into_iter().zip(data.1) {
@@ -119,7 +121,7 @@ async fn connect_and_get_data(
     addr: SocketAddr,
     length: Duration,
     reading: Reading,
-) -> (Vec<OffsetDateTime>, Vec<f32>) {
+) -> (Vec<jiff::Timestamp>, Vec<f32>) {
     let mut retry_period = Duration::ZERO;
     loop {
         sleep(retry_period).await;
@@ -137,8 +139,9 @@ async fn connect_and_get_data(
 
         match api
             .get_data(
-                OffsetDateTime::now_utc() - length,
-                OffsetDateTime::now_utc(),
+                jiff::Timestamp::now()
+                    - jiff::Span::default().milliseconds(length.as_millis() as i64),
+                jiff::Timestamp::now(),
                 reading.clone(),
                 300,
             )

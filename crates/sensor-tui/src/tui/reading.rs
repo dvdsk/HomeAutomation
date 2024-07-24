@@ -8,7 +8,6 @@ use ratatui::{text::Line, widgets::Bar};
 use std::collections::HashMap;
 use std::sync::TryLockError;
 use std::time::Instant;
-use time::OffsetDateTime;
 use tui_tree_widget::TreeItem;
 
 mod fetch;
@@ -18,14 +17,14 @@ use fetch::StoredHistory;
 pub struct SensorInfo {
     timing: Histogram,
     pub reading: Reading,
-    recent_history: Vec<(OffsetDateTime, f32)>,
+    recent_history: Vec<(jiff::Timestamp, f32)>,
     pub stored_history: StoredHistory,
     condition: Result<(), Box<Error>>,
     log: Vec<(Instant, Error)>,
 }
 
 impl SensorInfo {
-    fn last_at(&self) -> Result<OffsetDateTime, Box<Error>> {
+    fn last_at(&self) -> Result<jiff::Timestamp, Box<Error>> {
         self.condition.clone()?;
 
         let last = self
@@ -61,14 +60,21 @@ impl SensorInfo {
             .first()
             .map(|(t, _)| t)
             .cloned()
-            .unwrap_or(OffsetDateTime::from_unix_timestamp(0).unwrap());
+            .unwrap_or(jiff::Timestamp::default());
         plot_buf.clear();
 
         for xy in old_history
             .iter()
             .take_while(|(t, _)| *t < first_recent)
             .chain(self.recent_history.iter())
-            .map(|(x, y)| ((*x - *reference).as_seconds_f64(), *y as f64))
+            .map(|(x, y)| {
+                (
+                    (*x - *reference)
+                        .total(jiff::Unit::Second)
+                        .expect("unit is not a calander unit"),
+                    *y as f64,
+                )
+            })
         {
             plot_buf.push(xy);
         }
@@ -169,7 +175,7 @@ impl Readings {
     }
 
     fn record_error(&mut self, error: Box<Error>) {
-        for broken in error.device().affected_readings() {
+        for broken in error.device().info().affects_readings {
             let (key, _, _) = extract_leaf_info(broken);
 
             if let Some(info) = self.data.get_mut(&key) {
@@ -193,12 +199,12 @@ impl Readings {
 
     fn record_data(&mut self, reading: Reading) {
         let (key, _, val) = extract_leaf_info(&reading);
-        let time = OffsetDateTime::now_utc();
+        let time = jiff::Timestamp::now();
 
         if let Some(info) = self.data.get_mut(&key) {
             if let Ok(last_reading) = info.last_at() {
                 info.timing
-                    .increment((time - last_reading).whole_milliseconds() as u64)
+                    .increment((time - last_reading).get_milliseconds() as u64)
                     .unwrap();
             }
             info.recent_history.push((time, val));
@@ -249,7 +255,7 @@ impl Readings {
     }
 
     fn update_tree_err(&mut self, error: &Error) {
-        for broken in error.device().affected_readings() {
+        for broken in error.device().info().affects_readings {
             let (key, _, _) = extract_leaf_info(broken);
 
             let mut tree = add_root(broken as &dyn Tree, &mut self.ground);

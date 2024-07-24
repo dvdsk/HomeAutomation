@@ -8,7 +8,6 @@ use color_eyre::eyre::{eyre, WrapErr};
 use color_eyre::{Result, Section};
 use protocol::reading_tree::{Item, ReadingInfo, Tree};
 use serde::{Deserialize, Serialize};
-use time::OffsetDateTime;
 use tracing::{info, instrument, trace};
 
 use byteseries::file::OpenError as FileOpenError;
@@ -44,7 +43,7 @@ struct Header {
 
 impl Series {
     fn open_or_create(reading: &protocol::Reading, dir: &Path) -> Result<Self> {
-        let readings = reading.device().affected_readings();
+        let readings = reading.device().info().affects_readings;
         let specs = to_speclist(readings);
         let fields = bitspec::speclist_to_fields(specs);
         let meta = readings
@@ -111,7 +110,8 @@ impl Series {
     fn append(&mut self, reading: &protocol::Reading) -> Result<()> {
         let index = reading
             .device()
-            .affected_readings()
+            .info()
+            .affects_readings
             .iter()
             .map(|r| r.leaf().branch_id)
             .position(|id_in_list| id_in_list == reading.leaf().branch_id)
@@ -130,15 +130,14 @@ impl Series {
             .map(|Meta { set_at, .. }| set_at)
             .all(|set| set.map(|s| s.elapsed().as_millis() < 500).unwrap_or(false))
         {
-            let time = OffsetDateTime::now_utc()
-                - self.meta[index]
-                    .set_at
-                    .take()
-                    .expect("if any is None the if is false")
-                    .elapsed();
+            let time = jiff::Timestamp::now();
 
+            let device_info = reading.leaf().device.info();
+            let scale_factor = millis_to_minimal_representation(dbg!(device_info));
+            let scaled_time = time.as_millisecond() as u64 / scale_factor;
+            tracing::warn!("{scale_factor}, {}, {scaled_time}", time.as_millisecond());
             self.byteseries
-                .push_line(time.unix_timestamp() as u64, &self.line)
+                .push_line(scaled_time, &self.line)
                 .wrap_err("Could not write to timeseries on disk")?;
             self.line.fill(0);
         }
@@ -152,11 +151,20 @@ impl Series {
     pub fn read(
         &mut self,
         readings: &[protocol::Reading],
-        start: OffsetDateTime,
-        end: OffsetDateTime,
+        start: jiff::Timestamp,
+        end: jiff::Timestamp,
         n: usize,
-    ) -> Result<(Vec<OffsetDateTime>, Vec<Vec<f32>>), byteseries::series::Error> {
-        let range = start.unix_timestamp() as u64..=end.unix_timestamp() as u64;
+    ) -> Result<(Vec<jiff::Timestamp>, Vec<Vec<f32>>), byteseries::series::Error> {
+        let device_info = readings
+            .first()
+            .expect("There is at least one reading to read")
+            .leaf()
+            .device
+            .info();
+        let scale_factor = millis_to_minimal_representation(device_info);
+        let start = start.as_millisecond() as u64 / scale_factor;
+        let end = end.as_millisecond() as u64 / scale_factor;
+        let range = start..=end;
         let fields = readings
             .iter()
             .map(|requested| {
@@ -188,8 +196,9 @@ impl Series {
         let time = timestamps
             .into_iter()
             .map(|ts| {
-                OffsetDateTime::from_unix_timestamp(ts as i64)
-                    .expect("only valid timestamps are stored in byteseries")
+                let millis = ts * scale_factor;
+                jiff::Timestamp::from_millisecond(millis as i64)
+                    .expect("timestamps are between MIN and MAX times of Timestamp type")
             })
             .collect();
 
@@ -205,6 +214,20 @@ impl Series {
         }
         Ok((time, data))
     }
+}
+
+/// Multiplying the time for this sample by this factor
+/// allows you to save the whole number and retain the required
+/// temporal_resolution and min_sample_interval.
+pub fn millis_to_minimal_representation(device_info: protocol::DeviceInfo) -> u64 {
+    let needed_interval = device_info
+        .temporal_resolution
+        .min(device_info.min_sample_interval)
+        .as_secs_f32();
+    let mul_factor = 0.001 / needed_interval;
+    let div_factor = 1. / mul_factor;
+    let div_factor = div_factor.round() as u64;
+    div_factor
 }
 
 fn try_create_new_if_open_failed(
@@ -303,7 +326,7 @@ fn base_path(reading: &protocol::Reading) -> PathBuf {
     loop {
         match current.inner() {
             Item::Leaf(ReadingInfo { device, .. }) => {
-                parts.push(device.as_str().to_lowercase());
+                parts.push(device.info().name.to_lowercase());
                 break;
             }
             Item::Node(inner) => {
@@ -321,6 +344,28 @@ mod test {
     use super::*;
     use protocol::large_bedroom::{bed, desk};
     use protocol::{large_bedroom, Reading};
+
+    #[test]
+    fn millis_to_minimal_representation_factor_makes_sense() {
+        let info = protocol::DeviceInfo {
+            name: "test",
+            affects_readings: &[],
+            min_sample_interval: std::time::Duration::from_secs(5),
+            temporal_resolution: std::time::Duration::from_secs(1),
+        };
+        let factor = millis_to_minimal_representation(info);
+        dbg!(factor);
+        assert_eq!(5000 / factor, 5);
+
+        let info = protocol::DeviceInfo {
+            name: "test",
+            affects_readings: &[],
+            min_sample_interval: std::time::Duration::from_secs(5),
+            temporal_resolution: std::time::Duration::from_millis(1),
+        };
+        let factor = millis_to_minimal_representation(info);
+        assert_eq!(5005 / factor, 5005)
+    }
 
     #[test]
     fn readings_from_same_device_have_same_path() {

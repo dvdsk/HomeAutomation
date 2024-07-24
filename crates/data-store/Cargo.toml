@@ -17,7 +17,7 @@ color-eyre = { workspace = true }
 tracing = { workspace = true }
 tracing-error = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
-time = { workspace = true, features = ["serde"] }
+jiff = { workspace =true, features = ["serde"] }
 
 protocol = { workspace = true, features = ["alloc", "thiserror"] }
 data-server = { workspace = true }

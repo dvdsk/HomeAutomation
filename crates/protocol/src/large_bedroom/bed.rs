@@ -391,7 +391,7 @@ impl Device {
     #[must_use]
     pub const fn info(&self) -> crate::DeviceInfo {
         let min_sample_interval = Duration::from_secs(5);
-        let temporal_resolution = Duration::from_millis(1);
+        let temporal_resolution = Duration::from_secs(1);
         match self {
             Device::Sht31 => crate::DeviceInfo {
                 name: "Sht31",

@@ -7,7 +7,6 @@ use futures_concurrency::future::Race;
 use protocol::large_bedroom::bed;
 use protocol::{large_bedroom, Reading};
 use temp_dir::TempDir;
-use time::OffsetDateTime;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::sync::{mpsc, Notify};
@@ -90,8 +89,8 @@ async fn check_client_get_data(
         .unwrap();
     let (time, data) = client
         .get_data(
-            OffsetDateTime::now_utc() - Duration::from_secs(30),
-            OffsetDateTime::now_utc() + Duration::from_secs(30),
+            jiff::Timestamp::now() - jiff::Span::default().seconds(30),
+            jiff::Timestamp::now() + jiff::Span::default().seconds(30),
             test_readings(0.0)[0].clone(),
             5,
         )

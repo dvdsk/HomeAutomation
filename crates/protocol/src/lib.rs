@@ -128,6 +128,7 @@ impl Device {
     }
 }
 
+#[derive(Debug)]
 pub struct DeviceInfo {
     pub name: &'static str,
     pub affects_readings: &'static [Reading],

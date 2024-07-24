@@ -1,10 +1,10 @@
+use jiff::ToSpan;
 use nucleo_matcher::pattern::Pattern;
 use protocol::Reading;
 use std::net::SocketAddr;
 
 use data_store::api::Client;
 use nucleo_matcher::pattern::{AtomKind, CaseMatching, Normalization};
-use time::{Duration, OffsetDateTime};
 
 use clap::Parser;
 
@@ -55,9 +55,9 @@ async fn main() {
         .1;
 
     println!("Showing results for: {best_scored:?}");
-    let now = OffsetDateTime::now_utc();
+    let now = jiff::Timestamp::now();
     let data = client
-        .get_data(now - Duration::minutes(5), now, best_scored, 10)
+        .get_data(now - 5.minutes(), now, best_scored, 10)
         .await
         .unwrap();
 

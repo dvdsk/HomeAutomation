@@ -62,7 +62,7 @@ mod test {
             protocol::large_bedroom::bed::Reading::Temperature(0.5),
         ));
 
-        let readings = reading.device().affected_readings();
+        let readings = reading.device().info().affects_readings;
         // dbg!(readings.iter().map(Tree::leaf).collect::<Vec<_>>());
         let specs = crate::server::db::series::to_speclist(readings);
         // dbg!(&specs);

@@ -4,8 +4,6 @@ use tokio::net::ToSocketAddrs;
 use tokio_serde::formats::Bincode;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
-use time::OffsetDateTime;
-
 pub struct Client {
     stream: tokio_serde::Framed<
         Framed<TcpStream, LengthDelimitedCodec>,
@@ -70,11 +68,11 @@ impl Client {
 
     pub async fn get_data(
         &mut self,
-        start: OffsetDateTime,
-        end: OffsetDateTime,
+        start: jiff::Timestamp,
+        end: jiff::Timestamp,
         reading: protocol::Reading,
         n: usize,
-    ) -> Result<(Vec<OffsetDateTime>, Vec<f32>), Error> {
+    ) -> Result<(Vec<jiff::Timestamp>, Vec<f32>), Error> {
         let request = super::Request::GetData {
             reading,
             start,
