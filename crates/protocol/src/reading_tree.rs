@@ -1,5 +1,3 @@
-use core::time::Duration;
-
 use crate::{Device, Reading, Unit};
 
 #[derive(Debug)]
@@ -8,8 +6,6 @@ pub struct ReadingInfo {
     pub device: Device,
     /// smallest step size the data can make
     pub resolution: f32,
-    pub temporal_resolution: Duration,
-    pub min_sample_interval: Duration,
     pub range: core::ops::Range<f32>,
     pub unit: Unit,
     pub description: &'static str,
@@ -19,7 +15,7 @@ pub struct ReadingInfo {
 impl ReadingInfo {
     #[must_use]
     pub fn from_same_device(&self) -> &'static [Reading] {
-        self.device.affected_readings()
+        self.device.info().affects_readings
     }
 
     /// useful for printing/formatting floats

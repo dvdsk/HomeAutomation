@@ -1,3 +1,5 @@
+use core::time::Duration;
+
 use crate::button::Press;
 use crate::button_enum;
 #[cfg(feature = "alloc")]
@@ -87,22 +89,15 @@ impl Tree for Reading {
     #[allow(clippy::too_many_lines)]
     #[allow(clippy::cast_precision_loss)]
     fn inner(&self) -> Item<'_> {
-        // temporal resolution should be 1
-        let mut min_sample_interval = Duration::from_secs(5);
-        let mut temporal_resolution = Duration::from_millis(1);
         let (val, device, range, resolution, unit, description) = match self {
-            Reading::Brightness(val) => {
-                min_sample_interval = Duration::from_millis(50);
-                temporal_resolution = Duration::from_millis(50);
-                (
-                    *val,
-                    Device::Max44.rooted(),
-                    0.045..188.000,
-                    0.045,
-                    Unit::Lux,
-                    "Brightness",
-                )
-            }
+            Reading::Brightness(val) => (
+                *val,
+                Device::Max44.rooted(),
+                0.045..188.000,
+                0.045,
+                Unit::Lux,
+                "Brightness",
+            ),
             Reading::Temperature(val) => (
                 *val,
                 Device::Sht31.rooted(),
@@ -254,8 +249,6 @@ impl Tree for Reading {
             unit,
             description,
             branch_id: self.branch_id(),
-            temporal_resolution,
-            min_sample_interval,
         })
     }
 
@@ -380,7 +373,7 @@ pub enum Device {
 
 impl core::fmt::Display for Device {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.as_str())
+        write!(f, "{}", self.info().name)
     }
 }
 
@@ -393,53 +386,81 @@ macro_rules! tree {
 }
 
 impl Device {
-    #[must_use]
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Device::Sht31 => "Sht31",
-            Device::Bme680 => "Bme680",
-            Device::Max44 => "Max44",
-            Device::Mhz14 => "Mhz14",
-            Device::Sps30 => "Sps30",
-            Device::Nau7802Left => "Nau7802Left",
-            Device::Nau7802Right => "Nau7802Right",
-            Device::Gpio => "Gpio",
-        }
-    }
-
-    /// Note the order in which these occur is the order in which
+    /// Note the order in which the affects_readings occur is the order in which
     /// they will be stored, do not change it!
     #[must_use]
-    pub const fn affected_readings(&self) -> &'static [crate::Reading] {
+    pub const fn info(&self) -> crate::DeviceInfo {
+        let min_sample_interval = Duration::from_secs(5);
+        let temporal_resolution = Duration::from_millis(1);
         match self {
-            Device::Sht31 => &tree![Reading::Temperature(0.0), Reading::Humidity(0.0)],
-            Device::Bme680 => &tree![Reading::GassResistance(0.0), Reading::Pressure(0.0)],
-            Device::Max44 => &tree![Reading::Brightness(0.0)],
-            Device::Mhz14 => &tree![Reading::Co2(0)],
-            Device::Sps30 => &tree![
-                Reading::MassPm1_0(0.0),
-                Reading::MassPm2_5(0.0),
-                Reading::MassPm4_0(0.0),
-                Reading::MassPm10(0.0),
-                Reading::NumberPm0_5(0.0),
-                Reading::NumberPm1_0(0.0),
-                Reading::NumberPm2_5(0.0),
-                Reading::NumberPm4_0(0.0),
-                Reading::NumberPm10(0.0),
-                Reading::TypicalParticleSize(0.0)
-            ],
-            Device::Nau7802Left => &tree![Reading::WeightLeft(0)],
-            Device::Nau7802Right => &tree![Reading::WeightRight(0)],
-            Device::Gpio => &tree![
-                Reading::Button(Button::TopLeft(Press(0))),
-                Reading::Button(Button::TopRight(Press(0))),
-                Reading::Button(Button::MiddleInner(Press(0))),
-                Reading::Button(Button::MiddleCenter(Press(0))),
-                Reading::Button(Button::MiddleOuter(Press(0))),
-                Reading::Button(Button::LowerInner(Press(0))),
-                Reading::Button(Button::LowerCenter(Press(0))),
-                Reading::Button(Button::LowerOuter(Press(0)))
-            ],
+            Device::Sht31 => crate::DeviceInfo {
+                name: "Sht31",
+                affects_readings: &tree![Reading::Temperature(0.0), Reading::Humidity(0.0)],
+                temporal_resolution,
+                min_sample_interval,
+            },
+            Device::Bme680 => crate::DeviceInfo {
+                name: "Bme680",
+                affects_readings: &tree![Reading::GassResistance(0.0), Reading::Pressure(0.0)],
+                temporal_resolution,
+                min_sample_interval,
+            },
+            Device::Max44 => crate::DeviceInfo {
+                name: "Max44",
+                affects_readings: &tree![Reading::Brightness(0.0)],
+                temporal_resolution: Duration::from_millis(50),
+                min_sample_interval: Duration::from_millis(50),
+            },
+            Device::Mhz14 => crate::DeviceInfo {
+                name: "Mhz14",
+                affects_readings: &tree![Reading::Co2(0)],
+                temporal_resolution,
+                min_sample_interval,
+            },
+            Device::Sps30 => crate::DeviceInfo {
+                name: "Sps30",
+                affects_readings: &tree![
+                    Reading::MassPm1_0(0.0),
+                    Reading::MassPm2_5(0.0),
+                    Reading::MassPm4_0(0.0),
+                    Reading::MassPm10(0.0),
+                    Reading::NumberPm0_5(0.0),
+                    Reading::NumberPm1_0(0.0),
+                    Reading::NumberPm2_5(0.0),
+                    Reading::NumberPm4_0(0.0),
+                    Reading::NumberPm10(0.0),
+                    Reading::TypicalParticleSize(0.0)
+                ],
+                temporal_resolution,
+                min_sample_interval,
+            },
+            Device::Nau7802Left => crate::DeviceInfo {
+                name: "Nau7802Left",
+                affects_readings: &tree![Reading::WeightLeft(0)],
+                temporal_resolution: Duration::from_millis(100),
+                min_sample_interval: Duration::from_millis(100),
+            },
+            Device::Nau7802Right => crate::DeviceInfo {
+                name: "Nau7802Right",
+                affects_readings: &tree![Reading::WeightRight(0)],
+                temporal_resolution,
+                min_sample_interval,
+            },
+            Device::Gpio => crate::DeviceInfo {
+                name: "Gpio",
+                affects_readings: &tree![
+                    Reading::Button(Button::TopLeft(Press(0))),
+                    Reading::Button(Button::TopRight(Press(0))),
+                    Reading::Button(Button::MiddleInner(Press(0))),
+                    Reading::Button(Button::MiddleCenter(Press(0))),
+                    Reading::Button(Button::MiddleOuter(Press(0))),
+                    Reading::Button(Button::LowerInner(Press(0))),
+                    Reading::Button(Button::LowerCenter(Press(0))),
+                    Reading::Button(Button::LowerOuter(Press(0)))
+                ],
+                temporal_resolution: Duration::from_millis(1),
+                min_sample_interval: Duration::from_millis(2),
+            },
         }
     }
 

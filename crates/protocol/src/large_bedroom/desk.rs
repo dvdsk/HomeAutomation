@@ -57,8 +57,6 @@ impl Tree for Reading {
                 unit: Unit::C,
                 description: "Temperature",
                 branch_id: self.branch_id(),
-                min_sample_interval: Duration::from_secs(5),
-                temporal_resolution: Duration::from_secs(1),
             },
             Reading::Humidity(val) => ReadingInfo {
                 val: *val,
@@ -68,8 +66,6 @@ impl Tree for Reading {
                 unit: Unit::RH,
                 description: "Temperature",
                 branch_id: self.branch_id(),
-                min_sample_interval: Duration::from_secs(5),
-                temporal_resolution: Duration::from_secs(1),
             },
             Reading::Pressure(val) => ReadingInfo {
                 val: *val,
@@ -79,8 +75,6 @@ impl Tree for Reading {
                 unit: Unit::Pa,
                 description: "Air pressure",
                 branch_id: self.branch_id(),
-                min_sample_interval: Duration::from_secs(5),
-                temporal_resolution: Duration::from_secs(1),
             },
             Reading::Button(val) => return Item::Node(val as &dyn Tree),
         };
@@ -171,7 +165,7 @@ pub enum Device {
 
 impl core::fmt::Display for Device {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.as_str())
+        write!(f, "{}", self.info().name)
     }
 }
 
@@ -188,21 +182,20 @@ impl Device {
     pub fn rooted(self) -> crate::Device {
         crate::Device::LargeBedroom(crate::large_bedroom::Device::Desk(self))
     }
+
     #[must_use]
-    pub fn as_str(&self) -> &'static str {
+    pub const fn info(&self) -> crate::DeviceInfo {
         match self {
-            Device::Bme280 => "Bme280",
-            Device::Gpio => "Gpio",
-        }
-    }
-    #[must_use]
-    pub fn affected_readings(&self) -> &'static [crate::Reading] {
-        match self {
-            Device::Bme280 => &rtree![
-                Reading::Temperature(0.0),
-                Reading::Humidity(0.0),
-                Reading::Pressure(0.0)
-            ],
+            Device::Bme280 => crate::DeviceInfo {
+                name: "Bme280",
+                affects_readings: &rtree![
+                    Reading::Temperature(0.0),
+                    Reading::Humidity(0.0),
+                    Reading::Pressure(0.0)
+                ],
+                min_sample_interval: Duration::from_secs(5),
+                temporal_resolution: Duration::from_secs(1),
+            },
             Device::Gpio => todo!(),
         }
     }

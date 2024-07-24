@@ -67,18 +67,13 @@ pub enum Device {
     Bed(bed::Device),
     Desk(desk::Device),
 }
-impl Device {
-    pub(crate) fn affected_readings(&self) -> &'static [crate::Reading] {
-        match self {
-            Self::Bed(dev) => dev.affected_readings(),
-            Self::Desk(dev) => dev.affected_readings(),
-        }
-    }
 
-    pub(crate) fn as_str(&self) -> &'static str {
+impl Device {
+    #[must_use]
+    pub const fn info(&self) -> crate::DeviceInfo {
         match self {
-            Self::Bed(dev) => dev.as_str(),
-            Self::Desk(dev) => dev.as_str(),
+            Self::Bed(dev) => dev.info(),
+            Self::Desk(dev) => dev.info(),
         }
     }
 }

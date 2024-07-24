@@ -2,6 +2,7 @@
 #![allow(clippy::missing_panics_doc, clippy::missing_errors_doc)]
 
 use core::fmt::Display;
+use core::time::Duration;
 
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
@@ -119,20 +120,21 @@ pub enum Device {
 }
 impl Device {
     #[must_use]
-    pub fn affected_readings(&self) -> &'static [Reading] {
+    pub const fn info(&self) -> DeviceInfo {
         match self {
-            Device::LargeBedroom(dev) => dev.affected_readings(),
-            Device::SmallBedroom(dev) => dev.affected_readings(),
-        }
-    }
-    #[must_use]
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Device::LargeBedroom(dev) => dev.as_str(),
-            Device::SmallBedroom(dev) => dev.as_str(),
+            Device::LargeBedroom(dev) => dev.info(),
+            Device::SmallBedroom(dev) => dev.info(),
         }
     }
 }
+
+pub struct DeviceInfo {
+    pub name: &'static str,
+    pub affects_readings: &'static [Reading],
+    pub min_sample_interval: Duration,
+    pub temporal_resolution: Duration,
+}
+
 
 impl Error {
     #[must_use]

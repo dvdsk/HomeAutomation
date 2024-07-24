@@ -1,3 +1,5 @@
+use core::time::Duration;
+
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
@@ -54,7 +56,7 @@ impl Reading {
     #[must_use]
     pub fn is_same_as(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::ButtonPanel(a), Self::ButtonPanel(b)) => a.is_same_as(b)
+            (Self::ButtonPanel(a), Self::ButtonPanel(b)) => a.is_same_as(b),
         }
     }
 }
@@ -73,22 +75,24 @@ macro_rules! tree {
 }
 
 impl Device {
-    pub(crate) fn affected_readings(&self) -> &'static [crate::Reading] {
+    /// Note the order in which the affects_readings occur is the order in which
+    /// they will be stored, do not change it!
+    #[must_use]
+    pub const fn info(&self) -> crate::DeviceInfo {
         match self {
-            Device::Gpio => &tree![
-                ButtonPanel::TopLeft(Press(0)),
-                ButtonPanel::TopMiddle(Press(0)),
-                ButtonPanel::TopRight(Press(0)),
-                ButtonPanel::BottomLeft(Press(0)),
-                ButtonPanel::BottomMiddle(Press(0)),
-                ButtonPanel::BOttomRight(Press(0))
-            ]
-        }
-    }
-
-    pub(crate) fn as_str(&self) -> &'static str {
-        match self {
-            Device::Gpio => "Gpio",
+            Device::Gpio => crate::DeviceInfo {
+                name: "Gpio",
+                affects_readings: &tree![
+                    ButtonPanel::TopLeft(Press(0)),
+                    ButtonPanel::TopMiddle(Press(0)),
+                    ButtonPanel::TopRight(Press(0)),
+                    ButtonPanel::BottomLeft(Press(0)),
+                    ButtonPanel::BottomMiddle(Press(0)),
+                    ButtonPanel::BOttomRight(Press(0))
+                ],
+                temporal_resolution: Duration::from_millis(1),
+                min_sample_interval: Duration::from_millis(2),
+            },
         }
     }
 }
