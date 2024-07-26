@@ -78,29 +78,3 @@ pub(crate) fn parse_duration(arg: &str) -> Result<Duration, ParseError> {
     let seconds = parse_colon_duration(arg)?;
     Ok(std::time::Duration::from_secs_f32(seconds))
 }
-
-fn fmt_mm_hh(dur: Duration) -> String {
-    let mm = (dur.as_secs_f32() / 60.0).round() as u8 % 60;
-    let hh = (dur.as_secs_f32() / 60.0 / 60.0).round() as u8;
-    let days = (dur.as_secs_f32() / 60.0 / 60.0 / 24.0).round() as usize;
-    let weeks = (dur.as_secs_f32() / 60.0 / 60.0 / 24.0 / 7.0).round() as usize;
-
-    if days > 21 {
-        format!("{weeks} weeks")
-    } else if hh > 72 {
-        format!("{days} days")
-    } else if hh == 0 {
-        format!("{mm}m")
-    } else {
-        format!("{hh}h:{mm}m")
-    }
-}
-
-pub fn fmt_dur(dur: Duration) -> String {
-    let seconds = dur.as_secs();
-    if seconds > 60 {
-        fmt_mm_hh(dur)
-    } else {
-        return format!("{seconds}s");
-    }
-}

@@ -1,4 +1,3 @@
-#[cfg(feature = "alloc")]
 use core::time::Duration;
 
 use postcard::experimental::max_size::MaxSize;

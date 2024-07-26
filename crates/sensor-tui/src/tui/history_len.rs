@@ -5,10 +5,8 @@ use ratatui::{
 };
 use std::time::Duration;
 
-mod parse_duration;
-use parse_duration::parse_duration;
-
-use self::parse_duration::fmt_dur;
+use crate::time::format::fmt_seconds;
+use crate::time::parse::parse_duration;
 
 #[derive(Debug, Clone, Copy)]
 pub enum State {
@@ -29,7 +27,7 @@ pub struct HistoryLen {
 impl Default for HistoryLen {
     fn default() -> Self {
         let dur = Duration::from_secs(15 * 60);
-        let text_input = fmt_dur(dur);
+        let text_input = fmt_seconds(dur.as_secs_f64());
         Self {
             text_input,
             editing: false,

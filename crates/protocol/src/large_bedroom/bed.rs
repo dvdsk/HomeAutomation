@@ -307,10 +307,10 @@ impl Error {
 impl core::fmt::Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Error::Running(e) => write!(f, "{} ran into error: {e}", e.device()),
-            Error::Setup(e) => write!(f, "{} errored during setup: {e}", e.device()),
-            Error::SetupTimedOut(d) => write!(f, "{d} timed out during setup"),
-            Error::Timeout(d) => write!(f, "{d} timed out running"),
+            Error::Running(e) => write!(f, "{e}"),
+            Error::Setup(e) => write!(f, "setup: {e}"),
+            Error::SetupTimedOut(_) => write!(f, "setup timed out"),
+            Error::Timeout(_) => write!(f, "timed out running"),
         }
     }
 }

@@ -113,6 +113,23 @@ pub enum Error {
     LargeBedroom(large_bedroom::Error),
 }
 
+impl Error {
+    #[must_use]
+    pub fn device(&self) -> Device {
+        match self {
+            Error::LargeBedroom(error) => Device::LargeBedroom(error.device()),
+        }
+    }
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Error::LargeBedroom(error) => write!(f, "{error}"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, PartialEq, Eq, Hash)]
 pub enum Device {
     LargeBedroom(large_bedroom::Device),
@@ -134,24 +151,6 @@ pub struct DeviceInfo {
     pub affects_readings: &'static [Reading],
     pub min_sample_interval: Duration,
     pub temporal_resolution: Duration,
-}
-
-
-impl Error {
-    #[must_use]
-    pub fn device(&self) -> Device {
-        match self {
-            Error::LargeBedroom(error) => Device::LargeBedroom(error.device()),
-        }
-    }
-}
-
-impl core::fmt::Display for Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Error::LargeBedroom(error) => write!(f, "{error}"),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -8,6 +8,7 @@ use color_eyre::{Help, Result};
 use data_server::SubMessage;
 
 mod tui;
+mod time;
 
 enum Update {
     Reading(protocol::Reading),

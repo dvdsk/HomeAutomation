@@ -65,7 +65,8 @@ struct App {
     input_mode: InputMode,
     active_list: ActiveList,
     show_histogram: bool,
-    reading_list_state: TreeState<TreeKey>,
+    reading_tree_state: TreeState<TreeKey>,
+    affector_tree_state: TreeState<TreeKey>,
     history_length: HistoryLen,
 }
 
@@ -87,38 +88,46 @@ impl App {
         terminal.clear()?;
 
         let mut affectors_list_state = ListState::default();
-        let affectors = vec![
-            "placeholder 1".to_owned(),
-            "placeholder 2".to_owned(),
-            "placeholder 3".to_owned(),
-        ];
+        let affectors = Vec::new();
         let mut plot_buf = Vec::new();
 
         loop {
             let data = self
-                .reading_list_state
+                .reading_tree_state
                 .selected()
                 .last() // unique leaf id
                 .and_then(|key| readings.data.get_mut(key));
 
             let plot_open = data.is_some();
-            let (chart, histogram) = if let Some(data) = data {
+            let (chart, histogram, details) = if let Some(data) = data {
                 data.stored_history.update_if_needed(
                     data_store,
                     data.reading.clone(),
                     &mut self.history_length,
                 );
-                (data.chart(&mut plot_buf), data.histogram())
+                (
+                    data.chart(&mut plot_buf),
+                    data.histogram(),
+                    Some(data.details()),
+                )
             } else {
-                (None, readings.histogram_all())
+                (None, readings.histogram_all(), None)
             };
 
             terminal.draw(|frame| {
-                render::app(frame, self, &readings.ground, chart, &histogram);
+                render::app(
+                    frame,
+                    self,
+                    &readings.ground,
+                    &affectors,
+                    details,
+                    chart,
+                    &histogram,
+                );
             })?;
 
-            if self.reading_list_state.selected().is_empty() {
-                self.reading_list_state.select_first();
+            if self.reading_tree_state.selected().is_empty() {
+                self.reading_tree_state.select_first();
             }
 
             if event::poll(Duration::from_millis(16))? {
@@ -192,13 +201,13 @@ impl App {
     fn handle_key_all_modes(&mut self, key: KeyEvent) -> ShouldExit {
         match key.code {
             KeyCode::Down => {
-                self.reading_list_state.key_down();
+                self.reading_tree_state.key_down();
             }
             KeyCode::Up => {
-                self.reading_list_state.key_up();
+                self.reading_tree_state.key_up();
             }
             KeyCode::Enter => {
-                self.reading_list_state.toggle_selected();
+                self.reading_tree_state.toggle_selected();
             }
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 return ShouldExit::Yes;

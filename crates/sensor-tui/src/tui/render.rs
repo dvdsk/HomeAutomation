@@ -1,9 +1,10 @@
+use jiff::Timestamp;
 use ratatui::{
     self,
     layout::{Constraint, Flex, Layout, Rect},
     style::{Modifier, Style},
     text::Text,
-    widgets::{Bar, BarChart, BarGroup, Block, Borders},
+    widgets::{self, Bar, BarChart, BarGroup, Block, Borders},
     Frame,
 };
 use tui_tree_widget::{Tree, TreeItem};
@@ -11,7 +12,7 @@ use tui_tree_widget::{Tree, TreeItem};
 use crate::trace_dbg;
 
 use super::{
-    reading::{ChartParts, TreeKey},
+    reading::{ChartParts, Details, NumErrorSince, TreeKey},
     ActiveList, App,
 };
 
@@ -21,11 +22,13 @@ pub(crate) fn app(
     frame: &mut Frame,
     app: &mut App,
     readings: &[TreeItem<'static, TreeKey>],
+    affectors: &[TreeItem<'static, TreeKey>],
+    details: Option<Details>,
     chart: Option<ChartParts>,
     histogram: &[Bar],
 ) {
     let [list_constraint, graph_constraint] = if chart.is_some() | app.show_histogram {
-        let list_height = 2 + app.reading_list_state.flatten(readings).len();
+        let list_height = 2 + app.reading_tree_state.flatten(readings).len();
         if (frame.size().height as f32) / 3. > list_height as f32 {
             [
                 Constraint::Min(list_height as u16),
@@ -44,7 +47,7 @@ pub(crate) fn app(
             .flex(Flex::Legacy)
             .areas(area);
 
-    render_readings_and_actuators(frame, top, app, readings);
+    render_readings_and_actuators(frame, top, app, readings, affectors, details);
     render_graph_and_hist(frame, bottom, app, histogram, chart);
     render_footer(frame, footer, app);
 }
@@ -103,8 +106,10 @@ pub(crate) fn render_readings_and_actuators(
     layout: Rect,
     app: &mut App,
     readings: &[TreeItem<'static, TreeKey>],
+    affectors: &[TreeItem<'static, TreeKey>],
+    details: Option<Details>,
 ) {
-    let horizontal: [_; 2] =
+    let [left, right] =
         Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
             .flex(Flex::Legacy)
             .areas(layout);
@@ -121,24 +126,83 @@ pub(crate) fn render_readings_and_actuators(
             .style(app.active_list.style(ActiveList::Readings))
             .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
             .highlight_symbol(">>"),
-        horizontal[0],
-        &mut app.reading_list_state,
+        left,
+        &mut app.reading_tree_state,
     );
 
-    // frame.render_stateful_widget(
-    //     List::new(app.actuators)
-    //         .block(
-    //             Block::default()
-    //                 .title("Actuators")
-    //                 .borders(Borders::ALL)
-    //                 .border_style(app.active_list.style(ActiveList::Actuators)),
-    //         )
-    //         .style(app.active_list.style(ActiveList::Actuators))
-    //         .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
-    //         .highlight_symbol(">>")
-    //         .repeat_highlight_symbol(false)
-    //         .direction(ratatui::widgets::ListDirection::TopToBottom),
-    //     horizontal[1],
-    //     app.actuator_list_state,
-    // );
+    if let (Some(details), ActiveList::Readings) = (details, app.active_list) {
+        let [top, bottom] =
+            Layout::vertical([Constraint::Percentage(30), Constraint::Percentage(70)])
+                .flex(Flex::Legacy)
+                .areas(right);
+        render_affectors(frame, top, app, affectors);
+        render_details(frame, bottom, details);
+    } else {
+        render_affectors(frame, right, app, affectors)
+    }
+}
+
+fn render_details(frame: &mut Frame, layout: Rect, details: Details) {
+    let Details {
+        last_reading,
+        condition,
+        description,
+        errors_since,
+    } = details;
+    let last_reading = match last_reading {
+        None => "last read: Never".to_owned(),
+        Some((ts, val)) => {
+            let seconds_ago = Timestamp::now()
+                .since(ts)
+                .expect("should make sense")
+                .get_seconds();
+            let time_ago = crate::time::format::fmt_seconds(seconds_ago as f64);
+            format!("last read:\n {time_ago} ago, value: {val}")
+        }
+    };
+
+    let condition = match condition {
+        Ok(()) => String::new(),
+        Err(err) => format!("error: {err}"),
+    };
+
+    let NumErrorSince {
+        t5_min,
+        t15_min,
+        t30_min,
+        t45_min,
+        t60_min,
+    } = errors_since;
+    let errors_since = format!("errors in the past:\n5min: {t5_min}, 15min: {t15_min}, 30min: {t30_min}, 45min {t45_min}, 60m: {t60_min}");
+
+    let text = format!("{description}\n{last_reading}\n{condition}\n{errors_since}");
+    frame.render_widget(
+        widgets::Paragraph::new(text)
+            .block(Block::bordered().title("Details"))
+            .wrap(widgets::Wrap { trim: true }),
+        layout,
+    )
+}
+
+fn render_affectors(
+    frame: &mut Frame,
+    layout: Rect,
+    app: &mut App,
+    affectors: &[TreeItem<'static, TreeKey>],
+) {
+    frame.render_stateful_widget(
+        Tree::new(affectors)
+            .expect("all item identifiers should be unique")
+            .block(
+                Block::default()
+                    .title("Controllable actuators")
+                    .borders(Borders::ALL)
+                    .border_style(app.active_list.style(ActiveList::Affectors)),
+            )
+            .style(app.active_list.style(ActiveList::Affectors))
+            .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
+            .highlight_symbol(">>"),
+        layout,
+        &mut app.affector_tree_state,
+    );
 }

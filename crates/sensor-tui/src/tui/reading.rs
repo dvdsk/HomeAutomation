@@ -7,7 +7,7 @@ use protocol::Reading;
 use ratatui::{text::Line, widgets::Bar};
 use std::collections::HashMap;
 use std::sync::TryLockError;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tui_tree_widget::TreeItem;
 
 mod fetch;
@@ -23,6 +23,45 @@ pub struct SensorInfo {
     log: Vec<(Instant, Error)>,
 }
 
+pub struct NumErrorSince {
+    pub t5_min: usize,
+    pub t15_min: usize,
+    pub t30_min: usize,
+    pub t45_min: usize,
+    pub t60_min: usize,
+}
+
+impl NumErrorSince {
+    fn from_log(log: &[(Instant, Error)]) -> Self {
+        let mut buckets = [5, 15, 30, 45, 60]
+            .map(|min| Duration::from_secs(60 * min))
+            .map(|bound| (bound, 0));
+
+        for (occurred, _) in log.iter().rev() {
+            for (bound, count) in &mut buckets {
+                if occurred.elapsed() < *bound {
+                    *count += 1;
+                }
+            }
+        }
+
+        Self {
+            t5_min: buckets[0].1,
+            t15_min: buckets[1].1,
+            t30_min: buckets[2].1,
+            t45_min: buckets[3].1,
+            t60_min: buckets[4].1,
+        }
+    }
+}
+
+pub struct Details {
+    pub last_reading: Option<(jiff::Timestamp, String)>,
+    pub condition: Result<(), Box<Error>>,
+    pub description: String,
+    pub errors_since: NumErrorSince,
+}
+
 impl SensorInfo {
     fn last_at(&self) -> Result<jiff::Timestamp, Box<Error>> {
         self.condition.clone()?;
@@ -32,6 +71,24 @@ impl SensorInfo {
             .last()
             .expect("Items are put in the map when they arrive with a value");
         Ok(last.0)
+    }
+
+    pub fn details(&self) -> Details {
+        let last_reading = self.recent_history.last().copied().map(|(ts, val)| {
+            let val = format!(
+                "{0:.1$} {2}",
+                val,
+                self.reading.leaf().precision(),
+                self.reading.leaf().unit
+            );
+            (ts, val)
+        });
+        Details {
+            last_reading,
+            condition: self.condition.clone(),
+            description: self.reading.leaf().description.to_owned(),
+            errors_since: NumErrorSince::from_log(&self.log),
+        }
     }
 
     pub fn histogram(&self) -> Vec<Bar> {
@@ -266,7 +323,7 @@ impl Readings {
             loop {
                 match tomato.inner() {
                     Item::Leaf(_) => {
-                        let text = format!("{}: {:?}", tomato.name(), error);
+                        let text = format!("{}: {}", tomato.name(), error);
                         add_leaf(text, tree, key);
                         break;
                     }
