@@ -4,6 +4,8 @@ use tokio::net::ToSocketAddrs;
 use tokio_serde::formats::Bincode;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
+use super::Request;
+
 pub struct Client {
     stream: tokio_serde::Framed<
         Framed<TcpStream, LengthDelimitedCodec>,
@@ -14,8 +16,12 @@ pub struct Client {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[error("Error while connecting to data server: {0}")]
-pub struct ConnectError(std::io::Error);
+pub enum ConnectError {
+    #[error("Error while connecting to data server: {0}")]
+    Io(std::io::Error),
+    #[error("Could not send handshake: {0}")]
+    Sending(std::io::Error),
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -32,8 +38,8 @@ pub enum Error {
 }
 
 impl Client {
-    pub async fn connect(addr: impl ToSocketAddrs) -> Result<Self, ConnectError> {
-        let stream = TcpStream::connect(addr).await.map_err(ConnectError)?;
+    pub async fn connect(addr: impl ToSocketAddrs, name: String) -> Result<Self, ConnectError> {
+        let stream = TcpStream::connect(addr).await.map_err(ConnectError::Io)?;
 
         let length_delimited = Framed::new(
             stream,
@@ -42,7 +48,11 @@ impl Client {
                 .new_codec(),
         );
 
-        let stream = tokio_serde::Framed::new(length_delimited, Bincode::default());
+        let mut stream = tokio_serde::Framed::new(length_delimited, Bincode::default());
+        stream
+            .send(Request::Handshake { name })
+            .await
+            .map_err(ConnectError::Sending)?;
         Ok(Self { stream })
     }
 

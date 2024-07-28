@@ -27,7 +27,9 @@ fn to_path(reading: &Reading) -> String {
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
-    let mut client = Client::connect(cli.addr).await.unwrap();
+    let mut client = Client::connect(cli.addr, "data_store_example".to_owned())
+        .await
+        .unwrap();
     let readings = client.list_data().await.unwrap();
 
     let mut matcher = nucleo_matcher::Matcher::new(nucleo_matcher::Config::DEFAULT);

@@ -1,4 +1,7 @@
-use histogram::Histogram;
+use data_store::api::Percentile;
+use hdrhistogram::Histogram;
+use itertools::Itertools;
+use jiff::Unit;
 use protocol::reading_tree::ReadingInfo;
 use protocol::reading_tree::{Item, Tree};
 use protocol::Error;
@@ -13,14 +16,18 @@ use tui_tree_widget::TreeItem;
 mod fetch;
 use fetch::StoredHistory;
 
+use crate::trace_dbg;
+
 #[derive(Debug)]
 pub struct SensorInfo {
-    timing: Histogram,
     pub reading: Reading,
+    timing: Histogram<u64>,
+    percentiles_from_store: Vec<data_store::api::Percentile>,
     recent_history: Vec<(jiff::Timestamp, f32)>,
-    pub stored_history: StoredHistory,
+    pub history_from_store: StoredHistory,
     condition: Result<(), Box<Error>>,
     log: Vec<(Instant, Error)>,
+    merged_log_from_store: bool,
 }
 
 pub struct NumErrorSince {
@@ -92,11 +99,28 @@ impl SensorInfo {
     }
 
     pub fn histogram(&self) -> Vec<Bar> {
-        histogram_bars(&self.timing)
+        let percentiles = if self.percentiles_from_store.is_empty() {
+            self.timing
+                .iter_quantiles(1)
+                .map(|it| data_store::api::Percentile {
+                    percentile: it.percentile(),
+                    bucket_ends: it.value_iterated_to(),
+                    count_in_bucket: it.count_at_value(),
+                })
+                .dedup_by(|a, b| {
+                    a.bucket_ends == b.bucket_ends
+                        && a.percentile.total_cmp(&b.percentile).is_eq()
+                        && a.count_in_bucket == b.count_in_bucket
+                })
+                .collect_vec()
+        } else {
+            self.percentiles_from_store.clone()
+        };
+        histogram_bars(&percentiles)
     }
 
     pub fn chart<'a>(&mut self, plot_buf: &'a mut Vec<(f64, f64)>) -> Option<ChartParts<'a>> {
-        let guard = match self.stored_history.data.try_lock() {
+        let guard = match self.history_from_store.data.try_lock() {
             Ok(list) => Some(list),
             Err(TryLockError::WouldBlock) => None,
             Err(other) => panic!(
@@ -243,11 +267,15 @@ impl Readings {
                     key,
                     SensorInfo {
                         reading: broken.clone(),
-                        timing: Histogram::new(4, 24).unwrap(),
+                        timing: Histogram::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap(),
+                        percentiles_from_store: Vec::new(),
+
                         recent_history: Vec::new(),
-                        stored_history: StoredHistory::new(),
+                        history_from_store: StoredHistory::new(),
+
                         condition: Err(error.clone()),
                         log: vec![(Instant::now(), (*error).clone())],
+                        merged_log_from_store: false,
                     },
                 );
             }
@@ -260,9 +288,10 @@ impl Readings {
 
         if let Some(info) = self.data.get_mut(&key) {
             if let Ok(last_reading) = info.last_at() {
-                info.timing
-                    .increment((time - last_reading).get_milliseconds() as u64)
-                    .unwrap();
+                info.timing += trace_dbg!((time - last_reading)
+                    .total(Unit::Millisecond)
+                    .expect("no calander units involved")
+                    as u64)
             }
             info.recent_history.push((time, val));
             info.condition = Ok(());
@@ -272,11 +301,15 @@ impl Readings {
                 key,
                 SensorInfo {
                     reading,
-                    timing: Histogram::new(4, 24).unwrap(),
+                    timing: Histogram::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap(),
+                    percentiles_from_store: Vec::new(),
+
                     recent_history: history,
-                    stored_history: StoredHistory::new(),
+                    history_from_store: StoredHistory::new(),
+
                     condition: Ok(()),
                     log: Vec::new(),
+                    merged_log_from_store: false,
                 },
             );
         }
@@ -335,14 +368,6 @@ impl Readings {
             }
         }
     }
-
-    pub fn histogram_all(&self) -> Vec<Bar> {
-        let mut all = Histogram::new(4, 24).unwrap();
-        for (_, val) in self.data.iter() {
-            all = all.checked_add(&val.timing).unwrap();
-        }
-        histogram_bars(&all)
-    }
 }
 
 pub struct ChartParts<'a> {
@@ -350,21 +375,20 @@ pub struct ChartParts<'a> {
     pub data: &'a [(f64, f64)],
 }
 
-fn histogram_bars(hist: &Histogram) -> Vec<Bar<'static>> {
-    let Some(percentiles) = hist
-        .percentiles(&[25.0, 50.0, 75.0, 90.0, 95.0, 100.0])
-        .unwrap()
-    else {
-        return Vec::new();
-    };
-
+fn histogram_bars(percentiles: &[Percentile]) -> Vec<Bar<'static>> {
     percentiles
         .into_iter()
-        .map(|(p, bucket)| {
-            Bar::default()
-                .value(bucket.count())
-                .text_value(format!("p{p}: {}", bucket.count()))
-                .label(Line::from(format!("{}..{}", bucket.start(), bucket.end())))
-        })
+        .map(
+            |Percentile {
+                 bucket_ends,
+                 percentile,
+                 count_in_bucket,
+             }| {
+                Bar::default()
+                    .value(*count_in_bucket)
+                    .text_value(format!("p{percentile}: {}", count_in_bucket))
+                    .label(Line::from(format!("..{}", bucket_ends)))
+            },
+        )
         .collect()
 }

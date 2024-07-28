@@ -6,7 +6,6 @@ use crossterm::{
 use ratatui::{
     prelude::{CrosstermBackend, Terminal},
     style::{Color, Style},
-    widgets::ListState,
 };
 use std::{collections::HashMap, io::stdout, net::SocketAddr, sync::mpsc, time::Duration};
 use tui_tree_widget::TreeState;
@@ -87,7 +86,6 @@ impl App {
         let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
         terminal.clear()?;
 
-        let mut affectors_list_state = ListState::default();
         let affectors = Vec::new();
         let mut plot_buf = Vec::new();
 
@@ -100,7 +98,7 @@ impl App {
 
             let plot_open = data.is_some();
             let (chart, histogram, details) = if let Some(data) = data {
-                data.stored_history.update_if_needed(
+                data.history_from_store.update_if_needed(
                     data_store,
                     data.reading.clone(),
                     &mut self.history_length,
@@ -111,7 +109,7 @@ impl App {
                     Some(data.details()),
                 )
             } else {
-                (None, readings.histogram_all(), None)
+                (None, Vec::new(), None)
             };
 
             terminal.draw(|frame| {

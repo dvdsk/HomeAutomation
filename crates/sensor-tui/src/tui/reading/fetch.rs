@@ -129,7 +129,10 @@ async fn connect_and_get_data(
             .min(retry_period * 2)
             .min(Duration::from_millis(100));
 
-        let mut api = match data_store::api::Client::connect(addr).await {
+        let host = gethostname::gethostname();
+        let host = host.to_string_lossy();
+        let name = format!("sensor-tui@{host}");
+        let mut api = match data_store::api::Client::connect(addr, name).await {
             Ok(api) => api,
             Err(e) => {
                 warn!("Could not connect to data_store (at {addr}): {e}");

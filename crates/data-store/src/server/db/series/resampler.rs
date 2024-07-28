@@ -63,9 +63,7 @@ mod test {
         ));
 
         let readings = reading.device().info().affects_readings;
-        // dbg!(readings.iter().map(Tree::leaf).collect::<Vec<_>>());
         let specs = crate::server::db::series::to_speclist(readings);
-        // dbg!(&specs);
         let fields = bitspec::speclist_to_fields(specs);
 
         let payload_size = fields

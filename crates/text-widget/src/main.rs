@@ -85,7 +85,12 @@ async fn wait_for_update(client: &mut reconnecting::Subscriber, needed: &Reading
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
-    let mut client = Client::connect(cli.store).await.unwrap();
+
+    let host = gethostname();
+    let host = host.to_string_lossy();
+    let name = format!("text-widget@{host}");
+
+    let mut client = Client::connect(cli.store, name.clone()).await.unwrap();
     let readings = client.list_data().await.unwrap();
 
     let reading = resolve_argument(&cli.reading, &readings);
@@ -93,9 +98,6 @@ async fn main() {
         eprintln!("Will be showing: {reading:?}");
     }
 
-    let host = gethostname();
-    let host = host.to_string_lossy();
-    let name = format!("text-widget@{host}");
     let mut client = reconnecting::Subscriber::new(cli.server, name);
 
     loop {

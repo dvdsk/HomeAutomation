@@ -7,28 +7,45 @@ use std::time::{Duration, Instant};
 use data_server::subscriber::reconnecting;
 use tokio::sync::Mutex;
 
-use color_eyre::Result;
+use color_eyre::{Result, Section};
 use data_server::SubMessage;
 
 mod series;
 use series::Series;
 
+mod log;
+pub(crate) use log::Logs;
+
+mod stats;
+pub(crate) use stats::Stats;
+
 use crate::api;
 
-pub(crate) async fn run(data_server_addr: SocketAddr, data: Data, data_dir: &Path) -> Result<()> {
+pub(crate) async fn run(
+    data_server_addr: SocketAddr,
+    data: Data,
+    stats: Stats,
+    logs: Logs,
+    data_dir: &Path,
+) -> Result<()> {
     let mut sub = reconnecting::Subscriber::new(data_server_addr, "ha-data-store".to_string());
 
     let mut recently_logged = (Instant::now(), String::new());
     loop {
         let msg = sub.next_msg().await;
         let res = match msg {
-            SubMessage::Reading(reading) => series::store(&data, &reading, data_dir).await,
-            SubMessage::ErrorReport(_) => continue,
+            SubMessage::Reading(reading) => {
+                series::store(&data, &reading, data_dir)
+                    .await
+                    .with_note(|| format!("reading: {reading:?}"))?;
+                stats.increment(reading.device()).await
+            }
+            SubMessage::ErrorReport(report) => logs.store(*report).await,
         };
 
         const FIVE_MIN: Duration = Duration::from_secs(60 * 5);
-        if let Err(e) = res {
-            let e = e.to_string();
+        if let Err(report) = res {
+            let e = format!("got error with report: {report:?}");
             tracing::warn!("test: {e}");
             if recently_logged.1 == e && recently_logged.0.elapsed() <= FIVE_MIN {
                 continue;

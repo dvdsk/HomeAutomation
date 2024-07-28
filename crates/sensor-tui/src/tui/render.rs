@@ -9,8 +9,6 @@ use ratatui::{
 };
 use tui_tree_widget::{Tree, TreeItem};
 
-use crate::trace_dbg;
-
 use super::{
     reading::{ChartParts, Details, NumErrorSince, TreeKey},
     ActiveList, App,
@@ -27,7 +25,7 @@ pub(crate) fn app(
     chart: Option<ChartParts>,
     histogram: &[Bar],
 ) {
-    let [list_constraint, graph_constraint] = if chart.is_some() | app.show_histogram {
+    let [list_constraint, graph_constraint] = if chart.is_some() {
         let list_height = 2 + app.reading_tree_state.flatten(readings).len();
         if (frame.size().height as f32) / 3. > list_height as f32 {
             [
@@ -95,9 +93,9 @@ fn render_histogram(frame: &mut Frame, lower: Rect, histogram: &[Bar]) {
     let barchart = BarChart::default()
         .block(Block::bordered().title("Histogram"))
         .data(BarGroup::default().bars(histogram))
-        .bar_width(12)
-        .bar_style(Style::default())
-        .value_style(Style::default());
+        .bar_width(12);
+    // .bar_style(Style::default())
+    // .value_style(Style::default());
     frame.render_widget(barchart, lower)
 }
 
@@ -157,13 +155,13 @@ fn render_details(frame: &mut Frame, layout: Rect, details: Details) {
                 .expect("should make sense")
                 .get_seconds();
             let time_ago = crate::time::format::fmt_seconds(seconds_ago as f64);
-            format!("last read:\n {time_ago} ago, value: {val}")
+            format!("last read: {time_ago} ago, value: {val}")
         }
     };
 
     let condition = match condition {
         Ok(()) => String::new(),
-        Err(err) => format!("error: {err}"),
+        Err(err) => format!("error: {err}\n"),
     };
 
     let NumErrorSince {
@@ -175,7 +173,7 @@ fn render_details(frame: &mut Frame, layout: Rect, details: Details) {
     } = errors_since;
     let errors_since = format!("errors in the past:\n5min: {t5_min}, 15min: {t15_min}, 30min: {t30_min}, 45min {t45_min}, 60m: {t60_min}");
 
-    let text = format!("{description}\n{last_reading}\n{condition}\n{errors_since}");
+    let text = format!("{description}\n{last_reading}\n{condition}{errors_since}");
     frame.render_widget(
         widgets::Paragraph::new(text)
             .block(Block::bordered().title("Details"))

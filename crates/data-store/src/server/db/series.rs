@@ -133,9 +133,8 @@ impl Series {
             let time = jiff::Timestamp::now();
 
             let device_info = reading.leaf().device.info();
-            let scale_factor = millis_to_minimal_representation(dbg!(device_info));
+            let scale_factor = millis_to_minimal_representation(device_info);
             let scaled_time = time.as_millisecond() as u64 / scale_factor;
-            tracing::warn!("{scale_factor}, {}, {scaled_time}", time.as_millisecond());
             self.byteseries
                 .push_line(scaled_time, &self.line)
                 .wrap_err("Could not write to timeseries on disk")?;
@@ -354,7 +353,6 @@ mod test {
             temporal_resolution: std::time::Duration::from_secs(1),
         };
         let factor = millis_to_minimal_representation(info);
-        dbg!(factor);
         assert_eq!(5000 / factor, 5);
 
         let info = protocol::DeviceInfo {

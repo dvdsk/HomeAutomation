@@ -33,6 +33,7 @@ thiserror = { workspace = true }
 futures = "0.3.30"
 smallvec = "2.0.0-alpha.6"
 num = "0.4.3"
+hdrhistogram = "7.5.4"
 
 [dev-dependencies]
 futures-concurrency = "7.6.1"

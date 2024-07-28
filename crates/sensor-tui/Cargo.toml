@@ -9,7 +9,7 @@ authors.workspace = true
 [dependencies]
 color-eyre = { workspace = true }
 crossterm = "0.27.0"
-histogram = "0.11"
+hdrhistogram = "7.5"
 ratatui = "0.27"
 tui-tree-widget = { version = "0.21.0", git = "https://github.com/dvdsk/tui-rs-tree-widget" }
 clap = { workspace = true }
@@ -25,3 +25,4 @@ data-store = { workspace = true }
 jiff = { workspace = true }
 thiserror.workspace = true
 itertools = "0.13.0"
+gethostname = "0.5.0"

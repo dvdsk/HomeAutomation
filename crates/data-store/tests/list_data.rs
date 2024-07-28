@@ -52,9 +52,10 @@ async fn check_client_list_data(data_store_addr: SocketAddr, data_send: &Notify)
     data_send.notified().await;
     sleep(Duration::from_secs_f32(0.1)).await;
 
-    let mut client = data_store::api::Client::connect(data_store_addr)
-        .await
-        .unwrap();
+    let mut client =
+        data_store::api::Client::connect(data_store_addr, "data_store_example".to_owned())
+            .await
+            .unwrap();
     let list = client.list_data().await.unwrap();
 
     assert!(
@@ -84,9 +85,10 @@ async fn check_client_get_data(
 ) {
     data_send.notified().await;
     sleep(Duration::from_secs_f32(0.1)).await;
-    let mut client = data_store::api::Client::connect(data_store_addr)
-        .await
-        .unwrap();
+    let mut client =
+        data_store::api::Client::connect(data_store_addr, "data_store_example".to_owned())
+            .await
+            .unwrap();
     let (time, data) = client
         .get_data(
             jiff::Timestamp::now() - jiff::Span::default().seconds(30),
