@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use protocol::Reading;
 
 use serde::{Deserialize, Serialize};
@@ -32,6 +34,8 @@ pub enum ServerError {
     ReadingFromStore(String),
     #[error("Connect request should only be send once")]
     AlreadyConnected,
+    #[error("Too many requests, rate limited, next requested allowed in: {0:?}")]
+    TooManyRequests(Duration),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,4 +55,5 @@ pub(crate) enum Response {
     },
     GetStats(Vec<Percentile>),
     Error(ServerError),
+    Handshake,
 }

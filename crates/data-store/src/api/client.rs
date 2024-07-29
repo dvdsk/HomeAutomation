@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use futures::{SinkExt, TryStreamExt};
 use tokio::net::TcpStream;
 use tokio::net::ToSocketAddrs;
@@ -5,13 +7,14 @@ use tokio_serde::formats::Bincode;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
 use super::Request;
+use super::Response;
 
 pub struct Client {
     stream: tokio_serde::Framed<
         Framed<TcpStream, LengthDelimitedCodec>,
-        super::Response,
+        Response,
         super::Request,
-        Bincode<super::Response, super::Request>,
+        Bincode<Response, super::Request>,
     >,
 }
 
@@ -21,6 +24,14 @@ pub enum ConnectError {
     Io(std::io::Error),
     #[error("Could not send handshake: {0}")]
     Sending(std::io::Error),
+    #[error("Timed out waiting for ")]
+    Timeout,
+    #[error("Server unexpectedly closed the connection")]
+    Closed,
+    #[error("Server send back an error: {0:?}")]
+    ServerError(super::ServerError),
+    #[error("Could not receive server response: {0:?}")]
+    Receiving(std::io::Error),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -53,13 +64,24 @@ impl Client {
             .send(Request::Handshake { name })
             .await
             .map_err(ConnectError::Sending)?;
-        Ok(Self { stream })
+
+        match tokio::time::timeout(Duration::from_secs(2), stream.try_next()).await {
+            Ok(Ok(Some(Response::Handshake))) => Ok(Self { stream }),
+            Ok(Ok(Some(Response::Error(e)))) => Err(ConnectError::ServerError(e)),
+            Ok(Ok(Some(other))) => unreachable!(
+                "Server should return handshake response or error after sending \
+                first handshake, got impossible response: {other:?}"
+            ),
+            Ok(Ok(None)) => Err(ConnectError::Closed),
+            Ok(Err(e)) => Err(ConnectError::Receiving(e)),
+            Err(_) => Err(ConnectError::Timeout),
+        }
     }
 
-    async fn send_receive(&mut self, request: super::Request) -> Result<super::Response, Error> {
+    async fn send_receive(&mut self, request: super::Request) -> Result<Response, Error> {
         self.stream.send(request).await.map_err(Error::Sending)?;
         match self.stream.try_next().await.map_err(Error::Receiving)? {
-            Some(super::Response::Error(e)) => Err(Error::Server(e)),
+            Some(Response::Error(e)) => Err(Error::Server(e)),
             Some(response) => Ok(response),
             None => Err(Error::ConnectionClosed),
         }
@@ -68,7 +90,7 @@ impl Client {
     pub async fn list_data(&mut self) -> Result<Vec<protocol::Reading>, Error> {
         let request = super::Request::ListData;
         match self.send_receive(request.clone()).await? {
-            super::Response::ListData(list) => Ok(list),
+            Response::ListData(list) => Ok(list),
             response => Err(Error::IncorrectResponse {
                 request: format!("{request:?}"),
                 response: format!("{response:?}"),
@@ -90,7 +112,7 @@ impl Client {
             n,
         };
         match self.send_receive(request.clone()).await? {
-            super::Response::GetData { time, data } => Ok((time, data)),
+            Response::GetData { time, data } => Ok((time, data)),
             response => Err(Error::IncorrectResponse {
                 request: format!("{request:?}"),
                 response: format!("{response:?}"),

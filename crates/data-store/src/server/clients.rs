@@ -1,8 +1,12 @@
 use std::net::SocketAddr;
+use std::num::NonZeroU32;
+use std::time::Duration;
 
 use color_eyre::eyre::Context;
 use color_eyre::Section;
 use futures::{SinkExt, TryStreamExt};
+use governor::clock::{Clock, DefaultClock};
+use governor::{Quota, RateLimiter};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_serde::formats::Bincode;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
@@ -24,6 +28,10 @@ pub(crate) async fn handle(
     stats: Stats,
     logs: Logs,
 ) -> color_eyre::Result<()> {
+    let quota = Quota::with_period(Duration::from_secs(1))
+        .unwrap()
+        .allow_burst(NonZeroU32::new(5u32).unwrap());
+    let limiter = RateLimiter::keyed(quota);
     let listener = TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
         .wrap_err("Could not bind to address")
@@ -38,7 +46,19 @@ pub(crate) async fn handle(
             Ok(res) => res,
         };
 
-        let Some(conn) = handshake_and_log(socket, source).await else {
+        let Some((mut conn, name)) = handshake_and_log(socket, source).await else {
+            continue;
+        };
+
+        if let Err(allowed_again) = limiter.check_key(&(source, name)) {
+            let allowed_in = allowed_again.wait_time_from(DefaultClock::default().now());
+            let _ignore_err = conn.send(api::Response::Error(ServerError::TooManyRequests(
+                allowed_in,
+            )));
+            continue;
+        }
+
+        let Ok(()) = conn.send(api::Response::Handshake).await else {
             continue;
         };
 
@@ -51,7 +71,7 @@ pub(crate) async fn handle(
     }
 }
 
-async fn handshake_and_log(stream: TcpStream, source: SocketAddr) -> Option<Conn> {
+async fn handshake_and_log(stream: TcpStream, source: SocketAddr) -> Option<(Conn, String)> {
     let length_delimited = Framed::new(
         stream,
         LengthDelimitedCodec::builder()
@@ -64,7 +84,7 @@ async fn handshake_and_log(stream: TcpStream, source: SocketAddr) -> Option<Conn
     match stream.try_next().await {
         Ok(Some(api::Request::Handshake { name })) => {
             info!("Client {name} connected from {source}");
-            return Some(stream);
+            return Some((stream, name));
         }
         Ok(Some(other)) => warn!("client tried to connected without handshake, it send: {other:?}"),
         Ok(None) => warn!("client closed connection immediately"),
