@@ -172,7 +172,7 @@ impl Series {
                     .find(|meta| requested.is_same_as(&meta.reading))
                     .inspect(|meta| trace!("meta used for decoding: {meta:?}"))
                     .map(|meta| meta.field.clone())
-                    .expect(&format!(
+                    .unwrap_or_else(|| panic!(
                         "caller of read makes sure all readings are part of this \
                         series.\n\tseries: {:?},\n\trequested: {:?}",
                         self.meta, readings
@@ -225,8 +225,7 @@ pub fn millis_to_minimal_representation(device_info: protocol::DeviceInfo) -> u6
         .as_secs_f32();
     let mul_factor = 0.001 / needed_interval;
     let div_factor = 1. / mul_factor;
-    let div_factor = div_factor.round() as u64;
-    div_factor
+    div_factor.round() as u64
 }
 
 fn try_create_new_if_open_failed(

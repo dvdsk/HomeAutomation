@@ -52,9 +52,9 @@ where
         numb -= num::cast(self.decode_add).unwrap();
         numb /= num::cast(self.decode_scale).unwrap();
 
-        let to_encode: u32 = num::cast(numb).expect(&format!(
-            "could not cast numb to u32, numb: {numb}, field: {self:?}",
-        ));
+        let to_encode: u32 = num::cast(numb).unwrap_or_else(|| {
+            panic!("could not cast numb to u32, numb: {numb}, field: {self:?}",)
+        });
 
         compression::encode(to_encode, line, self.offset, self.length);
     }

@@ -4,7 +4,7 @@ use protocol::Reading;
 
 use serde::{Deserialize, Serialize};
 
-mod client;
+pub mod client;
 pub use client::Client;
 
 // 8 MB
