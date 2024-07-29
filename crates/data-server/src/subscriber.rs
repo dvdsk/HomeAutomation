@@ -58,6 +58,7 @@ impl Subscriber {
 }
 
 #[allow(clippy::module_name_repetitions)]
+#[derive(Debug)]
 pub struct AsyncSubscriber {
     reader: tokio::io::BufReader<tokio::net::TcpStream>,
     buf: Vec<u8>,
