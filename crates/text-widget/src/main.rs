@@ -76,8 +76,12 @@ async fn main() -> Result<()> {
 
     let reading = match cache::load_from_file(&cli.reading).await {
         Ok(Some(reading)) => reading,
-        Ok(None) => setup(&cli, &mut client).await?,
+        Ok(None) => {
+            print(cli.json, "RunSetup");
+            setup(&cli, &mut client).await?
+        }
         Err(e) => {
+            print(cli.json, "Error");
             return Err(eyre!("Error, could not load resolved from file: {e:?}"));
         }
     };
