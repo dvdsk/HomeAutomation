@@ -349,6 +349,7 @@ mod test {
             name: "test",
             affects_readings: &[],
             min_sample_interval: std::time::Duration::from_secs(5),
+            max_sample_interval: std::time::Duration::from_secs(5),
             temporal_resolution: std::time::Duration::from_secs(1),
         };
         let factor = millis_to_minimal_representation(info);
@@ -358,6 +359,7 @@ mod test {
             name: "test",
             affects_readings: &[],
             min_sample_interval: std::time::Duration::from_secs(5),
+            max_sample_interval: std::time::Duration::from_secs(5),
             temporal_resolution: std::time::Duration::from_millis(1),
         };
         let factor = millis_to_minimal_representation(info);

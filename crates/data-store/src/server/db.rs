@@ -13,34 +13,19 @@ use data_server::SubMessage;
 mod series;
 use series::Series;
 
-mod log;
-pub(crate) use log::Logs;
-
-mod stats;
-pub(crate) use stats::Stats;
-
 use crate::api;
 
-pub(crate) async fn run(
-    data_server_addr: SocketAddr,
-    data: Data,
-    stats: Stats,
-    logs: Logs,
-    data_dir: &Path,
-) -> Result<()> {
+pub(crate) async fn run(data_server_addr: SocketAddr, data: Data, data_dir: &Path) -> Result<()> {
     let mut sub = reconnecting::Subscriber::new(data_server_addr, "ha-data-store".to_string());
 
     let mut recently_logged = (Instant::now(), String::new());
     loop {
         let msg = sub.next_msg().await;
         let res = match msg {
-            SubMessage::Reading(reading) => {
-                series::store(&data, &reading, data_dir)
-                    .await
-                    .with_note(|| format!("reading: {reading:?}"))?;
-                stats.increment(reading.device()).await
-            }
-            SubMessage::ErrorReport(report) => logs.store(*report).await,
+            SubMessage::Reading(reading) => series::store(&data, &reading, data_dir)
+                .await
+                .with_note(|| format!("reading: {reading:?}")),
+            SubMessage::ErrorReport(_) => Ok(()),
         };
 
         const FIVE_MIN: Duration = Duration::from_secs(60 * 5);

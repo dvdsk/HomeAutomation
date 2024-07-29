@@ -12,7 +12,7 @@ use tokio_serde::formats::Bincode;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use tracing::{debug, error, info, warn};
 
-use super::db::Data;
+use super::db::{Logs, Stats};
 use crate::api::{self, ServerError};
 
 type Conn = tokio_serde::Framed<
@@ -22,7 +22,11 @@ type Conn = tokio_serde::Framed<
     Bincode<api::Request, api::Response>,
 >;
 
-pub(crate) async fn handle(port: u16, data: Data) -> color_eyre::Result<()> {
+pub(crate) async fn handle(
+    port: u16,
+    stats: Stats,
+    logs: Logs,
+) -> color_eyre::Result<()> {
     let quota = Quota::with_period(Duration::from_secs(1))
         .unwrap()
         .allow_burst(NonZeroU32::new(5u32).unwrap());
@@ -57,7 +61,11 @@ pub(crate) async fn handle(port: u16, data: Data) -> color_eyre::Result<()> {
             continue;
         };
 
-        tokio::task::spawn(handle_client(conn, data.clone()));
+        tokio::task::spawn(handle_client(
+            conn,
+            stats.clone(),
+            logs.clone(),
+        ));
     }
 }
 
@@ -84,7 +92,7 @@ async fn handshake_and_log(stream: TcpStream, source: SocketAddr) -> Option<(Con
     None
 }
 
-async fn handle_client(mut conn: Conn, data: Data) {
+async fn handle_client(mut conn: Conn, stats: Stats, logs: Logs) {
     loop {
         let request = match conn.try_next().await {
             Ok(Some(request)) => request,
@@ -97,7 +105,7 @@ async fn handle_client(mut conn: Conn, data: Data) {
                 return;
             }
         };
-        let response = match perform_request(request, &data).await {
+        let response = match perform_request(request, &stats, &logs).await {
             Err(err) => api::Response::Error(err),
             Ok(r) => r,
         };
@@ -108,18 +116,14 @@ async fn handle_client(mut conn: Conn, data: Data) {
     }
 }
 
-async fn perform_request(request: api::Request, data: &Data) -> Result<api::Response, ServerError> {
+async fn perform_request(
+    request: api::Request,
+    stats: &Stats,
+    logs: &Logs,
+) -> Result<api::Response, ServerError> {
     Ok(match request {
         api::Request::Handshake { .. } => return Err(ServerError::AlreadyConnected),
-        api::Request::ListData => api::Response::ListData(data.list().await),
-        api::Request::GetData {
-            reading,
-            start,
-            end,
-            n,
-        } => {
-            let (time, data) = data.get(reading, start, end, n).await?;
-            api::Response::GetData { time, data }
-        }
+        api::Request::GetLog(device) => api::Response::GetLog(logs.get(&device).await),
+        api::Request::GetStats(device) => api::Response::GetStats(stats.get(&device).await),
     })
 }

@@ -15,13 +15,8 @@ pub(crate) enum Request {
     Handshake {
         name: String,
     },
-    ListData,
-    GetData {
-        reading: Reading,
-        start: jiff::Timestamp,
-        end: jiff::Timestamp,
-        n: usize,
-    },
+    GetLog(protocol::Device),
+    GetStats(protocol::Device),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, thiserror::Error)]
@@ -46,11 +41,6 @@ pub struct Percentile {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) enum Response {
     GetLog(Vec<(jiff::Timestamp, protocol::Error)>),
-    ListData(Vec<Reading>),
-    GetData {
-        time: Vec<jiff::Timestamp>,
-        data: Vec<f32>,
-    },
     GetStats(Vec<Percentile>),
     Error(ServerError),
     Handshake,

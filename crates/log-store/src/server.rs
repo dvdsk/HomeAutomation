@@ -10,16 +10,18 @@ mod clients;
 mod db;
 
 // used from main and tests
-pub async fn run(data_server: SocketAddr, client_port: u16, data_dir: &Path) -> Result<()> {
-    let data = db::Data(Arc::new(Mutex::new(HashMap::new())));
+pub async fn run(data_server: SocketAddr, client_port: u16, log_dir: &Path) -> Result<()> {
+    let stats = db::Stats(Arc::new(Mutex::new(HashMap::new())));
+    let logs = db::Logs(Arc::new(Mutex::new(HashMap::new())));
 
     let error = (
         db::run(
             data_server,
-            data.clone(),
-            data_dir,
+            stats.clone(),
+            logs.clone(),
+            log_dir,
         ),
-        clients::handle(client_port, data),
+        clients::handle(client_port, stats, logs),
     )
         .race()
         .await;

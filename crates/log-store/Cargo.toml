@@ -1,0 +1,41 @@
+[package]
+name = "log-store"
+version = "0.1.0"
+rust-version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[features]
+api = []
+server = []
+default = ["api", "server"]
+
+[dependencies]
+clap = { workspace = true }
+color-eyre = { workspace = true }
+tracing = { workspace = true }
+tracing-error = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+jiff = { workspace =true, features = ["serde"] }
+
+protocol = { workspace = true, features = ["alloc", "thiserror"] }
+data-server = { workspace = true }
+
+tokio = { workspace = true, features = ["fs", "net", "rt-multi-thread", "sync"] }
+futures-concurrency = "7.6.1"
+tokio-serde = { version = "0.9.0", features = ["bincode"] }
+tokio-util = { version = "0.7.11", features = ["codec"] }
+serde = { version = "1.0.203", features = ["derive"] }
+thiserror = { workspace = true }
+futures = "0.3.30"
+smallvec = "2.0.0-alpha.6"
+num = "0.4.3"
+hdrhistogram = "7.5.4"
+governor = "0.6.3"
+
+[dev-dependencies]
+futures-concurrency = "7.6.1"
+nucleo-matcher = "0.3.1"
+reserve-port = "2.0.1"
+temp-dir = "0.1.13"
