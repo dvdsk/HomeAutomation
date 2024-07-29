@@ -150,6 +150,7 @@ pub struct DeviceInfo {
     pub name: &'static str,
     pub affects_readings: &'static [Reading],
     pub min_sample_interval: Duration,
+    pub max_sample_interval: Duration,
     pub temporal_resolution: Duration,
 }
 
@@ -192,12 +193,12 @@ impl<const M: usize> Msg<M> {
         assert!(!bytes.is_empty(), "can not decode nothing (zero bytes)");
 
         let msg_type = bytes[0];
-        let mut bytes = &mut bytes[1..];
+        let bytes = &mut bytes[1..];
 
         if msg_type == Self::READINGS {
-            Ok(Self::Readings(SensorMessage::<M>::decode(&mut bytes)?))
+            Ok(Self::Readings(SensorMessage::<M>::decode(bytes)?))
         } else if msg_type == Self::ERROR_REPORT {
-            Ok(Self::ErrorReport(ErrorReport::decode(&mut bytes)?))
+            Ok(Self::ErrorReport(ErrorReport::decode(bytes)?))
         } else {
             Err(DecodeError::IncorrectMsgType(msg_type))
         }

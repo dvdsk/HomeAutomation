@@ -193,6 +193,7 @@ impl Device {
                     Reading::Pressure(0.0)
                 ],
                 min_sample_interval: Duration::from_secs(5),
+                max_sample_interval: Duration::from_secs(5),
                 temporal_resolution: Duration::from_secs(1),
             },
             Device::Gpio => todo!(),

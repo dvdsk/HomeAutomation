@@ -92,6 +92,7 @@ impl Device {
                 ],
                 temporal_resolution: Duration::from_millis(1),
                 min_sample_interval: Duration::from_millis(2),
+                max_sample_interval: Duration::MAX,
             },
         }
     }

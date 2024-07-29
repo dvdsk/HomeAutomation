@@ -391,6 +391,7 @@ impl Device {
     #[must_use]
     pub const fn info(&self) -> crate::DeviceInfo {
         let min_sample_interval = Duration::from_secs(5);
+        let max_sample_interval = Duration::from_secs(5);
         let temporal_resolution = Duration::from_secs(1);
         match self {
             Device::Sht31 => crate::DeviceInfo {
@@ -398,24 +399,28 @@ impl Device {
                 affects_readings: &tree![Reading::Temperature(0.0), Reading::Humidity(0.0)],
                 temporal_resolution,
                 min_sample_interval,
+                max_sample_interval,
             },
             Device::Bme680 => crate::DeviceInfo {
                 name: "Bme680",
                 affects_readings: &tree![Reading::GassResistance(0.0), Reading::Pressure(0.0)],
                 temporal_resolution,
                 min_sample_interval,
+                max_sample_interval,
             },
             Device::Max44 => crate::DeviceInfo {
                 name: "Max44",
                 affects_readings: &tree![Reading::Brightness(0.0)],
                 temporal_resolution: Duration::from_millis(50),
                 min_sample_interval: Duration::from_millis(50),
+                max_sample_interval,
             },
             Device::Mhz14 => crate::DeviceInfo {
                 name: "Mhz14",
                 affects_readings: &tree![Reading::Co2(0)],
                 temporal_resolution,
                 min_sample_interval,
+                max_sample_interval,
             },
             Device::Sps30 => crate::DeviceInfo {
                 name: "Sps30",
@@ -433,18 +438,21 @@ impl Device {
                 ],
                 temporal_resolution,
                 min_sample_interval,
+                max_sample_interval,
             },
             Device::Nau7802Left => crate::DeviceInfo {
                 name: "Nau7802Left",
                 affects_readings: &tree![Reading::WeightLeft(0)],
                 temporal_resolution: Duration::from_millis(100),
                 min_sample_interval: Duration::from_millis(100),
+                max_sample_interval,
             },
             Device::Nau7802Right => crate::DeviceInfo {
                 name: "Nau7802Right",
                 affects_readings: &tree![Reading::WeightRight(0)],
-                temporal_resolution,
-                min_sample_interval,
+                temporal_resolution: Duration::from_millis(100),
+                min_sample_interval: Duration::from_millis(100),
+                max_sample_interval,
             },
             Device::Gpio => crate::DeviceInfo {
                 name: "Gpio",
@@ -460,6 +468,7 @@ impl Device {
                 ],
                 temporal_resolution: Duration::from_millis(1),
                 min_sample_interval: Duration::from_millis(2),
+                max_sample_interval: Duration::MAX,
             },
         }
     }
