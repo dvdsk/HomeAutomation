@@ -1,24 +1,27 @@
+use color_eyre::eyre::{eyre, Context};
+use color_eyre::Result;
 use data_server::subscriber::reconnecting;
 use data_server::SubMessage;
 use gethostname::gethostname;
-use nucleo_matcher::pattern::Pattern;
 use protocol::reading_tree::Tree;
 use protocol::Reading;
 use std::net::SocketAddr;
-
-use data_store::api::Client;
-use nucleo_matcher::pattern::{AtomKind, CaseMatching, Normalization};
+use std::time::Duration;
+use tokio::time::timeout;
 
 use clap::Parser;
+
+mod cache;
+mod resolve;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    /// the address of the store
-    #[arg(long, default_value_t = SocketAddr::from(([127,0,0,1], 1236)))]
-    store: SocketAddr,
+    /// the address of the store, optional, speeds up resolving the argument
+    #[arg(long)]
+    store: Option<SocketAddr>,
 
-    /// the address of the store
+    /// the address of the data server
     #[arg(long, default_value_t = SocketAddr::from(([127,0,0,1], 1235)))]
     server: SocketAddr,
 
@@ -35,42 +38,6 @@ struct Cli {
     debug: bool,
 }
 
-fn to_path(reading: &Reading) -> String {
-    let path = format!("{:?}", reading);
-    let (path, _) = path
-        .rsplit_once('(')
-        .expect("Reading is tree with at least deph 2");
-    let path = path.replace('(', " ");
-    path
-}
-
-fn resolve_argument(description: &str, options: &[Reading]) -> Reading {
-    let mut matcher = nucleo_matcher::Matcher::new(nucleo_matcher::Config::DEFAULT);
-    let pattern = Pattern::new(
-        description,
-        CaseMatching::Ignore,
-        Normalization::Smart,
-        AtomKind::Fuzzy,
-    );
-
-    let mut buf = Vec::new();
-    let best_scored = options
-        .into_iter()
-        .map(|r| {
-            (
-                pattern.score(
-                    nucleo_matcher::Utf32Str::new(to_path(&r).as_str(), &mut buf),
-                    &mut matcher,
-                ),
-                r,
-            )
-        })
-        .max_by_key(|(score, _)| score.unwrap_or(0))
-        .unwrap()
-        .1;
-    best_scored.clone()
-}
-
 async fn wait_for_update(client: &mut reconnecting::Subscriber, needed: &Reading) -> Reading {
     loop {
         let SubMessage::Reading(r) = client.next_msg().await else {
@@ -82,33 +49,92 @@ async fn wait_for_update(client: &mut reconnecting::Subscriber, needed: &Reading
     }
 }
 
-#[tokio::main]
-async fn main() {
-    let cli = Cli::parse();
-
-    let host = gethostname();
-    let host = host.to_string_lossy();
-    let name = format!("text-widget@{host}");
-
-    let mut client = Client::connect(cli.store, name.clone()).await.unwrap();
-    let readings = client.list_data().await.unwrap();
-
-    let reading = resolve_argument(&cli.reading, &readings);
-    if cli.debug {
-        eprintln!("Will be showing: {reading:?}");
+async fn setup(cli: &Cli, client: &mut reconnecting::Subscriber) -> Result<protocol::Reading> {
+    let reading = match resolve::query(cli, client).await {
+        Ok(reading) => reading,
+        Err(e) => {
+            print(cli.json, "E");
+            return Err(e);
+        }
+    };
+    if promptly::prompt_default(format!("Is {reading:?} the correct sensor?"), false)
+        .wrap_err("Failed to read user confirmation")?
+    {
+        cache::store_to_file(reading.clone(), cli.reading.clone()).await?;
+        Ok(reading)
+    } else {
+        Err(eyre!("Exited, user indicated resolved sensor is incorrect"))
     }
+}
 
-    let mut client = reconnecting::Subscriber::new(cli.server, name);
+#[tokio::main]
+async fn main() -> Result<()> {
+    let cli = Cli::parse();
+    setup_tracing(cli.debug)?;
+
+    let mut client = reconnecting::Subscriber::new(cli.server, name());
+
+    let reading = match cache::load_from_file(&cli.reading).await {
+        Ok(Some(reading)) => reading,
+        Ok(None) => setup(&cli, &mut client).await?,
+        Err(e) => {
+            return Err(eyre!("Error, could not load resolved from file: {e:?}"));
+        }
+    };
+
+    tracing::debug!("Will be showing: {reading:?}");
+    let timeout_dur = reading.leaf().device.info().max_sample_interval + Duration::from_secs(1);
 
     loop {
-        let new = wait_for_update(&mut client, &reading).await;
+        let get_update = wait_for_update(&mut client, &reading);
+        let Ok(new) = timeout(timeout_dur, get_update).await else {
+            print(cli.json, "X");
+            continue;
+        };
+
         let info = new.leaf();
         let to_print = format!("{0:.1$} {2}", info.val, info.precision(), info.unit);
-        let use_json = cli.json;
-        if use_json {
-            println!("{{\"msg\": \"{to_print}\"}}");
-        } else {
-            println!("{to_print}");
-        }
+        print(cli.json, &to_print);
     }
+}
+
+fn name() -> String {
+    let host = gethostname();
+    let host = host.to_string_lossy();
+    format!("text-widget@{host}")
+}
+
+fn print(use_json: bool, msg: &str) {
+    if use_json {
+        println!("{{\"msg\": \"{msg}\"}}");
+    } else {
+        println!("{msg}");
+    }
+}
+
+fn setup_tracing(debug: bool) -> Result<()> {
+    use tracing_error::ErrorLayer;
+    use tracing_subscriber::filter;
+    use tracing_subscriber::{self, layer::SubscriberExt, util::SubscriberInitExt};
+
+    color_eyre::install().unwrap();
+
+    let filter = filter::EnvFilter::builder().from_env().unwrap();
+    let filter = if debug {
+        let directive = concat!(env!("CARGO_PKG_NAME"), "=debug").parse()?;
+        filter.add_directive(directive)
+    } else {
+        filter
+    };
+
+    let fmt = tracing_subscriber::fmt::layer()
+        .pretty()
+        .with_line_number(true);
+
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(fmt)
+        .with(ErrorLayer::default())
+        .init();
+    Ok(())
 }

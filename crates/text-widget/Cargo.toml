@@ -1,5 +1,5 @@
 [package]
-name = "text-widget"
+name = "ha-text-widget"
 version = "0.1.0"
 rust-version.workspace = true
 edition.workspace = true
@@ -15,3 +15,11 @@ data-store = { workspace = true }
 nucleo-matcher = "0.3.1"
 tokio = { workspace = true}
 gethostname = "0.5.0"
+
+tracing.workspace = true
+tracing-error.workspace = true
+tracing-subscriber.workspace = true
+dirs = "5.0.1"
+serde = { version = "1.0.204", features = ["derive"] }
+promptly = "0.3.1"
+ron = "0.8.1"
