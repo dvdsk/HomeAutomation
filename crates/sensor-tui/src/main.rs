@@ -49,6 +49,10 @@ struct Cli {
     /// server where we can fetch historical sensor data
     #[arg(short='s', long, default_value_t = SocketAddr::from(([192,168,1,43], 1236)))]
     data_store: SocketAddr,
+
+    /// server where we can fetch logs and timing information
+    #[arg(short, long, default_value_t = SocketAddr::from(([192,168,1,43], 1237)))]
+    log_store: SocketAddr,
 }
 
 fn main() -> Result<()> {
@@ -57,6 +61,7 @@ fn main() -> Result<()> {
     let Cli {
         data_server,
         data_store,
+        log_store,
     } = Cli::parse();
 
     let sub = data_server::Subscriber::connect(data_server, "ha-tui")
@@ -68,7 +73,7 @@ fn main() -> Result<()> {
 
     let tx1_clone = tx1.clone();
     thread::spawn(move || receive_data(sub, tx1_clone));
-    thread::spawn(move || tui::run(rx2, tx1, data_store));
+    thread::spawn(move || tui::run(rx2, tx1, data_store, log_store));
 
     loop {
         let update = rx1.recv()??;

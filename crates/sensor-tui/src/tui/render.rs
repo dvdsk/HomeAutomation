@@ -10,7 +10,7 @@ use ratatui::{
 use tui_tree_widget::{Tree, TreeItem};
 
 use super::{
-    reading::{ChartParts, Details, NumErrorSince, TreeKey},
+    reading::{ChartParts, Details, ErrorDensity, TreeKey},
     ActiveList, App,
 };
 
@@ -164,7 +164,7 @@ fn render_details(frame: &mut Frame, layout: Rect, details: Details) {
         Err(err) => format!("error: {err}\n"),
     };
 
-    let NumErrorSince {
+    let ErrorDensity {
         t5_min,
         t15_min,
         t30_min,

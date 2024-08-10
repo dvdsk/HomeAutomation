@@ -9,13 +9,12 @@ use protocol::Reading;
 use ratatui::{text::Line, widgets::Bar};
 use std::collections::HashMap;
 use std::sync::TryLockError;
-use std::time::{Duration, Instant};
 use tui_tree_widget::TreeItem;
 
 mod fetch;
-use fetch::{histogram, history};
+use fetch::{histogram, history, logs};
 
-use crate::trace_dbg;
+mod logs2;
 
 #[derive(Debug)]
 pub struct SensorInfo {
@@ -25,38 +24,29 @@ pub struct SensorInfo {
     recent_history: Vec<(jiff::Timestamp, f32)>,
     pub history_from_store: history::Stored,
     condition: Result<(), Box<Error>>,
-    log: Vec<(Instant, Error)>,
-    merged_log_from_store: bool,
+    errors: logs2::Logs,
+    pub logs_from_store: logs::Stored,
 }
 
-pub struct NumErrorSince {
-    pub t5_min: usize,
-    pub t15_min: usize,
-    pub t30_min: usize,
-    pub t45_min: usize,
-    pub t60_min: usize,
+pub struct ErrorDensity {
+    pub t5_min: f32,
+    pub t15_min: f32,
+    pub t30_min: f32,
+    pub t45_min: f32,
+    pub t60_min: f32,
 }
 
-impl NumErrorSince {
-    fn from_log(log: &[(Instant, Error)]) -> Self {
-        let mut buckets = [5, 15, 30, 45, 60]
-            .map(|min| Duration::from_secs(60 * min))
-            .map(|bound| (bound, 0));
-
-        for (occurred, _) in log.iter().rev() {
-            for (bound, count) in &mut buckets {
-                if occurred.elapsed() < *bound {
-                    *count += 1;
-                }
-            }
-        }
+impl ErrorDensity {
+    fn from_log(log: &logs2::Logs) -> Self {
+        let buckets = [5, 15, 30, 45, 60].map(|min| jiff::Span::new().minutes(min));
+        let counts = log.density(buckets);
 
         Self {
-            t5_min: buckets[0].1,
-            t15_min: buckets[1].1,
-            t30_min: buckets[2].1,
-            t45_min: buckets[3].1,
-            t60_min: buckets[4].1,
+            t5_min: counts[0],
+            t15_min: counts[1],
+            t30_min: counts[2],
+            t45_min: counts[3],
+            t60_min: counts[4],
         }
     }
 }
@@ -65,7 +55,7 @@ pub struct Details {
     pub last_reading: Option<(jiff::Timestamp, String)>,
     pub condition: Result<(), Box<Error>>,
     pub description: String,
-    pub errors_since: NumErrorSince,
+    pub errors_since: ErrorDensity,
 }
 
 impl SensorInfo {
@@ -93,7 +83,7 @@ impl SensorInfo {
             last_reading,
             condition: self.condition.clone(),
             description: self.reading.leaf().description.to_owned(),
-            errors_since: NumErrorSince::from_log(&self.log),
+            errors_since: ErrorDensity::from_log(&self.errors),
         }
     }
 
@@ -264,8 +254,9 @@ impl Readings {
 
             if let Some(info) = self.data.get_mut(&key) {
                 info.condition = Err(error.clone());
-                info.log.push((Instant::now(), (*error).clone()));
+                info.errors.add(&error);
             } else {
+                let errors = logs2::Logs::new_from(&error);
                 self.data.insert(
                     key,
                     SensorInfo {
@@ -275,10 +266,10 @@ impl Readings {
 
                         recent_history: Vec::new(),
                         history_from_store: history::Stored::new(),
+                        logs_from_store: fetch::logs::Stored::new(),
 
                         condition: Err(error.clone()),
-                        log: vec![(Instant::now(), (*error).clone())],
-                        merged_log_from_store: false,
+                        errors,
                     },
                 );
             }
@@ -308,10 +299,10 @@ impl Readings {
 
                     recent_history: history,
                     history_from_store: history::Stored::new(),
+                    logs_from_store: fetch::logs::Stored::new(),
 
                     condition: Ok(()),
-                    log: Vec::new(),
-                    merged_log_from_store: false,
+                    errors: logs2::Logs::new_empty(),
                 },
             );
         }

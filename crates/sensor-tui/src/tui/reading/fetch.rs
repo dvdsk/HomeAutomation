@@ -5,6 +5,7 @@ use tokio::sync::Notify;
 
 pub mod histogram;
 pub mod history;
+pub mod logs;
 
 #[derive(Debug)]
 struct Fetching {

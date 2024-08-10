@@ -55,8 +55,9 @@ pub fn run(
     rx: mpsc::Receiver<Update>,
     shutdown_tx: mpsc::Sender<color_eyre::Result<Update>>,
     data_store: SocketAddr,
+    log_store: SocketAddr,
 ) -> Result<(), std::io::Error> {
-    App::default().run(rx, shutdown_tx, data_store)
+    App::default().run(rx, shutdown_tx, data_store, log_store)
 }
 
 #[derive(Default)]
@@ -75,6 +76,7 @@ impl App {
         rx: mpsc::Receiver<Update>,
         shutdown_tx: mpsc::Sender<color_eyre::Result<Update>>,
         data_store: SocketAddr,
+        log_store: SocketAddr,
     ) -> Result<(), std::io::Error> {
         let mut readings = Readings {
             ground: Vec::new(),
@@ -98,9 +100,19 @@ impl App {
 
             let plot_open = data.is_some();
             let (chart, histogram, details) = if let Some(data) = data {
+                data.logs_from_store.update_if_needed(
+                    data_store,
+                    data.reading.clone(),
+                    &mut self.history_length,
+                );
                 data.history_from_store.update_if_needed(
                     data_store,
                     data.reading.clone(),
+                    &mut self.history_length,
+                );
+                data.percentiles_from_store.update_if_needed(
+                    log_store,
+                    data.reading.device(),
                     &mut self.history_length,
                 );
                 (
@@ -187,7 +199,7 @@ impl App {
 
     fn handle_key_bounds_mode(&mut self, key: KeyEvent) -> ShouldExit {
         match key.code {
-            KeyCode::Esc => {
+            KeyCode::Char('q') | KeyCode::Esc => {
                 self.history_length.exit_editing();
                 self.input_mode = InputMode::Normal;
             }
