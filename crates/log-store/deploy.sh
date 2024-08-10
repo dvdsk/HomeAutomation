@@ -3,7 +3,7 @@ set -e
 
 BUILD_ARG=--release
 SERVER="sgc"  # ssh config name or full address
-NAME=data-store
+NAME=log-store
 
 cargo build --target=aarch64-unknown-linux-musl $BUILD_ARG
 rsync -vh --progress \

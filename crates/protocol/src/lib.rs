@@ -108,6 +108,8 @@ reading_tree::all_nodes! {Reading; ReadingDiscriminants; LargeBedroom, SmallBedr
     Serialize,
     Deserialize,
     MaxSize,
+    PartialEq,
+    Eq,
 )]
 pub enum Error {
     LargeBedroom(large_bedroom::Error),
@@ -119,6 +121,11 @@ impl Error {
         match self {
             Error::LargeBedroom(error) => Device::LargeBedroom(error.device()),
         }
+    }
+
+    #[must_use]
+    pub const fn max_size() -> usize {
+        Self::POSTCARD_MAX_SIZE
     }
 }
 

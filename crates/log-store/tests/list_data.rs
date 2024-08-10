@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::str::FromStr;
 use std::sync::Once;
 use std::time::Duration;
 
@@ -22,6 +23,14 @@ const fn test_readings(v: f32) -> [Reading; 2] {
     ]
 }
 
+fn test_error() -> protocol::Error {
+    protocol::Error::LargeBedroom(large_bedroom::Error::Bed(bed::Error::Setup(
+        bed::SensorError::Sht31(
+            heapless::String::from_str("log server integration test error").unwrap(),
+        ),
+    )))
+}
+
 async fn data_server(sub_port: impl Into<SocketAddr>, data_port: impl Into<SocketAddr>) {
     use data_server::server;
 
@@ -33,11 +42,11 @@ async fn data_server(sub_port: impl Into<SocketAddr>, data_port: impl Into<Socke
     };
 }
 
-async fn send_sensor_values(data_port: u16, values: &[f32], data_send: &Notify) {
+async fn send_sensor_values(data_port: u16, data_send: &Notify) {
     let mut conn = TcpStream::connect(("127.0.0.1", data_port)).await.unwrap();
-    for v in values {
+    for v in [0.1, 0.2, 0.3] {
         let mut sensor_msg = protocol::SensorMessage::<50>::default();
-        for val in test_readings(*v) {
+        for val in test_readings(v) {
             sensor_msg.values.push(val).unwrap();
         }
         let encoded = protocol::Msg::Readings(sensor_msg).encode();
@@ -48,63 +57,47 @@ async fn send_sensor_values(data_port: u16, values: &[f32], data_send: &Notify) 
     sleep(Duration::from_secs(999)).await;
 }
 
-async fn check_client_list_data(data_store_addr: SocketAddr, data_send: &Notify) {
+async fn send_sensor_errors(data_port: u16, data_send: &Notify) {
+    let mut conn = TcpStream::connect(("127.0.0.1", data_port)).await.unwrap();
+    for _ in [1, 2, 3, 4] {
+        let report = protocol::ErrorReport::new(test_error());
+        let encoded = protocol::Msg::<50>::ErrorReport(report).encode();
+        conn.write_all(&encoded).await.unwrap();
+        sleep(Duration::from_secs_f32(1.1)).await;
+    }
+    data_send.notify_waiters();
+    sleep(Duration::from_secs(999)).await;
+}
+
+async fn check_client_get_percentiles(data_store_addr: SocketAddr, data_send: &Notify) {
     data_send.notified().await;
     sleep(Duration::from_secs_f32(0.1)).await;
 
     let mut client =
-        data_store::api::Client::connect(data_store_addr, "data_store_example".to_owned())
+        log_store::api::Client::connect(data_store_addr, "data_store_example".to_owned())
             .await
             .unwrap();
-    let list = client.list_data().await.unwrap();
+    let test_device = test_readings(0.0).first().unwrap().device();
+    let list = client.get_percentiles(test_device).await.unwrap();
 
     assert!(
         !list.is_empty(),
         "list is empty, should contain one reading"
     );
-    assert!(
-        list.iter().any(|r| {
-            if let protocol::Reading::LargeBedroom(protocol::large_bedroom::Reading::Bed(
-                protocol::large_bedroom::bed::Reading::Temperature(_),
-            )) = r
-            {
-                true
-            } else {
-                false
-            }
-        }),
-        "list is missing expected reading bed::Reading::Temperature. \
-        Full list is: {list:?}"
-    )
 }
 
-async fn check_client_get_data(
-    data_store_addr: SocketAddr,
-    sensor_values: &[f32],
-    data_send: &Notify,
-) {
+async fn check_client_get_logs(data_store_addr: SocketAddr, data_send: &Notify) {
     data_send.notified().await;
     sleep(Duration::from_secs_f32(0.1)).await;
     let mut client =
-        data_store::api::Client::connect(data_store_addr, "data_store_example".to_owned())
+        log_store::api::Client::connect(data_store_addr, "data_store_example".to_owned())
             .await
             .unwrap();
-    let (time, data) = client
-        .get_data(
-            jiff::Timestamp::now() - jiff::Span::default().seconds(30),
-            jiff::Timestamp::now() + jiff::Span::default().seconds(30),
-            test_readings(0.0)[0].clone(),
-            5,
-        )
-        .await
-        .unwrap();
 
-    assert_eq!(time.len(), data.len());
-    assert!(data
-        .into_iter()
-        .zip(sensor_values.into_iter().copied())
-        .inspect(|r| println!("(got, expected): {r:?}"))
-        .all(|(a, b)| (a - b).abs() < 0.1))
+    let test_device = test_readings(0.0).first().unwrap().device();
+    let logs = client.get_logs(test_device).await.unwrap();
+
+    assert_eq!(logs.len(), 4);
 }
 
 static SETUP_REPORTING: Once = Once::new();
@@ -120,7 +113,7 @@ fn setup_reporting() {
 }
 
 #[tokio::test]
-async fn list_data() {
+async fn get_logs() {
     const DATA_SERVER_STARTUP: Duration = Duration::from_millis(20);
     const DATA_STORE_STARTUP: Duration = Duration::from_millis(20);
     const FIRST_MSG_PROCESSED: Duration = Duration::from_millis(1000);
@@ -136,18 +129,18 @@ async fn list_data() {
     let data_server_addr = SocketAddr::from(([127, 0, 0, 1], sub_port.port()));
     let data_store_addr = SocketAddr::from(([127, 0, 0, 1], store_port.port()));
 
-    let data_send = Notify::new();
+    let errors_send = Notify::new();
     let run_data_server = data_server(
         ([127, 0, 0, 1], sub_port.port()),
         ([127, 0, 0, 1], data_port.port()),
     );
     let run_data_store = sleep(DATA_SERVER_STARTUP).then(|()| {
-        data_store::server::run(data_server_addr, data_store_addr.port(), test_dir.path())
+        log_store::server::run(data_server_addr, data_store_addr.port(), test_dir.path())
     });
     let send_sensor_value = sleep(DATA_SERVER_STARTUP + DATA_STORE_STARTUP)
-        .then(|()| send_sensor_values(data_port.port(), &[0.0], &data_send));
+        .then(|()| send_sensor_errors(data_port.port(), &errors_send));
     let run_test = sleep(DATA_SERVER_STARTUP + DATA_STORE_STARTUP + FIRST_MSG_PROCESSED)
-        .then(|()| check_client_list_data(data_store_addr, &data_send));
+        .then(|()| check_client_get_logs(data_store_addr, &errors_send));
 
     let res = (
         run_test.map(Result::Ok),
@@ -162,7 +155,7 @@ async fn list_data() {
 }
 
 #[tokio::test]
-async fn read_data() {
+async fn get_percentiles() {
     const DATA_SERVER_STARTUP: Duration = Duration::from_millis(20);
     const DATA_STORE_STARTUP: Duration = Duration::from_millis(20);
     const FIRST_MSG_PROCESSED: Duration = Duration::from_millis(1000);
@@ -180,19 +173,17 @@ async fn read_data() {
     let data_store_addr = SocketAddr::from(([127, 0, 0, 1], store_port.port()));
 
     let data_send = Notify::new();
-    let sensor_values = [0.5];
-    // let sensor_values = [0.0, 0.1, 0.2, 0.3];
     let run_data_server = data_server(
         ([127, 0, 0, 1], sub_port.port()),
         ([127, 0, 0, 1], data_port.port()),
     );
     let run_data_store = sleep(DATA_SERVER_STARTUP).then(|()| {
-        data_store::server::run(data_server_addr, data_store_addr.port(), test_dir.path())
+        log_store::server::run(data_server_addr, data_store_addr.port(), test_dir.path())
     });
     let send_sensor_value = sleep(DATA_SERVER_STARTUP + DATA_STORE_STARTUP)
-        .then(|()| send_sensor_values(data_port.port(), &sensor_values, &data_send));
+        .then(|()| send_sensor_values(data_port.port(), &data_send));
     let run_test = sleep(DATA_SERVER_STARTUP + DATA_STORE_STARTUP + FIRST_MSG_PROCESSED)
-        .then(|()| check_client_get_data(data_store_addr, &sensor_values, &data_send));
+        .then(|()| check_client_get_percentiles(data_store_addr, &data_send));
 
     let res = (
         run_test.map(Result::Ok),

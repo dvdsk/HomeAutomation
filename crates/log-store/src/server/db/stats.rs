@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use tokio::sync::Mutex;
 
-use crate::api::Percentile;
+use crate::api::{self, Percentile};
 
 #[derive(Debug)]
 pub(crate) struct Histogram {
@@ -46,9 +46,12 @@ impl Stats {
         Ok(())
     }
 
-    pub(crate) async fn get(&self, device: &protocol::Device) -> Vec<crate::api::Percentile> {
+    pub(crate) async fn get(
+        &self,
+        device: &protocol::Device,
+    ) -> Result<Vec<crate::api::Percentile>, api::GetStatsError> {
         let mut map = self.0.lock().await;
-        if let Some(timings) = map.get_mut(device) {
+        Ok(if let Some(timings) = map.get_mut(device) {
             timings
                 .histogram
                 .iter_quantiles(1)
@@ -60,6 +63,6 @@ impl Stats {
                 .collect()
         } else {
             Vec::new()
-        }
+        })
     }
 }

@@ -25,8 +25,14 @@ pub(crate) async fn run(
     loop {
         let msg = sub.next_msg().await;
         let res = match msg {
-            SubMessage::Reading(reading) => stats.increment(reading.device()).await,
-            SubMessage::ErrorReport(report) => logs.store(*report).await,
+            SubMessage::Reading(reading) => {
+                if let Err(e) = stats.increment(reading.device()).await {
+                    Err(e)
+                } else {
+                    logs.clear_err(reading.device()).await
+                }
+            }
+            SubMessage::ErrorReport(report) => logs.set_err(*report, log_dir).await,
         };
 
         const FIVE_MIN: Duration = Duration::from_secs(60 * 5);
