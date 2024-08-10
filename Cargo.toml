@@ -6,7 +6,10 @@ exclude = ["sensor-nodes/bed-sensors"]
 [workspace.dependencies]
 data-server = { path = "crates/data-server" }
 data-store = { path = "crates/data-store" }
+log-store = { path = "crates/log-store" }
 protocol = { path = "crates/protocol" }
+
+byteseries = { path = "../byteseries" }
 
 tokio = "1.38"
 color-eyre = "0.6.3"

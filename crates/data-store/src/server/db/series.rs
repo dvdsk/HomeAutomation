@@ -42,6 +42,7 @@ struct Header {
 }
 
 impl Series {
+    #[instrument]
     fn open_or_create(reading: &protocol::Reading, dir: &Path) -> Result<Self> {
         let readings = reading.device().info().affects_readings;
         let specs = to_speclist(readings);
@@ -107,6 +108,7 @@ impl Series {
         })
     }
 
+    #[instrument]
     fn append(&mut self, reading: &protocol::Reading) -> Result<()> {
         let index = reading
             .device()

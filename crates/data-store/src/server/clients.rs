@@ -45,7 +45,7 @@ pub(crate) async fn handle(port: u16, data: Data) -> color_eyre::Result<()> {
             continue;
         };
 
-        if let Err(allowed_again) = limiter.check_key(&(source, name)) {
+        if let Err(allowed_again) = limiter.check_key(&(source, name.clone())) {
             let allowed_in = allowed_again.wait_time_from(DefaultClock::default().now());
             let _ignore_err = conn.send(api::Response::Error(ServerError::TooManyRequests(
                 allowed_in,
@@ -53,6 +53,7 @@ pub(crate) async fn handle(port: u16, data: Data) -> color_eyre::Result<()> {
             continue;
         }
 
+        info!("Client {name} connected from {source}");
         let Ok(()) = conn.send(api::Response::Handshake).await else {
             continue;
         };
@@ -73,12 +74,13 @@ async fn handshake_and_log(stream: TcpStream, source: SocketAddr) -> Option<(Con
 
     match stream.try_next().await {
         Ok(Some(api::Request::Handshake { name })) => {
-            info!("Client {name} connected from {source}");
             return Some((stream, name));
         }
-        Ok(Some(other)) => warn!("client tried to connected without handshake, it send: {other:?}"),
-        Ok(None) => warn!("client closed connection immediately"),
-        Err(e) => warn!("connection or decoding issue while receiving handshake: {e:?}"),
+        Ok(Some(other)) => {
+            warn!("client from {source} tried to connected without handshake, it send: {other:?}")
+        }
+        Ok(None) => warn!("client from {source} closed connection immediately"),
+        Err(e) => warn!("connection or decoding issue while receiving handshake from {source}, error: {e:?}"),
     }
 
     None

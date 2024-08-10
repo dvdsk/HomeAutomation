@@ -37,21 +37,12 @@ pub enum ServerError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Percentile {
-    pub bucket_ends: u64,
-    pub percentile: f64,
-    pub count_in_bucket: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) enum Response {
-    GetLog(Vec<(jiff::Timestamp, protocol::Error)>),
     ListData(Vec<Reading>),
     GetData {
         time: Vec<jiff::Timestamp>,
         data: Vec<f32>,
     },
-    GetStats(Vec<Percentile>),
     Error(ServerError),
     Handshake,
 }
