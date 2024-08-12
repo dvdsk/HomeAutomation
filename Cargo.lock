@@ -1979,6 +1979,8 @@ dependencies = [
 name = "log-store"
 version = "0.1.0"
 dependencies = [
+ "bincode",
+ "byteseries",
  "clap",
  "color-eyre",
  "data-server",
@@ -1986,6 +1988,7 @@ dependencies = [
  "futures-concurrency",
  "governor",
  "hdrhistogram",
+ "heapless 0.8.0",
  "jiff",
  "nucleo-matcher",
  "num",
@@ -2947,6 +2950,7 @@ dependencies = [
  "hdrhistogram",
  "itertools",
  "jiff",
+ "log-store",
  "protocol",
  "ratatui",
  "thiserror",

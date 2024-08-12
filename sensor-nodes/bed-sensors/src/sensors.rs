@@ -9,6 +9,7 @@ use embassy_sync::mutex::Mutex;
 use embassy_time::Delay;
 use mhzx::MHZ;
 use protocol::large_bedroom::bed::Device;
+use retry::Nau7802Driver;
 use sps30_async::Sps30;
 
 use crate::channel::Queues;
@@ -21,9 +22,6 @@ pub mod fast;
 pub mod retry;
 pub mod slow;
 
-// Todo make failed init not critical. Keep trying init in background
-// while we are measuring
-//
 pub type I2cError = I2cDeviceError<embassy_stm32::i2c::Error>;
 pub type UartError = embassy_stm32::usart::Error;
 
@@ -45,14 +43,16 @@ const SPS30_DRIVER_BUF_SIZE: usize = 2 * SPS30_UART_BUF_SIZE;
 
 pub async fn init_then_measure(
     publish: &Queues,
-    i2c: Mutex<NoopRawMutex, I2c<'static, Async>>,
+    i2c_1: Mutex<NoopRawMutex, I2c<'static, Async>>,
+    i2c_3: Mutex<NoopRawMutex, I2c<'static, Async>>,
     usart_mhz: Uart<'static, Async>,
     usart_sps: Uart<'static, Async>,
 ) -> Result<(), Error> {
     info!("initializing sensors");
-    let bme = Bme680Driver::new(&i2c, Device::Bme680);
-    let max44009 = Max44Driver::new(&i2c, Device::Max44);
-    let sht = Sht31Driver::new(&i2c, Device::Sht31);
+    let bme = Bme680Driver::new(&i2c_3, Device::Bme680);
+    let max44009 = Max44Driver::new(&i2c_1, Device::Max44);
+    let sht = Sht31Driver::new(&i2c_1, Device::Sht31);
+    let nau_left = Nau7802Driver::new(&i2c_3, Device::Nau7802Left);
 
     let (tx, rx) = usart_mhz.split();
     let mut usart_buf = [0u8; 9 * 10]; // 9 byte messages
@@ -64,7 +64,7 @@ pub async fn init_then_measure(
     let rx = rx.into_ring_buffered(&mut usart_buf);
     let sps30 = Sps30Driver::init(tx, rx);
 
-    let sensors_fast = fast::read(max44009, /*buttons,*/ publish);
+    let sensors_fast = fast::read(max44009, nau_left, /*buttons,*/ publish);
     let sensors_slow = slow::read(sht, bme, mhz, sps30, publish);
     join::join(sensors_fast, sensors_slow).await;
 

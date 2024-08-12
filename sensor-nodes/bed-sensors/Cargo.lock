@@ -57,6 +57,7 @@ dependencies = [
  "heapless 0.8.0",
  "max44009",
  "mhzx",
+ "nau7802-async",
  "nb 1.1.0",
  "panic-probe",
  "protocol",
@@ -786,6 +787,17 @@ dependencies = [
  "defmt",
  "embedded-io-async",
  "heapless 0.8.0",
+ "postcard",
+ "serde",
+]
+
+[[package]]
+name = "nau7802-async"
+version = "0.2.0"
+dependencies = [
+ "byteorder",
+ "defmt",
+ "embedded-hal-async",
  "postcard",
  "serde",
 ]

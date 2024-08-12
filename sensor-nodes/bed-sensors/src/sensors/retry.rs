@@ -6,6 +6,7 @@ use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Delay, Timer};
 use max44009::{Max44009, SlaveAddr};
+use nau7802_async::Nau7802;
 use sht31::mode::SingleShot;
 use sht31::SHT31;
 
@@ -13,7 +14,7 @@ use super::concrete_types::ConcreteSharedI2c;
 use crate::error_cache::SensorError;
 
 mod reinit_on_error;
-pub use reinit_on_error::{Bme680Driver, Max44Driver, Sht31Driver};
+pub use reinit_on_error::{Bme680Driver, Max44Driver, Nau7802Driver, Sht31Driver};
 
 mod retry_init;
 pub use retry_init::Sps30Driver;
@@ -81,6 +82,25 @@ impl<'a> ReInitableDriver for Max44009<ConcreteSharedI2c<'a>> {
     }
     async fn measure(&mut self) -> Result<Self::Measurement, SensorError> {
         self.read_lux().await.map_err(SensorError::Max44)
+    }
+}
+
+impl<'a> ReInitableDriver for Nau7802<ConcreteSharedI2c<'a>, Delay> {
+    type Parts = &'a Mutex<NoopRawMutex, I2c<'static, Async>>;
+    type Measurement = u32;
+
+    async fn init(parts: Self::Parts) -> Result<Self, SensorError> {
+        let shared_i2c = shared_bus::asynch::i2c::I2cDevice::new(parts);
+        // wrap these two into something returning Ok or Err
+        // then make it a generic arg, maybe Driverfactory::init
+        let driver = Nau7802::new(shared_i2c, Delay)
+            .await
+            .map_err(SensorError::Nau7802Left)?;
+        Ok(driver)
+    }
+
+    async fn measure(&mut self) -> Result<Self::Measurement, SensorError> {
+        self.read().await.map_err(SensorError::Nau7802Left)
     }
 }
 

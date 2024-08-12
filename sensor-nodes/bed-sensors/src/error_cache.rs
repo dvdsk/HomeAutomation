@@ -10,6 +10,7 @@ pub enum SensorError {
     Sht31(sht31::SHTError),
     Bme680(bosch_bme680::BmeError<I2cError>),
     Max44(max44009::Error<I2cError>),
+    Nau7802Left(nau7802_async::Error<I2cError>),
 }
 
 impl From<SensorError> for bed::SensorError {
@@ -20,6 +21,7 @@ impl From<SensorError> for bed::SensorError {
             SensorError::Sht31(e) => bed::SensorError::Sht31(make_error_string(e)),
             SensorError::Bme680(e) => bed::SensorError::Bme680(make_error_string(e)),
             SensorError::Max44(e) => bed::SensorError::Max44(make_error_string(e)),
+            SensorError::Nau7802Left(e) => bed::SensorError::Nau7802Left(make_error_string(e)),
         }
     }
 }

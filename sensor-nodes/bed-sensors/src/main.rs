@@ -37,6 +37,8 @@ use crate::channel::Queues;
 embassy_stm32::bind_interrupts!(struct Irqs {
     I2C1_EV => embassy_stm32::i2c::EventInterruptHandler<embassy_stm32::peripherals::I2C1>;
     I2C1_ER => embassy_stm32::i2c::ErrorInterruptHandler<embassy_stm32::peripherals::I2C1>;
+    I2C3_EV => embassy_stm32::i2c::EventInterruptHandler<embassy_stm32::peripherals::I2C3>;
+    I2C3_ER => embassy_stm32::i2c::ErrorInterruptHandler<embassy_stm32::peripherals::I2C3>;
     USART1 => embassy_stm32::usart::InterruptHandler<embassy_stm32::peripherals::USART1>;
     USART2 => embassy_stm32::usart::InterruptHandler<embassy_stm32::peripherals::USART2>;
 });
@@ -118,7 +120,7 @@ async fn main(spawner: Spawner) {
         usart_config,
     ));
 
-    let i2c = I2c::new(
+    let i2c_1 = I2c::new(
         p.I2C1,
         p.PB8,
         p.PB9,
@@ -129,8 +131,20 @@ async fn main(spawner: Spawner) {
         Hertz(150_000),
         i2c::Config::default(),
     );
-    let i2c: Mutex<NoopRawMutex, _> = Mutex::new(i2c);
+    let i2c_1: Mutex<NoopRawMutex, _> = Mutex::new(i2c_1);
 
+    let i2c_3 = I2c::new(
+        p.I2C3,
+        p.PA8,
+        p.PB4,
+        Irqs,
+        p.DMA1_CH4,
+        p.DMA1_CH1,
+        // extra slow, helps with longer cable runs
+        Hertz(150_000),
+        i2c::Config::default(),
+    );
+    let i2c_3: Mutex<NoopRawMutex, _> = Mutex::new(i2c_3);
     /*
     // let buttons = ButtonInputs {
     //     top_left: ExtiInput::new(p.PA13, p.EXTI13, Pull::Down),
@@ -145,7 +159,7 @@ async fn main(spawner: Spawner) {
      */
 
     let mut spi_cfg = SpiConfig::default();
-    spi_cfg.frequency = Hertz(50_000_000); // up to 50m works
+    spi_cfg.frequency = Hertz(5_000_000); // up to 50m works
     let (miso, mosi, clk) = (p.PA6, p.PA7, p.PA5);
     let spi = Spi::new(p.SPI1, clk, mosi, miso, p.DMA2_CH3, p.DMA2_CH0, spi_cfg);
     let cs = Output::new(p.PA4, Level::High, Speed::VeryHigh);
@@ -189,7 +203,7 @@ async fn main(spawner: Spawner) {
     // let send_and_pet_dog = join::join(&mut send_published, keep_dog_happy);
     let send_and_pet_dog = &mut send_published;
 
-    let init_then_measure = sensors::init_then_measure(&publish, i2c, usart_mhz, usart_sps30);
+    let init_then_measure = sensors::init_then_measure(&publish, i2c_1, i2c_3, usart_mhz, usart_sps30);
     let res = select::select(send_and_pet_dog, init_then_measure).await;
     let unrecoverable_err = match res {
         Either::First(network::ConnDownTooLong) => cortex_m::peripheral::SCB::sys_reset(),

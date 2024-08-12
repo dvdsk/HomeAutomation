@@ -1,6 +1,7 @@
 use bosch_bme680::Bme680;
 use embassy_time::Delay;
 use max44009::Max44009;
+use nau7802_async::Nau7802;
 use protocol::large_bedroom::bed::Device;
 use sht31::mode::SingleShot;
 use sht31::SHT31;
@@ -9,6 +10,7 @@ use super::super::concrete_types::ConcreteSharedI2c;
 use super::ReInitableDriver;
 use crate::error_cache::Error;
 
+pub type Nau7802Driver<'a> = ReInitOnErrorDriver<Nau7802<ConcreteSharedI2c<'a>, Delay>>;
 pub type Max44Driver<'a> = ReInitOnErrorDriver<Max44009<ConcreteSharedI2c<'a>>>;
 pub type Bme680Driver<'a> = ReInitOnErrorDriver<Bme680<ConcreteSharedI2c<'a>, Delay>>;
 pub type Sht31Driver<'a> = ReInitOnErrorDriver<SHT31<SingleShot, ConcreteSharedI2c<'a>>>;
