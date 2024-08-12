@@ -62,11 +62,11 @@ impl Stored {
         if let Some(last_fetch) = &mut self.last_fetch {
             if last_fetch.history_length != needed_hist.dur || self.outdated() {
                 self.start_update(device, needed_hist.dur, log_store);
-                needed_hist.state = history_len::State::Fetching;
+                needed_hist.state = history_len::State::Fetching(Instant::now());
             }
         } else {
             self.start_update(device, needed_hist.dur, log_store);
-            needed_hist.state = history_len::State::Fetching;
+            needed_hist.state = history_len::State::Fetching(Instant::now());
         }
 
         if let Some(last_fetch) = &mut self.last_fetch {

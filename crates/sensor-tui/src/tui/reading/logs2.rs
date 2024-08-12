@@ -50,4 +50,8 @@ impl Logs {
         }
         buckets.map(|(_, count)| count as f32)
     }
+
+    pub(crate) fn list(&self) -> &[api::ErrorEvent] {
+        &self.history
+    }
 }

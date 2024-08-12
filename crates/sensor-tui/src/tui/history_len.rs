@@ -3,7 +3,7 @@ use ratatui::{
     style::{Color, Modifier, Style},
     text::Span,
 };
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::time::format::fmt_seconds;
 use crate::time::parse::parse_duration;
@@ -13,7 +13,7 @@ pub enum State {
     Empty,
     Invalid,
     Valid,
-    Fetching,
+    Fetching(Instant),
     Fetched,
 }
 
@@ -81,12 +81,12 @@ impl HistoryLen {
                 let style = Style::default().add_modifier(Modifier::ITALIC);
                 Span::raw(text).style(style)
             }
-            State::Fetching => {
+            State::Fetching(started) if started.elapsed() > Duration::from_secs(2) => {
                 let style = Style::default().add_modifier(Modifier::ITALIC);
                 text.push_str(" (fetching)");
                 Span::raw(text).style(style)
             }
-            State::Fetched => {
+            State::Fetched | State::Fetching(_) => {
                 if self.editing {
                     Span::raw(text)
                 } else {
@@ -100,7 +100,7 @@ impl HistoryLen {
         self.editing = false;
         self.state = match self.state {
             State::Empty | State::Invalid => State::Fetched,
-            State::Valid | State::Fetching | State::Fetched => self.state,
+            State::Valid | State::Fetching(_) | State::Fetched => self.state,
         }
     }
 

@@ -1,20 +1,21 @@
 use jiff::Timestamp;
 use ratatui::{
     self,
-    layout::{Constraint, Flex, Layout, Rect},
-    style::{Modifier, Style},
+    layout::{Alignment, Constraint, Direction, Flex, Layout, Rect},
+    style::{Color, Modifier, Style},
     text::Text,
-    widgets::{self, Bar, BarChart, BarGroup, Block, Borders},
+    widgets::{self, Bar, BarChart, BarGroup, Block, Borders, Tabs},
     Frame,
 };
 use tui_tree_widget::{Tree, TreeItem};
 
 use super::{
     reading::{ChartParts, Details, ErrorDensity, TreeKey},
-    ActiveList, App,
+    ActiveTab, App,
 };
 
 mod chart;
+mod logs;
 
 pub(crate) fn app(
     frame: &mut Frame,
@@ -23,13 +24,15 @@ pub(crate) fn app(
     affectors: &[TreeItem<'static, TreeKey>],
     details: Option<Details>,
     chart: Option<ChartParts>,
+    logs: Option<Vec<log_store::api::ErrorEvent>>,
     histogram: &[Bar],
 ) {
     let [list_constraint, graph_constraint] = if chart.is_some() {
-        let list_height = 2 + app.reading_tree_state.flatten(readings).len();
-        if (frame.size().height as f32) / 3. > list_height as f32 {
+        let tree_height = 2 + app.reading_tree_state.flatten(readings).len();
+        let details_height = 9;
+        if (frame.size().height as f32) / 3. > tree_height as f32 {
             [
-                Constraint::Min(list_height as u16),
+                Constraint::Min(tree_height.max(details_height) as u16),
                 Constraint::Percentage(100),
             ]
         } else {
@@ -40,52 +43,100 @@ pub(crate) fn app(
     };
 
     let area = frame.size();
-    let [top, bottom, footer] =
-        Layout::vertical([list_constraint, graph_constraint, Constraint::Min(1)])
-            .flex(Flex::Legacy)
-            .areas(area);
+    let [top_line, top, bottom, footer] = Layout::vertical([
+        Constraint::Min(1),
+        list_constraint,
+        graph_constraint,
+        Constraint::Min(1),
+    ])
+    .flex(Flex::Legacy)
+    .areas(area);
 
-    render_readings_and_actuators(frame, top, app, readings, affectors, details);
-    render_graph_and_hist(frame, bottom, app, histogram, chart);
+    render_tab(frame, top_line, app.active_tab);
+
+    match app.active_tab {
+        ActiveTab::Readings => {
+            render_readings_and_details(frame, top, app, readings, details);
+            render_graph_hist_logs(frame, bottom, app, histogram, logs, chart);
+        }
+        ActiveTab::Affectors => render_affectors(frame, top, app, affectors),
+    }
     render_footer(frame, footer, app);
 }
 
-fn render_footer(frame: &mut Frame, layout: Rect, app: &mut App) {
-    let text = if app.history_length.editing {
-        "ESC: stop bound editing"
-    } else {
-        if app.show_histogram {
-            "b: edit graph start, h: hide histogram"
-        } else {
-            "b: edit graph start, h: show histogram"
-        }
-    };
+fn render_tab(frame: &mut Frame, layout: Rect, active_tab: ActiveTab) {
+    let tabs = Tabs::new(vec!["Readings", "Affectors"])
+        .style(Style::new().bg(Color::Gray))
+        .select(active_tab.number())
+        .divider("|")
+        .padding(" ", " ");
 
-    let text = Text::raw(text);
-    frame.render_widget(text, layout)
+    frame.render_widget(tabs, layout);
 }
 
-fn render_graph_and_hist(
+fn render_footer(frame: &mut Frame, layout: Rect, app: &mut App) {
+    let mut footer = Vec::new();
+
+    if app.history_length.editing {
+        footer.push("ESC or q: stop bound editing");
+    } else {
+        footer.push("ESC or q: quit");
+        footer.push("b: edit graph start");
+    }
+
+    if app.show_histogram {
+        footer.push("h: hide histogram");
+    } else {
+        footer.push("h: show histogram");
+    }
+
+    if app.show_logs {
+        footer.push("l: hide logs");
+    } else {
+        footer.push("l: show logs");
+    }
+
+    let footer = footer.join("  ");
+    let footer = Text::raw(footer)
+        .alignment(Alignment::Center)
+        .style(Style::new().bg(Color::Gray));
+    frame.render_widget(footer, layout)
+}
+
+fn render_graph_hist_logs(
     frame: &mut Frame,
     layout: Rect,
     app: &mut App,
     histogram: &[Bar],
+    logs: Option<Vec<log_store::api::ErrorEvent>>,
     chart: Option<ChartParts>,
 ) {
-    match (chart, app.show_histogram) {
-        (None, true) => render_histogram(frame, layout, histogram),
-        (None, false) => (),
-        (Some(chart), true) => {
-            let [top, lower] =
-                Layout::vertical([Constraint::Percentage(65), Constraint::Percentage(35)])
-                    .flex(Flex::Legacy)
-                    .areas(layout);
-            chart::render(frame, top, app, chart);
-            render_histogram(frame, lower, histogram);
-        }
-        (Some(chart), false) => {
-            chart::render(frame, layout, app, chart);
-        }
+    let logs = app.show_logs.then(|| logs).flatten();
+    let num_elems = chart.is_some() as u8 + app.show_histogram as u8 + logs.is_some() as u8;
+
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints((0..num_elems).into_iter().map(|_| Constraint::Fill(10)))
+        .flex(Flex::Legacy)
+        .split(layout);
+
+    let mut layout = layout.into_iter();
+
+    if let Some(chart) = chart {
+        chart::render(frame, layout.next().unwrap().clone(), app, chart);
+    }
+
+    if let Some(logs) = logs {
+        logs::render(
+            frame,
+            layout.next().unwrap().clone(),
+            &mut app.logs_table_state,
+            logs,
+        )
+    }
+
+    if app.show_histogram {
+        render_histogram(frame, layout.next().unwrap().clone(), histogram);
     }
 }
 
@@ -94,17 +145,13 @@ fn render_histogram(frame: &mut Frame, lower: Rect, histogram: &[Bar]) {
         .block(Block::bordered().title("Histogram"))
         .data(BarGroup::default().bars(histogram))
         .bar_width(12);
-    // .bar_style(Style::default())
-    // .value_style(Style::default());
     frame.render_widget(barchart, lower)
 }
-
-pub(crate) fn render_readings_and_actuators(
+pub(crate) fn render_readings_and_details(
     frame: &mut Frame,
     layout: Rect,
     app: &mut App,
     readings: &[TreeItem<'static, TreeKey>],
-    affectors: &[TreeItem<'static, TreeKey>],
     details: Option<Details>,
 ) {
     let [left, right] =
@@ -118,25 +165,15 @@ pub(crate) fn render_readings_and_actuators(
             .block(
                 Block::default()
                     .title("Sensor readings")
-                    .borders(Borders::ALL)
-                    .border_style(app.active_list.style(ActiveList::Readings)),
+                    .borders(Borders::ALL),
             )
-            .style(app.active_list.style(ActiveList::Readings))
             .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
             .highlight_symbol(">>"),
         left,
         &mut app.reading_tree_state,
     );
-
-    if let (Some(details), ActiveList::Readings) = (details, app.active_list) {
-        let [top, bottom] =
-            Layout::vertical([Constraint::Percentage(30), Constraint::Percentage(70)])
-                .flex(Flex::Legacy)
-                .areas(right);
-        render_affectors(frame, top, app, affectors);
-        render_details(frame, bottom, details);
-    } else {
-        render_affectors(frame, right, app, affectors)
+    if let Some(details) = details {
+        render_details(frame, right, details);
     }
 }
 
@@ -193,11 +230,9 @@ fn render_affectors(
             .expect("all item identifiers should be unique")
             .block(
                 Block::default()
-                    .title("Controllable actuators")
-                    .borders(Borders::ALL)
-                    .border_style(app.active_list.style(ActiveList::Affectors)),
+                    .title("Controllable affectors")
+                    .borders(Borders::ALL),
             )
-            .style(app.active_list.style(ActiveList::Affectors))
             .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
             .highlight_symbol(">>"),
         layout,

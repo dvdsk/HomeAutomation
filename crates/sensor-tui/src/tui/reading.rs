@@ -1,6 +1,7 @@
 use hdrhistogram::Histogram;
 use itertools::Itertools;
 use jiff::Unit;
+use log_store::api::ErrorEvent;
 use protocol::reading_tree::ReadingInfo;
 use protocol::reading_tree::{Item, Tree};
 use protocol::Error;
@@ -24,7 +25,7 @@ pub struct SensorInfo {
     recent_history: Vec<(jiff::Timestamp, f32)>,
     pub history_from_store: history::Stored,
     condition: Result<(), Box<Error>>,
-    errors: logs2::Logs,
+    logs: logs2::Logs,
     pub logs_from_store: logs::Stored,
 }
 
@@ -83,7 +84,7 @@ impl SensorInfo {
             last_reading,
             condition: self.condition.clone(),
             description: self.reading.leaf().description.to_owned(),
-            errors_since: ErrorDensity::from_log(&self.errors),
+            errors_since: ErrorDensity::from_log(&self.logs),
         }
     }
 
@@ -157,6 +158,22 @@ impl SensorInfo {
             reading: self.reading.clone(),
             data: plot_buf,
         })
+    }
+
+    pub fn logs(&self) -> Vec<ErrorEvent> {
+        let mut logs = self.logs_from_store.list();
+        let last = logs
+            .last()
+            .map(|ErrorEvent { start, .. }| *start)
+            .unwrap_or(jiff::Timestamp::from_second(0).unwrap());
+        let without_duplicates = self
+            .logs
+            .list()
+            .iter()
+            .skip_while(|ErrorEvent { start, .. }| start < &last)
+            .cloned();
+        logs.extend(without_duplicates);
+        logs
     }
 }
 
@@ -254,7 +271,7 @@ impl Readings {
 
             if let Some(info) = self.data.get_mut(&key) {
                 info.condition = Err(error.clone());
-                info.errors.add(&error);
+                info.logs.add(&error);
             } else {
                 let errors = logs2::Logs::new_from(&error);
                 self.data.insert(
@@ -269,7 +286,7 @@ impl Readings {
                         logs_from_store: fetch::logs::Stored::new(),
 
                         condition: Err(error.clone()),
-                        errors,
+                        logs: errors,
                     },
                 );
             }
@@ -302,7 +319,7 @@ impl Readings {
                     logs_from_store: fetch::logs::Stored::new(),
 
                     condition: Ok(()),
-                    errors: logs2::Logs::new_empty(),
+                    logs: logs2::Logs::new_empty(),
                 },
             );
         }

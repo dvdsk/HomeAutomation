@@ -3,7 +3,7 @@ use protocol::Reading;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::Notify;
 use tokio::time::sleep;
 use tracing::{debug, warn};
@@ -56,11 +56,11 @@ impl Stored {
         if let Some(last_fetch) = &mut self.last_fetch {
             if last_fetch.history_length != needed_hist.dur {
                 self.start_update(reading, needed_hist.dur, data_store);
-                needed_hist.state = history_len::State::Fetching;
+                needed_hist.state = history_len::State::Fetching(Instant::now());
             }
         } else {
             self.start_update(reading, needed_hist.dur, data_store);
-            needed_hist.state = history_len::State::Fetching;
+            needed_hist.state = history_len::State::Fetching(Instant::now());
         }
 
         if let Some(last_fetch) = &self.last_fetch {

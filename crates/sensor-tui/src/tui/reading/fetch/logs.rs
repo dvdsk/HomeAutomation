@@ -4,7 +4,7 @@ use protocol::Reading;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::Notify;
 use tokio::time::sleep;
 use tracing::{debug, warn};
@@ -29,7 +29,11 @@ impl Stored {
         }
     }
 
-    fn start_update(&mut self, reading: Reading, new_length: Duration, data_store: SocketAddr) {
+    pub(crate) fn list(&self) -> Vec<log_store::api::ErrorEvent> {
+        self.logs.lock().unwrap().clone()
+    }
+
+    fn start_update(&mut self, reading: Reading, new_length: Duration, log_store: SocketAddr) {
         if let Some(in_progress) = self.last_fetch.take() {
             in_progress.cancel.notify_one();
             let _ = in_progress.handle.join();
@@ -40,7 +44,7 @@ impl Stored {
         let cancel = Arc::new(Notify::new());
         let cancelled = cancel.clone();
         let data = self.logs.clone();
-        let handle = thread::spawn(move || fetch(data, reading, data_store, new_length, cancelled));
+        let handle = thread::spawn(move || fetch(data, reading, log_store, new_length, cancelled));
         self.last_fetch = Some(Fetching {
             handle,
             cancel,
@@ -50,18 +54,18 @@ impl Stored {
 
     pub fn update_if_needed(
         &mut self,
-        data_store: SocketAddr,
+        log_store: SocketAddr,
         reading: Reading,
         needed_hist: &mut HistoryLen,
     ) {
         if let Some(last_fetch) = &mut self.last_fetch {
             if last_fetch.history_length != needed_hist.dur {
-                self.start_update(reading, needed_hist.dur, data_store);
-                needed_hist.state = history_len::State::Fetching;
+                self.start_update(reading, needed_hist.dur, log_store);
+                needed_hist.state = history_len::State::Fetching(Instant::now());
             }
         } else {
-            self.start_update(reading, needed_hist.dur, data_store);
-            needed_hist.state = history_len::State::Fetching;
+            self.start_update(reading, needed_hist.dur, log_store);
+            needed_hist.state = history_len::State::Fetching(Instant::now());
         }
 
         if let Some(last_fetch) = &self.last_fetch {

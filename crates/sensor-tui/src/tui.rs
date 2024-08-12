@@ -5,7 +5,7 @@ use crossterm::{
 };
 use ratatui::{
     prelude::{CrosstermBackend, Terminal},
-    style::{Color, Style},
+    widgets::TableState,
 };
 use std::{collections::HashMap, io::stdout, net::SocketAddr, sync::mpsc, time::Duration};
 use tui_tree_widget::TreeState;
@@ -21,25 +21,24 @@ use history_len::HistoryLen;
 use self::reading::TreeKey;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-enum ActiveList {
+enum ActiveTab {
     #[default]
     Readings,
     Affectors,
 }
 
-impl ActiveList {
-    fn style(&self, list: Self) -> Style {
-        if *self == list {
-            Style::default().fg(Color::Black)
-        } else {
-            Style::default().fg(Color::Indexed(242))
-        }
-    }
-
+impl ActiveTab {
     fn swap(self) -> Self {
         match self {
             Self::Readings => Self::Affectors,
             Self::Affectors => Self::Readings,
+        }
+    }
+
+    fn number(&self) -> usize {
+        match self {
+            ActiveTab::Readings => 0,
+            ActiveTab::Affectors => 1,
         }
     }
 }
@@ -63,10 +62,12 @@ pub fn run(
 #[derive(Default)]
 struct App {
     input_mode: InputMode,
-    active_list: ActiveList,
+    active_tab: ActiveTab,
     show_histogram: bool,
+    show_logs: bool,
     reading_tree_state: TreeState<TreeKey>,
     affector_tree_state: TreeState<TreeKey>,
+    logs_table_state: TableState,
     history_length: HistoryLen,
 }
 
@@ -99,9 +100,9 @@ impl App {
                 .and_then(|key| readings.data.get_mut(key));
 
             let plot_open = data.is_some();
-            let (chart, histogram, details) = if let Some(data) = data {
+            let (chart, histogram, details, logs) = if let Some(data) = data {
                 data.logs_from_store.update_if_needed(
-                    data_store,
+                    log_store,
                     data.reading.clone(),
                     &mut self.history_length,
                 );
@@ -119,9 +120,10 @@ impl App {
                     data.chart(&mut plot_buf),
                     data.histogram(),
                     Some(data.details()),
+                    Some(data.logs()),
                 )
             } else {
-                (None, Vec::new(), None)
+                (None, Vec::new(), None, None)
             };
 
             terminal.draw(|frame| {
@@ -132,6 +134,7 @@ impl App {
                     &affectors,
                     details,
                     chart,
+                    logs,
                     &histogram,
                 );
             })?;
@@ -144,7 +147,10 @@ impl App {
                 if let event::Event::Key(key) = event::read()? {
                     tracing::trace!("key pressed: {key:?}");
                     if key.kind == KeyEventKind::Press {
-                        self.handle_key_all_modes(key);
+                        let res = self.handle_key_all_modes(key);
+                        if let ShouldExit::Yes = res {
+                            break;
+                        }
                         let res = match self.input_mode {
                             InputMode::Normal => self.handle_key_normal_mode(key, plot_open),
                             InputMode::EditingBounds => self.handle_key_bounds_mode(key),
@@ -174,14 +180,14 @@ impl App {
 
     fn handle_key_normal_mode(&mut self, key: KeyEvent, plot_open: bool) -> ShouldExit {
         match key.code {
-            KeyCode::Char('q') => {
+            KeyCode::Char('q') | KeyCode::Esc => {
                 return ShouldExit::Yes;
             }
             KeyCode::Left => {
-                self.active_list = self.active_list.swap();
+                self.active_tab = self.active_tab.swap();
             }
             KeyCode::Right => {
-                self.active_list = self.active_list.swap();
+                self.active_tab = self.active_tab.swap();
             }
             KeyCode::Char('b') => {
                 if plot_open {
@@ -191,6 +197,9 @@ impl App {
             }
             KeyCode::Char('h') => {
                 self.show_histogram = !self.show_histogram;
+            }
+            KeyCode::Char('l') => {
+                self.show_logs = !self.show_logs;
             }
             _other => (),
         }
