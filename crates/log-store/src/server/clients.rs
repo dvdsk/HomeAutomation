@@ -49,7 +49,7 @@ pub(crate) async fn handle(
             continue;
         };
 
-        if let Err(allowed_again) = limiter.check_key(&(source, name)) {
+        if let Err(allowed_again) = limiter.check_key(&(source.ip(), name)) {
             let allowed_in = allowed_again.wait_time_from(DefaultClock::default().now());
             let _ignore_err = conn.send(api::Response::Error(ServerError::TooManyRequests(
                 allowed_in,
