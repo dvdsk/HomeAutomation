@@ -44,8 +44,9 @@ impl CurrentError {
             match bincode::deserialize(&buf) {
                 Ok(value) => Some(value),
                 Err(err) => {
+                    tracing::debug!("Data was: {buf:?}");
                     warn!(
-                        "On disk backup failed to deserialize setting to None, \
+                        "On disk backup failed to deserialize, setting to None, \
                         error was: {err}"
                     );
                     file.set_len(0).wrap_err(
@@ -73,6 +74,9 @@ impl CurrentError {
         self.file
             .write_all(&bytes)
             .wrap_err("could not backup current error to disk")?;
+        self.file
+            .flush()
+            .wrap_err("failed to flush current err backup to disk")?;
         Ok(())
     }
 }
@@ -96,7 +100,9 @@ impl Log {
         Ok(Self {
             history,
             current: CurrentError::open_or_create(&path)
-                .wrap_err("Could not setup current error store")?,
+                .wrap_err("Could not setup current error store")
+                .with_note(|| format!("device: {device:?}"))
+                .with_note(|| format!("path: {}", path.display()))?,
         })
     }
 
@@ -216,12 +222,7 @@ fn try_create_new_if_open_failed(
                 std::fs::create_dir_all(dirs)
                     .wrap_err("Could not create dirs structure for reading")
                     .with_note(|| format!("dirs: {}", dirs.display()))?;
-                std::fs::read_dir(dirs)
-                    .unwrap()
-                    .map(Result::unwrap)
-                    .for_each(|p| println!("{p:?}"));
             }
-            // compile_error!("create directory structure");
             info!("creating new byteseries");
             ByteSeries::new(&path, payload_size, expected_header)
                 .wrap_err("Could not create new byteseries")

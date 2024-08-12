@@ -7,13 +7,16 @@ use color_eyre::Section;
 use futures::{SinkExt, TryStreamExt};
 use governor::clock::{Clock, DefaultClock};
 use governor::{Quota, RateLimiter};
+use logger::RateLimitedLogger;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_serde::formats::Bincode;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 
 use super::db::{Logs, Stats};
 use crate::api::{self, ServerError};
+
+mod logger;
 
 type Conn = tokio_serde::Framed<
     Framed<TcpStream, LengthDelimitedCodec>,
@@ -22,19 +25,16 @@ type Conn = tokio_serde::Framed<
     Bincode<api::Request, api::Response>,
 >;
 
-pub(crate) async fn handle(
-    port: u16,
-    stats: Stats,
-    logs: Logs,
-) -> color_eyre::Result<()> {
+pub(crate) async fn handle(port: u16, stats: Stats, logs: Logs) -> color_eyre::Result<()> {
     let quota = Quota::with_period(Duration::from_secs(1))
         .unwrap()
-        .allow_burst(NonZeroU32::new(5u32).unwrap());
+        .allow_burst(NonZeroU32::new(5).unwrap());
     let limiter = RateLimiter::keyed(quota);
     let listener = TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
         .wrap_err("Could not bind to address")
         .with_note(|| format!("port: {port}"))?;
+    let mut logger = RateLimitedLogger::new();
 
     loop {
         let (socket, source) = match listener.accept().await {
@@ -45,7 +45,7 @@ pub(crate) async fn handle(
             Ok(res) => res,
         };
 
-        let Some((mut conn, name)) = handshake_and_log(socket, source).await else {
+        let Some((mut conn, name)) = handshake(socket, source, &mut logger).await else {
             continue;
         };
 
@@ -61,15 +61,15 @@ pub(crate) async fn handle(
             continue;
         };
 
-        tokio::task::spawn(handle_client(
-            conn,
-            stats.clone(),
-            logs.clone(),
-        ));
+        tokio::task::spawn(handle_client(conn, stats.clone(), logs.clone()));
     }
 }
 
-async fn handshake_and_log(stream: TcpStream, source: SocketAddr) -> Option<(Conn, String)> {
+async fn handshake(
+    stream: TcpStream,
+    source: SocketAddr,
+    logger: &mut RateLimitedLogger,
+) -> Option<(Conn, String)> {
     let length_delimited = Framed::new(
         stream,
         LengthDelimitedCodec::builder()
@@ -81,12 +81,16 @@ async fn handshake_and_log(stream: TcpStream, source: SocketAddr) -> Option<(Con
 
     match stream.try_next().await {
         Ok(Some(api::Request::Handshake { name })) => {
-            info!("Client {name} connected from {source}");
+            logger.info(&format!("Client {name} connected from {source}"));
             return Some((stream, name));
         }
-        Ok(Some(other)) => warn!("client tried to connected without handshake, it send: {other:?}"),
-        Ok(None) => warn!("client closed connection immediately"),
-        Err(e) => warn!("connection or decoding issue while receiving handshake: {e:?}"),
+        Ok(Some(other)) => logger.warn(&format!(
+            "client tried to connected without handshake, it send: {other:?}"
+        )),
+        Ok(None) => logger.warn("client closed connection immediately"),
+        Err(e) => logger.warn(&format!(
+            "connection or decoding issue while receiving handshake: {e:?}"
+        )),
     }
 
     None
