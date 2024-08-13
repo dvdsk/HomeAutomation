@@ -9,7 +9,7 @@ data-store = { path = "crates/data-store" }
 log-store = { path = "crates/log-store" }
 protocol = { path = "crates/protocol" }
 
-byteseries = { path = "../byteseries" }
+byteseries = { git = "https://github.com/dvdsk/byteseries" }
 
 tokio = "1.38"
 color-eyre = "0.6.3"

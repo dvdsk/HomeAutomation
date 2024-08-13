@@ -8,7 +8,7 @@ authors.workspace = true
 
 [dependencies]
 color-eyre = { workspace = true }
-crossterm = "0.27.0"
+crossterm = "0.28"
 hdrhistogram = "7.5"
 ratatui = "0.28"
 tui-tree-widget = { version = "0.22.0", git = "https://github.com/dvdsk/tui-rs-tree-widget" }
