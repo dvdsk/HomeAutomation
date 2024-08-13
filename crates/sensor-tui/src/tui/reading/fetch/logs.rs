@@ -9,6 +9,7 @@ use tokio::sync::Notify;
 use tokio::time::sleep;
 use tracing::{debug, warn};
 
+use crate::client_name;
 use crate::tui::history_len::{self, HistoryLen};
 
 use super::Fetching;
@@ -37,7 +38,7 @@ impl Stored {
         if let Some(in_progress) = self.last_fetch.take() {
             in_progress.cancel.notify_one();
             let _ = in_progress.handle.join();
-            debug!("Canceled running stored-history update");
+            debug!("Canceled running stored-logs update");
         }
 
         let reading = reading.clone();
@@ -113,15 +114,12 @@ async fn connect_and_get_data(
         sleep(retry_period).await;
         retry_period = Duration::from_secs(5)
             .min(retry_period * 2)
-            .min(Duration::from_millis(100));
+            .max(Duration::from_millis(100));
 
-        let host = gethostname::gethostname();
-        let host = host.to_string_lossy();
-        let name = format!("sensor-tui@{host}");
-        let mut api = match log_store::api::Client::connect(addr, name).await {
+        let mut api = match log_store::api::Client::connect(addr, client_name()).await {
             Ok(api) => api,
             Err(e) => {
-                warn!("Could not connect to data_store (at {addr}): {e}");
+                warn!("Could not connect to log_store (at {addr}): {e}");
                 continue;
             }
         };
@@ -129,7 +127,7 @@ async fn connect_and_get_data(
         match api.get_logs(reading.device()).await {
             Ok(res) => return res,
             Err(e) => {
-                warn!("Error getting data from data-store, reconnecting: {e}");
+                warn!("Error getting data from log-store, reconnecting: {e}");
                 continue;
             }
         };

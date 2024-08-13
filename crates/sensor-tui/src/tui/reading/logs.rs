@@ -26,7 +26,7 @@ impl Logs {
         if let Some((started, event)) = self.current.take() {
             self.history.push(api::ErrorEvent {
                 start: started,
-                end: jiff::Timestamp::now(),
+                end: Some(jiff::Timestamp::now()),
                 error: event,
             })
         }
@@ -41,6 +41,7 @@ impl Logs {
             for (bound, count) in &mut buckets {
                 let bound_start = now - *bound;
                 let start = start.max(&bound_start);
+                let end = if let Some(end) = end { end } else { &now };
                 let error_time = end.since(*start).expect("duration should fit type");
                 if !error_time.is_negative() {
                     *count += error_time.total(Unit::Second).expect("smaller then day")

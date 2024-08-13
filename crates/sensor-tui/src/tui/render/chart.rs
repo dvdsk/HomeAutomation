@@ -1,4 +1,3 @@
-use protocol::reading_tree::Tree;
 use ratatui::{
     layout::{Alignment, Rect},
     style::Style,
@@ -35,7 +34,7 @@ pub fn render(frame: &mut Frame, layout: Rect, app: &mut App, chart: ChartParts)
         .labels(x_labels)
         .labels_alignment(Alignment::Center);
     let y_axis = Axis::default()
-        .title(chart.reading.leaf().unit.to_string())
+        .title(chart.reading.unit.to_string())
         .style(Style::default())
         .bounds(y_bounds)
         .labels(y_labels);
@@ -63,8 +62,8 @@ fn bounds(chart: &ChartParts, layout: Rect) -> (Bounds, Bounds) {
     let y_range = y_bounds[1] - y_bounds[0];
     let margin = 5.0 / layout.height as f64;
 
-    let range = chart.reading.leaf().range;
-    let resolution = chart.reading.resolution() as f64;
+    let range = &chart.reading.range;
+    let resolution = chart.reading.resolution as f64;
     let y_margin = f64::max(y_range * margin, resolution / 2.0);
     let y_bounds = [y_bounds[0] - y_margin, y_bounds[1] + y_margin];
     let y_bounds = [

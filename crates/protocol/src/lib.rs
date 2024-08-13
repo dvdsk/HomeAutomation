@@ -16,7 +16,7 @@ pub(crate) use button::button_enum;
 #[cfg(feature = "alloc")]
 pub mod reading_tree;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Unit {
     Pa,
     C,

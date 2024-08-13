@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use protocol::Reading;
+use protocol::{Device, Reading};
 
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +15,7 @@ pub(crate) enum Request {
     Handshake { name: String },
     GetLog(protocol::Device),
     GetStats(protocol::Device),
+    ListDevices,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, thiserror::Error)]
@@ -51,13 +52,15 @@ pub struct Percentile {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ErrorEvent {
     pub start: jiff::Timestamp,
-    pub end: jiff::Timestamp,
+    /// if None then the error is ongoing
+    pub end: Option<jiff::Timestamp>,
     pub error: protocol::Error,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) enum Response {
     GetLog(Result<Vec<ErrorEvent>, GetLogError>),
+    ListDevices(Vec<Device>),
     GetStats(Result<Vec<Percentile>, GetStatsError>),
     Error(ServerError),
     Handshake,

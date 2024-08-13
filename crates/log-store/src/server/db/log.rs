@@ -160,7 +160,7 @@ impl Log {
             .map(|(start, StoredErrorEvent { end, error })| api::ErrorEvent {
                 start: jiff::Timestamp::from_second(start as i64)
                     .expect("was a jiff::Timestamp before it became a u64"),
-                end,
+                end: Some(end),
                 error,
             })
             .collect();
@@ -268,6 +268,11 @@ impl Logs {
             log.clear()?;
         }
         Ok(())
+    }
+
+    pub(crate) async fn list_devices(&self) -> Vec<Device> {
+        let map = self.0.lock().await;
+        map.iter().map(|(key, _)| key.clone()).collect()
     }
 }
 

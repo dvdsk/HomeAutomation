@@ -1,4 +1,4 @@
-use protocol::reading_tree::{ReadingInfo, Tree};
+use protocol::reading_tree::ReadingInfo;
 use ratatui::layout::Rect;
 use ratatui::text::Span;
 
@@ -15,15 +15,15 @@ pub fn labels<'a>(
     y_bounds: Bounds,
 ) -> (Labels, Labels) {
     let y_label_spacing = 10;
-    let info = chart.reading.leaf();
+    let info = &chart.reading;
 
     // characters are about twice as high as wide
-    let x = evenly_spaced_labels(layout.width / y_label_spacing / 2, &info, x_bounds)
+    let x = evenly_spaced_labels(layout.width / y_label_spacing / 2, info, x_bounds)
         .rev()
         .map(crate::time::format::fmt_seconds)
         .map(Into::into)
         .collect();
-    let y = evenly_spaced_labels(layout.height / y_label_spacing, &info, y_bounds)
+    let y = evenly_spaced_labels(layout.height / y_label_spacing, info, y_bounds)
         .map(|y| format!("{0:.1$}", y, info.precision()).into())
         .collect();
 

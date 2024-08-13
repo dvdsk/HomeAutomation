@@ -1,6 +1,6 @@
 use crate::{Device, Reading, Unit};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ReadingInfo {
     pub val: f32,
     pub device: Device,

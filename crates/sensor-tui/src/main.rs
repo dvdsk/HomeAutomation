@@ -7,19 +7,19 @@ use color_eyre::eyre::WrapErr;
 use color_eyre::{Help, Result};
 use data_server::SubMessage;
 
-mod tui;
 mod time;
+mod tui;
+mod populate;
 
 enum Update {
+    ReadingList(Vec<protocol::Reading>),
     Reading(protocol::Reading),
     Error(Box<protocol::Error>),
     Shutdown,
+    DeviceList(Vec<protocol::Device>),
 }
 
-fn receive_data(
-    mut sub: data_server::Subscriber,
-    tx: mpsc::Sender<Result<Update>>,
-) {
+fn receive_data(mut sub: data_server::Subscriber, tx: mpsc::Sender<Result<Update>>) {
     loop {
         let update = sub
             .next_msg()
@@ -36,6 +36,7 @@ fn receive_data(
         }
     }
 }
+
 
 #[derive(Parser)]
 #[command(name = "sensor tui")]
@@ -64,7 +65,7 @@ fn main() -> Result<()> {
         log_store,
     } = Cli::parse();
 
-    let sub = data_server::Subscriber::connect(data_server, "ha-tui")
+    let sub = data_server::Subscriber::connect(data_server, &client_name())
         .wrap_err("failed to connect")
         .with_suggestion(|| format!("verify the server is listening on: {data_server}"))?;
 
@@ -72,7 +73,9 @@ fn main() -> Result<()> {
     let (tx2, rx2) = mpsc::channel();
 
     let tx1_clone = tx1.clone();
+    let tx1_clone_clone = tx1.clone();
     thread::spawn(move || receive_data(sub, tx1_clone));
+    thread::spawn(move || populate::tree(data_store, log_store, tx1_clone_clone));
     thread::spawn(move || tui::run(rx2, tx1, data_store, log_store));
 
     loop {
@@ -103,6 +106,12 @@ fn setup_tracing() -> Result<()> {
         .with(ErrorLayer::default())
         .init();
     Ok(())
+}
+
+fn client_name() -> String {
+    let host = gethostname::gethostname();
+    let host = host.to_string_lossy();
+    format!("sensor-tui@{host}")
 }
 
 /// Similar to the `std::dbg!` macro, but generates `tracing` events rather

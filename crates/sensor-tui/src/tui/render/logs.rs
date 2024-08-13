@@ -5,7 +5,26 @@ use ratatui::text::Text;
 use ratatui::widgets::{Cell, HighlightSpacing, Row, Table, TableState};
 use ratatui::Frame;
 
+use super::centered_text;
+
 pub fn render(
+    frame: &mut Frame,
+    layout: Rect,
+    table_state: &mut TableState,
+    logs: Option<Vec<ErrorEvent>>,
+) {
+    if let Some(logs) = logs {
+        if logs.is_empty() {
+            centered_text("Logs are empty", frame, layout)
+        } else {
+            render_table(frame, layout, table_state, logs)
+        }
+    } else {
+        centered_text("No logs", frame, layout)
+    }
+}
+
+pub fn render_table(
     frame: &mut Frame,
     layout: Rect,
     table_state: &mut TableState,
@@ -28,10 +47,15 @@ pub fn render(
         .enumerate()
         .map(|(i, ErrorEvent { start, end, error })| {
             let color = match i % 2 {
-                0 => Color::DarkGray,
-                _ => Color::Gray,
+                0 => Color::Gray,
+                _ => Color::White,
             };
-            let item = [format!("{error}"), format!("{start}"), format!("{end}")];
+            let end = if let Some(timestamp) = end {
+                format!("{timestamp}")
+            } else {
+                "ongoing".to_owned()
+            };
+            let item = [format!("{error}"), format!("{start}"), end];
             item.into_iter()
                 .map(|content| Text::from(content))
                 .map(|content| Cell::from(content))

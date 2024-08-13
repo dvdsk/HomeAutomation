@@ -129,5 +129,6 @@ async fn perform_request(
         api::Request::Handshake { .. } => return Err(ServerError::AlreadyConnected),
         api::Request::GetLog(device) => api::Response::GetLog(logs.get(&device).await),
         api::Request::GetStats(device) => api::Response::GetStats(stats.get(&device).await),
+        api::Request::ListDevices => api::Response::ListDevices(logs.list_devices().await),
     })
 }

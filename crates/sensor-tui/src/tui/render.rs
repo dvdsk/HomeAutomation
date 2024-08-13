@@ -1,4 +1,5 @@
 use jiff::Timestamp;
+use log_store::api::ErrorEvent;
 use ratatui::{
     self,
     layout::{Alignment, Constraint, Direction, Flex, Layout, Rect},
@@ -7,6 +8,7 @@ use ratatui::{
     widgets::{self, Bar, BarChart, BarGroup, Block, Borders, Tabs},
     Frame,
 };
+use tracing::debug;
 use tui_tree_widget::{Tree, TreeItem};
 
 use super::{
@@ -24,13 +26,13 @@ pub(crate) fn app(
     affectors: &[TreeItem<'static, TreeKey>],
     details: Option<Details>,
     chart: Option<ChartParts>,
-    logs: Option<Vec<log_store::api::ErrorEvent>>,
+    logs: Option<Vec<ErrorEvent>>,
     histogram: &[Bar],
 ) {
     let [list_constraint, graph_constraint] = if chart.is_some() {
         let tree_height = 2 + app.reading_tree_state.flatten(readings).len();
         let details_height = 9;
-        if (frame.size().height as f32) / 3. > tree_height as f32 {
+        if (frame.area().height as f32) / 3. > tree_height as f32 {
             [
                 Constraint::Min(tree_height.max(details_height) as u16),
                 Constraint::Percentage(100),
@@ -42,7 +44,7 @@ pub(crate) fn app(
         [Constraint::Percentage(100), Constraint::Percentage(100)]
     };
 
-    let area = frame.size();
+    let area = frame.area();
     let [top_line, top, bottom, footer] = Layout::vertical([
         Constraint::Min(1),
         list_constraint,
@@ -56,8 +58,11 @@ pub(crate) fn app(
 
     match app.active_tab {
         ActiveTab::Readings => {
+            let have_details = details.is_some();
             render_readings_and_details(frame, top, app, readings, details);
-            render_graph_hist_logs(frame, bottom, app, histogram, logs, chart);
+            if have_details {
+                render_graph_hist_logs(frame, bottom, app, histogram, logs, chart);
+            }
         }
         ActiveTab::Affectors => render_affectors(frame, top, app, affectors),
     }
@@ -108,11 +113,10 @@ fn render_graph_hist_logs(
     layout: Rect,
     app: &mut App,
     histogram: &[Bar],
-    logs: Option<Vec<log_store::api::ErrorEvent>>,
+    logs: Option<Vec<ErrorEvent>>,
     chart: Option<ChartParts>,
 ) {
-    let logs = app.show_logs.then(|| logs).flatten();
-    let num_elems = chart.is_some() as u8 + app.show_histogram as u8 + logs.is_some() as u8;
+    let num_elems = 1u8 + app.show_histogram as u8 + app.show_logs as u8;
 
     let layout = Layout::default()
         .direction(Direction::Vertical)
@@ -120,23 +124,29 @@ fn render_graph_hist_logs(
         .flex(Flex::Legacy)
         .split(layout);
 
-    let mut layout = layout.into_iter();
+    let mut layout = layout.into_iter().cloned();
 
     if let Some(chart) = chart {
-        chart::render(frame, layout.next().unwrap().clone(), app, chart);
+        chart::render(frame, layout.next().unwrap(), app, chart);
+    } else {
+        centered_text("No data", frame, layout.next().unwrap())
     }
 
-    if let Some(logs) = logs {
+    if app.show_logs {
         logs::render(
             frame,
-            layout.next().unwrap().clone(),
+            layout.next().unwrap(),
             &mut app.logs_table_state,
             logs,
         )
     }
 
     if app.show_histogram {
-        render_histogram(frame, layout.next().unwrap().clone(), histogram);
+        if histogram.is_empty() {
+            centered_text("No timing information", frame, layout.next().unwrap())
+        } else {
+            render_histogram(frame, layout.next().unwrap(), histogram);
+        }
     }
 }
 
@@ -208,7 +218,7 @@ fn render_details(frame: &mut Frame, layout: Rect, details: Details) {
         t45_min,
         t60_min,
     } = errors_since;
-    let errors_since = format!("errors in the past:\n5min: {t5_min}, 15min: {t15_min}, 30min: {t30_min}, 45min {t45_min}, 60m: {t60_min}");
+    let errors_since = format!("errors in the past:\n5min: {t5_min:.2}, 15min: {t15_min:.2}, 30min: {t30_min:.2}, 45min {t45_min:.2}, 60m: {t60_min:.2}");
 
     let text = format!("{description}\n{last_reading}\n{condition}{errors_since}");
     frame.render_widget(
@@ -238,4 +248,11 @@ fn render_affectors(
         layout,
         &mut app.affector_tree_state,
     );
+}
+
+fn centered_text(text: &str, frame: &mut Frame, area: Rect) {
+    let footer = Text::raw(text)
+        .alignment(Alignment::Center)
+        .style(Style::new().bg(Color::Gray));
+    frame.render_widget(footer, area)
 }

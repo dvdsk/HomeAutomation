@@ -167,6 +167,12 @@ impl App {
                 Ok(Update::Reading(reading)) => {
                     readings.add(reading);
                 }
+                Ok(Update::ReadingList(list)) => {
+                    readings.populate_from_reading_list(list);
+                }
+                Ok(Update::DeviceList(list)) => {
+                    readings.populate_from_device_list(list);
+                }
                 Ok(Update::Error(err)) => readings.add_error(err),
                 _ => (),
             }

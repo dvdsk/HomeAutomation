@@ -7,8 +7,9 @@ use log_store::api::Percentile;
 use protocol::Device;
 use tokio::sync::Notify;
 use tokio::time::sleep;
-use tracing::{debug, warn};
+use tracing::warn;
 
+use crate::client_name;
 use crate::tui::history_len::{self, HistoryLen};
 
 use super::Fetching;
@@ -36,10 +37,8 @@ impl Stored {
         if let Some(in_progress) = self.last_fetch.take() {
             in_progress.cancel.notify_one();
             let _ = in_progress.handle.join();
-            debug!("Canceled running stored-history update");
         }
 
-        debug!("Started histogram fetch");
         let device = device.clone();
         let cancel = Arc::new(Notify::new());
         let cancelled = cancel.clone();
@@ -60,7 +59,12 @@ impl Stored {
         needed_hist: &mut HistoryLen,
     ) {
         if let Some(last_fetch) = &mut self.last_fetch {
-            if last_fetch.history_length != needed_hist.dur || self.outdated() {
+            let outdated = self.last_update_started.elapsed() > Duration::from_secs(5)
+                || self.data.lock().unwrap().is_empty();
+            let finished = last_fetch.handle.is_finished();
+            let params_changed = last_fetch.history_length != needed_hist.dur;
+
+            if params_changed || (outdated && finished) {
                 self.start_update(device, needed_hist.dur, log_store);
                 needed_hist.state = history_len::State::Fetching(Instant::now());
             }
@@ -74,11 +78,6 @@ impl Stored {
                 needed_hist.state = history_len::State::Fetched
             }
         }
-    }
-
-    pub(crate) fn outdated(&self) -> bool {
-        self.data.lock().unwrap().is_empty()
-            || self.last_update_started.elapsed() > Duration::from_secs(5)
     }
 
     pub(crate) fn very_outdated(&self) -> bool {
@@ -106,7 +105,6 @@ fn fetch(
             _ = cancelled.notified() => None,
         }
     }) else {
-        debug!("Canceled data fetch");
         return;
     };
 
@@ -124,15 +122,12 @@ async fn connect_and_get_percentiles(
         sleep(retry_period).await;
         retry_period = Duration::from_secs(5)
             .min(retry_period * 2)
-            .min(Duration::from_millis(100));
+            .max(Duration::from_millis(100));
 
-        let host = gethostname::gethostname();
-        let host = host.to_string_lossy();
-        let name = format!("sensor-tui@{host}");
-        let mut api = match log_store::api::Client::connect(addr, name).await {
+        let mut api = match log_store::api::Client::connect(addr, client_name()).await {
             Ok(api) => api,
             Err(e) => {
-                warn!("Could not connect to data_store (at {addr}): {e}");
+                warn!("Could not connect to log_store (at {addr}): {e}");
                 continue;
             }
         };
@@ -140,7 +135,7 @@ async fn connect_and_get_percentiles(
         match api.get_percentiles(device.clone()).await {
             Ok(res) => return res,
             Err(e) => {
-                warn!("Error getting data from data-store, reconnecting: {e}");
+                warn!("Error getting data from log-store, reconnecting: {e}");
                 continue;
             }
         };

@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use futures::{SinkExt, TryStreamExt};
+use protocol::Device;
 use tokio::net::TcpStream;
 use tokio::net::ToSocketAddrs;
 use tokio::time::error::Elapsed;
@@ -138,6 +139,17 @@ impl Client {
         let request = super::Request::GetLog(device);
         match self.send_receive(request.clone()).await? {
             Response::GetLog(logs) => Ok(logs?),
+            response => Err(Error::IncorrectResponse {
+                request: format!("{request:?}"),
+                response: format!("{response:?}"),
+            }),
+        }
+    }
+
+    pub async fn list_devices(&mut self) -> Result<Vec<Device>, Error<GetLogError>> {
+        let request = super::Request::ListDevices;
+        match self.send_receive(request.clone()).await? {
+            Response::ListDevices(logs) => Ok(logs),
             response => Err(Error::IncorrectResponse {
                 request: format!("{request:?}"),
                 response: format!("{response:?}"),

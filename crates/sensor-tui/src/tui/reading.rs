@@ -4,8 +4,8 @@ use jiff::Unit;
 use log_store::api::ErrorEvent;
 use protocol::reading_tree::ReadingInfo;
 use protocol::reading_tree::{Item, Tree};
-use protocol::Error;
 use protocol::Reading;
+use protocol::{Device, Error};
 
 use ratatui::{text::Line, widgets::Bar};
 use std::collections::HashMap;
@@ -13,20 +13,23 @@ use std::sync::TryLockError;
 use tui_tree_widget::TreeItem;
 
 mod fetch;
-use fetch::{histogram, history, logs};
+use fetch::{histogram, history};
 
-mod logs2;
+mod logs;
 
 #[derive(Debug)]
 pub struct SensorInfo {
+    pub info: ReadingInfo,
+    /// This value is not up to date, only use for requesting
+    /// data use the last element of recent_history for printing
     pub reading: Reading,
     timing: Histogram<u64>,
     pub percentiles_from_store: histogram::Stored,
     recent_history: Vec<(jiff::Timestamp, f32)>,
     pub history_from_store: history::Stored,
     condition: Result<(), Box<Error>>,
-    logs: logs2::Logs,
-    pub logs_from_store: logs::Stored,
+    logs: logs::Logs,
+    pub logs_from_store: fetch::logs::Stored,
 }
 
 pub struct ErrorDensity {
@@ -38,7 +41,7 @@ pub struct ErrorDensity {
 }
 
 impl ErrorDensity {
-    fn from_log(log: &logs2::Logs) -> Self {
+    fn from_log(log: &logs::Logs) -> Self {
         let buckets = [5, 15, 30, 45, 60].map(|min| jiff::Span::new().minutes(min));
         let counts = log.density(buckets);
 
@@ -60,30 +63,20 @@ pub struct Details {
 }
 
 impl SensorInfo {
-    fn last_at(&self) -> Result<jiff::Timestamp, Box<Error>> {
-        self.condition.clone()?;
-
-        let last = self
-            .recent_history
-            .last()
-            .expect("Items are put in the map when they arrive with a value");
-        Ok(last.0)
+    fn last_at(&self) -> Option<jiff::Timestamp> {
+        self.condition.clone().ok();
+        self.recent_history.last().map(|(ts, _)| ts).copied()
     }
 
     pub fn details(&self) -> Details {
         let last_reading = self.recent_history.last().copied().map(|(ts, val)| {
-            let val = format!(
-                "{0:.1$} {2}",
-                val,
-                self.reading.leaf().precision(),
-                self.reading.leaf().unit
-            );
+            let val = format!("{0:.1$} {2}", val, self.info.precision(), self.info.unit);
             (ts, val)
         });
         Details {
             last_reading,
             condition: self.condition.clone(),
-            description: self.reading.leaf().description.to_owned(),
+            description: self.info.description.to_owned(),
             errors_since: ErrorDensity::from_log(&self.logs),
         }
     }
@@ -155,7 +148,7 @@ impl SensorInfo {
         }
 
         Some(ChartParts {
-            reading: self.reading.clone(),
+            reading: self.info.clone(),
             data: plot_buf,
         })
     }
@@ -254,10 +247,29 @@ fn extract_leaf_info(reading: &Reading) -> (TreeKey, String, f32) {
     unreachable!("reading should not be deeper then key size")
 }
 
+enum IsPlaceholder {
+    Yes,
+    No,
+}
+
 impl Readings {
     pub fn add(&mut self, reading: Reading) {
-        self.update_tree(&reading);
+        self.update_tree(&reading, IsPlaceholder::No);
         self.record_data(reading);
+    }
+
+    pub(crate) fn populate_from_reading_list(&mut self, list: Vec<Reading>) {
+        for reading in list {
+            self.update_tree(&reading, IsPlaceholder::Yes);
+            self.record_missing_data(reading);
+        }
+    }
+
+    pub(crate) fn populate_from_device_list(&mut self, list: Vec<Device>) {
+        for reading in list.iter().flat_map(|d| d.info().affects_readings) {
+            self.update_tree(&reading, IsPlaceholder::Yes);
+            self.record_missing_data(reading.clone());
+        }
     }
 
     pub fn add_error(&mut self, error: Box<Error>) {
@@ -273,10 +285,11 @@ impl Readings {
                 info.condition = Err(error.clone());
                 info.logs.add(&error);
             } else {
-                let errors = logs2::Logs::new_from(&error);
+                let errors = logs::Logs::new_from(&error);
                 self.data.insert(
                     key,
                     SensorInfo {
+                        info: broken.leaf(),
                         reading: broken.clone(),
                         timing: Histogram::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap(),
                         percentiles_from_store: histogram::Stored::new(),
@@ -298,7 +311,7 @@ impl Readings {
         let time = jiff::Timestamp::now();
 
         if let Some(info) = self.data.get_mut(&key) {
-            if let Ok(last_reading) = info.last_at() {
+            if let Some(last_reading) = info.last_at() {
                 info.timing += (time - last_reading)
                     .total(Unit::Millisecond)
                     .expect("no calander units involved") as u64
@@ -310,6 +323,7 @@ impl Readings {
             self.data.insert(
                 key,
                 SensorInfo {
+                    info: reading.leaf(),
                     reading,
                     timing: Histogram::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap(),
                     percentiles_from_store: histogram::Stored::new(),
@@ -319,13 +333,37 @@ impl Readings {
                     logs_from_store: fetch::logs::Stored::new(),
 
                     condition: Ok(()),
-                    logs: logs2::Logs::new_empty(),
+                    logs: logs::Logs::new_empty(),
                 },
             );
         }
     }
 
-    fn update_tree(&mut self, reading: &Reading) {
+    fn record_missing_data(&mut self, reading: Reading) {
+        let (key, _, _) = extract_leaf_info(&reading);
+        if self.data.contains_key(&key) {
+            return;
+        }
+
+        self.data.insert(
+            key,
+            SensorInfo {
+                info: reading.leaf(),
+                reading,
+                timing: Histogram::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap(),
+                percentiles_from_store: histogram::Stored::new(),
+
+                recent_history: Vec::new(),
+                history_from_store: history::Stored::new(),
+                logs_from_store: fetch::logs::Stored::new(),
+
+                condition: Ok(()),
+                logs: logs::Logs::new_empty(),
+            },
+        );
+    }
+
+    fn update_tree(&mut self, reading: &Reading, placeholder: IsPlaceholder) {
         let (key, _, _) = extract_leaf_info(reading);
 
         let mut tree = add_root(reading as &dyn Tree, &mut self.ground);
@@ -336,13 +374,17 @@ impl Readings {
         loop {
             match tomato.inner() {
                 Item::Leaf(info) => {
-                    let text = format!(
-                        "{0}: {1:.2$} {3}",
-                        tomato.name(),
-                        info.val,
-                        info.precision(),
-                        info.unit
-                    );
+                    let text = if let IsPlaceholder::Yes = placeholder {
+                        tomato.name()
+                    } else {
+                        format!(
+                            "{0}: {1:.2$} {3}",
+                            tomato.name(),
+                            info.val,
+                            info.precision(),
+                            info.unit
+                        )
+                    };
                     add_leaf(text, tree, key);
                     return;
                 }
@@ -381,7 +423,7 @@ impl Readings {
 }
 
 pub struct ChartParts<'a> {
-    pub reading: Reading,
+    pub reading: ReadingInfo,
     pub data: &'a [(f64, f64)],
 }
 
