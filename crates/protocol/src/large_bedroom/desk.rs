@@ -63,7 +63,7 @@ impl Tree for Reading {
                 resolution: 0.008,
                 range: 0.0..100.0,
                 unit: Unit::RH,
-                description: "Temperature",
+                description: "Humidity",
                 branch_id: self.branch_id(),
             },
             Reading::Pressure(val) => ReadingInfo {
