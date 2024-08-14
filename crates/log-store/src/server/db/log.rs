@@ -72,12 +72,19 @@ impl CurrentError {
         let value = (jiff::Timestamp::now(), report);
         let bytes = bincode::serialize(&value).wrap_err("could not serialize current error")?;
         self.file
+            .set_len(0)
+            .wrap_err("Could not clear file prior to backing up value")?;
+        self.file
             .write_all(&bytes)
             .wrap_err("could not backup current error to disk")?;
         self.file
             .flush()
             .wrap_err("failed to flush current err backup to disk")?;
         Ok(())
+    }
+
+    fn get(&self) -> &Option<(jiff::Timestamp, protocol::Error)> {
+        &self.value
     }
 }
 
@@ -107,17 +114,13 @@ impl Log {
     }
 
     pub fn set_err(&mut self, new_report: protocol::Error) -> Result<()> {
-        if let Some((started, report)) = self
-            .current
-            .take()
-            .wrap_err("failed to take value out of current error store")?
-        {
-            if report == new_report {
+        if let Some((started, report)) = self.current.get() {
+            if report == &new_report {
                 return Ok(());
             }
             let line = StoredErrorEvent {
                 end: jiff::Timestamp::now(),
-                error: report,
+                error: report.clone(),
             };
             let line = bincode::serialize(&line).wrap_err("Could not serialize ErrorEvent")?;
             self.history
