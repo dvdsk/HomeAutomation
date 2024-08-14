@@ -8,7 +8,6 @@ use ratatui::{
     widgets::{self, Bar, BarChart, BarGroup, Block, Borders, Tabs},
     Frame,
 };
-use tracing::debug;
 use tui_tree_widget::{Tree, TreeItem};
 
 use super::{
@@ -18,6 +17,24 @@ use super::{
 
 mod chart;
 mod logs;
+
+pub(crate) struct Theme {
+    bars: Style,
+    centered_text: Style,
+    alt_background: Color,
+    background: Color,
+}
+
+impl Default for Theme {
+    fn default() -> Self {
+        Self {
+            bars: Style::new().bg(Color::Gray).fg(Color::Black),
+            centered_text: Style::new(),
+            alt_background: Color::Gray,
+            background: Color::Black,
+        }
+    }
+}
 
 pub(crate) fn app(
     frame: &mut Frame,
@@ -40,8 +57,10 @@ pub(crate) fn app(
         } else {
             [Constraint::Ratio(1, 3), Constraint::Ratio(2, 3)]
         }
+    } else if logs.is_some() {
+        [Constraint::Percentage(60), Constraint::Percentage(40)]
     } else {
-        [Constraint::Percentage(100), Constraint::Percentage(100)]
+        [Constraint::Percentage(100), Constraint::Percentage(0)]
     };
 
     let area = frame.area();
@@ -54,7 +73,7 @@ pub(crate) fn app(
     .flex(Flex::Legacy)
     .areas(area);
 
-    render_tab(frame, top_line, app.active_tab);
+    render_tab(frame, top_line, app);
 
     match app.active_tab {
         ActiveTab::Readings => {
@@ -69,10 +88,10 @@ pub(crate) fn app(
     render_footer(frame, footer, app);
 }
 
-fn render_tab(frame: &mut Frame, layout: Rect, active_tab: ActiveTab) {
+fn render_tab(frame: &mut Frame, layout: Rect, app: &App) {
     let tabs = Tabs::new(vec!["Readings", "Affectors"])
-        .style(Style::new().bg(Color::Gray))
-        .select(active_tab.number())
+        .style(app.theme.bars)
+        .select(app.active_tab.number())
         .divider("|")
         .padding(" ", " ");
 
@@ -104,7 +123,7 @@ fn render_footer(frame: &mut Frame, layout: Rect, app: &mut App) {
     let footer = footer.join("  ");
     let footer = Text::raw(footer)
         .alignment(Alignment::Center)
-        .style(Style::new().bg(Color::Gray));
+        .style(app.theme.bars);
     frame.render_widget(footer, layout)
 }
 
@@ -116,11 +135,23 @@ fn render_graph_hist_logs(
     logs: Option<Vec<ErrorEvent>>,
     chart: Option<ChartParts>,
 ) {
-    let num_elems = 1u8 + app.show_histogram as u8 + app.show_logs as u8;
+    let num_elems = 1usize + app.show_histogram as usize + app.show_logs as usize;
+
+    let mut constraints = [Constraint::Max(2); 3];
+    if chart.is_some() {
+        constraints[0] = Constraint::Fill(10);
+    }
+    if logs.is_some() && app.show_logs {
+        constraints[1] = Constraint::Fill(10);
+    }
+    if !histogram.is_empty() && app.show_histogram {
+        let idx = 1 + app.show_histogram as usize;
+        constraints[idx] = Constraint::Fill(10);
+    }
 
     let layout = Layout::default()
         .direction(Direction::Vertical)
-        .constraints((0..num_elems).into_iter().map(|_| Constraint::Fill(10)))
+        .constraints(&constraints[..num_elems])
         .flex(Flex::Legacy)
         .split(layout);
 
@@ -129,7 +160,12 @@ fn render_graph_hist_logs(
     if let Some(chart) = chart {
         chart::render(frame, layout.next().unwrap(), app, chart);
     } else {
-        centered_text("No data", frame, layout.next().unwrap())
+        centered_text(
+            "No chart as there is no data",
+            frame,
+            layout.next().unwrap(),
+            &app.theme,
+        )
     }
 
     if app.show_logs {
@@ -138,12 +174,18 @@ fn render_graph_hist_logs(
             layout.next().unwrap(),
             &mut app.logs_table_state,
             logs,
+            &app.theme,
         )
     }
 
     if app.show_histogram {
         if histogram.is_empty() {
-            centered_text("No timing information", frame, layout.next().unwrap())
+            centered_text(
+                "No histogram as there is no timing information",
+                frame,
+                layout.next().unwrap(),
+                &app.theme,
+            )
         } else {
             render_histogram(frame, layout.next().unwrap(), histogram);
         }
@@ -250,9 +292,9 @@ fn render_affectors(
     );
 }
 
-fn centered_text(text: &str, frame: &mut Frame, area: Rect) {
+fn centered_text(text: &str, frame: &mut Frame, area: Rect, theme: &Theme) {
     let footer = Text::raw(text)
         .alignment(Alignment::Center)
-        .style(Style::new().bg(Color::Gray));
+        .style(theme.centered_text);
     frame.render_widget(footer, area)
 }

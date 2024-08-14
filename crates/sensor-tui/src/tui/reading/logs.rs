@@ -1,16 +1,23 @@
+use std::iter;
+
 use jiff::Unit;
 use log_store::api::{self, ErrorEvent};
 
 #[derive(Debug)]
 pub(crate) struct Logs {
-    current: Option<(jiff::Timestamp, protocol::Error)>,
+    current: Option<ErrorEvent>,
+    /// newest items at the end
     history: Vec<api::ErrorEvent>,
 }
 
 impl Logs {
     pub(crate) fn new_from(error: &protocol::Error) -> Self {
         Self {
-            current: Some((jiff::Timestamp::now(), error.clone())),
+            current: Some(ErrorEvent {
+                start: jiff::Timestamp::now(),
+                end: None,
+                error: error.clone(),
+            }),
             history: Vec::new(),
         }
     }
@@ -23,15 +30,19 @@ impl Logs {
     }
 
     pub(crate) fn add(&mut self, error: &protocol::Error) {
-        if let Some((started, event)) = self.current.take() {
+        if let Some(ErrorEvent { start, error, .. }) = self.current.take() {
             self.history.push(api::ErrorEvent {
-                start: started,
+                start,
                 end: Some(jiff::Timestamp::now()),
-                error: event,
+                error,
             })
         }
 
-        self.current = Some((jiff::Timestamp::now(), error.clone()))
+        self.current = Some(ErrorEvent {
+            start: jiff::Timestamp::now(),
+            end: None,
+            error: error.clone(),
+        })
     }
 
     pub(crate) fn density<const N: usize>(&self, buckets: [jiff::Span; N]) -> [f32; N] {
@@ -52,7 +63,7 @@ impl Logs {
         buckets.map(|(_, count)| count as f32)
     }
 
-    pub(crate) fn list(&self) -> &[api::ErrorEvent] {
-        &self.history
+    pub(crate) fn list(&self) -> impl Iterator<Item = &api::ErrorEvent> {
+        self.history.iter().chain(self.current.iter())
     }
 }

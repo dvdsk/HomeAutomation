@@ -1,5 +1,5 @@
 use log_store::api::ErrorEvent;
-use ratatui::layout::{Constraint, Rect};
+use ratatui::layout::{Constraint, Flex, Rect};
 use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::Text;
 use ratatui::widgets::{Cell, HighlightSpacing, Row, Table, TableState};
@@ -12,15 +12,16 @@ pub fn render(
     layout: Rect,
     table_state: &mut TableState,
     logs: Option<Vec<ErrorEvent>>,
+    theme: &super::Theme,
 ) {
     if let Some(logs) = logs {
         if logs.is_empty() {
-            centered_text("Logs are empty", frame, layout)
+            centered_text("Logs are empty", frame, layout, theme)
         } else {
             render_table(frame, layout, table_state, logs)
         }
     } else {
-        centered_text("No logs", frame, layout)
+        centered_text("No logs", frame, layout, theme)
     }
 }
 
@@ -42,8 +43,14 @@ pub fn render_table(
         .style(header_style)
         .height(1);
 
+    let longest_error_msg = logs
+        .iter()
+        .map(|ErrorEvent { error, .. }| error.to_string().chars().count() as u16)
+        .max()
+        .unwrap_or_default();
     let rows = logs
         .into_iter()
+        .rev()
         .enumerate()
         .map(|(i, ErrorEvent { start, end, error })| {
             let color = match i % 2 {
@@ -51,11 +58,15 @@ pub fn render_table(
                 _ => Color::White,
             };
             let end = if let Some(timestamp) = end {
-                format!("{timestamp}")
+                format!("{}", timestamp.strftime("%I:%M:%S"))
             } else {
                 "ongoing".to_owned()
             };
-            let item = [format!("{error}"), format!("{start}"), end];
+            let item = [
+                format!("{error}"),
+                format!("{}", start.strftime("%I:%M:%S")),
+                end,
+            ];
             item.into_iter()
                 .map(|content| Text::from(content))
                 .map(|content| Cell::from(content))
@@ -68,12 +79,14 @@ pub fn render_table(
     let table = Table::new(
         rows,
         [
-            Constraint::Length(10),
-            Constraint::Min(10),
-            Constraint::Min(10),
+            Constraint::Max(longest_error_msg),
+            Constraint::Max(10),
+            Constraint::Max(10),
         ],
     )
     .header(header)
+    .flex(Flex::SpaceAround)
+    .column_spacing(1)
     .highlight_style(selected_style)
     .highlight_symbol(Text::from(vec![
         "".into(),

@@ -162,7 +162,6 @@ impl SensorInfo {
         let without_duplicates = self
             .logs
             .list()
-            .iter()
             .skip_while(|ErrorEvent { start, .. }| start < &last)
             .cloned();
         logs.extend(without_duplicates);

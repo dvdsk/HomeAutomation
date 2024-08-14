@@ -61,6 +61,7 @@ pub fn run(
 
 #[derive(Default)]
 struct App {
+    theme: render::Theme,
     input_mode: InputMode,
     active_tab: ActiveTab,
     show_histogram: bool,
