@@ -7,18 +7,23 @@ use ratatui::{
     prelude::{CrosstermBackend, Terminal},
     widgets::TableState,
 };
-use std::{collections::HashMap, io::stdout, net::SocketAddr, sync::mpsc, time::Duration};
+use std::{
+    collections::HashMap,
+    io::{stdout, Stdout},
+    net::SocketAddr,
+    sync::mpsc,
+    time::Duration,
+};
 use tui_tree_widget::TreeState;
 
 mod reading;
-use reading::Readings;
+use reading::{Readings, TreeKey};
+
 mod render;
-use crate::Update;
+use crate::{fetch::Fetch, Update, UserIntent};
 
 mod history_len;
 use history_len::HistoryLen;
-
-use self::reading::TreeKey;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 enum ActiveTab {
@@ -52,11 +57,22 @@ enum InputMode {
 
 pub fn run(
     rx: mpsc::Receiver<Update>,
-    shutdown_tx: mpsc::Sender<color_eyre::Result<Update>>,
-    data_store: SocketAddr,
+    shutdown_tx: mpsc::Sender<UserIntent>,
+    fetcher: Fetch,
     log_store: SocketAddr,
 ) -> Result<(), std::io::Error> {
-    App::default().run(rx, shutdown_tx, data_store, log_store)
+    stdout().execute(EnterAlternateScreen)?;
+    enable_raw_mode()?;
+    let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
+    terminal.clear()?;
+
+    let res = App::default().run(terminal, rx, fetcher, log_store);
+    shutdown_tx.send(UserIntent::Shutdown).unwrap();
+
+    stdout().execute(LeaveAlternateScreen)?;
+    disable_raw_mode()?;
+
+    res
 }
 
 #[derive(Default)]
@@ -75,20 +91,15 @@ struct App {
 impl App {
     pub fn run(
         &mut self,
+        mut terminal: Terminal<CrosstermBackend<Stdout>>,
         rx: mpsc::Receiver<Update>,
-        shutdown_tx: mpsc::Sender<color_eyre::Result<Update>>,
-        data_store: SocketAddr,
+        mut fetcher: Fetch,
         log_store: SocketAddr,
     ) -> Result<(), std::io::Error> {
         let mut readings = Readings {
             ground: Vec::new(),
             data: HashMap::new(),
         };
-
-        stdout().execute(EnterAlternateScreen)?;
-        enable_raw_mode()?;
-        let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
-        terminal.clear()?;
 
         let affectors = Vec::new();
         let mut plot_buf = Vec::new();
@@ -107,10 +118,10 @@ impl App {
                     data.reading.clone(),
                     &mut self.history_length,
                 );
-                data.history_from_store.update_if_needed(
-                    data_store,
+                fetcher.assure_up_to_date(
                     data.reading.clone(),
-                    &mut self.history_length,
+                    self.history_length.dur,
+                    data.oldest_in_history(),
                 );
                 data.percentiles_from_store.update_if_needed(
                     log_store,
@@ -164,24 +175,26 @@ impl App {
                 }
             };
 
-            match rx.try_recv() {
-                Ok(Update::Reading(reading)) => {
+            let Ok(update) = rx.try_recv() else {
+                continue;
+            };
+
+            match update {
+                Update::SensorReading(reading) => {
                     readings.add(reading);
                 }
-                Ok(Update::ReadingList(list)) => {
+                Update::ReadingList(list) => {
                     readings.populate_from_reading_list(list);
                 }
-                Ok(Update::DeviceList(list)) => {
+                Update::DeviceList(list) => {
                     readings.populate_from_device_list(list);
                 }
-                Ok(Update::Error(err)) => readings.add_error(err),
+                Update::SensorError(err) => readings.add_error(err),
+                Update::Fetched(fetched) => readings.add_fetched(fetched),
                 _ => (),
             }
         }
 
-        stdout().execute(LeaveAlternateScreen)?;
-        disable_raw_mode()?;
-        shutdown_tx.send(Ok(Update::Shutdown)).unwrap();
         Ok(())
     }
 

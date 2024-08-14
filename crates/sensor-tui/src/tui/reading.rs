@@ -9,11 +9,10 @@ use protocol::{Device, Error};
 
 use ratatui::{text::Line, widgets::Bar};
 use std::collections::HashMap;
-use std::sync::TryLockError;
 use tui_tree_widget::TreeItem;
 
 mod fetch;
-use fetch::{histogram, history};
+use fetch::histogram;
 
 mod logs;
 
@@ -26,7 +25,7 @@ pub struct SensorInfo {
     timing: Histogram<u64>,
     pub percentiles_from_store: histogram::Stored,
     recent_history: Vec<(jiff::Timestamp, f32)>,
-    pub history_from_store: history::Stored,
+    pub history_from_store: Vec<(jiff::Timestamp, f32)>,
     condition: Result<(), Box<Error>>,
     logs: logs::Logs,
     pub logs_from_store: fetch::logs::Stored,
@@ -107,18 +106,8 @@ impl SensorInfo {
     }
 
     pub fn chart<'a>(&mut self, plot_buf: &'a mut Vec<(f64, f64)>) -> Option<ChartParts<'a>> {
-        let guard = match self.history_from_store.data.try_lock() {
-            Ok(list) => Some(list),
-            Err(TryLockError::WouldBlock) => None,
-            Err(other) => panic!(
-                "fetching sensor history from data-store \
-                panicked: {other}"
-            ),
-        };
-        let empty = Vec::new();
-        let old_history = guard.as_deref().unwrap_or(&empty);
-
-        let reference = old_history
+        let reference = self
+            .history_from_store
             .first()
             .map(|(t, _)| t)
             .or_else(|| self.recent_history.first().map(|(t, _)| t))?;
@@ -131,7 +120,8 @@ impl SensorInfo {
             .unwrap_or(jiff::Timestamp::default());
         plot_buf.clear();
 
-        for xy in old_history
+        for xy in self
+            .history_from_store
             .iter()
             .take_while(|(t, _)| *t < first_recent)
             .chain(self.recent_history.iter())
@@ -166,6 +156,21 @@ impl SensorInfo {
             .cloned();
         logs.extend(without_duplicates);
         logs
+    }
+
+    pub(crate) fn oldest_in_history(&self) -> jiff::Timestamp {
+        jiff::Timestamp::min(
+            self.history_from_store
+                .first()
+                .map(|(ts, _)| ts)
+                .copied()
+                .unwrap_or(jiff::Timestamp::MAX),
+            self.recent_history
+                .first()
+                .map(|(ts, _)| ts)
+                .copied()
+                .unwrap_or(jiff::Timestamp::MAX),
+        )
     }
 }
 
@@ -226,7 +231,7 @@ fn add_node<'a>(
     tree.child_mut(new_child).expect("just added it")
 }
 
-fn extract_leaf_info(reading: &Reading) -> (TreeKey, String, f32) {
+pub(crate) fn tree_key(reading: &Reading) -> TreeKey {
     let mut key = [0u8; 6];
     key[0] = reading.branch_id();
 
@@ -237,9 +242,8 @@ fn extract_leaf_info(reading: &Reading) -> (TreeKey, String, f32) {
                 *byte = inner.branch_id();
                 inner
             }
-            Item::Leaf(ReadingInfo { val, .. }) => {
-                let name = reading.name();
-                return (key, name, val);
+            Item::Leaf(ReadingInfo { .. }) => {
+                return key;
             }
         };
     }
@@ -278,7 +282,7 @@ impl Readings {
 
     fn record_error(&mut self, error: Box<Error>) {
         for broken in error.device().info().affects_readings {
-            let (key, _, _) = extract_leaf_info(broken);
+            let key = tree_key(broken);
 
             if let Some(info) = self.data.get_mut(&key) {
                 info.condition = Err(error.clone());
@@ -294,7 +298,7 @@ impl Readings {
                         percentiles_from_store: histogram::Stored::new(),
 
                         recent_history: Vec::new(),
-                        history_from_store: history::Stored::new(),
+                        history_from_store: Vec::new(),
                         logs_from_store: fetch::logs::Stored::new(),
 
                         condition: Err(error.clone()),
@@ -306,7 +310,7 @@ impl Readings {
     }
 
     fn record_data(&mut self, reading: Reading) {
-        let (key, _, val) = extract_leaf_info(&reading);
+        let key = tree_key(&reading);
         let time = jiff::Timestamp::now();
 
         if let Some(info) = self.data.get_mut(&key) {
@@ -315,10 +319,10 @@ impl Readings {
                     .total(Unit::Millisecond)
                     .expect("no calander units involved") as u64
             }
-            info.recent_history.push((time, val));
+            info.recent_history.push((time, reading.leaf().val));
             info.condition = Ok(());
         } else {
-            let history = vec![(time, val)];
+            let history = vec![(time, reading.leaf().val)];
             self.data.insert(
                 key,
                 SensorInfo {
@@ -328,7 +332,7 @@ impl Readings {
                     percentiles_from_store: histogram::Stored::new(),
 
                     recent_history: history,
-                    history_from_store: history::Stored::new(),
+                    history_from_store: Vec::new(),
                     logs_from_store: fetch::logs::Stored::new(),
 
                     condition: Ok(()),
@@ -339,7 +343,7 @@ impl Readings {
     }
 
     fn record_missing_data(&mut self, reading: Reading) {
-        let (key, _, _) = extract_leaf_info(&reading);
+        let key = tree_key(&reading);
         if self.data.contains_key(&key) {
             return;
         }
@@ -353,7 +357,7 @@ impl Readings {
                 percentiles_from_store: histogram::Stored::new(),
 
                 recent_history: Vec::new(),
-                history_from_store: history::Stored::new(),
+                history_from_store: Vec::new(),
                 logs_from_store: fetch::logs::Stored::new(),
 
                 condition: Ok(()),
@@ -363,7 +367,7 @@ impl Readings {
     }
 
     fn update_tree(&mut self, reading: &Reading, placeholder: IsPlaceholder) {
-        let (key, _, _) = extract_leaf_info(reading);
+        let key = tree_key(reading);
 
         let mut tree = add_root(reading as &dyn Tree, &mut self.ground);
         let mut tomato = match reading.inner() {
@@ -397,7 +401,7 @@ impl Readings {
 
     fn update_tree_err(&mut self, error: &Error) {
         for broken in error.device().info().affects_readings {
-            let (key, _, _) = extract_leaf_info(broken);
+            let key = tree_key(broken);
 
             let mut tree = add_root(broken as &dyn Tree, &mut self.ground);
             let mut tomato = match broken.inner() {
@@ -416,6 +420,21 @@ impl Readings {
                         tomato = inner;
                     }
                 };
+            }
+        }
+    }
+
+    pub(crate) fn add_fetched(&mut self, fetched: crate::Fetched) {
+        match fetched {
+            crate::Fetched::Data {
+                reading,
+                timestamps,
+                data,
+            } => {
+                self.data
+                    .get_mut(&tree_key(&reading))
+                    .expect("data is never removed")
+                    .history_from_store = timestamps.into_iter().zip(data.into_iter()).collect()
             }
         }
     }

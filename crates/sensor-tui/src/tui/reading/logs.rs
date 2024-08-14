@@ -1,4 +1,3 @@
-use std::iter;
 
 use jiff::Unit;
 use log_store::api::{self, ErrorEvent};

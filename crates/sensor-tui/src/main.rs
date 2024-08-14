@@ -7,36 +7,58 @@ use color_eyre::eyre::WrapErr;
 use color_eyre::{Help, Result};
 use data_server::SubMessage;
 
+mod fetch;
+mod populate;
 mod time;
 mod tui;
-mod populate;
+
+pub(crate) use fetch::Fetch;
+use protocol::Reading;
+
+#[derive(Debug, PartialEq, Eq)]
+enum UserIntent {
+    Shutdown,
+}
+
+enum Fetched {
+    Data {
+        reading: Reading,
+        timestamps: Vec<jiff::Timestamp>,
+        data: Vec<f32>,
+    },
+}
 
 enum Update {
     ReadingList(Vec<protocol::Reading>),
-    Reading(protocol::Reading),
-    Error(Box<protocol::Error>),
-    Shutdown,
+    Fetched(Fetched),
+    FetchError(color_eyre::Report),
+    SensorReading(protocol::Reading),
+    SensorError(Box<protocol::Error>),
+    SubscribeError(color_eyre::Report),
     DeviceList(Vec<protocol::Device>),
 }
 
-fn receive_data(mut sub: data_server::Subscriber, tx: mpsc::Sender<Result<Update>>) {
+fn receive_data(mut sub: data_server::Subscriber, tx: mpsc::Sender<Update>) {
     loop {
-        let update = sub
+        let res = sub
             .next_msg()
             .wrap_err("Error getting next reading from server")
             .map(|msg| match msg {
-                SubMessage::Reading(reading) => Update::Reading(reading),
-                SubMessage::ErrorReport(error) => Update::Error(error),
+                SubMessage::Reading(reading) => Update::SensorReading(reading),
+                SubMessage::ErrorReport(error) => Update::SensorError(error),
             });
 
-        let err = update.is_err();
-        tx.send(update).unwrap();
-        if err {
-            break;
+        match res {
+            Ok(msg) => {
+                tx.send(msg).unwrap();
+            }
+            Err(err) => {
+                tx.send(Update::SubscribeError(err)).unwrap();
+                break;
+            }
         }
     }
 }
-
 
 #[derive(Parser)]
 #[command(name = "sensor tui")]
@@ -72,18 +94,18 @@ fn main() -> Result<()> {
     let (tx1, rx1) = mpsc::channel();
     let (tx2, rx2) = mpsc::channel();
 
-    let tx1_clone = tx1.clone();
-    let tx1_clone_clone = tx1.clone();
-    thread::spawn(move || receive_data(sub, tx1_clone));
-    thread::spawn(move || populate::tree(data_store, log_store, tx1_clone_clone));
-    thread::spawn(move || tui::run(rx2, tx1, data_store, log_store));
+    let (fetcher, maintain_fetch) = Fetch::new(data_store, log_store, tx1.clone());
+
+    let tx1_clone1 = tx1.clone();
+    let tx1_clone2 = tx1.clone();
+    thread::spawn(move || receive_data(sub, tx1_clone1));
+    thread::spawn(move || tui::run(rx1, tx2, fetcher, log_store));
+    thread::spawn(move || maintain_fetch);
+    thread::spawn(move || populate::tree(data_store, log_store, tx1_clone2));
 
     loop {
-        let update = rx1.recv()??;
-        if let Update::Shutdown = update {
-            break Ok(());
-        };
-        tx2.send(update).unwrap()
+        let UserIntent::Shutdown = rx2.recv()?;
+        break Ok(());
     }
 }
 
