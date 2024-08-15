@@ -4,14 +4,16 @@ use std::net::SocketAddr;
 use std::ops::RangeInclusive;
 use std::sync::mpsc;
 use std::thread;
-use std::time::Duration;
+use std::time::Instant;
 
 use color_eyre::Result;
-use jiff::Timestamp;
+use jiff::{Span, Timestamp};
+use log_store::api::{ErrorEvent, Percentile};
 use protocol::Reading;
-use tracing::{debug, warn};
+use tracing::debug;
 
-use crate::{client_name, Fetched, Update};
+use crate::tui::history_len;
+use crate::{client_name, Fetchable, Update};
 
 const MAX_IN_FLIGHT_REQUESTS: usize = 6;
 
@@ -22,14 +24,41 @@ pub struct Data {
 }
 
 #[derive(Debug, Clone)]
+pub struct Logs {
+    reading: Reading,
+    range: RangeInclusive<Timestamp>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Hist {
+    reading: Reading,
+    range: RangeInclusive<Timestamp>,
+}
+
+#[derive(Debug, Clone)]
 pub enum Request {
     Data(Data),
+    Logs(Logs),
+    Hist(Hist),
 }
 
 impl Request {
+    fn unwrap_logs(&self) -> Option<&Logs> {
+        match self {
+            Request::Logs(d) => Some(d),
+            _ => None,
+        }
+    }
     fn unwrap_data(&self) -> Option<&Data> {
         match self {
             Request::Data(d) => Some(d),
+            _ => None,
+        }
+    }
+    fn unwrap_hist(&self) -> Option<&Hist> {
+        match self {
+            Request::Hist(d) => Some(d),
+            _ => None,
         }
     }
 }
@@ -58,7 +87,6 @@ impl Fetch {
                 .enable_time()
                 .build()
                 .unwrap();
-            warn!("yo");
             rt.block_on(handle_requests(data_store, log_store, rx, update_tx));
         });
         (this, maintainer)
@@ -66,15 +94,33 @@ impl Fetch {
 
     pub fn assure_up_to_date(
         &mut self,
+        history_len: &mut history_len::HistoryLen,
         reading: Reading,
-        history_length: Duration,
         oldest_in_data: Timestamp,
+        logs_cover_from: Option<Timestamp>,
+        hist_cover: Option<RangeInclusive<Timestamp>>,
     ) {
-        let history_len = jiff::Span::try_from(history_length).unwrap();
-        let start_needed = Timestamp::now() - history_len;
+        let history_spans = Span::try_from(history_len.dur).unwrap();
+        let start_needed = Timestamp::now() - history_spans;
         if self.history_outdated_not_updating(&reading, start_needed, oldest_in_data) {
+            debug!("Requesting history for {reading:?}");
             self.request(Request::Data(Data {
-                reading,
+                reading: reading.clone(),
+                range: start_needed..=Timestamp::now(),
+            }));
+            history_len.state = history_len::State::Fetching(Instant::now());
+        }
+        if self.logs_outdated_not_updating(&reading, start_needed, logs_cover_from) {
+            debug!("Requesting logs for {reading:?}");
+            self.request(Request::Logs(Logs {
+                reading: reading.clone(),
+                range: start_needed..=Timestamp::now(),
+            }))
+        }
+        if self.hist_outdated_not_updating(&reading, start_needed, hist_cover) {
+            debug!("Requesting percentiles for {reading:?}");
+            self.request(Request::Hist(Hist {
+                reading: reading.clone(),
                 range: start_needed..=Timestamp::now(),
             }))
         }
@@ -103,8 +149,51 @@ impl Fetch {
             .any(|start| start < oldest_needed.as_millisecond())
     }
 
+    fn logs_outdated_not_updating(
+        &mut self,
+        reading: &Reading,
+        oldest_needed: Timestamp,
+        logs_cover_from: Option<Timestamp>,
+    ) -> bool {
+        if logs_cover_from.is_some_and(|oldest| oldest <= oldest_needed) {
+            return false;
+        }
+
+        !self
+            .recently_issued
+            .iter()
+            .filter_map(Request::unwrap_logs)
+            .filter(|req| &req.reading == reading)
+            .map(|req| req.range.start().as_millisecond())
+            .any(|start| start < oldest_needed.as_millisecond())
+    }
+
+    fn hist_outdated_not_updating(
+        &mut self,
+        reading: &Reading,
+        oldest_needed: Timestamp,
+        hist_range: Option<RangeInclusive<Timestamp>>,
+    ) -> bool {
+        fn covers_recently(end: Timestamp) -> bool {
+            Timestamp::now().since(end).unwrap().get_seconds() < 5
+        }
+
+        if hist_range.is_some_and(|r| r.contains(&oldest_needed) && covers_recently(*r.end())) {
+            return false;
+        }
+
+        !self
+            .recently_issued
+            .iter()
+            .filter_map(Request::unwrap_hist)
+            .filter(|req| &req.reading == reading)
+            .map(|req| req.range.clone())
+            .filter(|range| covers_recently(*range.end()))
+            .map(|range| range.start().as_millisecond())
+            .any(|start| start < oldest_needed.as_millisecond())
+    }
+
     fn request(&mut self, req: Request) {
-        debug!("sending request: {req:?}");
         self.tx.blocking_send(req.clone()).unwrap();
         self.recently_issued.push_front(req);
         // might get out of sync with request handler, that is okay
@@ -118,7 +207,7 @@ impl Fetch {
 
 pub(crate) async fn handle_requests(
     data_store: SocketAddr,
-    _log_store: SocketAddr,
+    log_store: SocketAddr,
     mut rx: tokio::sync::mpsc::Receiver<Request>,
     tx: mpsc::Sender<Update>,
 ) {
@@ -130,11 +219,38 @@ pub(crate) async fn handle_requests(
             Request::Data(Data { reading, range }) => tokio::spawn(get_wrap_send(
                 get_data(data_store, reading.clone(), range),
                 |res| match res {
-                    Ok(data) => Update::Fetched(Fetched::Data {
+                    Ok(data) => Update::Fetched {
                         reading,
-                        timestamps: data.0,
-                        data: data.1,
-                    }),
+                        thing: Fetchable::Data {
+                            timestamps: data.0,
+                            data: data.1,
+                        },
+                    },
+                    Err(err) => Update::FetchError(err),
+                },
+                tx,
+            )),
+            Request::Logs(Logs { reading, range }) => tokio::spawn(get_wrap_send(
+                get_logs(log_store, reading.clone()),
+                move |res| match res {
+                    Ok(logs) => Update::Fetched {
+                        reading,
+                        thing: Fetchable::Logs {
+                            logs,
+                            start_at: *range.start(),
+                        },
+                    },
+                    Err(err) => Update::FetchError(err),
+                },
+                tx,
+            )),
+            Request::Hist(Hist { reading, range }) => tokio::spawn(get_wrap_send(
+                get_percentiles(log_store, reading.clone()),
+                move |res| match res {
+                    Ok(percentiles) => Update::Fetched {
+                        reading,
+                        thing: Fetchable::Hist { percentiles, range },
+                    },
                     Err(err) => Update::FetchError(err),
                 },
                 tx,
@@ -146,7 +262,6 @@ pub(crate) async fn handle_requests(
             to_cancel.abort();
         }
     }
-    unreachable!()
 }
 
 pub async fn get_wrap_send<T>(
@@ -170,4 +285,18 @@ pub async fn get_data(
         .get_data(*range.start(), *range.end(), reading, 300)
         .await?;
     Ok(history)
+}
+
+pub async fn get_logs(log_store: SocketAddr, reading: Reading) -> Result<Vec<ErrorEvent>> {
+    let mut api = log_store::api::Client::connect(log_store, client_name()).await?;
+
+    let history = api.get_logs(reading.device()).await?;
+    Ok(history)
+}
+
+pub async fn get_percentiles(log_store: SocketAddr, reading: Reading) -> Result<Vec<Percentile>> {
+    let mut api = log_store::api::Client::connect(log_store, client_name()).await?;
+
+    let percentile = api.get_percentiles(reading.device()).await?;
+    Ok(percentile)
 }

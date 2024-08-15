@@ -1,7 +1,7 @@
 use hdrhistogram::Histogram;
 use itertools::Itertools;
 use jiff::Unit;
-use log_store::api::ErrorEvent;
+use log_store::api::{ErrorEvent, Percentile};
 use protocol::reading_tree::ReadingInfo;
 use protocol::reading_tree::{Item, Tree};
 use protocol::Reading;
@@ -9,10 +9,10 @@ use protocol::{Device, Error};
 
 use ratatui::{text::Line, widgets::Bar};
 use std::collections::HashMap;
+use std::ops::RangeInclusive;
 use tui_tree_widget::TreeItem;
 
-mod fetch;
-use fetch::histogram;
+use crate::Fetchable;
 
 mod logs;
 
@@ -23,12 +23,14 @@ pub struct SensorInfo {
     /// data use the last element of recent_history for printing
     pub reading: Reading,
     timing: Histogram<u64>,
-    pub percentiles_from_store: histogram::Stored,
+    pub percentiles_from_store: Vec<Percentile>,
     recent_history: Vec<(jiff::Timestamp, f32)>,
+    pub histogram_range: Option<RangeInclusive<jiff::Timestamp>>,
     pub history_from_store: Vec<(jiff::Timestamp, f32)>,
     condition: Result<(), Box<Error>>,
     logs: logs::Logs,
-    pub logs_from_store: fetch::logs::Stored,
+    pub logs_from_store: Vec<ErrorEvent>,
+    pub logs_from_store_hist: Option<jiff::Timestamp>,
 }
 
 pub struct ErrorDensity {
@@ -81,10 +83,20 @@ impl SensorInfo {
     }
 
     pub fn histogram(&self) -> Vec<Bar> {
-        let percentiles = if self.percentiles_from_store.very_outdated() {
+        let older_then_15s = |range: &RangeInclusive<jiff::Timestamp>| {
+            jiff::Timestamp::now()
+                .since(*range.end())
+                .unwrap()
+                .get_seconds()
+                > 15
+        };
+
+        let percentiles = if self.histogram_range.is_none()
+            || self.histogram_range.as_ref().is_some_and(older_then_15s)
+        {
             self.fallback_local_hist()
         } else {
-            self.percentiles_from_store.data.lock().unwrap().clone()
+            self.percentiles_from_store.clone()
         };
         histogram_bars(&percentiles)
     }
@@ -144,8 +156,8 @@ impl SensorInfo {
     }
 
     pub fn logs(&self) -> Vec<ErrorEvent> {
-        let mut logs = self.logs_from_store.list();
-        let last = logs
+        let last = self
+            .logs_from_store
             .last()
             .map(|ErrorEvent { start, .. }| *start)
             .unwrap_or(jiff::Timestamp::from_second(0).unwrap());
@@ -154,6 +166,7 @@ impl SensorInfo {
             .list()
             .skip_while(|ErrorEvent { start, .. }| start < &last)
             .cloned();
+        let mut logs = self.logs_from_store.clone();
         logs.extend(without_duplicates);
         logs
     }
@@ -288,21 +301,23 @@ impl Readings {
                 info.condition = Err(error.clone());
                 info.logs.add(&error);
             } else {
-                let errors = logs::Logs::new_from(&error);
+                let logs = logs::Logs::new_from(&error);
                 self.data.insert(
                     key,
                     SensorInfo {
                         info: broken.leaf(),
                         reading: broken.clone(),
                         timing: Histogram::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap(),
-                        percentiles_from_store: histogram::Stored::new(),
+                        percentiles_from_store: Vec::new(),
+                        histogram_range: None,
 
                         recent_history: Vec::new(),
                         history_from_store: Vec::new(),
-                        logs_from_store: fetch::logs::Stored::new(),
+                        logs_from_store: Vec::new(),
+                        logs_from_store_hist: Option::None,
 
                         condition: Err(error.clone()),
-                        logs: errors,
+                        logs,
                     },
                 );
             }
@@ -329,11 +344,13 @@ impl Readings {
                     info: reading.leaf(),
                     reading,
                     timing: Histogram::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap(),
-                    percentiles_from_store: histogram::Stored::new(),
+                    percentiles_from_store: Vec::new(),
+                    histogram_range: None,
 
                     recent_history: history,
                     history_from_store: Vec::new(),
-                    logs_from_store: fetch::logs::Stored::new(),
+                    logs_from_store: Vec::new(),
+                    logs_from_store_hist: Option::None,
 
                     condition: Ok(()),
                     logs: logs::Logs::new_empty(),
@@ -354,11 +371,13 @@ impl Readings {
                 info: reading.leaf(),
                 reading,
                 timing: Histogram::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap(),
-                percentiles_from_store: histogram::Stored::new(),
+                percentiles_from_store: Vec::new(),
+                histogram_range: None,
 
                 recent_history: Vec::new(),
                 history_from_store: Vec::new(),
-                logs_from_store: fetch::logs::Stored::new(),
+                logs_from_store: Vec::new(),
+                logs_from_store_hist: Option::None,
 
                 condition: Ok(()),
                 logs: logs::Logs::new_empty(),
@@ -424,17 +443,23 @@ impl Readings {
         }
     }
 
-    pub(crate) fn add_fetched(&mut self, fetched: crate::Fetched) {
+    pub(crate) fn add_fetched(&mut self, reading: Reading, fetched: Fetchable) {
+        let sensorinfo = self
+            .data
+            .get_mut(&tree_key(&reading))
+            .expect("data is never removed");
         match fetched {
-            crate::Fetched::Data {
-                reading,
-                timestamps,
-                data,
-            } => {
-                self.data
-                    .get_mut(&tree_key(&reading))
-                    .expect("data is never removed")
-                    .history_from_store = timestamps.into_iter().zip(data.into_iter()).collect()
+            Fetchable::Data { timestamps, data } => {
+                sensorinfo.history_from_store =
+                    timestamps.into_iter().zip(data.into_iter()).collect()
+            }
+            Fetchable::Logs { logs, start_at } => {
+                sensorinfo.logs_from_store = logs;
+                sensorinfo.logs_from_store_hist = Some(start_at);
+            }
+            Fetchable::Hist { percentiles, range } => {
+                sensorinfo.percentiles_from_store = percentiles;
+                sensorinfo.histogram_range = Some(range);
             }
         }
     }

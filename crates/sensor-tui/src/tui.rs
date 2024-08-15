@@ -10,7 +10,6 @@ use ratatui::{
 use std::{
     collections::HashMap,
     io::{stdout, Stdout},
-    net::SocketAddr,
     sync::mpsc,
     time::Duration,
 };
@@ -22,7 +21,7 @@ use reading::{Readings, TreeKey};
 mod render;
 use crate::{fetch::Fetch, Update, UserIntent};
 
-mod history_len;
+pub(crate) mod history_len;
 use history_len::HistoryLen;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -59,14 +58,13 @@ pub fn run(
     rx: mpsc::Receiver<Update>,
     shutdown_tx: mpsc::Sender<UserIntent>,
     fetcher: Fetch,
-    log_store: SocketAddr,
 ) -> Result<(), std::io::Error> {
     stdout().execute(EnterAlternateScreen)?;
     enable_raw_mode()?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
     terminal.clear()?;
 
-    let res = App::default().run(terminal, rx, fetcher, log_store);
+    let res = App::default().run(terminal, rx, fetcher);
     shutdown_tx.send(UserIntent::Shutdown).unwrap();
 
     stdout().execute(LeaveAlternateScreen)?;
@@ -94,7 +92,6 @@ impl App {
         mut terminal: Terminal<CrosstermBackend<Stdout>>,
         rx: mpsc::Receiver<Update>,
         mut fetcher: Fetch,
-        log_store: SocketAddr,
     ) -> Result<(), std::io::Error> {
         let mut readings = Readings {
             ground: Vec::new(),
@@ -105,28 +102,20 @@ impl App {
         let mut plot_buf = Vec::new();
 
         loop {
-            let data = self
+            let mut data = self
                 .reading_tree_state
                 .selected()
                 .last() // unique leaf id
                 .and_then(|key| readings.data.get_mut(key));
 
             let plot_open = data.is_some();
-            let (chart, histogram, details, logs) = if let Some(data) = data {
-                data.logs_from_store.update_if_needed(
-                    log_store,
-                    data.reading.clone(),
-                    &mut self.history_length,
-                );
+            let (chart, histogram, details, logs) = if let Some(data) = data.as_mut() {
                 fetcher.assure_up_to_date(
-                    data.reading.clone(),
-                    self.history_length.dur,
-                    data.oldest_in_history(),
-                );
-                data.percentiles_from_store.update_if_needed(
-                    log_store,
-                    data.reading.device(),
                     &mut self.history_length,
+                    data.reading.clone(),
+                    data.oldest_in_history(),
+                    data.logs_from_store_hist,
+                    data.histogram_range.clone(),
                 );
                 (
                     data.chart(&mut plot_buf),
@@ -190,7 +179,19 @@ impl App {
                     readings.populate_from_device_list(list);
                 }
                 Update::SensorError(err) => readings.add_error(err),
-                Update::Fetched(fetched) => readings.add_fetched(fetched),
+                Update::Fetched {
+                    reading,
+                    thing: fetched,
+                } => {
+                    if data
+                        .as_ref()
+                        .is_some_and(|i| i.reading.is_same_as(&reading))
+                    {
+                        self.history_length.state = history_len::State::Fetched;
+                    }
+                    readings.add_fetched(reading, fetched);
+                }
+
                 _ => (),
             }
         }

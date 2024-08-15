@@ -145,7 +145,7 @@ impl Tree for Reading {
             Reading::WeightLeft(val) => (
                 *val as f32,
                 Device::Nau7802Left.rooted(),
-                0.0..2.0_f32.exp2(),
+                0.0..24.0_f32.exp2(),
                 1.0,
                 Unit::Ohm,
                 "Left weight sensor resistance",
@@ -153,7 +153,7 @@ impl Tree for Reading {
             Reading::WeightRight(val) => (
                 *val as f32,
                 Device::Nau7802Right.rooted(),
-                0.0..2.0_f32.exp2(),
+                0.0..24.0_f32.exp2(),
                 1.0,
                 Unit::Ohm,
                 "Right weight sensor resistance",

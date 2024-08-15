@@ -141,11 +141,11 @@ fn render_graph_hist_logs(
     if chart.is_some() {
         constraints[0] = Constraint::Fill(10);
     }
-    if logs.is_some() && app.show_logs {
+    if logs.as_ref().is_some_and(|logs| !logs.is_empty()) && app.show_logs {
         constraints[1] = Constraint::Fill(10);
     }
     if !histogram.is_empty() && app.show_histogram {
-        let idx = 1 + app.show_histogram as usize;
+        let idx = 1 + app.show_logs as usize;
         constraints[idx] = Constraint::Fill(10);
     }
 

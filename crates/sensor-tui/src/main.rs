@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::ops::RangeInclusive;
 use std::sync::mpsc;
 use std::thread;
 
@@ -13,6 +14,7 @@ mod time;
 mod tui;
 
 pub(crate) use fetch::Fetch;
+use log_store::api::{ErrorEvent, Percentile};
 use protocol::Reading;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -20,17 +22,29 @@ enum UserIntent {
     Shutdown,
 }
 
-enum Fetched {
+struct Fetched {
+    reading: Reading,
+    thing: Fetchable
+}
+
+enum Fetchable {
     Data {
-        reading: Reading,
         timestamps: Vec<jiff::Timestamp>,
         data: Vec<f32>,
+    },
+    Logs {
+        logs: Vec<ErrorEvent>,
+        start_at: jiff::Timestamp,
+    },
+    Hist {
+        percentiles: Vec<Percentile>,
+        range: RangeInclusive<jiff::Timestamp>,
     },
 }
 
 enum Update {
     ReadingList(Vec<protocol::Reading>),
-    Fetched(Fetched),
+    Fetched{reading: Reading, thing: Fetchable},
     FetchError(color_eyre::Report),
     SensorReading(protocol::Reading),
     SensorError(Box<protocol::Error>),
@@ -99,7 +113,7 @@ fn main() -> Result<()> {
     let tx1_clone1 = tx1.clone();
     let tx1_clone2 = tx1.clone();
     thread::spawn(move || receive_data(sub, tx1_clone1));
-    thread::spawn(move || tui::run(rx1, tx2, fetcher, log_store));
+    thread::spawn(move || tui::run(rx1, tx2, fetcher));
     thread::spawn(move || maintain_fetch);
     thread::spawn(move || populate::tree(data_store, log_store, tx1_clone2));
 

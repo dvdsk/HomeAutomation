@@ -1,4 +1,3 @@
-
 use jiff::Unit;
 use log_store::api::{self, ErrorEvent};
 
@@ -28,8 +27,12 @@ impl Logs {
         }
     }
 
-    pub(crate) fn add(&mut self, error: &protocol::Error) {
+    pub(crate) fn add(&mut self, new_error: &protocol::Error) {
         if let Some(ErrorEvent { start, error, .. }) = self.current.take() {
+            if &error == new_error {
+                return;
+            }
+
             self.history.push(api::ErrorEvent {
                 start,
                 end: Some(jiff::Timestamp::now()),
@@ -40,7 +43,7 @@ impl Logs {
         self.current = Some(ErrorEvent {
             start: jiff::Timestamp::now(),
             end: None,
-            error: error.clone(),
+            error: new_error.clone(),
         })
     }
 
