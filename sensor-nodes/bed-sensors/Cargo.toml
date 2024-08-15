@@ -12,10 +12,10 @@ embassy-stm32 = { version = "0.1.0", features = [ "defmt", "stm32f401cc",
 embassy-net = { version = "0.4.0", features = ["defmt", "proto-ipv4", "tcp", "dhcpv4","medium-ethernet"] }
 embassy-net-wiznet = { version = "0.1.0", features = ["defmt"] }
 embassy-sync = { version = "0.6.0", features = ["defmt"] }
-embassy-executor = { version = "0.5.0", features = ["arch-cortex-m",
+embassy-executor = { version = "0.6.0", features = ["arch-cortex-m",
 "executor-thread", "defmt", "integrated-timers", "executor-interrupt"] }
-embassy-embedded-hal = { version = "0.1.0" }
-embassy-time = { version = "0.3.0", features = ["defmt", "defmt-timestamp-uptime", "tick-hz-32_768"] }
+embassy-embedded-hal = { version = "0.2.0" }
+embassy-time = { version = "0.3.2", features = ["defmt", "defmt-timestamp-uptime", "tick-hz-32_768"] }
 embassy-futures = { version = "0.1.0"}
 
 defmt = "0.3"
@@ -52,15 +52,16 @@ rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
 # fasthash = { version = "0.4.0", default-features = false }
 
 [patch.crates-io]
-embassy-stm32 = {git = "https://github.com/embassy-rs/embassy", rev = "2537fc6" }
-embassy-net = {git = "https://github.com/embassy-rs/embassy", rev = "2537fc6" }
-embassy-net-wiznet = {git = "https://github.com/embassy-rs/embassy", rev = "2537fc6" }
-embassy-sync = {git = "https://github.com/embassy-rs/embassy", rev = "2537fc6" }
-embassy-executor = {git = "https://github.com/embassy-rs/embassy", rev = "2537fc6" }
-embassy-embedded-hal = {git = "https://github.com/embassy-rs/embassy", rev = "2537fc6" }
-embassy-time = {git = "https://github.com/embassy-rs/embassy", rev = "2537fc6" }
-embassy-futures = {git = "https://github.com/embassy-rs/embassy", rev = "2537fc6" }
+embassy-stm32 = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
+embassy-net = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
+embassy-net-wiznet = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
+embassy-sync = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
+embassy-executor = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
+embassy-embedded-hal = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
+embassy-time = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
+embassy-futures = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
 
+# [patch.crates-io]
 # embassy-stm32 = {path = "../../../embassy/embassy-stm32" }
 # embassy-net = {path = "../../../embassy/embassy-net" }
 # embassy-net-wiznet = {path = "../../../embassy/embassy-net-wiznet" }

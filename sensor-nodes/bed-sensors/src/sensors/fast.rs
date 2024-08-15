@@ -16,7 +16,7 @@ fn sig_lux_diff(old: f32, new: f32) -> bool {
 
 fn sig_weight_diff(old: u32, new: u32) -> bool {
     let diff = new.abs_diff(old);
-    diff > 20
+    diff > 2000
 }
 
 async fn report_lux(mut max44: Max44Driver<'_>, publish: &Queues) {

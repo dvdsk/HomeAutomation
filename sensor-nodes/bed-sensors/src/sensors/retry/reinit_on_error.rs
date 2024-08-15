@@ -102,6 +102,10 @@ async fn advance_state<D: ReInitableDriver>(
                     }
                 }
                 Err(err) => {
+                    // drivers might contain blocking code in their
+                    // error path, this makes sure the executor 
+                    // will not block on retrying.
+                    embassy_time::Timer::after_millis(250).await;
                     let new_state = State::Uninit;
                     let err = Error::Setup(err);
                     (new_state, Err(err))
