@@ -1,6 +1,7 @@
-use defmt::{debug, error, info, unwrap, warn};
+use defmt::{debug, info, unwrap, warn};
+use embassy_futures::select::{self, select};
 use embassy_net::driver::Driver;
-use embassy_net::tcp::TcpSocket;
+use embassy_net::tcp::{TcpReader, TcpSocket, TcpWriter};
 use embassy_net::{Ipv4Address, Stack};
 use embassy_time::{with_timeout, Duration, Instant, Timer};
 use embedded_io_async::Write;
@@ -64,55 +65,58 @@ const fn max(a: usize, b: usize) -> usize {
     [a, b][(a < b) as usize]
 }
 
-pub struct ConnDownTooLong;
-pub async fn send_published(stack: &Stack<impl Driver>, publish: &Queues) -> ConnDownTooLong {
+pub async fn handle(stack: &Stack<impl Driver>, publish: &Queues) {
     let mut rx_buffer = [0; 1024];
     let mut tx_buffer = [0; max(Msg::ENCODED_SIZE, ErrorReport::ENCODED_SIZE) * 2];
-    let mut encoded_msg_buffer = [0; max(Msg::ENCODED_SIZE, ErrorReport::ENCODED_SIZE)];
 
     let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
-    socket.set_timeout(Some(Duration::from_secs(5)));
+    socket.set_timeout(None);
+    socket.set_keep_alive(Some(Duration::from_secs(5)));
     let host_addr = Ipv4Address::new(192, 168, 1, 43);
     let host_port = 1234;
 
-    // connection sometimes does not recover from going down
-    // track how long it has been down and reset the chip if
-    // it has been down too long.
-    let mut since_last_connection: Option<Instant> = None;
-    let mut connected = false;
-
     debug!("Configured socket and connecting");
     loop {
-        if !connected {
-            match since_last_connection {
-                Some(went_down) if went_down.elapsed() > Duration::from_secs(20) => {
-                    error!("connection down to long, might have gotten stuck: resetting");
-                    return ConnDownTooLong;
-                }
-                Some(_) => (),
-                None => {
-                    since_last_connection = Some(Instant::now());
-                    warn!("warning connection down, resetting if not up soon");
-                }
-            }
+        if let Err(e) = socket.connect((host_addr, host_port)).await {
+            warn!("connect error: {:?}", e);
+            Timer::after_secs(1).await;
+            continue;
         }
+        info!("(re-)connected");
+        // prevent out-dated data from being send
+        publish.clear().await;
 
-        if !connected {
-            if let Err(e) = socket.connect((host_addr, host_port)).await {
-                warn!("connect error: {:?}", e);
-                Timer::after_secs(1).await;
-                continue;
-            }
-            info!("(re-)connected");
-            connected = true;
-            // prevent out-dated data from being send
-            publish.clear().await;
+        let (reader, writer) = socket.split();
+
+        match select(send_messages(writer, publish), receive_orders(reader)).await {
+            select::Either::First(e) => warn!("Error while sending messages: {:?}", e),
+            select::Either::Second(e) => warn!("Error receiving orders: {:?}", e),
         }
+    }
+}
 
+async fn send_messages(mut tcp: TcpWriter<'_>, publish: &Queues) -> embassy_net::tcp::Error {
+    let mut encoded_msg_buffer = [0; max(Msg::ENCODED_SIZE, ErrorReport::ENCODED_SIZE)];
+    loop {
         let to_send = get_messages(publish, &mut encoded_msg_buffer).await;
-        if let Err(e) = socket.write_all(to_send).await {
-            warn!("write error: {:?}", e);
-            connected = false;
+        if let Err(e) = tcp.write_all(to_send).await {
+            return e;
+        }
+    }
+}
+
+async fn receive_orders(mut tcp: TcpReader<'_>) -> embassy_net::tcp::Error {
+    let mut buf = [0u8; 100];
+    loop {
+        let n_read = match tcp.read(&mut buf).await {
+            Ok(n_read) => n_read,
+            Err(e) => return e,
+        };
+        let mut read = &buf[..n_read];
+        let mut decoder = protocol::affector::Decoder::new();
+        while let Some((item, remaining)) = decoder.feed(read) {
+            read = remaining;
+            defmt::info!("received item: {:?}", item)
         }
     }
 }

@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 
-use defmt::{error, trace, unwrap};
 use embassy_executor::Spawner;
 use embassy_futures::select;
 use embassy_futures::select::Either;
@@ -25,6 +24,7 @@ use futures::pin_mut;
 use heapless::Vec;
 use static_cell::StaticCell;
 
+use defmt::{error, trace, unwrap};
 use {defmt_rtt as _, panic_probe as _};
 
 mod channel;
@@ -88,7 +88,6 @@ async fn main(spawner: Spawner) {
     let p = embassy_stm32::init(config());
     let seed = rng::generate_seed_blocking();
     defmt::info!("random seed: {}", seed);
-    // let dog = IndependentWatchdog::new(p.IWDG, 20 * 1000 * 1000);
 
     let mut usart_config = usart::Config::default();
     usart_config.baudrate = 9600;
@@ -109,7 +108,6 @@ async fn main(spawner: Spawner) {
     usart_config.baudrate = 115_200;
     usart_config.data_bits = DataBits::DataBits8;
     usart_config.stop_bits = StopBits::STOP1;
-    // usart_config.parity = Parity::ParityEven;
     let usart_sps30 = unwrap!(Uart::new(
         p.USART2,
         p.PA3,
@@ -197,24 +195,21 @@ async fn main(spawner: Spawner) {
     unwrap!(spawner.spawn(net_task(stack)));
 
     let publish = Queues::new();
-    let send_published = network::send_published(stack, &publish);
-    pin_mut!(send_published);
-    // let keep_dog_happy = keep_dog_happy(dog);
-    // let send_and_pet_dog = join::join(&mut send_published, keep_dog_happy);
-    let send_and_pet_dog = &mut send_published;
+    let handle_network = network::handle(stack, &publish);
+    pin_mut!(handle_network);
 
-    let init_then_measure = sensors::init_then_measure(&publish, i2c_1, i2c_3, usart_mhz, usart_sps30);
-    let res = select::select(send_and_pet_dog, init_then_measure).await;
+    let init_then_measure =
+        sensors::init_then_measure(&publish, i2c_1, i2c_3, usart_mhz, usart_sps30);
+    let res = select::select(&mut handle_network, init_then_measure).await;
     let unrecoverable_err = match res {
-        Either::First(network::ConnDownTooLong) => cortex_m::peripheral::SCB::sys_reset(),
-        Either::Second(Ok(())) => defmt::unreachable!(),
+        Either::First(()) | Either::Second(Ok(())) => defmt::unreachable!(),
         Either::Second(Err(err)) => err,
     };
 
     // at this point no other errors have occurred
     error!("unrecoverable error, resetting: {}", unrecoverable_err);
     publish.queue_error(unrecoverable_err);
-    send_published.await; // if this takes too long the dog will get us
+    handle_network.await; // if this takes too long the dog will get us
 }
 
 async fn keep_dog_happy(mut dog: IndependentWatchdog<'_, IWDG>) {

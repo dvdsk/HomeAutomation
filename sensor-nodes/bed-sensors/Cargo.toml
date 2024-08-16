@@ -8,14 +8,15 @@ authors = ["David Kleingeld & Eva van Houten"]
 
 [dependencies]
 embassy-stm32 = { version = "0.1.0", features = [ "defmt", "stm32f401cc",
-"unstable-pac", "memory-x", "time-driver-tim1", "time", "exti" ]  }
+"unstable-pac", "memory-x", "time-driver-any", "time", "exti" ]  }
 embassy-net = { version = "0.4.0", features = ["defmt", "proto-ipv4", "tcp", "dhcpv4","medium-ethernet"] }
 embassy-net-wiznet = { version = "0.1.0", features = ["defmt"] }
 embassy-sync = { version = "0.6.0", features = ["defmt"] }
 embassy-executor = { version = "0.6.0", features = ["arch-cortex-m",
 "executor-thread", "defmt", "integrated-timers", "executor-interrupt"] }
 embassy-embedded-hal = { version = "0.2.0" }
-embassy-time = { version = "0.3.2", features = ["defmt", "defmt-timestamp-uptime", "tick-hz-32_768"] }
+embassy-time = { version = "0.3.2", features = ["defmt",
+"defmt-timestamp-uptime-ms", "tick-hz-32_768"] }
 embassy-futures = { version = "0.1.0"}
 
 defmt = "0.3"
@@ -51,25 +52,30 @@ stm32f4 = { version = "0.15.1", default-features = false, features = ["stm32f401
 rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
 # fasthash = { version = "0.4.0", default-features = false }
 
-[patch.crates-io]
-embassy-stm32 = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
-embassy-net = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
-embassy-net-wiznet = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
-embassy-sync = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
-embassy-executor = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
-embassy-embedded-hal = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
-embassy-time = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
-embassy-futures = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
-
 # [patch.crates-io]
-# embassy-stm32 = {path = "../../../embassy/embassy-stm32" }
-# embassy-net = {path = "../../../embassy/embassy-net" }
-# embassy-net-wiznet = {path = "../../../embassy/embassy-net-wiznet" }
-# embassy-sync = {path = "../../../embassy/embassy-sync" }
-# embassy-executor = {path = "../../../embassy/embassy-executor" }
-# embassy-embedded-hal = {path = "../../../embassy/embassy-embedded-hal" }
-# embassy-time = {path = "../../../embassy/embassy-time" }
-# embassy-futures = {path = "../../../embassy/embassy-futures" }
+# embassy-stm32 = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
+# embassy-net = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
+# embassy-net-wiznet = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
+# embassy-sync = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
+# embassy-executor = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
+# embassy-embedded-hal = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
+# embassy-futures = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
+# embassy-time = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
+# embassy-time-driver = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
+# embassy-time-queue-driver = {git = "https://github.com/embassy-rs/embassy", rev = "7a26e11" }
+
+# [patch.'https://github.com/embassy-rs/embassy.git']
+[patch.crates-io]
+embassy-stm32 = {path = "../../../embassy/embassy-stm32" }
+embassy-net = {path = "../../../embassy/embassy-net" }
+embassy-net-wiznet = {path = "../../../embassy/embassy-net-wiznet" }
+embassy-sync = {path = "../../../embassy/embassy-sync" }
+embassy-executor = {path = "../../../embassy/embassy-executor" }
+embassy-embedded-hal = {path = "../../../embassy/embassy-embedded-hal" }
+embassy-time = {path = "../../../embassy/embassy-time" }
+embassy-futures = {path = "../../../embassy/embassy-futures" }
+embassy-time-driver = {path = "../../../embassy/embassy-time-driver"}
+embassy-time-queue-driver = {path = "../../../embassy/embassy-time-queue-driver"}
 
 [profile.dev]
 opt-level = "s"
