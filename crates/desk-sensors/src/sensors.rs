@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use protocol::large_bedroom::desk::Reading as DeskReading;
 use protocol::large_bedroom::desk::{Error, SensorError};
-use protocol::{make_error_string, Reading};
+use protocol::Reading;
 
 use crate::{send_error, send_reading};
 
@@ -53,7 +53,7 @@ pub fn start_monitoring(tx: Sender<Result<Reading, protocol::Error>>) -> Result<
                     last_warning = Instant::now();
                     tracing::error!("Could not read bme280 sensor: {e}");
                 }
-                let err = make_error_string(e);
+                let err = protocol::make_error_string(e);
                 send_error(&tx, Error::Running(SensorError::BmeError(err)))
             }
         }

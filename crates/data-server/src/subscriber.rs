@@ -3,7 +3,7 @@ use std::net::{SocketAddr, TcpStream};
 use std::time::Duration;
 use std::vec;
 
-use protocol::{DecodeError, Msg};
+use protocol::Msg;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use tracing::instrument;
 
@@ -149,7 +149,7 @@ pub enum SubscribeError {
         "Could not decode message, is protocol lib up to date on server \
         and client? Or has the server crashed? Decoderror: {0:?}"
     )]
-    DecodeFailed(DecodeError),
+    DecodeFailed(protocol::DecodeMsgError),
     #[error("Connection ended")]
     ConnEnded,
     #[error("A subscribers name must be smaller then 256 bytes long")]
