@@ -1,6 +1,7 @@
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
+use crate::msg::DecodeMsgError;
 #[cfg(feature = "alloc")]
 use crate::reading_tree;
 
@@ -98,8 +99,8 @@ impl Affector {
         postcard::to_slice_cobs(self, buf).expect("Encoding should not fail")
     }
 
-    pub fn decode(mut bytes: impl AsMut<[u8]>) -> Result<Self, crate::DecodeError> {
-        postcard::from_bytes_cobs(bytes.as_mut()).map_err(crate::DecodeError::CorruptEncoding)
+    pub fn decode(mut bytes: impl AsMut<[u8]>) -> Result<Self, DecodeMsgError> {
+        postcard::from_bytes_cobs(bytes.as_mut()).map_err(DecodeMsgError::CorruptEncoding)
     }
 
     #[must_use]
