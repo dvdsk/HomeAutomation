@@ -38,7 +38,7 @@ async fn main() -> Result<()> {
 
     let (tx, rx) = mpsc::channel(2000);
     select! {
-        e = server::register_subs(subscribe_addr, &tx) => e,
+        e = server::client::handle(subscribe_addr, tx.clone()) => e,
         e = server::handle_data_sources(update_addr, &tx) => e,
         e = server::spread_updates(rx) => e,
     }

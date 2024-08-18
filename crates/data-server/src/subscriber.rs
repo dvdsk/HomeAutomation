@@ -4,16 +4,12 @@ use std::time::Duration;
 use std::vec;
 
 use protocol::Msg;
+use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use tracing::instrument;
 
 pub mod reconnecting;
 
-#[derive(Debug)]
-pub enum SubMessage {
-    Reading(protocol::Reading),
-    ErrorReport(Box<protocol::Error>),
-}
 
 pub struct Subscriber {
     reader: BufReader<TcpStream>,
