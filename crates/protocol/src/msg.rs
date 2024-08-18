@@ -63,10 +63,6 @@ pub enum DecodeMsgError {
     IncorrectMsgType(u8),
 }
 
-pub(crate) const fn max(a: usize, b: usize) -> usize {
-    [a, b][(a < b) as usize]
-}
-
 pub(crate) const fn cobs_overhead(uncobsed_size: usize) -> usize {
     // COBS requires a minimum of 1 byte overhead, and a maximum of ⌈n/254⌉
     // bytes for n data bytes (one byte in 254, rounded up). (wiki)

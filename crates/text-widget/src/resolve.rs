@@ -1,5 +1,5 @@
 use color_eyre::eyre::eyre;
-use data_server::subscriber::reconnecting::Subscriber;
+use data_server::api::ReconnectingSubscribedClient;
 use nucleo_matcher::pattern::Pattern;
 use protocol::Reading;
 use std::time::Duration;
@@ -11,7 +11,7 @@ mod fetch;
 
 pub async fn query(
     cli: &crate::Cli,
-    client: &mut Subscriber,
+    client: &mut ReconnectingSubscribedClient,
 ) -> color_eyre::Result<Reading> {
     let mut list = if let Some(store_addr) = cli.store {
         fetch::datalist_on_store(store_addr, crate::name())

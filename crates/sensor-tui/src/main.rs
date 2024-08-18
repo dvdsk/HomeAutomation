@@ -4,9 +4,9 @@ use std::sync::mpsc;
 use std::thread;
 
 use clap::Parser;
-use color_eyre::eyre::WrapErr;
-use color_eyre::{Help, Result};
-use data_server::SubMessage;
+use color_eyre::eyre::{Report, WrapErr};
+use color_eyre::Result;
+use data_server::api::{Client, SubMessage};
 
 mod fetch;
 mod populate;
@@ -16,15 +16,11 @@ mod tui;
 pub(crate) use fetch::Fetch;
 use log_store::api::{ErrorEvent, Percentile};
 use protocol::Reading;
+use tokio::task;
 
 #[derive(Debug, PartialEq, Eq)]
 enum UserIntent {
     Shutdown,
-}
-
-struct Fetched {
-    reading: Reading,
-    thing: Fetchable
 }
 
 enum Fetchable {
@@ -44,7 +40,7 @@ enum Fetchable {
 
 enum Update {
     ReadingList(Vec<protocol::Reading>),
-    Fetched{reading: Reading, thing: Fetchable},
+    Fetched { reading: Reading, thing: Fetchable },
     FetchError(color_eyre::Report),
     SensorReading(protocol::Reading),
     SensorError(Box<protocol::Error>),
@@ -52,10 +48,31 @@ enum Update {
     DeviceList(Vec<protocol::Device>),
 }
 
-fn receive_data(mut sub: data_server::Subscriber, tx: mpsc::Sender<Update>) {
+async fn receive_data(data_server: SocketAddr, tx: mpsc::Sender<Update>) {
+    let client = match Client::connect(data_server, client_name()).await {
+        Ok(client) => client,
+        Err(err) => {
+            let _ignore_panicked_ui = tx.send(Update::SubscribeError(
+                Report::new(err).wrap_err("Could not connect to data server"),
+            ));
+            return;
+        }
+    };
+
+    let mut subbed = match client.subscribe().await {
+        Ok(client) => client,
+        Err(err) => {
+            let _ignore_panicked_ui = tx.send(Update::SubscribeError(
+                Report::new(err).wrap_err("Could not subscribe to data server"),
+            ));
+            return;
+        }
+    };
+
     loop {
-        let res = sub
-            .next_msg()
+        let res = subbed
+            .next()
+            .await
             .wrap_err("Error getting next reading from server")
             .map(|msg| match msg {
                 SubMessage::Reading(reading) => Update::SensorReading(reading),
@@ -92,7 +109,8 @@ struct Cli {
     log_store: SocketAddr,
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     setup_tracing().unwrap();
 
     let Cli {
@@ -101,20 +119,15 @@ fn main() -> Result<()> {
         log_store,
     } = Cli::parse();
 
-    let sub = data_server::Subscriber::connect(data_server, &client_name())
-        .wrap_err("failed to connect")
-        .with_suggestion(|| format!("verify the server is listening on: {data_server}"))?;
-
     let (tx1, rx1) = mpsc::channel();
     let (tx2, rx2) = mpsc::channel();
 
-    let (fetcher, maintain_fetch) = Fetch::new(data_store, log_store, tx1.clone());
+    let fetcher = Fetch::new(data_store, log_store, tx1.clone());
 
     let tx1_clone1 = tx1.clone();
     let tx1_clone2 = tx1.clone();
-    thread::spawn(move || receive_data(sub, tx1_clone1));
+    task::spawn(receive_data(data_server, tx1_clone1));
     thread::spawn(move || tui::run(rx1, tx2, fetcher));
-    thread::spawn(move || maintain_fetch);
     thread::spawn(move || populate::tree(data_store, log_store, tx1_clone2));
 
     loop {

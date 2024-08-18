@@ -3,13 +3,13 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::ops::RangeInclusive;
 use std::sync::mpsc;
-use std::thread;
 use std::time::Instant;
 
 use color_eyre::Result;
 use jiff::{Span, Timestamp};
 use log_store::api::{ErrorEvent, Percentile};
 use protocol::Reading;
+use tokio::task;
 use tracing::debug;
 
 use crate::tui::history_len;
@@ -73,23 +73,14 @@ impl Fetch {
         data_store: SocketAddr,
         log_store: SocketAddr,
         update_tx: mpsc::Sender<Update>,
-    ) -> (Self, thread::JoinHandle<()>) {
+    ) -> Self {
         let (tx, rx) = tokio::sync::mpsc::channel(32);
 
-        let this = Self {
+        task::spawn(handle_requests(data_store, log_store, rx, update_tx));
+        Self {
             recently_issued: VecDeque::new(),
             tx,
-        };
-
-        let maintainer = thread::spawn(move || {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_io()
-                .enable_time()
-                .build()
-                .unwrap();
-            rt.block_on(handle_requests(data_store, log_store, rx, update_tx));
-        });
-        (this, maintainer)
+        }
     }
 
     pub fn assure_up_to_date(

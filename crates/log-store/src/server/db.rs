@@ -2,10 +2,10 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use data_server::subscriber::reconnecting;
+use data_server::api::ReconnectingClient;
 
 use color_eyre::Result;
-use data_server::SubMessage;
+use data_server::api::SubMessage;
 
 mod log;
 pub(crate) use log::Logs;
@@ -19,11 +19,12 @@ pub(crate) async fn run(
     logs: Logs,
     log_dir: &Path,
 ) -> Result<()> {
-    let mut sub = reconnecting::Subscriber::new(data_server_addr, "ha-data-store".to_string());
+    let mut sub =
+        ReconnectingClient::new(data_server_addr, "ha-data-store".to_string()).subscribe();
 
     let mut recently_logged = (Instant::now(), String::new());
     loop {
-        let msg = sub.next_msg().await;
+        let msg = sub.next().await;
         let res = match msg {
             SubMessage::Reading(reading) => {
                 if let Err(e) = stats.increment(reading.device()).await {

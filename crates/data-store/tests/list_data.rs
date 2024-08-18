@@ -22,12 +22,12 @@ const fn test_readings(v: f32) -> [Reading; 2] {
     ]
 }
 
-async fn data_server(sub_port: impl Into<SocketAddr>, data_port: impl Into<SocketAddr>) {
+async fn data_server(client_addr: impl Into<SocketAddr>, data_port: impl Into<SocketAddr>) {
     use data_server::server;
 
     let (tx, rx) = mpsc::channel(2000);
     tokio::select! {
-        e = server::register_subs(sub_port.into(), &tx) => e.unwrap(),
+        e = server::client::handle(client_addr.into(), tx.clone()) => e.unwrap(),
         e = server::handle_data_sources(data_port.into(), &tx) => e.unwrap(),
         e = server::spread_updates(rx) => e.unwrap(),
     };

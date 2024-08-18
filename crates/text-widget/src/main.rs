@@ -1,7 +1,7 @@
 use color_eyre::eyre::{eyre, Context};
 use color_eyre::Result;
-use data_server::subscriber::reconnecting;
-use data_server::SubMessage;
+use data_server::api::SubMessage;
+use data_server::api::{ReconnectingClient, ReconnectingSubscribedClient};
 use gethostname::gethostname;
 use protocol::reading_tree::Tree;
 use protocol::Reading;
@@ -38,9 +38,9 @@ struct Cli {
     debug: bool,
 }
 
-async fn wait_for_update(client: &mut reconnecting::Subscriber, needed: &Reading) -> Reading {
+async fn wait_for_update(client: &mut ReconnectingSubscribedClient, needed: &Reading) -> Reading {
     loop {
-        let SubMessage::Reading(r) = client.next_msg().await else {
+        let SubMessage::Reading(r) = client.next().await else {
             continue;
         };
         if r.is_same_as(needed) {
@@ -49,7 +49,7 @@ async fn wait_for_update(client: &mut reconnecting::Subscriber, needed: &Reading
     }
 }
 
-async fn setup(cli: &Cli, client: &mut reconnecting::Subscriber) -> Result<protocol::Reading> {
+async fn setup(cli: &Cli, client: &mut ReconnectingSubscribedClient) -> Result<protocol::Reading> {
     let reading = match resolve::query(cli, client).await {
         Ok(reading) => reading,
         Err(e) => {
@@ -72,7 +72,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
     setup_tracing(cli.debug)?;
 
-    let mut client = reconnecting::Subscriber::new(cli.server, name());
+    let mut client = ReconnectingClient::new(cli.server, name()).subscribe();
 
     let reading = match cache::load_from_file(&cli.reading).await {
         Ok(Some(reading)) => reading,

@@ -4,11 +4,11 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use data_server::subscriber::reconnecting;
+use data_server::api::ReconnectingClient;
 use tokio::sync::Mutex;
 
 use color_eyre::{Result, Section};
-use data_server::SubMessage;
+use data_server::api::SubMessage;
 
 mod series;
 use series::Series;
@@ -16,11 +16,12 @@ use series::Series;
 use crate::api;
 
 pub(crate) async fn run(data_server_addr: SocketAddr, data: Data, data_dir: &Path) -> Result<()> {
-    let mut sub = reconnecting::Subscriber::new(data_server_addr, "ha-data-store".to_string());
+    let mut sub =
+        ReconnectingClient::new(data_server_addr, "ha-data-store".to_string()).subscribe();
 
     let mut recently_logged = (Instant::now(), String::new());
     loop {
-        let msg = sub.next_msg().await;
+        let msg = sub.next().await;
         let res = match msg {
             SubMessage::Reading(reading) => series::store(&data, &reading, data_dir)
                 .await
