@@ -59,6 +59,32 @@ impl Client {
             };
         }
     }
+
+    /// # Cancel safety
+    /// This is cancel safe however the connection will need to be re-established
+    /// the next time its called. This will retry forever, you should call this
+    /// in a timeout future.
+    pub async fn list_affectors(&mut self) -> Vec<protocol::Affector> {
+        loop {
+            let mut conn = if let Some(conn) = self.connection.take() {
+                conn
+            } else {
+                get_connection_or_reconnect(self.addr, &self.name, &mut self.retry_period).await
+            };
+
+            match conn.list_affectors().await {
+                Ok(list) => {
+                    self.retry_period /= 2;
+                    self.retry_period = self.retry_period.max(Duration::from_millis(200));
+                    self.connection = Some(conn);
+                    return list;
+                }
+                Err(issue) => {
+                    warn!("Conn issue while getting next_msg: {issue}, reconnecting");
+                }
+            };
+        }
+    }
 }
 
 #[derive(Debug)]
