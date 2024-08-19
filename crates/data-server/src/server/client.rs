@@ -39,6 +39,7 @@ async fn handle_client_inner(
             Err(Offline) => api::Response::Actuate(Err(AffectorError::Offline)),
         },
         api::Request::Subscribe => api::Response::Subscribe,
+        api::Request::ListAffectors => api::Response::ListAffectors(affectors.list()),
     };
 
     conn.send(response)

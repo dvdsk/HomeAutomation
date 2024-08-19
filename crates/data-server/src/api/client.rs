@@ -103,6 +103,20 @@ impl Client {
         }
     }
 
+    pub async fn list_affectors(
+        &mut self,
+    ) -> Result<Vec<protocol::Affector>, Error<AffectorError>> {
+        let request = Request::ListAffectors;
+        match self.send_receive(request.clone()).await {
+            Ok(Response::ListAffectors(list)) => Ok(list),
+            Err(err) => Err(err),
+            response => Err(Error::IncorrectResponse {
+                request: format!("{request:?}"),
+                response: format!("{response:?}"),
+            }),
+        }
+    }
+
     pub async fn subscribe(mut self) -> Result<Subscribed, Error<SubscribeError>> {
         let request = Request::Subscribe;
         match self.send_receive(request.clone()).await {

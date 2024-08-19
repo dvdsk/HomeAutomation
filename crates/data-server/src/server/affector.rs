@@ -57,6 +57,14 @@ impl Registar {
 
         Err(Offline)
     }
+
+    pub(crate) fn list(&self) -> Vec<Affector> {
+        let this = self.0.lock().expect("nothing should panic");
+        this.iter()
+            .flat_map(|(_, reg)| reg.controls.iter())
+            .cloned()
+            .collect()
+    }
 }
 
 pub struct Offline;

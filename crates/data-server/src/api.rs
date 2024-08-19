@@ -11,6 +11,7 @@ pub enum Request {
     Handshake { name: String },
     Actuate(protocol::Affector),
     Subscribe,
+    ListAffectors,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,6 +19,7 @@ pub enum Response {
     Handshake,
     Error(ServerError),
     Actuate(Result<(), AffectorError>),
+    ListAffectors(Vec<protocol::Affector>),
     SubUpdate(SubMessage),
     Subscribe,
 }

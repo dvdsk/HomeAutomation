@@ -83,8 +83,7 @@ impl Device {
     Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Hash, PartialEq, Eq,
 )]
 pub enum Affector {
-    CleanSensor,
-    CalibrateCo2,
+    Bed(bed::Affector),
 }
 
 impl Affector {

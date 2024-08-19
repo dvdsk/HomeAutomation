@@ -378,9 +378,9 @@ impl core::fmt::Display for Device {
 }
 
 macro_rules! tree {
-    [$($reading:expr),+] => {
-        [$(crate::Reading::LargeBedroom(
-            crate::large_bedroom::Reading::Bed($reading),
+    [$thing:ident; $($item:expr),+] => {
+        [$(crate::$thing::LargeBedroom(
+            crate::large_bedroom::$thing::Bed($item),
         )),+]
     };
 }
@@ -396,7 +396,7 @@ impl Device {
         match self {
             Device::Sht31 => crate::DeviceInfo {
                 name: "Sht31",
-                affects_readings: &tree![Reading::Temperature(0.0), Reading::Humidity(0.0)],
+                affects_readings: &tree![Reading; Reading::Temperature(0.0), Reading::Humidity(0.0)],
                 temporal_resolution,
                 min_sample_interval,
                 max_sample_interval,
@@ -404,7 +404,10 @@ impl Device {
             },
             Device::Bme680 => crate::DeviceInfo {
                 name: "Bme680",
-                affects_readings: &tree![Reading::GassResistance(0.0), Reading::Pressure(0.0)],
+                affects_readings: &tree![Reading;
+                    Reading::GassResistance(0.0),
+                    Reading::Pressure(0.0)
+                ],
                 temporal_resolution,
                 min_sample_interval,
                 max_sample_interval,
@@ -412,7 +415,7 @@ impl Device {
             },
             Device::Max44 => crate::DeviceInfo {
                 name: "Max44",
-                affects_readings: &tree![Reading::Brightness(0.0)],
+                affects_readings: &tree![Reading; Reading::Brightness(0.0)],
                 temporal_resolution: Duration::from_millis(50),
                 min_sample_interval: Duration::from_millis(50),
                 max_sample_interval,
@@ -420,15 +423,15 @@ impl Device {
             },
             Device::Mhz14 => crate::DeviceInfo {
                 name: "Mhz14",
-                affects_readings: &tree![Reading::Co2(0)],
+                affects_readings: &tree![Reading; Reading::Co2(0)],
                 temporal_resolution,
                 min_sample_interval,
                 max_sample_interval,
-                affectors: &[],
+                affectors: &tree!(Affector; Affector::MhzZeroPointCalib),
             },
             Device::Sps30 => crate::DeviceInfo {
                 name: "Sps30",
-                affects_readings: &tree![
+                affects_readings: &tree![Reading;
                     Reading::MassPm1_0(0.0),
                     Reading::MassPm2_5(0.0),
                     Reading::MassPm4_0(0.0),
@@ -443,11 +446,11 @@ impl Device {
                 temporal_resolution,
                 min_sample_interval,
                 max_sample_interval,
-                affectors: &[],
+                affectors: &tree!(Affector; Affector::Sps30FanClean),
             },
             Device::Nau7802Left => crate::DeviceInfo {
                 name: "Nau7802Left",
-                affects_readings: &tree![Reading::WeightLeft(0)],
+                affects_readings: &tree![Reading; Reading::WeightLeft(0)],
                 temporal_resolution: Duration::from_millis(100),
                 min_sample_interval: Duration::from_millis(100),
                 max_sample_interval,
@@ -455,7 +458,7 @@ impl Device {
             },
             Device::Nau7802Right => crate::DeviceInfo {
                 name: "Nau7802Right",
-                affects_readings: &tree![Reading::WeightRight(0)],
+                affects_readings: &tree![Reading; Reading::WeightRight(0)],
                 temporal_resolution: Duration::from_millis(100),
                 min_sample_interval: Duration::from_millis(100),
                 max_sample_interval,
@@ -463,7 +466,7 @@ impl Device {
             },
             Device::Gpio => crate::DeviceInfo {
                 name: "Gpio",
-                affects_readings: &tree![
+                affects_readings: &tree![Reading;
                     Reading::Button(Button::TopLeft(Press(0))),
                     Reading::Button(Button::TopRight(Press(0))),
                     Reading::Button(Button::MiddleInner(Press(0))),
@@ -483,7 +486,15 @@ impl Device {
 
     #[cfg(feature = "alloc")]
     #[must_use]
-    fn rooted(self) -> crate::Device {
+    const fn rooted(self) -> crate::Device {
         crate::Device::LargeBedroom(crate::large_bedroom::Device::Bed(self))
     }
+}
+
+#[derive(
+    Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Hash, PartialEq, Eq,
+)]
+pub enum Affector {
+    Sps30FanClean,
+    MhzZeroPointCalib,
 }

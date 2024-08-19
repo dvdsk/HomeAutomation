@@ -36,7 +36,7 @@ async fn run_server(
 }
 
 const TEST_READING: Reading =
-    Reading::LargeBedroom(large_bedroom::Reading::Bed(bed::Reading::Temperature(0.0)));
+    Reading::LargeBedroom(large_bedroom::Reading::Bed(bed::Reading::NumberPm2_5(0.0)));
 
 async fn send_sensor_value(data_port: u16) -> Result<Done> {
     tokio::time::sleep(Duration::from_millis(500)).await;
@@ -50,7 +50,7 @@ async fn send_sensor_value(data_port: u16) -> Result<Done> {
     Ok(Done::SendValue)
 }
 
-async fn subscribe_and_receive(sub_port: u16) -> Result<Done> {
+async fn subscribe_and_receive_inner(sub_port: u16) -> Result<Done> {
     tokio::time::sleep(Duration::from_millis(100)).await;
     let mut sub = Client::connect(
         (Ipv4Addr::LOCALHOST, sub_port),
@@ -68,8 +68,30 @@ async fn subscribe_and_receive(sub_port: u16) -> Result<Done> {
     Ok(Done::Test)
 }
 
+async fn list_affectors_inner(sub_port: u16) -> Result<Done> {
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    let list = Client::connect(
+        (Ipv4Addr::LOCALHOST, sub_port),
+        "api_integration_tests".to_owned(),
+    )
+    .await
+    .unwrap()
+    .list_affectors()
+    .await
+    .unwrap();
+
+    assert_eq!(
+        list,
+        [protocol::Affector::LargeBedroom(
+            large_bedroom::Affector::Bed(bed::Affector::Sps30FanClean)
+        )]
+    );
+
+    Ok(Done::Test)
+}
+
 #[tokio::test]
-async fn main() {
+async fn subscribe_and_receive() {
     setup_tracing();
 
     let sub_port = reserve_port::ReservedPort::random().unwrap();
@@ -77,25 +99,44 @@ async fn main() {
     let res = select! {
         e = run_server(([127,0,0,1], sub_port.port()), ([127,0,0,1], data_port.port())) => e,
         e = send_sensor_value(data_port.port()) => e,
-        e = subscribe_and_receive(sub_port.port()) => e,
+        e = subscribe_and_receive_inner(sub_port.port()) => e,
+    };
+    assert_eq!(res.unwrap(), Done::Test);
+}
+
+#[tokio::test]
+async fn list_affectors() {
+    setup_tracing();
+
+    let sub_port = reserve_port::ReservedPort::random().unwrap();
+    let data_port = reserve_port::ReservedPort::random().unwrap();
+    let res = select! {
+        e = run_server(([127,0,0,1], sub_port.port()), ([127,0,0,1], data_port.port())) => e,
+        e = send_sensor_value(data_port.port()) => e,
+        e = list_affectors_inner(sub_port.port()) => e,
     };
     assert_eq!(res.unwrap(), Done::Test);
 }
 
 fn setup_tracing() {
+    use std::sync::Once;
     use tracing_error::ErrorLayer;
     use tracing_subscriber::{self, layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
-    color_eyre::install().unwrap();
+    static INIT: Once = Once::new();
 
-    let file_subscriber = tracing_subscriber::fmt::layer()
-        .with_file(true)
-        .with_line_number(true)
-        .with_target(false)
-        .with_ansi(false)
-        .with_filter(tracing_subscriber::filter::EnvFilter::from_default_env());
-    tracing_subscriber::registry()
-        .with(file_subscriber)
-        .with(ErrorLayer::default())
-        .init();
+    INIT.call_once(|| {
+        color_eyre::install().unwrap();
+
+        let file_subscriber = tracing_subscriber::fmt::layer()
+            .with_file(true)
+            .with_line_number(true)
+            .with_target(false)
+            .with_ansi(false)
+            .with_filter(tracing_subscriber::filter::EnvFilter::from_default_env());
+        tracing_subscriber::registry()
+            .with(file_subscriber)
+            .with(ErrorLayer::default())
+            .init();
+    })
 }
