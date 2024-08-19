@@ -869,9 +869,11 @@ dependencies = [
  "clap",
  "color-eyre",
  "futures",
+ "futures-concurrency",
  "protocol",
  "reserve-port",
  "serde",
+ "slotmap",
  "thiserror",
  "tokio",
  "tokio-serde",
@@ -3156,6 +3158,15 @@ dependencies = [
  "libc",
  "log",
  "parking_lot 0.11.2",
+]
+
+[[package]]
+name = "slotmap"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbff4acf519f630b3a3ddcfaea6c06b42174d9a44bc70c620e9ed1649d58b82a"
+dependencies = [
+ "version_check",
 ]
 
 [[package]]

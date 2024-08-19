@@ -13,13 +13,14 @@ use color_eyre::{Result, Section};
 use tracing::{info, warn};
 
 use crate::api;
-use crate::api::Response;
+use crate::api::{AffectorError, Response};
 
-use super::{Conn, Event};
+use super::{affector::Offline, affector::Registar, Conn, Event};
 
 async fn handle_client_inner(
     conn: &mut Conn,
     new_subscribers: &mut mpsc::Sender<Event>,
+    affectors: &Registar,
 ) -> color_eyre::Result<()> {
     let request = conn
         .try_next()
@@ -30,8 +31,13 @@ async fn handle_client_inner(
     };
 
     let response = match &request {
-        api::Request::Handshake { name } => Response::Handshake,
-        api::Request::Actuate(affector) => todo!(),
+        api::Request::Handshake { .. } => {
+            unreachable!("handshake only takes place during connection")
+        }
+        api::Request::Actuate(affector) => match affectors.activate(*affector) {
+            Ok(()) => api::Response::Actuate(Ok(())),
+            Err(Offline) => api::Response::Actuate(Err(AffectorError::Offline)),
+        },
         api::Request::Subscribe => api::Response::Subscribe,
     };
 
@@ -53,15 +59,20 @@ async fn handle_client_inner(
     Ok(())
 }
 
-async fn handle_client(mut conn: Conn, id: String, mut new_subscribers: mpsc::Sender<Event>) {
+async fn handle_client(
+    mut conn: Conn,
+    id: String,
+    mut new_subscribers: mpsc::Sender<Event>,
+    affectors: Registar,
+) {
     loop {
-        if let Err(e) = handle_client_inner(&mut conn, &mut new_subscribers).await {
-            warn!("Error while handling client {id}: {e:?}")
+        if let Err(e) = handle_client_inner(&mut conn, &mut new_subscribers, &affectors).await {
+            warn!("Error while handling client {id}: {e:?}");
         }
     }
 }
 
-pub async fn handle(addr: SocketAddr, tx: mpsc::Sender<Event>) -> Result<()> {
+pub async fn handle(addr: SocketAddr, tx: mpsc::Sender<Event>, affectors: Registar) -> Result<()> {
     let listener = TcpListener::bind(addr)
         .await
         .wrap_err("Could not start receiving updates")
@@ -73,7 +84,7 @@ pub async fn handle(addr: SocketAddr, tx: mpsc::Sender<Event>) -> Result<()> {
             Ok((stream, source)) => {
                 if let Some((conn, name)) = handshake(stream, source).await {
                     let id = format!("{name}@{source}");
-                    tokio::task::spawn(handle_client(conn, id, tx.clone()));
+                    tokio::task::spawn(handle_client(conn, id, tx.clone(), affectors.clone()));
                 }
             }
             Err(e) => {

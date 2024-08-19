@@ -79,7 +79,9 @@ impl Device {
     }
 }
 
-#[derive(Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize)]
+#[derive(
+    Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Hash, PartialEq, Eq,
+)]
 pub enum Affector {
     CleanSensor,
     CalibrateCo2,

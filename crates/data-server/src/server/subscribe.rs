@@ -2,10 +2,10 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use futures::SinkExt;
-use tracing::debug;
 use std::mem;
 use tokio::sync::mpsc;
 use tokio::time::timeout;
+use tracing::debug;
 
 use color_eyre::Result;
 
@@ -19,7 +19,10 @@ pub async fn handle_subscriber(
     loop {
         let update = rx.recv().await.expect("updates always keep coming");
         let message = Response::SubUpdate(update);
-        if let Err(_) = timeout(Duration::from_secs(2), sub.send(message)).await {
+        if timeout(Duration::from_secs(2), sub.send(message))
+            .await
+            .is_err()
+        {
             return eyre!("Timed out while sending update");
         }
     }

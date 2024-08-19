@@ -36,10 +36,11 @@ async fn main() -> Result<()> {
     info!("listening for updates on: {update_addr}");
     info!("serving subscribers on: {subscribe_addr}");
 
+    let affectors = server::AffectorRegistar::default();
     let (tx, rx) = mpsc::channel(2000);
     select! {
-        e = server::client::handle(subscribe_addr, tx.clone()) => e,
-        e = server::handle_data_sources(update_addr, &tx) => e,
+        e = server::client::handle(subscribe_addr, tx.clone(), affectors.clone()) => e,
+        e = server::handle_nodes(update_addr, &tx, affectors) => e,
         e = server::spread_updates(rx) => e,
     }
 }

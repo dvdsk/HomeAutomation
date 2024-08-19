@@ -192,6 +192,7 @@ impl Device {
                     Reading::Humidity(0.0),
                     Reading::Pressure(0.0)
                 ],
+                affectors: &[],
                 min_sample_interval: Duration::from_secs(5),
                 max_sample_interval: Duration::from_secs(5),
                 temporal_resolution: Duration::from_secs(1),

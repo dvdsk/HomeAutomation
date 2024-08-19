@@ -1,15 +1,23 @@
 use std::net::SocketAddr;
 
-use color_eyre::eyre::Context;
+use color_eyre::eyre::{eyre, Context};
 use color_eyre::{Result, Section};
-use tokio::io::{AsyncBufReadExt, BufStream};
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::mpsc::Sender;
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::net::tcp::OwnedReadHalf;
+use tokio::net::TcpListener;
+use tokio::net::TcpStream;
+use tokio::sync::mpsc::{self, Sender};
 
 use super::Event;
 use tracing::{info, warn};
 
-pub async fn handle_data_sources(addr: SocketAddr, share: &Sender<Event>) -> Result<()> {
+use super::affector::{track_and_control_affectors, Registar};
+
+pub async fn handle_nodes(
+    addr: SocketAddr,
+    share: &Sender<Event>,
+    registar: Registar,
+) -> Result<()> {
     let listener = TcpListener::bind(addr)
         .await
         .wrap_err("Could not start listening for new subscribers")
@@ -20,7 +28,7 @@ pub async fn handle_data_sources(addr: SocketAddr, share: &Sender<Event>) -> Res
         match res {
             Ok((stream, source)) => {
                 info!("new data source connected from: {source}");
-                tokio::spawn(handle_data_source(stream, share.clone()));
+                tokio::spawn(handle_node(stream, share.clone(), registar.clone()));
             }
             Err(e) => {
                 println!("new connection failed: {e}");
@@ -30,46 +38,75 @@ pub async fn handle_data_sources(addr: SocketAddr, share: &Sender<Event>) -> Res
     }
 }
 
-pub async fn handle_data_source(stream: TcpStream, queue: Sender<Event>) {
-    let mut reader = BufStream::new(stream);
+pub async fn read_and_decode_packet(
+    reader: &mut BufReader<OwnedReadHalf>,
+    buf: &mut Vec<u8>,
+) -> color_eyre::Result<protocol::Msg<50>> {
+    buf.clear();
+    let n_read = reader
+        .read_until(0, buf)
+        .await
+        .wrap_err("Connection failed/closed")?;
+
+    let bytes = &mut buf[0..n_read];
+    if bytes.is_empty() {
+        return Err(eyre!("End of stream, connection is closed"));
+    }
+
+    protocol::Msg::<50>::decode(bytes).wrap_err("decode failed")
+}
+
+async fn handle_node(stream: TcpStream, queue: Sender<Event>, registar: Registar) {
+    let (reader, writer) = stream.into_split();
+    let reader = BufReader::new(reader);
+
+    let (tx, rx) = mpsc::channel(100);
+    tokio::join!(
+        receive_and_spread_updates(reader, queue, tx),
+        track_and_control_affectors(writer, rx, registar),
+    );
+}
+
+async fn receive_and_spread_updates(
+    mut reader: BufReader<OwnedReadHalf>,
+    queue: Sender<Event>,
+    affectors: Sender<protocol::Device>,
+) {
     let mut buf = Vec::new();
+
     loop {
-        buf.clear();
-        let n_read = match reader.read_until(0, &mut buf).await {
+        let msg = match read_and_decode_packet(&mut reader, &mut buf).await {
+            Ok(decoded) => decoded,
             Err(e) => {
-                warn!("Connection failed/closed: {e}");
-                return;
-            }
-            Ok(bytes) => bytes,
-        };
-
-        let bytes = &mut buf[0..n_read];
-        if bytes.is_empty() {
-            //eof
-            warn!("end of stream");
-            return;
-        }
-
-        let decoded = match protocol::Msg::<50>::decode(bytes) {
-            Ok(msg) => msg,
-            Err(e) => {
-                warn!("decode failed: {e:?}");
+                warn!("Error while reading and decoding packet: {e}");
                 return;
             }
         };
-        match decoded {
+
+        match msg {
             protocol::Msg::Readings(readings) => {
                 for value in readings.values {
+                    affectors
+                        .send(value.device())
+                        .await
+                        .expect("fn track_and_control_affectors should not end");
                     queue
                         .send(Event::NewReading(Ok(value)))
                         .await
                         .expect("fn spread_updates should stay running");
                 }
             }
-            protocol::Msg::ErrorReport(report) => queue
-                .send(Event::NewReading(Err(Box::new(report.error))))
-                .await
-                .expect("fn spread_updates should stay running"),
+            protocol::Msg::ErrorReport(report) => {
+                affectors
+                    .send(report.error.device())
+                    .await
+                    .expect("fn track_and_control_affectors should not end");
+                let boxed = Box::new(report.error);
+                queue
+                    .send(Event::NewReading(Err(boxed)))
+                    .await
+                    .expect("fn spread_updates should stay running");
+            }
         }
-    }
+    } // loop
 }

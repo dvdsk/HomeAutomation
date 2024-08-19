@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 use std::sync::Once;
 use std::time::Duration;
 
+use data_server::server::AffectorRegistar;
 use futures::FutureExt;
 use futures_concurrency::future::Race;
 use protocol::large_bedroom::bed;
@@ -26,9 +27,10 @@ async fn data_server(client_addr: impl Into<SocketAddr>, data_port: impl Into<So
     use data_server::server;
 
     let (tx, rx) = mpsc::channel(2000);
+    let affectors = AffectorRegistar::default();
     tokio::select! {
-        e = server::client::handle(client_addr.into(), tx.clone()) => e.unwrap(),
-        e = server::handle_data_sources(data_port.into(), &tx) => e.unwrap(),
+        e = server::client::handle(client_addr.into(), tx.clone(), affectors.clone()) => e.unwrap(),
+        e = server::handle_nodes(data_port.into(), &tx, affectors) => e.unwrap(),
         e = server::spread_updates(rx) => e.unwrap(),
     };
 }

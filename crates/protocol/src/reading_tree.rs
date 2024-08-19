@@ -32,6 +32,8 @@ impl ReadingInfo {
     /// let printed = format!("{0:.1$}", info.val, info.precision());
     /// assert_eq!(printed, "22.42");
     /// ```
+    #[must_use]
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
     pub fn precision(&self) -> usize {
         if self.resolution > 1.0 {
             0

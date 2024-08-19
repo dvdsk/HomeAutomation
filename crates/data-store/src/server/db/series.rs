@@ -353,6 +353,7 @@ mod test {
             min_sample_interval: std::time::Duration::from_secs(5),
             max_sample_interval: std::time::Duration::from_secs(5),
             temporal_resolution: std::time::Duration::from_secs(1),
+            affectors: &[],
         };
         let factor = millis_to_minimal_representation(info);
         assert_eq!(5000 / factor, 5);
@@ -363,6 +364,7 @@ mod test {
             min_sample_interval: std::time::Duration::from_secs(5),
             max_sample_interval: std::time::Duration::from_secs(5),
             temporal_resolution: std::time::Duration::from_millis(1),
+            affectors: &[],
         };
         let factor = millis_to_minimal_representation(info);
         assert_eq!(5005 / factor, 5005)

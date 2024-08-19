@@ -22,7 +22,8 @@ pub use msg::sensor::SensorMessage;
 pub use msg::error::ErrorReport;
 pub use msg::error::make_error_string;
 pub use reading::Reading;
-pub use device::{Device, DeviceInfo};
+pub use device::Device;
+pub use device::Info as DeviceInfo;
 pub use error::Error;
 pub use affector::Affector;
 

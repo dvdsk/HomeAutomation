@@ -14,6 +14,7 @@ pub struct Client {
 }
 
 impl Client {
+    #[must_use]
     pub fn new(addr: SocketAddr, name: String) -> Self {
         Self {
             retry_period: Duration::from_millis(200),
@@ -23,6 +24,7 @@ impl Client {
         }
     }
 
+    #[must_use]
     pub fn subscribe(self) -> SubscribedClient {
         SubscribedClient {
             retry_period: self.retry_period,
@@ -41,8 +43,7 @@ impl Client {
             let mut conn = if let Some(conn) = self.connection.take() {
                 conn
             } else {
-                get_connection_or_reconnect(self.addr.clone(), &self.name, &mut self.retry_period)
-                    .await
+                get_connection_or_reconnect(self.addr, &self.name, &mut self.retry_period).await
             };
 
             match conn.actuate_affector(affector).await {
@@ -53,7 +54,7 @@ impl Client {
                     return msg;
                 }
                 Err(issue) => {
-                    warn!("Conn issue while getting next_msg: {issue}, reconnecting")
+                    warn!("Conn issue while getting next_msg: {issue}, reconnecting");
                 }
             };
         }
@@ -63,7 +64,7 @@ impl Client {
 #[derive(Debug)]
 enum ConnState {
     Connected(super::Client),
-    Subbed(super::SubscribedClient),
+    Subbed(super::Subscribed),
 }
 
 #[derive(Debug)]
@@ -81,12 +82,8 @@ impl SubscribedClient {
                 conn
             } else {
                 ConnState::Connected(
-                    get_connection_or_reconnect(
-                        self.addr.clone(),
-                        &self.name,
-                        &mut self.retry_period,
-                    )
-                    .await,
+                    get_connection_or_reconnect(self.addr, &self.name, &mut self.retry_period)
+                        .await,
                 )
             };
 
@@ -106,7 +103,7 @@ impl SubscribedClient {
                     return msg;
                 }
                 Err(issue) => {
-                    warn!("Conn issue while getting next_msg: {issue}, reconnecting")
+                    warn!("Conn issue while getting next_msg: {issue}, reconnecting");
                 }
             };
         }
@@ -115,13 +112,13 @@ impl SubscribedClient {
 
 async fn get_connection_or_reconnect(
     addr: SocketAddr,
-    name: &String,
+    name: &str,
     retry_period: &mut Duration,
 ) -> super::Client {
     loop {
         match timeout(
             Duration::from_millis(500),
-            super::Client::connect(addr, name.clone()),
+            super::Client::connect(addr, name.to_owned()),
         )
         .await
         {

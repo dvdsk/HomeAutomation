@@ -10,7 +10,7 @@ use tokio_serde::formats::Bincode;
 use tokio_stream::StreamExt;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
-use super::ActuateAffectorError;
+use super::AffectorError;
 use super::Request;
 use super::Response;
 use super::ServerError;
@@ -91,10 +91,10 @@ impl Client {
     pub async fn actuate_affector(
         &mut self,
         affector: protocol::Affector,
-    ) -> Result<(), Error<ActuateAffectorError>> {
+    ) -> Result<(), Error<AffectorError>> {
         let request = Request::Actuate(affector);
         match self.send_receive(request.clone()).await {
-            Ok(Response::Actuate) => Ok(()),
+            Ok(Response::Actuate(res)) => res.map_err(Error::Request),
             Err(err) => Err(err),
             response => Err(Error::IncorrectResponse {
                 request: format!("{request:?}"),
@@ -103,10 +103,10 @@ impl Client {
         }
     }
 
-    pub async fn subscribe(mut self) -> Result<SubscribedClient, Error<SubscribeError>> {
+    pub async fn subscribe(mut self) -> Result<Subscribed, Error<SubscribeError>> {
         let request = Request::Subscribe;
         match self.send_receive(request.clone()).await {
-            Ok(Response::Subscribe) => Ok(SubscribedClient(self)),
+            Ok(Response::Subscribe) => Ok(Subscribed(self)),
             Err(err) => Err(err),
             response => Err(Error::IncorrectResponse {
                 request: format!("{request:?}"),
@@ -117,9 +117,9 @@ impl Client {
 }
 
 #[derive(Debug)]
-pub struct SubscribedClient(Client);
+pub struct Subscribed(Client);
 
-impl SubscribedClient {
+impl Subscribed {
     pub async fn next(&mut self) -> Result<SubMessage, Error<SubscribeError>> {
         let received = self
             .0

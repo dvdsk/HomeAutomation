@@ -7,9 +7,11 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
 pub mod client;
 mod data_source;
+mod affector;
 mod subscribe;
 
-pub use data_source::handle_data_sources;
+pub use affector::Registar as AffectorRegistar;
+pub use data_source::handle_nodes;
 pub use subscribe::spread_updates;
 
 use crate::api;

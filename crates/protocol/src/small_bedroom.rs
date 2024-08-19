@@ -75,7 +75,7 @@ macro_rules! tree {
 }
 
 impl Device {
-    /// Note the order in which the affects_readings occur is the order in which
+    /// Note the order in which the `affects_readings` occur is the order in which
     /// they will be stored, do not change it!
     #[must_use]
     pub const fn info(&self) -> crate::DeviceInfo {
@@ -90,6 +90,7 @@ impl Device {
                     ButtonPanel::BottomMiddle(Press(0)),
                     ButtonPanel::BOttomRight(Press(0))
                 ],
+                affectors: &[],
                 temporal_resolution: Duration::from_millis(1),
                 min_sample_interval: Duration::from_millis(2),
                 max_sample_interval: Duration::MAX,

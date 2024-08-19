@@ -386,7 +386,7 @@ macro_rules! tree {
 }
 
 impl Device {
-    /// Note the order in which the affects_readings occur is the order in which
+    /// Note the order in which the `affects_readings` occur is the order in which
     /// they will be stored, do not change it!
     #[must_use]
     pub const fn info(&self) -> crate::DeviceInfo {
@@ -400,6 +400,7 @@ impl Device {
                 temporal_resolution,
                 min_sample_interval,
                 max_sample_interval,
+                affectors: &[],
             },
             Device::Bme680 => crate::DeviceInfo {
                 name: "Bme680",
@@ -407,6 +408,7 @@ impl Device {
                 temporal_resolution,
                 min_sample_interval,
                 max_sample_interval,
+                affectors: &[],
             },
             Device::Max44 => crate::DeviceInfo {
                 name: "Max44",
@@ -414,6 +416,7 @@ impl Device {
                 temporal_resolution: Duration::from_millis(50),
                 min_sample_interval: Duration::from_millis(50),
                 max_sample_interval,
+                affectors: &[],
             },
             Device::Mhz14 => crate::DeviceInfo {
                 name: "Mhz14",
@@ -421,6 +424,7 @@ impl Device {
                 temporal_resolution,
                 min_sample_interval,
                 max_sample_interval,
+                affectors: &[],
             },
             Device::Sps30 => crate::DeviceInfo {
                 name: "Sps30",
@@ -439,6 +443,7 @@ impl Device {
                 temporal_resolution,
                 min_sample_interval,
                 max_sample_interval,
+                affectors: &[],
             },
             Device::Nau7802Left => crate::DeviceInfo {
                 name: "Nau7802Left",
@@ -446,6 +451,7 @@ impl Device {
                 temporal_resolution: Duration::from_millis(100),
                 min_sample_interval: Duration::from_millis(100),
                 max_sample_interval,
+                affectors: &[],
             },
             Device::Nau7802Right => crate::DeviceInfo {
                 name: "Nau7802Right",
@@ -453,6 +459,7 @@ impl Device {
                 temporal_resolution: Duration::from_millis(100),
                 min_sample_interval: Duration::from_millis(100),
                 max_sample_interval,
+                affectors: &[],
             },
             Device::Gpio => crate::DeviceInfo {
                 name: "Gpio",
@@ -469,6 +476,7 @@ impl Device {
                 temporal_resolution: Duration::from_millis(1),
                 min_sample_interval: Duration::from_millis(2),
                 max_sample_interval: Duration::MAX,
+                affectors: &[],
             },
         }
     }

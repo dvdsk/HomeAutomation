@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 pub mod client;
 pub use client::reconnecting::Client as ReconnectingClient;
 pub use client::reconnecting::SubscribedClient as ReconnectingSubscribedClient;
-pub use client::{Client, SubscribedClient};
+pub use client::Client;
+pub use client::Subscribed as SubscribedClient;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Request {
@@ -16,7 +17,7 @@ pub enum Request {
 pub enum Response {
     Handshake,
     Error(ServerError),
-    Actuate,
+    Actuate(Result<(), AffectorError>),
     SubUpdate(SubMessage),
     Subscribe,
 }
@@ -28,8 +29,10 @@ pub enum SubMessage {
 }
 
 #[derive(Clone, Debug, thiserror::Error, Serialize, Deserialize)]
-#[error("placeholder")]
-pub struct ActuateAffectorError;
+pub enum AffectorError {
+    #[error("We do not have a connection to the actuator's node")]
+    Offline,
+}
 
 #[derive(Clone, Debug, thiserror::Error, Serialize, Deserialize)]
 #[error("placeholder")]

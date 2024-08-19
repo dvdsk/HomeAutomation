@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use color_eyre::Result;
 use data_server::api::{Client, SubMessage};
-use data_server::server;
+use data_server::server::{self, AffectorRegistar};
 use protocol::large_bedroom;
 use protocol::large_bedroom::bed;
 use protocol::Reading;
@@ -25,9 +25,10 @@ async fn run_server(
     data_port: impl Into<SocketAddr>,
 ) -> Result<Done> {
     let (tx, rx) = mpsc::channel(2000);
+    let affectors = AffectorRegistar::default();
     select! {
-        e = server::client::handle(client_addr.into(), tx.clone()) => e?,
-        e = server::handle_data_sources(data_port.into(), &tx) => e?,
+        e = server::client::handle(client_addr.into(), tx.clone(), affectors.clone()) => e.unwrap(),
+        e = server::handle_nodes(data_port.into(), &tx, affectors) => e.unwrap(),
         e = server::spread_updates(rx) => e?,
     };
 

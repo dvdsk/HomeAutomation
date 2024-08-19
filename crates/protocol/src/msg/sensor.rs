@@ -1,3 +1,5 @@
+#![allow(clippy::module_name_repetitions)]
+
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
