@@ -29,7 +29,7 @@ pub(crate) fn layout(
     logs: &Option<Vec<ErrorEvent>>,
 ) -> [Rect; 3] {
     let [list_constraint, graph_constraint] = if chart.is_some() {
-        let tree_height = 2 + ui_state.reading_tree_state.flatten(&readings.ground).len();
+        let tree_height = 2 + ui_state.tree_state.flatten(&readings.ground).len();
         let details_height = 9;
         if (frame.area().height as f32) / 3. > tree_height as f32 {
             [
@@ -196,7 +196,7 @@ pub(crate) fn readings_and_details(
             .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
             .highlight_symbol(">>"),
         left,
-        &mut app.reading_tree_state,
+        &mut app.tree_state,
     );
     if let Some(details) = details {
         render_details(frame, right, details);

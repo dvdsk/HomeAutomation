@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::button::Press;
 #[cfg(feature = "alloc")]
-use crate::reading_tree::{Item, Tree};
+use crate::reading::tree::{Item, Tree};
 
 crate::button_enum! {
     /// +-----------------------------------------+
@@ -47,8 +47,8 @@ impl Tree for Reading {
         }
     }
 
-    fn branch_id(&self) -> crate::reading_tree::Id {
-        ReadingDiscriminants::from(self) as crate::reading_tree::Id
+    fn branch_id(&self) -> crate::reading::tree::Id {
+        ReadingDiscriminants::from(self) as crate::reading::tree::Id
     }
 }
 

@@ -5,9 +5,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::button_enum;
 #[cfg(feature = "alloc")]
-use crate::reading_tree::{Item, ReadingInfo, Tree};
+use crate::reading::tree::{Item, Tree};
 #[cfg(feature = "alloc")]
 use crate::Unit;
+#[cfg(feature = "alloc")]
+use crate::reading::Info;
 
 button_enum! {
     /// No these are not borg, these are buttons on a string of cat5.
@@ -48,7 +50,7 @@ impl Tree for Reading {
     #[must_use]
     fn inner(&self) -> Item<'_> {
         let leaf = match self {
-            Reading::Temperature(val) => ReadingInfo {
+            Reading::Temperature(val) => Info {
                 val: *val,
                 device: Device::Bme280.rooted(),
                 resolution: 0.01,
@@ -57,7 +59,7 @@ impl Tree for Reading {
                 description: "Temperature",
                 branch_id: self.branch_id(),
             },
-            Reading::Humidity(val) => ReadingInfo {
+            Reading::Humidity(val) => Info {
                 val: *val,
                 device: Device::Bme280.rooted(),
                 resolution: 0.008,
@@ -66,7 +68,7 @@ impl Tree for Reading {
                 description: "Humidity",
                 branch_id: self.branch_id(),
             },
-            Reading::Pressure(val) => ReadingInfo {
+            Reading::Pressure(val) => Info {
                 val: *val,
                 device: Device::Bme280.rooted(),
                 range: 87_000.0..108_100.0,
@@ -81,8 +83,8 @@ impl Tree for Reading {
     }
 
     #[must_use]
-    fn branch_id(&self) -> crate::reading_tree::Id {
-        ReadingDiscriminants::from(self) as crate::reading_tree::Id
+    fn branch_id(&self) -> crate::reading::tree::Id {
+        ReadingDiscriminants::from(self) as crate::reading::tree::Id
     }
 }
 

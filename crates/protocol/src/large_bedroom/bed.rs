@@ -1,11 +1,13 @@
 use core::time::Duration;
 
 use crate::button::Press;
-use crate::button_enum;
 #[cfg(feature = "alloc")]
-use crate::reading_tree::{Id, Item, ReadingInfo, Tree};
+use crate::reading::tree::{Id, Item, Tree};
+#[cfg(feature = "alloc")]
+use crate::reading::Info;
 #[cfg(feature = "alloc")]
 use crate::Unit;
+use crate::{affector, button_enum};
 
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
@@ -241,7 +243,7 @@ impl Tree for Reading {
             ),
         };
 
-        Item::Leaf(ReadingInfo {
+        Item::Leaf(Info {
             val,
             device,
             resolution,
@@ -492,11 +494,51 @@ impl Device {
 }
 
 #[derive(
-    Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Hash, PartialEq, Eq,
+    strum::EnumDiscriminants,
+    Clone,
+    Copy,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    PartialEq,
+    Eq,
+    Hash,
 )]
+#[strum_discriminants(derive(Hash))]
 pub enum Affector {
-    Sps30FanClean,
+    Sps30FanClean = 0,
     MhzZeroPointCalib,
     Nau7802LeftCalib,
     Nau7802RightCalib,
+}
+
+impl Affector {
+    #[must_use]
+    pub fn is_same_as(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Affector::Sps30FanClean, Affector::Sps30FanClean) => true,
+            (Affector::MhzZeroPointCalib, Affector::MhzZeroPointCalib) => true,
+            (Affector::Nau7802LeftCalib, Affector::Nau7802LeftCalib) => true,
+            (Affector::Nau7802RightCalib, Affector::Nau7802RightCalib) => true,
+            _ => false,
+        }
+    }
+}
+
+impl affector::tree::Tree for Affector {
+    fn inner(&self) -> affector::tree::Item<'_> {
+        let description = match self {
+            Affector::Sps30FanClean => "Accelerate the fan to maximum speed for 10 seconds in order to blow out the dust accumulated in the fan",
+            Affector::MhzZeroPointCalib => "Set the current co2 value as 400ppm",
+            Affector::Nau7802LeftCalib |
+            Affector::Nau7802RightCalib =>  "Detect and correct power supply and temperature variations to ADC",
+        };
+        affector::tree::Item::Leaf(affector::Info { description })
+    }
+
+    fn branch_id(&self) -> affector::tree::Id {
+        AffectorDiscriminants::from(self) as Id
+    }
 }

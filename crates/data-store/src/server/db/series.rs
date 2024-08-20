@@ -6,7 +6,8 @@ use std::time::Instant;
 use byteseries::{downsample, series, ByteSeries};
 use color_eyre::eyre::{eyre, WrapErr};
 use color_eyre::{Result, Section};
-use protocol::reading_tree::{Item, ReadingInfo, Tree};
+use protocol::reading::tree::{Item, Tree};
+use protocol::reading;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument, trace};
 
@@ -325,7 +326,7 @@ fn base_path(reading: &protocol::Reading) -> PathBuf {
     let mut current = reading as &dyn Tree;
     loop {
         match current.inner() {
-            Item::Leaf(ReadingInfo { device, .. }) => {
+            Item::Leaf(reading::Info { device, .. }) => {
                 parts.push(device.info().name.to_lowercase());
                 break;
             }

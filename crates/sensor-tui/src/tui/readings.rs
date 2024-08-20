@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
 use ratatui::widgets::TableState;
 use ratatui::Frame;
@@ -14,7 +14,7 @@ use history_len::HistoryLen;
 use crate::{fetch::Fetch, Update};
 use sensor_info::{Readings, TreeKey};
 
-use super::{ShouldExit, Theme};
+use super::Theme;
 
 #[derive(Debug, Default, Clone, Copy)]
 enum InputMode {
@@ -29,7 +29,7 @@ pub struct UiState {
     show_logs: bool,
     history_length: HistoryLen,
     input_mode: InputMode,
-    reading_tree_state: TreeState<TreeKey>,
+    tree_state: TreeState<TreeKey>,
     logs_table_state: TableState,
 }
 
@@ -59,7 +59,7 @@ impl Tab {
 
         let (chart, percentiles, details, logs) = {
             let data = ui_state
-                .reading_tree_state
+                .tree_state
                 .selected()
                 .last() // unique leaf id
                 .and_then(|key| readings.data.get_mut(key));
@@ -98,28 +98,21 @@ impl Tab {
         render::footer(frame, footer, ui_state, theme);
     }
 
-    pub fn handle_key(&mut self, key: KeyEvent) -> ShouldExit {
-        let res = self.ui_state.handle_key_all_modes(key);
-        if let ShouldExit::Yes = res {
-            return ShouldExit::Yes;
-        }
+    pub fn handle_key(&mut self, key: KeyEvent) -> Option<KeyEvent> {
+        self.ui_state.handle_key_all_modes(key)?;
         let plot_open = !self.plot_buf.is_empty();
-        let res = match self.ui_state.input_mode {
-            InputMode::Normal => self.ui_state.handle_key_normal_mode(key, plot_open),
-            InputMode::EditingBounds => self.ui_state.handle_key_bounds_mode(key),
+        match self.ui_state.input_mode {
+            InputMode::Normal => self.ui_state.handle_key_normal_mode(key, plot_open)?,
+            InputMode::EditingBounds => self.ui_state.handle_key_bounds_mode(key)?,
         };
 
-        if let ShouldExit::Yes = res {
-            return ShouldExit::Yes;
-        }
-
-        ShouldExit::No
+        Some(key)
     }
 
     pub fn process_update(&mut self, update: Update) {
         let data = self
             .ui_state
-            .reading_tree_state
+            .tree_state
             .selected()
             .last() // unique leaf id
             .and_then(|key| self.readings.data.get_mut(key));
@@ -151,18 +144,15 @@ impl Tab {
             _ => (),
         }
 
-        if self.ui_state.reading_tree_state.selected().is_empty() {
-            self.ui_state.reading_tree_state.select_first();
+        if self.ui_state.tree_state.selected().is_empty() {
+            self.ui_state.tree_state.select_first();
         }
     }
 }
 
 impl UiState {
-    fn handle_key_normal_mode(&mut self, key: KeyEvent, plot_open: bool) -> ShouldExit {
+    fn handle_key_normal_mode(&mut self, key: KeyEvent, plot_open: bool) -> Option<KeyEvent> {
         match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => {
-                return ShouldExit::Yes;
-            }
             KeyCode::Char('b') => {
                 if plot_open {
                     self.history_length.start_editing();
@@ -175,38 +165,36 @@ impl UiState {
             KeyCode::Char('l') => {
                 self.show_logs = !self.show_logs;
             }
-            _other => (),
+            _ => return Some(key),
         }
-        ShouldExit::No
+
+        None
     }
 
-    fn handle_key_bounds_mode(&mut self, key: KeyEvent) -> ShouldExit {
+    fn handle_key_bounds_mode(&mut self, key: KeyEvent) -> Option<KeyEvent> {
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => {
                 self.history_length.exit_editing();
                 self.input_mode = InputMode::Normal;
+                None
             }
-            other => self.history_length.process(other),
+            _ => self.history_length.process(key),
         }
-        ShouldExit::No
     }
 
-    fn handle_key_all_modes(&mut self, key: KeyEvent) -> ShouldExit {
+    fn handle_key_all_modes(&mut self, key: KeyEvent) -> Option<KeyEvent> {
         match key.code {
             KeyCode::Down => {
-                self.reading_tree_state.key_down();
+                self.tree_state.key_down();
             }
             KeyCode::Up => {
-                self.reading_tree_state.key_up();
+                self.tree_state.key_up();
             }
             KeyCode::Enter => {
-                self.reading_tree_state.toggle_selected();
+                self.tree_state.toggle_selected();
             }
-            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                return ShouldExit::Yes;
-            }
-            _other => (),
+            _ => return Some(key),
         }
-        ShouldExit::No
+        None
     }
 }

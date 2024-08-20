@@ -5,11 +5,34 @@ use serde::{Deserialize, Serialize};
 use crate::large_bedroom;
 use crate::msg::cobs_overhead;
 
+#[cfg(feature = "alloc")]
+pub mod tree;
+
 #[derive(
-    Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Hash, PartialEq, Eq,
+    strum::EnumDiscriminants,
+    Clone,
+    Copy,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    PartialEq,
+    Eq,
+    Hash,
 )]
+#[strum_discriminants(derive(Hash))]
 pub enum Affector {
     LargeBedroom(large_bedroom::Affector),
+}
+
+#[cfg(feature = "alloc")]
+tree::all_nodes!{Affector; AffectorDiscriminants; LargeBedroom}
+
+#[cfg(feature = "alloc")]
+#[derive(Debug, Clone)]
+pub struct Info {
+    pub description: &'static str,
 }
 
 impl Affector {

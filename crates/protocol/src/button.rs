@@ -68,9 +68,9 @@ macro_rules! button_enum {
         }
 
         #[cfg(feature = "alloc")]
-        impl crate::reading_tree::Tree for $name {
-            fn inner(&self) -> crate::reading_tree::Item<'_> {
-                crate::reading_tree::Item::Leaf(crate::reading_tree::ReadingInfo {
+        impl crate::reading::tree::Tree for $name {
+            fn inner(&self) -> crate::reading::tree::Item<'_> {
+                crate::reading::tree::Item::Leaf(crate::reading::Info {
                     val: (*self).into(),
                     device: $device,
                     description: "button",
@@ -88,13 +88,13 @@ macro_rules! button_enum {
                     .unwrap_or("-")
                     .to_string()
             }
-            fn branch_id(&self) -> crate::reading_tree::Id {
+            fn branch_id(&self) -> crate::reading::tree::Id {
                 // SAFETY: Because `Self` is marked `repr(u8)`, its layout is a
                 // `repr(C)` `union` between `repr(C)` structs, each of which
                 // has the `u8` discriminant as its first field, so we can read
                 // the discriminant without offsetting the pointer.
                 let discriminant = unsafe { *<*const _>::from(self).cast::<u8>() };
-                discriminant as crate::reading_tree::Id
+                discriminant as crate::reading::tree::Id
             }
         }
 

@@ -281,7 +281,8 @@ impl Logs {
 
 /// relative path without extension
 fn base_path(device: &protocol::Device) -> PathBuf {
-    use protocol::reading_tree::{Item, ReadingInfo, Tree};
+    use protocol::reading::tree::{Item, Tree};
+    use protocol::reading::Info;
 
     let mut parts = Vec::new();
     let mut current = device
@@ -291,7 +292,7 @@ fn base_path(device: &protocol::Device) -> PathBuf {
         .expect("a device has at least one reading it affects") as &dyn Tree;
     loop {
         match current.inner() {
-            Item::Leaf(ReadingInfo { device, .. }) => {
+            Item::Leaf(Info { device, .. }) => {
                 parts.push(device.info().name.to_lowercase());
                 break;
             }

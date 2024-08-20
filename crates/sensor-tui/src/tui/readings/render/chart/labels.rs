@@ -1,4 +1,4 @@
-use protocol::reading_tree::ReadingInfo;
+use protocol::reading;
 use ratatui::layout::Rect;
 use ratatui::text::Span;
 
@@ -32,7 +32,7 @@ pub fn labels<'a>(
 
 fn evenly_spaced_labels(
     max_labels: u16,
-    reading: &ReadingInfo,
+    reading: &reading::Info,
     bounds: Bounds,
 ) -> impl DoubleEndedIterator<Item = f64> {
     let resolution = reading.resolution as f64;

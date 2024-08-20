@@ -2,8 +2,8 @@ use hdrhistogram::Histogram;
 use itertools::Itertools;
 use jiff::Unit;
 use log_store::api::{self, ErrorEvent, Percentile};
-use protocol::reading_tree::ReadingInfo;
-use protocol::reading_tree::{Item, Tree};
+use protocol::reading;
+use protocol::reading::tree::{Item, Tree};
 use protocol::Reading;
 use protocol::{Device, Error};
 
@@ -17,7 +17,7 @@ mod logs;
 
 #[derive(Debug)]
 pub struct SensorInfo {
-    pub info: ReadingInfo,
+    pub info: reading::Info,
     /// This value is not up to date, only use for requesting
     /// data use the last element of recent_history for printing
     pub reading: Reading,
@@ -253,7 +253,7 @@ pub(crate) fn tree_key(reading: &Reading) -> TreeKey {
                 *byte = inner.branch_id();
                 inner
             }
-            Item::Leaf(ReadingInfo { .. }) => {
+            Item::Leaf(reading::Info { .. }) => {
                 return key;
             }
         };
@@ -471,7 +471,7 @@ impl Readings {
 }
 
 pub struct ChartParts<'a> {
-    pub reading: ReadingInfo,
+    pub reading: reading::Info,
     pub data: &'a [(f64, f64)],
 }
 

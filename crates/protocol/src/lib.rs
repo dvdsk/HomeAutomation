@@ -3,15 +3,13 @@
 
 use core::fmt::Display;
 
-#[cfg(feature = "alloc")]
-pub mod reading_tree;
 pub mod button;
 pub(crate) use button::button_enum;
 
 pub mod large_bedroom;
 pub mod small_bedroom;
 
-mod reading;
+pub mod reading;
 mod device;
 mod error;
 pub mod affector;

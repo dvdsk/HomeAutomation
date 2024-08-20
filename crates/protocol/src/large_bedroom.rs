@@ -1,9 +1,10 @@
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
+use crate::affector;
 use crate::msg::DecodeMsgError;
 #[cfg(feature = "alloc")]
-use crate::reading_tree;
+use crate::reading;
 
 pub mod bed;
 pub mod desk;
@@ -26,7 +27,7 @@ pub enum Reading {
 }
 
 #[cfg(feature = "alloc")]
-reading_tree::all_nodes! {Reading; ReadingDiscriminants; Bed, Desk}
+reading::tree::all_nodes! {Reading; ReadingDiscriminants; Bed, Desk}
 
 #[derive(
     strum::EnumDiscriminants,
@@ -80,11 +81,25 @@ impl Device {
 }
 
 #[derive(
-    Clone, Copy, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Hash, PartialEq, Eq,
+    strum::EnumDiscriminants,
+    Clone,
+    Copy,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    PartialEq,
+    Eq,
+    Hash,
 )]
+#[strum_discriminants(derive(Hash))]
 pub enum Affector {
     Bed(bed::Affector),
 }
+
+#[cfg(feature = "alloc")]
+affector::tree::all_nodes! {Affector; AffectorDiscriminants; Bed}
 
 impl Affector {
     #[cfg(feature = "alloc")]

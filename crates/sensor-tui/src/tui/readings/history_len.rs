@@ -1,4 +1,4 @@
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     style::{Color, Modifier, Style},
     text::Span,
@@ -38,15 +38,15 @@ impl Default for HistoryLen {
 }
 
 impl HistoryLen {
-    pub(crate) fn process(&mut self, key: KeyCode) {
-        match key {
+    pub(crate) fn process(&mut self, key: KeyEvent) -> Option<KeyEvent> {
+        match key.code {
             KeyCode::Char(c) => {
                 self.text_input.push(c);
             }
             KeyCode::Backspace => {
                 self.text_input.pop();
             }
-            _other => (),
+            _other => return Some(key),
         }
 
         if let Ok(dur) = parse_duration(&self.text_input) {
@@ -57,6 +57,8 @@ impl HistoryLen {
         } else {
             self.state = State::Invalid;
         }
+
+        None
     }
 
     pub(crate) fn style_left_x_label(&self, org_label: Span<'static>) -> Span<'static> {

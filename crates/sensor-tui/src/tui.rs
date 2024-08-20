@@ -1,5 +1,5 @@
 use crossterm::{
-    event::{self, KeyCode, KeyEventKind},
+    event::{self, KeyCode, KeyEventKind, KeyModifiers},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
@@ -114,6 +114,9 @@ impl App {
                             KeyCode::Right => {
                                 self.active_tab = self.active_tab.swap();
                             }
+                            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                break Ok(());
+                            }
                             _ => (),
                         }
 
@@ -121,8 +124,11 @@ impl App {
                             ActiveTab::Readings => self.readings_tab.handle_key(key),
                             ActiveTab::Affectors => self.affectors_tab.handle_key(key),
                         };
-                        if let ShouldExit::Yes = res {
-                            return Ok(());
+                        if let Some(unhandled_key) = res {
+                            match unhandled_key.code {
+                                KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
+                                _ => (),
+                            }
                         }
                     }
                 }
@@ -132,12 +138,8 @@ impl App {
                 continue;
             };
 
+            self.affectors_tab.process_update(&update);
             self.readings_tab.process_update(update);
         }
     }
-}
-
-enum ShouldExit {
-    Yes,
-    No,
 }

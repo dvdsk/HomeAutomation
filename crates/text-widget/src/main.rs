@@ -3,7 +3,7 @@ use color_eyre::Result;
 use data_server::api::SubMessage;
 use data_server::api::{ReconnectingClient, ReconnectingSubscribedClient};
 use gethostname::gethostname;
-use protocol::reading_tree::Tree;
+use protocol::reading::tree::Tree;
 use protocol::Reading;
 use std::net::SocketAddr;
 use std::time::Duration;
