@@ -1,0 +1,228 @@
+use std::time::Instant;
+
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use log_store::api::{ErrorEvent, Percentile};
+use ratatui::layout::Rect;
+use ratatui::widgets::TableState;
+use ratatui::Frame;
+use tui_tree_widget::TreeState;
+
+pub(crate) mod history_len;
+pub mod sensor_info;
+mod render;
+use history_len::HistoryLen;
+
+use crate::{fetch::Fetch, Update};
+use sensor_info::{ChartParts, Details, Readings, TreeKey};
+
+use super::{ShouldExit, Theme};
+
+#[derive(Debug, Default, Clone, Copy)]
+enum InputMode {
+    #[default]
+    Normal,
+    EditingBounds,
+}
+
+#[derive(Default)]
+pub struct UiState {
+    show_histogram: bool,
+    show_logs: bool,
+    history_length: HistoryLen,
+    input_mode: InputMode,
+    reading_tree_state: TreeState<TreeKey>,
+    logs_table_state: TableState,
+}
+
+pub struct Tab {
+    ui_state: UiState,
+    readings: Readings,
+    plot_buf: Vec<(f64, f64)>,
+}
+
+impl Default for Tab {
+    fn default() -> Self {
+        Self {
+            ui_state: UiState::default(),
+            readings: Readings::new(),
+            plot_buf: Vec::new(),
+        }
+    }
+}
+
+impl Tab {
+    pub fn render(&mut self, fetcher: &mut Fetch, frame: &mut Frame, layout: Rect, theme: &Theme) {
+        let Self {
+            ui_state,
+            readings,
+            plot_buf,
+        } = self;
+
+        let (chart, histogram, details, logs) = fun_name(ui_state, readings, fetcher, plot_buf);
+
+        let percentiles = histogram.clone();
+        render::app(
+            frame,
+            layout,
+            ui_state,
+            readings,
+            details,
+            chart,
+            logs,
+            percentiles,
+            theme,
+        );
+    }
+
+    pub fn handle_key(&mut self, key: KeyEvent) -> ShouldExit {
+        let res = self.ui_state.handle_key_all_modes(key);
+        if let ShouldExit::Yes = res {
+            return ShouldExit::Yes;
+        }
+        let plot_open = !self.plot_buf.is_empty();
+        let res = match self.ui_state.input_mode {
+            InputMode::Normal => self.ui_state.handle_key_normal_mode(key, plot_open),
+            InputMode::EditingBounds => self.ui_state.handle_key_bounds_mode(key),
+        };
+
+        if let ShouldExit::Yes = res {
+            return ShouldExit::Yes;
+        }
+
+        ShouldExit::No
+    }
+
+    pub fn process_update(&mut self, update: Update) {
+        let data = self
+            .ui_state
+            .reading_tree_state
+            .selected()
+            .last() // unique leaf id
+            .and_then(|key| self.readings.data.get_mut(key));
+
+        match update {
+            Update::SensorReading(reading) => {
+                self.readings.add(reading);
+            }
+            Update::ReadingList(list) => {
+                self.readings.populate_from_reading_list(list);
+            }
+            Update::DeviceList(list) => {
+                self.readings.populate_from_device_list(list);
+            }
+            Update::SensorError(err) => self.readings.add_error(err),
+            Update::Fetched {
+                reading,
+                thing: fetched,
+            } => {
+                if data
+                    .as_ref()
+                    .is_some_and(|i| i.reading.is_same_as(&reading))
+                {
+                    self.ui_state.history_length.state = history_len::State::Fetched;
+                }
+                self.readings.add_fetched(reading, fetched);
+            }
+
+            _ => (),
+        }
+
+        if self.ui_state.reading_tree_state.selected().is_empty() {
+            self.ui_state.reading_tree_state.select_first();
+        }
+    }
+}
+
+fn fun_name<'a>(
+    ui_state: &mut UiState,
+    readings: &mut Readings,
+    fetcher: &mut Fetch,
+    plot_buf: &'a mut Vec<(f64, f64)>,
+) -> (
+    Option<ChartParts<'a>>,
+    Vec<Percentile>,
+    Option<Details>,
+    Option<Vec<ErrorEvent>>,
+) {
+    let data = ui_state
+        .reading_tree_state
+        .selected()
+        .last() // unique leaf id
+        .and_then(|key| readings.data.get_mut(key));
+
+    let dur = ui_state.history_length.dur;
+    let history_len = &mut ui_state.history_length.state;
+    if let Some(data) = data {
+        fetcher.assure_up_to_date(
+            dur,
+            || *history_len = history_len::State::Fetching(Instant::now()),
+            data.reading.clone(),
+            data.oldest_in_history(),
+            data.logs_from_store_hist,
+            data.histogram_range.clone(),
+        );
+        (
+            data.chart(plot_buf),
+            data.percentiles(),
+            Some(data.details()),
+            Some(data.logs()),
+        )
+    } else {
+        plot_buf.clear();
+        (None, Vec::new(), None, None)
+    }
+}
+
+impl UiState {
+    fn handle_key_normal_mode(&mut self, key: KeyEvent, plot_open: bool) -> ShouldExit {
+        match key.code {
+            KeyCode::Char('q') | KeyCode::Esc => {
+                return ShouldExit::Yes;
+            }
+            KeyCode::Char('b') => {
+                if plot_open {
+                    self.history_length.start_editing();
+                    self.input_mode = InputMode::EditingBounds;
+                }
+            }
+            KeyCode::Char('h') => {
+                self.show_histogram = !self.show_histogram;
+            }
+            KeyCode::Char('l') => {
+                self.show_logs = !self.show_logs;
+            }
+            _other => (),
+        }
+        ShouldExit::No
+    }
+
+    fn handle_key_bounds_mode(&mut self, key: KeyEvent) -> ShouldExit {
+        match key.code {
+            KeyCode::Char('q') | KeyCode::Esc => {
+                self.history_length.exit_editing();
+                self.input_mode = InputMode::Normal;
+            }
+            other => self.history_length.process(other),
+        }
+        ShouldExit::No
+    }
+
+    fn handle_key_all_modes(&mut self, key: KeyEvent) -> ShouldExit {
+        match key.code {
+            KeyCode::Down => {
+                self.reading_tree_state.key_down();
+            }
+            KeyCode::Up => {
+                self.reading_tree_state.key_up();
+            }
+            KeyCode::Enter => {
+                self.reading_tree_state.toggle_selected();
+            }
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                return ShouldExit::Yes;
+            }
+            _other => (),
+        }
+        ShouldExit::No
+    }
+}

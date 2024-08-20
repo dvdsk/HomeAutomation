@@ -2,7 +2,7 @@ use protocol::reading_tree::ReadingInfo;
 use ratatui::layout::Rect;
 use ratatui::text::Span;
 
-use crate::tui::reading::ChartParts;
+use crate::tui::readings::sensor_info::ChartParts;
 
 use super::Bounds;
 

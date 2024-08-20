@@ -454,7 +454,7 @@ impl Device {
                 temporal_resolution: Duration::from_millis(100),
                 min_sample_interval: Duration::from_millis(100),
                 max_sample_interval,
-                affectors: &[],
+                affectors: &tree!(Affector; Affector::Nau7802LeftCalib),
             },
             Device::Nau7802Right => crate::DeviceInfo {
                 name: "Nau7802Right",
@@ -462,7 +462,7 @@ impl Device {
                 temporal_resolution: Duration::from_millis(100),
                 min_sample_interval: Duration::from_millis(100),
                 max_sample_interval,
-                affectors: &[],
+                affectors: &tree!(Affector; Affector::Nau7802RightCalib),
             },
             Device::Gpio => crate::DeviceInfo {
                 name: "Gpio",
@@ -497,4 +497,6 @@ impl Device {
 pub enum Affector {
     Sps30FanClean,
     MhzZeroPointCalib,
+    Nau7802LeftCalib,
+    Nau7802RightCalib,
 }

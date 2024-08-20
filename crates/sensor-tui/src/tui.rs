@@ -1,28 +1,24 @@
 use crossterm::{
-    event::{self, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
+    event::{self, KeyCode, KeyEventKind},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
 use ratatui::{
     prelude::{CrosstermBackend, Terminal},
-    widgets::TableState,
+    style::{Color, Style},
 };
+use render::render_tab;
 use std::{
-    collections::HashMap,
     io::{stdout, Stdout},
     sync::mpsc,
     time::Duration,
 };
-use tui_tree_widget::TreeState;
 
-mod reading;
-use reading::{Readings, TreeKey};
+use crate::{Fetch, Update, UserIntent};
 
+mod affectors;
+mod readings;
 mod render;
-use crate::{fetch::Fetch, Update, UserIntent};
-
-pub(crate) mod history_len;
-use history_len::HistoryLen;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 enum ActiveTab {
@@ -47,11 +43,18 @@ impl ActiveTab {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy)]
-enum InputMode {
-    #[default]
-    Normal,
-    EditingBounds,
+pub(crate) struct Theme {
+    bars: Style,
+    centered_text: Style,
+}
+
+impl Default for Theme {
+    fn default() -> Self {
+        Self {
+            bars: Style::new().bg(Color::Gray).fg(Color::Black),
+            centered_text: Style::new(),
+        }
+    }
 }
 
 pub fn run(
@@ -75,15 +78,10 @@ pub fn run(
 
 #[derive(Default)]
 struct App {
-    theme: render::Theme,
-    input_mode: InputMode,
+    theme: Theme,
     active_tab: ActiveTab,
-    show_histogram: bool,
-    show_logs: bool,
-    reading_tree_state: TreeState<TreeKey>,
-    affector_tree_state: TreeState<TreeKey>,
-    logs_table_state: TableState,
-    history_length: HistoryLen,
+    readings_tab: readings::Tab,
+    affectors_tab: affectors::Tab,
 }
 
 impl App {
@@ -93,168 +91,49 @@ impl App {
         rx: mpsc::Receiver<Update>,
         mut fetcher: Fetch,
     ) -> Result<(), std::io::Error> {
-        let mut readings = Readings {
-            ground: Vec::new(),
-            data: HashMap::new(),
-        };
-
-        let affectors = Vec::new();
-        let mut plot_buf = Vec::new();
-
         loop {
-            let mut data = self
-                .reading_tree_state
-                .selected()
-                .last() // unique leaf id
-                .and_then(|key| readings.data.get_mut(key));
-
-            let plot_open = data.is_some();
-            let (chart, histogram, details, logs) = if let Some(data) = data.as_mut() {
-                fetcher.assure_up_to_date(
-                    &mut self.history_length,
-                    data.reading.clone(),
-                    data.oldest_in_history(),
-                    data.logs_from_store_hist,
-                    data.histogram_range.clone(),
-                );
-                (
-                    data.chart(&mut plot_buf),
-                    data.histogram(),
-                    Some(data.details()),
-                    Some(data.logs()),
-                )
-            } else {
-                (None, Vec::new(), None, None)
-            };
-
             terminal.draw(|frame| {
-                render::app(
-                    frame,
-                    self,
-                    &readings.ground,
-                    &affectors,
-                    details,
-                    chart,
-                    logs,
-                    &histogram,
-                );
+                let layout = render_tab(frame, self);
+                match self.active_tab {
+                    ActiveTab::Readings => {
+                        self.readings_tab
+                            .render(&mut fetcher, frame, layout, &self.theme)
+                    }
+                    ActiveTab::Affectors => self.affectors_tab.render(frame, layout, &self.theme),
+                }
             })?;
-
-            if self.reading_tree_state.selected().is_empty() {
-                self.reading_tree_state.select_first();
-            }
 
             if event::poll(Duration::from_millis(16))? {
                 if let event::Event::Key(key) = event::read()? {
                     tracing::trace!("key pressed: {key:?}");
                     if key.kind == KeyEventKind::Press {
-                        let res = self.handle_key_all_modes(key);
-                        if let ShouldExit::Yes = res {
-                            break;
+                        match key.code {
+                            KeyCode::Left => {
+                                self.active_tab = self.active_tab.swap();
+                            }
+                            KeyCode::Right => {
+                                self.active_tab = self.active_tab.swap();
+                            }
+                            _ => (),
                         }
-                        let res = match self.input_mode {
-                            InputMode::Normal => self.handle_key_normal_mode(key, plot_open),
-                            InputMode::EditingBounds => self.handle_key_bounds_mode(key),
-                        };
 
+                        let res = match self.active_tab {
+                            ActiveTab::Readings => self.readings_tab.handle_key(key),
+                            ActiveTab::Affectors => self.affectors_tab.handle_key(key),
+                        };
                         if let ShouldExit::Yes = res {
-                            break;
+                            return Ok(());
                         }
                     }
                 }
-            };
+            }
 
             let Ok(update) = rx.try_recv() else {
                 continue;
             };
 
-            match update {
-                Update::SensorReading(reading) => {
-                    readings.add(reading);
-                }
-                Update::ReadingList(list) => {
-                    readings.populate_from_reading_list(list);
-                }
-                Update::DeviceList(list) => {
-                    readings.populate_from_device_list(list);
-                }
-                Update::SensorError(err) => readings.add_error(err),
-                Update::Fetched {
-                    reading,
-                    thing: fetched,
-                } => {
-                    if data
-                        .as_ref()
-                        .is_some_and(|i| i.reading.is_same_as(&reading))
-                    {
-                        self.history_length.state = history_len::State::Fetched;
-                    }
-                    readings.add_fetched(reading, fetched);
-                }
-
-                _ => (),
-            }
+            self.readings_tab.process_update(update);
         }
-
-        Ok(())
-    }
-
-    fn handle_key_normal_mode(&mut self, key: KeyEvent, plot_open: bool) -> ShouldExit {
-        match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => {
-                return ShouldExit::Yes;
-            }
-            KeyCode::Left => {
-                self.active_tab = self.active_tab.swap();
-            }
-            KeyCode::Right => {
-                self.active_tab = self.active_tab.swap();
-            }
-            KeyCode::Char('b') => {
-                if plot_open {
-                    self.history_length.start_editing();
-                    self.input_mode = InputMode::EditingBounds;
-                }
-            }
-            KeyCode::Char('h') => {
-                self.show_histogram = !self.show_histogram;
-            }
-            KeyCode::Char('l') => {
-                self.show_logs = !self.show_logs;
-            }
-            _other => (),
-        }
-        ShouldExit::No
-    }
-
-    fn handle_key_bounds_mode(&mut self, key: KeyEvent) -> ShouldExit {
-        match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => {
-                self.history_length.exit_editing();
-                self.input_mode = InputMode::Normal;
-            }
-            other => self.history_length.process(other),
-        }
-        ShouldExit::No
-    }
-
-    fn handle_key_all_modes(&mut self, key: KeyEvent) -> ShouldExit {
-        match key.code {
-            KeyCode::Down => {
-                self.reading_tree_state.key_down();
-            }
-            KeyCode::Up => {
-                self.reading_tree_state.key_up();
-            }
-            KeyCode::Enter => {
-                self.reading_tree_state.toggle_selected();
-            }
-            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                return ShouldExit::Yes;
-            }
-            _other => (),
-        }
-        ShouldExit::No
     }
 }
 

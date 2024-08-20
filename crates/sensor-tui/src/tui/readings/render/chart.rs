@@ -6,14 +6,12 @@ use ratatui::{
     Frame,
 };
 
-use crate::tui::reading::ChartParts;
-
-use super::App;
+use crate::tui::readings::{sensor_info::ChartParts, UiState};
 
 mod labels;
 use labels::labels;
 
-pub fn render(frame: &mut Frame, layout: Rect, app: &mut App, chart: ChartParts) {
+pub fn render(frame: &mut Frame, layout: Rect, tab: &mut UiState, chart: ChartParts) {
     let dataset = Dataset::default()
         .marker(symbols::Marker::Dot)
         .graph_type(GraphType::Line)
@@ -25,7 +23,7 @@ pub fn render(frame: &mut Frame, layout: Rect, app: &mut App, chart: ChartParts)
 
     let borrowed = x_labels.first_mut().expect("min labels is 2");
     let owned = std::mem::take(borrowed);
-    x_labels[0] = app.history_length.style_left_x_label(owned);
+    x_labels[0] = tab.history_length.style_left_x_label(owned);
 
     let x_axis = Axis::default()
         .title("Time")

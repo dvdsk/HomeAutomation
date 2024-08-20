@@ -1,13 +1,12 @@
 use hdrhistogram::Histogram;
 use itertools::Itertools;
 use jiff::Unit;
-use log_store::api::{ErrorEvent, Percentile};
+use log_store::api::{self, ErrorEvent, Percentile};
 use protocol::reading_tree::ReadingInfo;
 use protocol::reading_tree::{Item, Tree};
 use protocol::Reading;
 use protocol::{Device, Error};
 
-use ratatui::{text::Line, widgets::Bar};
 use std::collections::HashMap;
 use std::ops::RangeInclusive;
 use tui_tree_widget::TreeItem;
@@ -82,7 +81,7 @@ impl SensorInfo {
         }
     }
 
-    pub fn histogram(&self) -> Vec<Bar> {
+    pub fn percentiles(&self) -> Vec<api::Percentile> {
         let older_then_15s = |range: &RangeInclusive<jiff::Timestamp>| {
             jiff::Timestamp::now()
                 .since(*range.end())
@@ -91,14 +90,13 @@ impl SensorInfo {
                 > 15
         };
 
-        let percentiles = if self.histogram_range.is_none()
+        if self.histogram_range.is_none()
             || self.histogram_range.as_ref().is_some_and(older_then_15s)
         {
             self.fallback_local_hist()
         } else {
             self.percentiles_from_store.clone()
-        };
-        histogram_bars(&percentiles)
+        }
     }
 
     pub fn fallback_local_hist(&self) -> Vec<log_store::api::Percentile> {
@@ -463,6 +461,13 @@ impl Readings {
             }
         }
     }
+
+    pub(crate) fn new() -> Self {
+        Self {
+            ground: Vec::new(),
+            data: HashMap::new(),
+        }
+    }
 }
 
 pub struct ChartParts<'a> {
@@ -470,20 +475,4 @@ pub struct ChartParts<'a> {
     pub data: &'a [(f64, f64)],
 }
 
-fn histogram_bars(percentiles: &[log_store::api::Percentile]) -> Vec<Bar<'static>> {
-    percentiles
-        .into_iter()
-        .map(
-            |log_store::api::Percentile {
-                 bucket_ends,
-                 percentile,
-                 count_in_bucket,
-             }| {
-                Bar::default()
-                    .value(*count_in_bucket)
-                    .text_value(format!("p{percentile}: {}", count_in_bucket))
-                    .label(Line::from(format!("..{}", bucket_ends)))
-            },
-        )
-        .collect()
-}
+

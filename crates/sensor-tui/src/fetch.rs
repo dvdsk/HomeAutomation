@@ -3,7 +3,7 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::ops::RangeInclusive;
 use std::sync::mpsc;
-use std::time::Instant;
+use std::time::Duration;
 
 use color_eyre::Result;
 use jiff::{Span, Timestamp};
@@ -12,7 +12,6 @@ use protocol::Reading;
 use tokio::task;
 use tracing::debug;
 
-use crate::tui::history_len;
 use crate::{client_name, Fetchable, Update};
 
 const MAX_IN_FLIGHT_REQUESTS: usize = 6;
@@ -85,13 +84,14 @@ impl Fetch {
 
     pub fn assure_up_to_date(
         &mut self,
-        history_len: &mut history_len::HistoryLen,
+        history_len: Duration,
+        on_fetch_start: impl FnOnce() -> (),
         reading: Reading,
         oldest_in_data: Timestamp,
         logs_cover_from: Option<Timestamp>,
         hist_cover: Option<RangeInclusive<Timestamp>>,
     ) {
-        let history_spans = Span::try_from(history_len.dur).unwrap();
+        let history_spans = Span::try_from(history_len).unwrap();
         let start_needed = Timestamp::now() - history_spans;
         if self.history_outdated_not_updating(&reading, start_needed, oldest_in_data) {
             debug!("Requesting history for {reading:?}");
@@ -99,7 +99,7 @@ impl Fetch {
                 reading: reading.clone(),
                 range: start_needed..=Timestamp::now(),
             }));
-            history_len.state = history_len::State::Fetching(Instant::now());
+            (on_fetch_start)();
         }
         if self.logs_outdated_not_updating(&reading, start_needed, logs_cover_from) {
             debug!("Requesting logs for {reading:?}");
