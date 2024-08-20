@@ -20,17 +20,14 @@ use super::{
 mod chart;
 mod logs;
 
-pub(crate) fn app(
+pub(crate) fn layout(
     frame: &mut Frame,
     layout: Rect,
     ui_state: &mut UiState,
     readings: &Readings,
-    details: Option<Details>,
-    chart: Option<ChartParts>,
-    logs: Option<Vec<ErrorEvent>>,
-    percentiles: Vec<Percentile>,
-    theme: &Theme,
-) {
+    chart: &Option<ChartParts>,
+    logs: &Option<Vec<ErrorEvent>>,
+) -> [Rect; 3] {
     let [list_constraint, graph_constraint] = if chart.is_some() {
         let tree_height = 2 + ui_state.reading_tree_state.flatten(&readings.ground).len();
         let details_height = 9;
@@ -48,20 +45,12 @@ pub(crate) fn app(
         [Constraint::Percentage(100), Constraint::Percentage(0)]
     };
 
-    let [top, bottom, footer] =
-        Layout::vertical([list_constraint, graph_constraint, Constraint::Min(1)])
-            .flex(Flex::Legacy)
-            .areas(layout);
-
-    let have_details = details.is_some();
-    render_readings_and_details(frame, top, ui_state, readings, details);
-    if have_details {
-        render_graph_hist_logs(frame, bottom, ui_state, &percentiles, logs, chart, theme);
-    }
-    render_footer(frame, footer, ui_state, theme);
+    Layout::vertical([list_constraint, graph_constraint, Constraint::Min(1)])
+        .flex(Flex::Legacy)
+        .areas(layout)
 }
 
-fn render_footer(frame: &mut Frame, layout: Rect, app: &mut UiState, theme: &Theme) {
+pub fn footer(frame: &mut Frame, layout: Rect, app: &mut UiState, theme: &Theme) {
     let mut footer = Vec::new();
 
     if app.history_length.editing {
@@ -90,7 +79,7 @@ fn render_footer(frame: &mut Frame, layout: Rect, app: &mut UiState, theme: &The
     frame.render_widget(footer, layout)
 }
 
-fn render_graph_hist_logs(
+pub fn graph_hist_logs(
     frame: &mut Frame,
     layout: Rect,
     app: &mut UiState,
@@ -183,7 +172,7 @@ fn histogram_bars(percentiles: &[log_store::api::Percentile]) -> Vec<Bar<'static
         .collect()
 }
 
-pub(crate) fn render_readings_and_details(
+pub(crate) fn readings_and_details(
     frame: &mut Frame,
     layout: Rect,
     app: &mut UiState,

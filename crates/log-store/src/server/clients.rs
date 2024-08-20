@@ -7,7 +7,7 @@ use color_eyre::Section;
 use futures::{SinkExt, TryStreamExt};
 use governor::clock::{Clock, DefaultClock};
 use governor::{Quota, RateLimiter};
-use logger::RateLimitedLogger;
+use ratelimited_logger::RateLimitedLogger;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_serde::formats::Bincode;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
@@ -15,8 +15,6 @@ use tracing::{debug, error, warn};
 
 use super::db::{Logs, Stats};
 use crate::api::{self, ServerError};
-
-mod logger;
 
 type Conn = tokio_serde::Framed<
     Framed<TcpStream, LengthDelimitedCodec>,

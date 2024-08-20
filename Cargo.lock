@@ -871,6 +871,7 @@ dependencies = [
  "futures",
  "futures-concurrency",
  "protocol",
+ "ratelimited-logger",
  "reserve-port",
  "serde",
  "slotmap",
@@ -2037,6 +2038,7 @@ dependencies = [
  "nucleo-matcher",
  "num",
  "protocol",
+ "ratelimited-logger",
  "reserve-port",
  "serde",
  "smallvec 2.0.0-alpha.7",
@@ -2755,6 +2757,16 @@ dependencies = [
  "unicode-segmentation",
  "unicode-truncate",
  "unicode-width",
+]
+
+[[package]]
+name = "ratelimited-logger"
+version = "0.1.0"
+dependencies = [
+ "governor",
+ "tracing",
+ "tracing-error",
+ "tracing-subscriber",
 ]
 
 [[package]]

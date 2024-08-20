@@ -9,13 +9,13 @@ use std::time::Duration;
 use tracing::info;
 use tracing::warn;
 
-pub(crate) struct RateLimitedLogger {
+pub struct RateLimitedLogger {
     pub(crate) rate_limiter: RateLimiter<NotKeyed, InMemoryState, DefaultClock, NoOpMiddleware>,
     pub(crate) withheld: usize,
 }
 
 impl RateLimitedLogger {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         let quota = Quota::with_period(Duration::from_secs(1))
             .unwrap()
             .allow_burst(NonZeroU32::new(5).unwrap());
@@ -25,7 +25,7 @@ impl RateLimitedLogger {
         }
     }
 
-    pub(crate) fn warn(&mut self, txt: &str) {
+    pub fn warn(&mut self, txt: &str) {
         if self.rate_limiter.check().is_err() {
             self.withheld += 1;
             return;
@@ -39,7 +39,7 @@ impl RateLimitedLogger {
         warn!(txt);
     }
 
-    pub(crate) fn info(&mut self, txt: &str) {
+    pub fn info(&mut self, txt: &str) {
         if self.rate_limiter.check().is_err() {
             self.withheld += 1;
             return;

@@ -1,19 +1,18 @@
 use std::time::Instant;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use log_store::api::{ErrorEvent, Percentile};
 use ratatui::layout::Rect;
 use ratatui::widgets::TableState;
 use ratatui::Frame;
 use tui_tree_widget::TreeState;
 
 pub(crate) mod history_len;
-pub mod sensor_info;
 mod render;
+pub mod sensor_info;
 use history_len::HistoryLen;
 
 use crate::{fetch::Fetch, Update};
-use sensor_info::{ChartParts, Details, Readings, TreeKey};
+use sensor_info::{Readings, TreeKey};
 
 use super::{ShouldExit, Theme};
 
@@ -58,20 +57,45 @@ impl Tab {
             plot_buf,
         } = self;
 
-        let (chart, histogram, details, logs) = fun_name(ui_state, readings, fetcher, plot_buf);
+        let (chart, percentiles, details, logs) = {
+            let data = ui_state
+                .reading_tree_state
+                .selected()
+                .last() // unique leaf id
+                .and_then(|key| readings.data.get_mut(key));
 
-        let percentiles = histogram.clone();
-        render::app(
-            frame,
-            layout,
-            ui_state,
-            readings,
-            details,
-            chart,
-            logs,
-            percentiles,
-            theme,
-        );
+            let dur = ui_state.history_length.dur;
+            let history_len = &mut ui_state.history_length.state;
+            if let Some(data) = data {
+                fetcher.assure_up_to_date(
+                    dur,
+                    || *history_len = history_len::State::Fetching(Instant::now()),
+                    data.reading.clone(),
+                    data.oldest_in_history(),
+                    data.logs_from_store_hist,
+                    data.histogram_range.clone(),
+                );
+                (
+                    data.chart(plot_buf),
+                    data.percentiles(),
+                    Some(data.details()),
+                    Some(data.logs()),
+                )
+            } else {
+                plot_buf.clear();
+                (None, Vec::new(), None, None)
+            }
+        };
+
+        let [top, bottom, footer] =
+            render::layout(frame, layout, ui_state, readings, &chart, &logs);
+
+        let have_details = details.is_some();
+        render::readings_and_details(frame, top, ui_state, readings, details);
+        if have_details {
+            render::graph_hist_logs(frame, bottom, ui_state, &percentiles, logs, chart, theme);
+        }
+        render::footer(frame, footer, ui_state, theme);
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> ShouldExit {
@@ -130,46 +154,6 @@ impl Tab {
         if self.ui_state.reading_tree_state.selected().is_empty() {
             self.ui_state.reading_tree_state.select_first();
         }
-    }
-}
-
-fn fun_name<'a>(
-    ui_state: &mut UiState,
-    readings: &mut Readings,
-    fetcher: &mut Fetch,
-    plot_buf: &'a mut Vec<(f64, f64)>,
-) -> (
-    Option<ChartParts<'a>>,
-    Vec<Percentile>,
-    Option<Details>,
-    Option<Vec<ErrorEvent>>,
-) {
-    let data = ui_state
-        .reading_tree_state
-        .selected()
-        .last() // unique leaf id
-        .and_then(|key| readings.data.get_mut(key));
-
-    let dur = ui_state.history_length.dur;
-    let history_len = &mut ui_state.history_length.state;
-    if let Some(data) = data {
-        fetcher.assure_up_to_date(
-            dur,
-            || *history_len = history_len::State::Fetching(Instant::now()),
-            data.reading.clone(),
-            data.oldest_in_history(),
-            data.logs_from_store_hist,
-            data.histogram_range.clone(),
-        );
-        (
-            data.chart(plot_buf),
-            data.percentiles(),
-            Some(data.details()),
-            Some(data.logs()),
-        )
-    } else {
-        plot_buf.clear();
-        (None, Vec::new(), None, None)
     }
 }
 

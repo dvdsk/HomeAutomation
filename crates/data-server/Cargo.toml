@@ -15,6 +15,7 @@ color-eyre = { workspace = true }
 tracing = { workspace = true }
 tracing-error = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
+ratelimited-logger = { workspace = true }
 
 protocol = { workspace = true, features = ["alloc", "thiserror"] }
 tokio = { workspace = true, features = ["rt", "macros", "net", "sync", "io-util"] }

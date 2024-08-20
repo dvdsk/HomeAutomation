@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 
 use color_eyre::eyre::Context;
 use futures::SinkExt;
+use ratelimited_logger::RateLimitedLogger;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
 use tokio_serde::formats::Bincode;
@@ -10,10 +11,10 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
 use color_eyre::{Result, Section};
 
-use tracing::{info, warn};
+use tracing::warn;
 
 use crate::api;
-use crate::api::{AffectorError, Response};
+use crate::api::AffectorError;
 
 use super::{affector::Offline, affector::Registar, Conn, Event};
 
@@ -78,12 +79,13 @@ pub async fn handle(addr: SocketAddr, tx: mpsc::Sender<Event>, affectors: Regist
         .await
         .wrap_err("Could not start receiving updates")
         .with_note(|| format!("trying to listen on: {addr}"))?;
+    let mut logger = RateLimitedLogger::new();
 
     loop {
         let res = listener.accept().await;
         match res {
             Ok((stream, source)) => {
-                if let Some((conn, name)) = handshake(stream, source).await {
+                if let Some((conn, name)) = handshake(stream, source, &mut logger).await {
                     let id = format!("{name}@{source}");
                     tokio::task::spawn(handle_client(conn, id, tx.clone(), affectors.clone()));
                 }
@@ -96,8 +98,12 @@ pub async fn handle(addr: SocketAddr, tx: mpsc::Sender<Event>, affectors: Regist
     }
 }
 
-#[tracing::instrument(skip(stream))]
-async fn handshake(stream: TcpStream, source: SocketAddr) -> Option<(Conn, String)> {
+#[tracing::instrument(skip(stream, logger))]
+async fn handshake(
+    stream: TcpStream,
+    source: SocketAddr,
+    logger: &mut RateLimitedLogger,
+) -> Option<(Conn, String)> {
     let length_delimited = Framed::new(
         stream,
         LengthDelimitedCodec::builder()
@@ -109,15 +115,16 @@ async fn handshake(stream: TcpStream, source: SocketAddr) -> Option<(Conn, Strin
 
     match stream.try_next().await {
         Ok(Some(api::Request::Handshake { name })) => {
-            info!("Client {name} connected from {source}");
-            if let Err(e) = stream.send(Response::Handshake).await {
-                warn!("Failed to acknowledge handshake, error: {e}");
-            };
+            logger.info(&format!("Client {name} connected from {source}"));
             return Some((stream, name));
         }
-        Ok(Some(other)) => warn!("client tried to connected without handshake, it send: {other:?}"),
-        Ok(None) => warn!("client closed connection immediately"),
-        Err(e) => warn!("connection or decoding issue while receiving handshake: {e:?}"),
+        Ok(Some(other)) => logger.warn(&format!(
+            "client tried to connected without handshake, it send: {other:?}"
+        )),
+        Ok(None) => logger.warn("client closed connection immediately"),
+        Err(e) => logger.warn(&format!(
+            "connection or decoding issue while receiving handshake: {e:?}"
+        )),
     }
 
     None
