@@ -870,6 +870,7 @@ dependencies = [
  "color-eyre",
  "futures",
  "futures-concurrency",
+ "governor",
  "protocol",
  "ratelimited-logger",
  "reserve-port",

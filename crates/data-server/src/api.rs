@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use serde::{Deserialize, Serialize};
 
 pub mod client;
@@ -42,4 +44,6 @@ pub struct SubscribeError;
 
 #[derive(Clone, Debug, thiserror::Error, Serialize, Deserialize)]
 #[error("placeholder")]
-pub struct ServerError;
+pub enum ServerError {
+    TooManyRequests(Duration),
+}

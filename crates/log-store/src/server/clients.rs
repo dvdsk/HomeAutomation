@@ -11,7 +11,7 @@ use ratelimited_logger::RateLimitedLogger;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_serde::formats::Bincode;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
-use tracing::{debug, error, warn};
+use tracing::{debug, error};
 
 use super::db::{Logs, Stats};
 use crate::api::{self, ServerError};
@@ -37,7 +37,7 @@ pub(crate) async fn handle(port: u16, stats: Stats, logs: Logs) -> color_eyre::R
     loop {
         let (socket, source) = match listener.accept().await {
             Err(e) => {
-                warn!("client could not connect: {e}");
+                logger.warn(&format!("client could not connect: {e}"));
                 continue;
             }
             Ok(res) => res,

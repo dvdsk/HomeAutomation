@@ -11,7 +11,6 @@ pub type TreeKey = [u8; 6];
 
 pub struct Tab {
     affector_tree_state: TreeState<TreeKey>,
-    // affectors
 }
 
 impl Default for Tab {
@@ -43,7 +42,18 @@ impl Tab {
         todo!()
     }
 
-    pub fn process_update(&mut self, _update: Update) {
-        todo!()
+    pub fn process_update(&mut self, update: Update) {
+
+        match update {
+            Update::ReadingList(_) |
+            Update::Fetched {.. } |
+            Update::FetchError(_) |
+            Update::SubscribeError(_) => (),
+            Update::SensorReading(r) => {
+                r.device().info().affectors;
+            },
+            Update::SensorError(_) => todo!(),
+            Update::DeviceList(_) => todo!(),
+        }
     }
 }

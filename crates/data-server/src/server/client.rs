@@ -1,7 +1,11 @@
 use std::net::SocketAddr;
+use std::num::NonZeroU32;
+use std::time::Duration;
 
 use color_eyre::eyre::Context;
 use futures::SinkExt;
+use governor::clock::{Clock, DefaultClock};
+use governor::{Quota, RateLimiter};
 use ratelimited_logger::RateLimitedLogger;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
@@ -13,8 +17,8 @@ use color_eyre::{Result, Section};
 
 use tracing::warn;
 
-use crate::api;
 use crate::api::AffectorError;
+use crate::api::{self, ServerError};
 
 use super::{affector::Offline, affector::Registar, Conn, Event};
 
@@ -75,6 +79,10 @@ async fn handle_client(
 }
 
 pub async fn handle(addr: SocketAddr, tx: mpsc::Sender<Event>, affectors: Registar) -> Result<()> {
+    let quota = Quota::with_period(Duration::from_secs(1))
+        .unwrap()
+        .allow_burst(NonZeroU32::new(5).unwrap());
+    let limiter = RateLimiter::keyed(quota);
     let listener = TcpListener::bind(addr)
         .await
         .wrap_err("Could not start receiving updates")
@@ -82,19 +90,32 @@ pub async fn handle(addr: SocketAddr, tx: mpsc::Sender<Event>, affectors: Regist
     let mut logger = RateLimitedLogger::new();
 
     loop {
-        let res = listener.accept().await;
-        match res {
-            Ok((stream, source)) => {
-                if let Some((conn, name)) = handshake(stream, source, &mut logger).await {
-                    let id = format!("{name}@{source}");
-                    tokio::task::spawn(handle_client(conn, id, tx.clone(), affectors.clone()));
-                }
-            }
+        let (socket, source) = match listener.accept().await {
             Err(e) => {
-                warn!("new connection failed: {e}");
+                logger.warn(&format!("client could not connect: {e}"));
                 continue;
             }
+            Ok(res) => res,
         };
+
+        let Some((mut conn, name)) = handshake(socket, source, &mut logger).await else {
+            continue;
+        };
+
+        if let Err(allowed_again) = limiter.check_key(&(source.ip(), name.clone())) {
+            let allowed_in = allowed_again.wait_time_from(DefaultClock::default().now());
+            let _ignore_err = conn.send(api::Response::Error(ServerError::TooManyRequests(
+                allowed_in,
+            )));
+            continue;
+        }
+
+        let Ok(()) = conn.send(api::Response::Handshake).await else {
+            continue;
+        };
+
+        let id = format!("{name}@{source}");
+        tokio::task::spawn(handle_client(conn, id, tx.clone(), affectors.clone()));
     }
 }
 
