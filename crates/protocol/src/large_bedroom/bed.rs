@@ -1,13 +1,13 @@
 use core::time::Duration;
 
 use crate::button::Press;
+use crate::button_enum;
 #[cfg(feature = "alloc")]
 use crate::reading::tree::{Id, Item, Tree};
 #[cfg(feature = "alloc")]
 use crate::reading::Info;
 #[cfg(feature = "alloc")]
-use crate::Unit;
-use crate::{affector, button_enum};
+use crate::{affector, Unit};
 
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
@@ -527,6 +527,7 @@ impl Affector {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl affector::tree::Tree for Affector {
     fn inner(&self) -> affector::tree::Item<'_> {
         let description = match self {

@@ -1,10 +1,9 @@
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
-use crate::affector;
 use crate::msg::DecodeMsgError;
 #[cfg(feature = "alloc")]
-use crate::reading;
+use crate::{reading, affector};
 
 pub mod bed;
 pub mod desk;
