@@ -4,10 +4,10 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use byteseries::{downsample, series, ByteSeries};
-use color_eyre::eyre::{eyre, WrapErr};
+use color_eyre::eyre::WrapErr;
 use color_eyre::{Result, Section};
-use protocol::reading::tree::{Item, Tree};
 use protocol::reading;
+use protocol::reading::tree::{Item, Tree};
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument, trace};
 
@@ -32,7 +32,7 @@ struct Meta {
 #[derive(Debug)]
 pub(crate) struct Series {
     line: Vec<u8>,
-    meta: Vec<Meta>,
+    meta_list: Vec<Meta>,
     byteseries: ByteSeries,
 }
 
@@ -48,63 +48,47 @@ impl Series {
         let readings = reading.device().info().affects_readings;
         let specs = to_speclist(readings);
         let fields = bitspec::speclist_to_fields(specs);
-        let meta = readings
-            .iter()
-            .zip(fields.iter())
-            .map(|(reading, field)| Meta {
-                reading: reading.clone(),
-                field: field.clone(),
-                set_at: None,
-            })
-            .collect();
-
-        let payload_size = fields
-            .iter()
-            .map(|spec| spec.length as usize)
-            .sum::<usize>()
-            .div_ceil(8);
-        let resampler = Resampler::from_fields(fields.clone(), payload_size);
-        let resample_configs = vec![
-            downsample::Config {
-                max_gap: None,
-                bucket_size: 10,
-            },
-            downsample::Config {
-                max_gap: None,
-                bucket_size: 100,
-            },
-            downsample::Config {
-                max_gap: None,
-                bucket_size: 1000,
-            },
-        ];
-
-        let path = base_path(reading);
-        let path = dir.join(path);
-        let res = ByteSeries::open_existing_with_resampler::<Header, _>(
-            &path,
-            payload_size,
-            resampler.clone(),
-            resample_configs.clone(),
-        );
+        let (meta_list, payload_size) = meta_list_and_payload_size(readings, &fields);
 
         let expected_header = Header {
             readings: readings.to_vec(),
             encoding: fields.clone(),
         };
 
-        let byteseries = try_create_new_if_open_failed(
-            res,
-            expected_header,
-            &path,
-            payload_size,
-            resampler,
-            resample_configs,
-        )?;
+        let (resampler, configs) = resample_setup(&fields, payload_size);
+
+        let path = base_path(reading);
+        let path = dir.join(path);
+        let res = ByteSeries::builder()
+            .payload_size(payload_size)
+            .with_downsampled_cache(resampler.clone(), configs.clone())
+            .with_header(expected_header.clone())
+            .open(&path);
+
+        let byteseries = match res {
+            Ok((byteseries, _)) => byteseries,
+            Err(Open(DataOpenError::File(FileOpenError::Io(e))))
+                if e.kind() == io::ErrorKind::NotFound =>
+            {
+                info!("creating new byteseries");
+                create_dirs(&path)?;
+
+                ByteSeries::builder()
+                    .payload_size(payload_size)
+                    .with_downsampled_cache(resampler, configs)
+                    .with_header(expected_header)
+                    .create_new(true)
+                    .open(&path)
+                    .wrap_err("Could not create new byteseries")
+                    .with_note(|| format!("path: {}", path.display()))
+                    .map(|(db, _)| db)?
+            }
+            Err(e) => return Err(e).wrap_err("Could not open existing byteseries")?,
+        };
 
         Ok(Self {
             line: vec![0; payload_size],
-            meta,
+            meta_list,
             byteseries,
         })
     }
@@ -123,12 +107,12 @@ impl Series {
                 reading.branch_id()",
             );
 
-        let meta = &mut self.meta[index];
+        let meta = &mut self.meta_list[index];
         meta.field.encode(reading.leaf().val, &mut self.line);
         meta.set_at = Some(Instant::now());
 
         if self
-            .meta
+            .meta_list
             .iter()
             .map(|Meta { set_at, .. }| set_at)
             .all(|set| set.map(|s| s.elapsed().as_millis() < 500).unwrap_or(false))
@@ -170,16 +154,18 @@ impl Series {
         let fields = readings
             .iter()
             .map(|requested| {
-                self.meta
+                self.meta_list
                     .iter()
                     .find(|meta| requested.is_same_as(&meta.reading))
                     .inspect(|meta| trace!("meta used for decoding: {meta:?}"))
                     .map(|meta| meta.field.clone())
-                    .unwrap_or_else(|| panic!(
-                        "caller of read makes sure all readings are part of this \
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "caller of read makes sure all readings are part of this \
                         series.\n\tseries: {:?},\n\trequested: {:?}",
-                        self.meta, readings
-                    ))
+                            self.meta_list, readings
+                        )
+                    })
             })
             .collect();
         let mut resampler = Resampler::from_fields(fields, self.line.len());
@@ -218,6 +204,28 @@ impl Series {
     }
 }
 
+fn meta_list_and_payload_size(
+    readings: &[protocol::Reading],
+    fields: &[bitspec::Field<f32>],
+) -> (Vec<Meta>, usize) {
+    let meta = readings
+        .iter()
+        .zip(fields.iter())
+        .map(|(reading, field)| Meta {
+            reading: reading.clone(),
+            field: field.clone(),
+            set_at: None,
+        })
+        .collect();
+
+    let payload_size = fields
+        .iter()
+        .map(|spec| spec.length as usize)
+        .sum::<usize>()
+        .div_ceil(8);
+    (meta, payload_size)
+}
+
 /// Multiplying the time for this sample by this factor
 /// allows you to save the whole number and retain the required
 /// temporal_resolution and min_sample_interval.
@@ -229,61 +237,6 @@ pub fn millis_to_minimal_representation(device_info: protocol::DeviceInfo) -> u6
     let mul_factor = 0.001 / needed_interval;
     let div_factor = 1. / mul_factor;
     div_factor.round() as u64
-}
-
-fn try_create_new_if_open_failed(
-    res: Result<(ByteSeries, Header), series::Error>,
-    expected_header: Header,
-    path: &Path,
-    payload_size: usize,
-    resampler: Resampler,
-    resample_configs: Vec<downsample::Config>,
-) -> Result<ByteSeries, color_eyre::eyre::Error> {
-    match res {
-        Ok((byteseries, opened_file_header)) => {
-            if opened_file_header == expected_header {
-                info!("Opened existing byteseries from: {}", path.display());
-                Ok(byteseries)
-            } else {
-                Err(eyre!("header in file does not match readings"))
-                    .with_note(|| {
-                        format!(
-                            "header in the just existing (opened) byteseries: {opened_file_header:?}",
-                        )
-                    })
-                    .with_note(|| {
-                        format!(
-                            "header for the data we want to write: {expected_header:?}",
-                        )
-                    })
-            }
-        }
-        Err(Open(DataOpenError::File(FileOpenError::Io(e))))
-            if e.kind() == io::ErrorKind::NotFound =>
-        {
-            if let Some(dirs) = path.parent() {
-                create_dir_all(dirs)
-                    .wrap_err("Could not create dirs structure for reading")
-                    .with_note(|| format!("dirs: {}", dirs.display()))?;
-                std::fs::read_dir(dirs)
-                    .unwrap()
-                    .map(Result::unwrap)
-                    .for_each(|p| println!("{p:?}"));
-            }
-            // compile_error!("create directory structure");
-            info!("creating new byteseries");
-            ByteSeries::new_with_resamplers(
-                &path,
-                payload_size,
-                expected_header,
-                resampler,
-                resample_configs,
-            )
-            .wrap_err("Could not create new byteseries")
-            .with_note(|| format!("path: {}", path.display()))
-        }
-        Err(e) => Err(e).wrap_err("Could not open existing byteseries")?,
-    }
 }
 
 #[instrument(level = "debug", skip(data))]
@@ -338,6 +291,42 @@ fn base_path(reading: &protocol::Reading) -> PathBuf {
         }
     }
     parts.into_iter().collect()
+}
+
+fn resample_setup(
+    fields: &[bitspec::Field<f32>],
+    payload_size: usize,
+) -> (Resampler, Vec<downsample::Config>) {
+    let resampler = Resampler::from_fields(fields.to_vec(), payload_size);
+    let resample_configs = vec![
+        downsample::Config {
+            max_gap: None,
+            bucket_size: 10,
+        },
+        downsample::Config {
+            max_gap: None,
+            bucket_size: 100,
+        },
+        downsample::Config {
+            max_gap: None,
+            bucket_size: 1000,
+        },
+    ];
+    (resampler, resample_configs)
+}
+
+fn create_dirs(path: &Path) -> Result<()> {
+    if let Some(dirs) = path.parent() {
+        create_dir_all(dirs)
+            .wrap_err("Could not create dirs structure for reading")
+            .with_note(|| format!("dirs: {}", dirs.display()))?;
+        std::fs::read_dir(dirs)
+            .unwrap()
+            .map(Result::unwrap)
+            .for_each(|p| println!("{p:?}"));
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

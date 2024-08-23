@@ -3,11 +3,14 @@ use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use byteseries::file::OpenError as FileOpenError;
 use byteseries::{series, ByteSeries};
 use color_eyre::eyre::Context;
-use color_eyre::{eyre, Result, Section};
+use color_eyre::{Result, Section};
 use protocol::Device;
 use serde::{Deserialize, Serialize};
+use series::data::OpenError as DataOpenError;
+use series::Error::Open;
 use tokio::sync::Mutex;
 use tracing::{info, warn};
 
@@ -88,21 +91,44 @@ impl CurrentError {
     }
 }
 
-type Header = String;
-
 impl Log {
     pub fn open_or_create(dir: &Path, device: &Device) -> Result<Self> {
         let path = base_path(device);
         let path = dir.join(path);
 
         let payload_size = protocol::Error::max_size();
-        let res = ByteSeries::open_existing::<String>(&path, payload_size);
-
-        let expected_header = format!(
+        let header = format!(
             "Bincode encoded error logs for {device:?}. \
             Each line has a size: {payload_size} + 2"
         );
-        let history = try_create_new_if_open_failed(res, expected_header, &path, payload_size)?;
+
+        let res = ByteSeries::builder()
+            .payload_size(payload_size)
+            .create_new(true)
+            .with_header(header.clone())
+            .open(&path);
+
+        let history = match res {
+            Ok((byteseries, _)) => byteseries,
+            Err(Open(DataOpenError::File(FileOpenError::Io(e))))
+                if e.kind() == io::ErrorKind::NotFound =>
+            {
+                if let Some(dirs) = path.parent() {
+                    std::fs::create_dir_all(dirs)
+                        .wrap_err("Could not create dirs structure for reading")
+                        .with_note(|| format!("dirs: {}", dirs.display()))?;
+                }
+                info!("creating new byteseries");
+                ByteSeries::builder()
+                    .payload_size(payload_size)
+                    .with_header(header)
+                    .open(&path)
+                    .wrap_err("Could not create new byteseries")
+                    .with_note(|| format!("path: {}", path.display()))?
+                    .0
+            }
+            Err(e) => return Err(e).wrap_err("Could not open existing byteseries"),
+        };
 
         Ok(Self {
             history,
@@ -188,52 +214,6 @@ impl byteseries::Decoder for Decoder {
 }
 
 type ApiResult<T> = std::result::Result<T, api::GetLogError>;
-
-fn try_create_new_if_open_failed(
-    res: Result<(ByteSeries, Header), series::Error>,
-    expected_header: Header,
-    path: &Path,
-    payload_size: usize,
-) -> Result<ByteSeries, color_eyre::eyre::Error> {
-    use byteseries::file::OpenError as FileOpenError;
-    use series::data::OpenError as DataOpenError;
-    use series::Error::Open;
-
-    match res {
-        Ok((byteseries, opened_file_header)) => {
-            if opened_file_header == expected_header {
-                info!("Opened existing byteseries from: {}", path.display());
-                Ok(byteseries)
-            } else {
-                Err(eyre::eyre!("header in file does not match readings"))
-                    .with_note(|| {
-                        format!(
-                            "header in the just existing (opened) byteseries: {opened_file_header:?}",
-                        )
-                    })
-                    .with_note(|| {
-                        format!(
-                            "header for the data we want to write: {expected_header:?}",
-                        )
-                    })
-            }
-        }
-        Err(Open(DataOpenError::File(FileOpenError::Io(e))))
-            if e.kind() == io::ErrorKind::NotFound =>
-        {
-            if let Some(dirs) = path.parent() {
-                std::fs::create_dir_all(dirs)
-                    .wrap_err("Could not create dirs structure for reading")
-                    .with_note(|| format!("dirs: {}", dirs.display()))?;
-            }
-            info!("creating new byteseries");
-            ByteSeries::new(&path, payload_size, expected_header)
-                .wrap_err("Could not create new byteseries")
-                .with_note(|| format!("path: {}", path.display()))
-        }
-        Err(e) => Err(e).wrap_err("Could not open existing byteseries")?,
-    }
-}
 
 #[derive(Debug, Clone)]
 pub(crate) struct Logs(pub(crate) Arc<Mutex<HashMap<protocol::Device, Log>>>);
