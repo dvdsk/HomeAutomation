@@ -9,7 +9,7 @@ use color_eyre::{Result, Section};
 use protocol::reading;
 use protocol::reading::tree::{Item, Tree};
 use serde::{Deserialize, Serialize};
-use tracing::{info, instrument, trace};
+use tracing::{instrument, trace};
 
 use byteseries::file::OpenError as FileOpenError;
 use series::data::OpenError as DataOpenError;
@@ -33,6 +33,7 @@ struct Meta {
 pub(crate) struct Series {
     line: Vec<u8>,
     meta_list: Vec<Meta>,
+    last_timestamp_pushed: Option<u64>,
     byteseries: ByteSeries,
 }
 
@@ -70,8 +71,11 @@ impl Series {
             Err(Open(DataOpenError::File(FileOpenError::Io(e))))
                 if e.kind() == io::ErrorKind::NotFound =>
             {
-                info!("creating new byteseries");
-                create_dirs(&path)?;
+                if let Some(dirs) = path.parent() {
+                    create_dir_all(dirs)
+                        .wrap_err("Could not create dirs structure for reading")
+                        .with_note(|| format!("dirs: {}", dirs.display()))?;
+                }
 
                 ByteSeries::builder()
                     .payload_size(payload_size)
@@ -89,6 +93,7 @@ impl Series {
         Ok(Self {
             line: vec![0; payload_size],
             meta_list,
+            last_timestamp_pushed: None,
             byteseries,
         })
     }
@@ -111,21 +116,34 @@ impl Series {
         meta.field.encode(reading.leaf().val, &mut self.line);
         meta.set_at = Some(Instant::now());
 
+        let max_interval = reading.device().info().max_sample_interval;
+
         if self
             .meta_list
             .iter()
             .map(|Meta { set_at, .. }| set_at)
-            .all(|set| set.map(|s| s.elapsed().as_millis() < 500).unwrap_or(false))
+            .all(|set| {
+                set.is_some_and(|set| set.elapsed() < max_interval)
+            })
         {
             let time = jiff::Timestamp::now();
 
             let device_info = reading.leaf().device.info();
             let scale_factor = millis_to_minimal_representation(device_info);
             let scaled_time = time.as_millisecond() as u64 / scale_factor;
+            let new_ts = scaled_time;
+
+            if self.last_timestamp_pushed.is_some_and(|ts| ts == new_ts) {
+                tracing::warn!("Skipping datapoint with same timestamp");
+            }
             self.byteseries
-                .push_line(scaled_time, &self.line)
+                .push_line(new_ts, &self.line)
                 .wrap_err("Could not write to timeseries on disk")?;
             self.line.fill(0);
+
+            for meta in &mut self.meta_list {
+                meta.set_at = None;
+            }
         }
 
         Ok(())
@@ -313,20 +331,6 @@ fn resample_setup(
         },
     ];
     (resampler, resample_configs)
-}
-
-fn create_dirs(path: &Path) -> Result<()> {
-    if let Some(dirs) = path.parent() {
-        create_dir_all(dirs)
-            .wrap_err("Could not create dirs structure for reading")
-            .with_note(|| format!("dirs: {}", dirs.display()))?;
-        std::fs::read_dir(dirs)
-            .unwrap()
-            .map(Result::unwrap)
-            .for_each(|p| println!("{p:?}"));
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]
