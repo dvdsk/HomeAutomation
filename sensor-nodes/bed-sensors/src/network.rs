@@ -70,15 +70,16 @@ pub async fn handle(stack: &Stack<impl Driver>, publish: &Queues) {
     let mut tx_buffer = [0; max(Msg::ENCODED_SIZE, ErrorReport::ENCODED_SIZE) * 2];
 
     let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
-    socket.set_timeout(None);
-    socket.set_keep_alive(Some(Duration::from_secs(5)));
+    socket.set_timeout(Some(Duration::from_secs(5)));
+    socket.set_keep_alive(Some(Duration::from_secs(1)));
     let host_addr = Ipv4Address::new(192, 168, 1, 43);
     let host_port = 1234;
 
     debug!("Configured socket and connecting");
     loop {
+        debug!("socket state: {:?}", socket.state());
         if let Err(e) = socket.connect((host_addr, host_port)).await {
-            warn!("connect error: {:?}", e);
+            warn!("connect error: {}", e);
             Timer::after_secs(1).await;
             continue;
         }
@@ -87,11 +88,13 @@ pub async fn handle(stack: &Stack<impl Driver>, publish: &Queues) {
         publish.clear().await;
 
         let (reader, writer) = socket.split();
-
         match select(send_messages(writer, publish), receive_orders(reader)).await {
-            select::Either::First(e) => warn!("Error while sending messages: {:?}", e),
-            select::Either::Second(e) => warn!("Error receiving orders: {:?}", e),
-        }
+            select::Either::First(e) => warn!("Error while sending messages: {}", e),
+            select::Either::Second(e) => warn!("Error receiving orders: {}", e),
+        };
+        // or the socket will hang for a while waiting to close this makes sure
+        // we can reconnect instantly
+        socket.abort();
     }
 }
 
@@ -105,15 +108,23 @@ async fn send_messages(mut tcp: TcpWriter<'_>, publish: &Queues) -> embassy_net:
     }
 }
 
-async fn receive_orders(mut tcp: TcpReader<'_>) -> embassy_net::tcp::Error {
+#[derive(defmt::Format)]
+enum ReadError {
+    ConnectionClosed,
+    TcpError(embassy_net::tcp::Error),
+}
+
+async fn receive_orders(mut tcp: TcpReader<'_>) -> ReadError {
     let mut buf = [0u8; 100];
     loop {
-        let n_read = match tcp.read(&mut buf).await {
+        let res = tcp.read(&mut buf).await;
+        let n_read = match res {
+            Ok(0) => return ReadError::ConnectionClosed,
             Ok(n_read) => n_read,
-            Err(e) => return e,
+            Err(e) => return ReadError::TcpError(e),
         };
         let mut read = &buf[..n_read];
-        let mut decoder = protocol::affector::Decoder::new();
+        let mut decoder = protocol::affector::Decoder::default();
         while let Some((item, remaining)) = decoder.feed(read) {
             read = remaining;
             defmt::info!("received item: {:?}", item)
