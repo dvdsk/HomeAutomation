@@ -48,7 +48,7 @@ impl Request {
             _ => None,
         }
     }
-    fn unwrap_data(&self) -> Option<&Data> {
+    fn data(&self) -> Option<&Data> {
         match self {
             Request::Data(d) => Some(d),
             _ => None,
@@ -127,17 +127,17 @@ impl Fetch {
             return false;
         }
 
-        let with_margin = oldest_needed.as_millisecond() as f64 * 1.2;
-        let not_too_old = |start: &i64| *start < with_margin as i64;
+        let margin = oldest_needed.as_millisecond() as f64 * 1.2;
+        let not_too_old = |start: &i64| *start < margin as i64;
 
         !self
             .recently_issued
             .iter()
-            .filter_map(Request::unwrap_data)
-            .filter(|req| &req.reading == reading)
+            .filter_map(Request::data)
+            .filter(|req| req.reading.is_same_as(reading))
             .map(|req| req.range.start().as_millisecond())
             .filter(not_too_old)
-            .any(|start| start < oldest_needed.as_millisecond())
+            .any(|start| start <= oldest_needed.as_millisecond())
     }
 
     fn logs_outdated_not_updating(
@@ -156,7 +156,7 @@ impl Fetch {
             .filter_map(Request::unwrap_logs)
             .filter(|req| &req.reading == reading)
             .map(|req| req.range.start().as_millisecond())
-            .any(|start| start < oldest_needed.as_millisecond())
+            .any(|start| start <= oldest_needed.as_millisecond())
     }
 
     fn hist_outdated_not_updating(
@@ -181,7 +181,7 @@ impl Fetch {
             .map(|req| req.range.clone())
             .filter(|range| covers_recently(*range.end()))
             .map(|range| range.start().as_millisecond())
-            .any(|start| start < oldest_needed.as_millisecond())
+            .any(|start| start <= oldest_needed.as_millisecond())
     }
 
     fn request(&mut self, req: Request) {

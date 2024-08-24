@@ -23,7 +23,7 @@ struct AffectorState;
 pub struct Tab {
     tree_state: TreeState<TreeKey>,
     pub ground: Vec<TreeItem<'static, TreeKey>>,
-    pub data: HashMap<TreeKey, AffectorState>,
+    data: HashMap<TreeKey, AffectorState>,
 }
 
 impl Tab {
