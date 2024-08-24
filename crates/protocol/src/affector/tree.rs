@@ -23,9 +23,9 @@ pub trait Tree: core::fmt::Debug {
     }
     fn name(&self) -> String {
         let dbg_repr = format!("{self:?}");
+        let split = dbg_repr.find('(').unwrap_or(dbg_repr.len());
         dbg_repr
-            .split_once('(')
-            .map_or("_", |(name, _)| name)
+            .split_at(split).0
             .to_string()
     }
     fn branch_id(&self) -> Id;

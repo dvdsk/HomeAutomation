@@ -91,20 +91,20 @@ impl Tab {
         let key = tree_key(affector);
 
         let mut tree = add_root(affector as &dyn AffectorTree, &mut self.ground);
-        let mut tomato = match affector.inner() {
+        let mut tree_node = match affector.inner() {
             Item::Leaf(_) => unreachable!("no values at level 0"),
             Item::Node(inner) => inner,
         };
         loop {
-            match tomato.inner() {
+            match tree_node.inner() {
                 Item::Leaf(_) => {
-                    let text = tomato.name();
+                    let text = tree_node.name();
                     add_leaf(text, tree, key);
                     return;
                 }
                 Item::Node(inner) => {
-                    tree = add_node(tomato, tree);
-                    tomato = inner;
+                    tree = add_node(tree_node, tree);
+                    tree_node = inner;
                 }
             };
         }
