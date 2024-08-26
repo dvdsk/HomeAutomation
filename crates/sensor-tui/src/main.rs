@@ -46,6 +46,7 @@ enum Update {
     SensorError(Box<protocol::Error>),
     SubscribeError(color_eyre::Report),
     DeviceList(Vec<protocol::Device>),
+    AffectorControlled(protocol::Affector),
 }
 
 async fn receive_data(data_server: SocketAddr, tx: mpsc::Sender<Update>) {
