@@ -1,5 +1,7 @@
 use core::time::Duration;
 
+#[cfg(feature = "alloc")]
+use crate::affector::{Control, ControlValue};
 use crate::button::Press;
 use crate::button_enum;
 #[cfg(feature = "alloc")]
@@ -508,10 +510,11 @@ impl Device {
 )]
 #[strum_discriminants(derive(Hash))]
 pub enum Affector {
-    Sps30FanClean = 0,
+    Sps30FanClean,
     MhzZeroPointCalib,
     Nau7802LeftCalib,
     Nau7802RightCalib,
+    RgbLed { red: u8, green: u8, blue: u8 },
 }
 
 impl Affector {
@@ -522,7 +525,56 @@ impl Affector {
             (Affector::MhzZeroPointCalib, Affector::MhzZeroPointCalib) => true,
             (Affector::Nau7802LeftCalib, Affector::Nau7802LeftCalib) => true,
             (Affector::Nau7802RightCalib, Affector::Nau7802RightCalib) => true,
+            (Affector::RgbLed { .. }, Affector::RgbLed { .. }) => true,
             _ => false,
+        }
+    }
+
+    #[cfg(feature = "alloc")]
+    pub fn controls(&mut self) -> Vec<Control> {
+        match self {
+            Affector::Sps30FanClean => vec![Control {
+                name: "start fan cleaning",
+                value: ControlValue::Trigger,
+            }],
+            Affector::MhzZeroPointCalib => vec![Control {
+                name: "calibrate current reading as 400 ppm",
+                value: ControlValue::Trigger,
+            }],
+            Affector::Nau7802LeftCalib => vec![Control {
+                name: "things with ac power noise or something",
+                value: ControlValue::Trigger,
+            }],
+            Affector::Nau7802RightCalib => vec![Control {
+                name: "things with ac power noise or something",
+                value: ControlValue::Trigger,
+            }],
+            Affector::RgbLed { red, green, blue } => vec![
+                Control {
+                    name: "red",
+                    value: ControlValue::SetNum {
+                        valid_range: 0..255,
+                        value: *red as usize,
+                        setter: Some(Box::new(|input: usize| *red = input as u8)),
+                    },
+                },
+                Control {
+                    name: "green",
+                    value: ControlValue::SetNum {
+                        valid_range: 0..255,
+                        value: *green as usize,
+                        setter: Some(Box::new(|input: usize| *green = input as u8)),
+                    },
+                },
+                Control {
+                    name: "blue",
+                    value: ControlValue::SetNum {
+                        valid_range: 0..255,
+                        value: *blue as usize,
+                        setter: Some(Box::new(|input: usize| *blue = input as u8)),
+                    },
+                },
+            ],
         }
     }
 }
@@ -535,8 +587,13 @@ impl affector::tree::Tree for Affector {
             Affector::MhzZeroPointCalib => "Set the current co2 value as 400ppm",
             Affector::Nau7802LeftCalib |
             Affector::Nau7802RightCalib =>  "Detect and correct power supply and temperature variations to ADC",
+            Affector::RgbLed {..} => "Set color & power of the RGB led at the top of the bed post"
         };
-        affector::tree::Item::Leaf(affector::Info { description })
+
+        affector::tree::Item::Leaf(affector::Info {
+            description,
+            free_affectors: &tree![Affector; Affector::RgbLed { red: 0, green: 0, blue: 0 }],
+        })
     }
 
     fn branch_id(&self) -> affector::tree::Id {

@@ -1,3 +1,6 @@
+#[cfg(feature = "alloc")]
+use core::ops::Range;
+
 use postcard::accumulator::{CobsAccumulator, FeedResult};
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
@@ -27,12 +30,34 @@ pub enum Affector {
 }
 
 #[cfg(feature = "alloc")]
-tree::all_nodes!{Affector; AffectorDiscriminants; LargeBedroom}
+tree::all_nodes! {Affector; AffectorDiscriminants; LargeBedroom}
 
 #[cfg(feature = "alloc")]
 #[derive(Debug, Clone)]
 pub struct Info {
     pub description: &'static str,
+    /// affectors not related to a reading
+    /// and therefore not related to a read device
+    pub free_affectors: &'static [Affector],
+}
+
+#[cfg(feature = "alloc")]
+pub enum ControlValue<'a> {
+    Trigger,
+    /// if you need floats just map this to a float
+    /// in the affector device like: `range = range/x + y`
+    SetNum {
+        valid_range: Range<u64>,
+        /// FnOnce such that value does become outdated
+        setter: Option<Box<dyn FnOnce(usize) + 'a>>,
+        value: usize, 
+    },
+}
+
+#[cfg(feature = "alloc")]
+pub struct Control<'a> {
+    pub name: &'static str,
+    pub value: ControlValue<'a>,
 }
 
 impl Affector {
@@ -43,6 +68,14 @@ impl Affector {
     #[must_use]
     pub fn encode(&self) -> Vec<u8> {
         postcard::to_allocvec_cobs(self).expect("Encoding should not fail")
+    }
+
+    // info() is explicitly not defined, use the tree impl to get at it
+    #[cfg(feature = "alloc")]
+    pub fn controls(&mut self) -> Vec<Control> {
+        match self {
+            Affector::LargeBedroom(a) => a.controls(),
+        }
     }
 }
 

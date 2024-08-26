@@ -1,7 +1,6 @@
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
-use crate::msg::DecodeMsgError;
 #[cfg(feature = "alloc")]
 use crate::{reading, affector};
 
@@ -96,30 +95,14 @@ impl Device {
 pub enum Affector {
     Bed(bed::Affector),
 }
+impl Affector {
+    #[cfg(feature = "alloc")]
+    pub(crate) fn controls(&mut self) -> Vec<affector::Control> {
+        match self {
+            Affector::Bed(a) => a.controls(),
+        }
+    }
+}
 
 #[cfg(feature = "alloc")]
 affector::tree::all_nodes! {Affector; AffectorDiscriminants; Bed}
-
-impl Affector {
-    #[cfg(feature = "alloc")]
-    #[must_use]
-    pub fn encode(&self) -> Vec<u8> {
-        postcard::to_allocvec_cobs(self).expect("Encoding should not fail")
-    }
-
-    /// Buffer should be at least `Self::ENCODED_SIZE` long. The returned slice contains
-    /// the serialized data. It can be shorter then the input buffer.
-    #[must_use]
-    pub fn encode_slice<'a>(&self, buf: &'a mut [u8]) -> &'a mut [u8] {
-        postcard::to_slice_cobs(self, buf).expect("Encoding should not fail")
-    }
-
-    pub fn decode(mut bytes: impl AsMut<[u8]>) -> Result<Self, DecodeMsgError> {
-        postcard::from_bytes_cobs(bytes.as_mut()).map_err(DecodeMsgError::CorruptEncoding)
-    }
-
-    #[must_use]
-    pub fn version(&self) -> u8 {
-        0
-    }
-}
