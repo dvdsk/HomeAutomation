@@ -1,0 +1,20 @@
+[package]
+name = "rpc"
+version = "0.1.0"
+rust-version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+color-eyre = "0.6.3"
+futures = "0.3.30"
+governor = "0.6.3"
+tokio = { workspace = true, features = ["net", "rt", "sync", "time"] }
+tokio-util = { version = "0.7.11", features = ["codec"] }
+tracing.workspace = true
+
+ratelimited-logger = { workspace = true }
+serde = { version = "1.0.209", features = ["derive"] }
+tokio-serde = { version = "0.9.0", features = ["bincode"] }
+thiserror.workspace = true

@@ -6,12 +6,42 @@ use governor::Quota;
 use governor::RateLimiter;
 use std::num::NonZeroU32;
 use std::time::Duration;
-use tracing::info;
-use tracing::warn;
 
 pub struct RateLimitedLogger {
-    pub(crate) rate_limiter: RateLimiter<NotKeyed, InMemoryState, DefaultClock, NoOpMiddleware>,
-    pub(crate) withheld: usize,
+    pub rate_limiter: RateLimiter<NotKeyed, InMemoryState, DefaultClock, NoOpMiddleware>,
+    pub withheld: usize,
+}
+
+#[macro_export]
+macro_rules! warn {
+    ($limiter:ident; $($arg:tt)*) => {
+        if $limiter.rate_limiter.check().is_err() {
+            $limiter.withheld += 1;
+        } else {
+            if $limiter.withheld > 0 {
+                tracing::warn!("Logs are being spammed, withheld {} logs", $limiter.withheld);
+                $limiter.withheld = 0;
+            }
+
+            tracing::warn!($($arg)*);
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! info {
+    ($limiter:ident; $($arg:tt)*) => {
+        if $limiter.rate_limiter.check().is_err() {
+            $limiter.withheld += 1;
+        } else {
+            if $limiter.withheld > 0 {
+                tracing::info!("Logs are being spammed, withheld {} logs", $limiter.withheld);
+                $limiter.withheld = 0;
+            }
+
+            tracing::info!($($arg)*);
+        }
+    };
 }
 
 impl RateLimitedLogger {
@@ -32,11 +62,11 @@ impl RateLimitedLogger {
         }
 
         if self.withheld > 0 {
-            warn!("Logs are being spammed, withheld {} logs", self.withheld);
+            tracing::warn!("Logs are being spammed, withheld {} logs", self.withheld);
             self.withheld = 0;
         }
 
-        warn!(txt);
+        tracing::warn!(txt);
     }
 
     pub fn info(&mut self, txt: &str) {
@@ -46,10 +76,10 @@ impl RateLimitedLogger {
         }
 
         if self.withheld > 0 {
-            info!("Logs are being spammed, withheld {} logs", self.withheld);
+            tracing::info!("Logs are being spammed, withheld {} logs", self.withheld);
             self.withheld = 0;
         }
 
-        info!(txt);
+        tracing::info!(txt);
     }
 }
