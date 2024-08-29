@@ -104,7 +104,6 @@ impl Log {
 
         let res = ByteSeries::builder()
             .payload_size(payload_size)
-            .create_new(true)
             .with_header(header.clone())
             .open(&path);
 
@@ -122,12 +121,17 @@ impl Log {
                 ByteSeries::builder()
                     .payload_size(payload_size)
                     .with_header(header)
+                    .create_new(true)
                     .open(&path)
                     .wrap_err("Could not create new byteseries")
                     .with_note(|| format!("path: {}", path.display()))?
                     .0
             }
-            Err(e) => return Err(e).wrap_err("Could not open existing byteseries"),
+            Err(e) => {
+                return Err(e)
+                    .wrap_err("Could not open existing byteseries")
+                    .with_note(|| format!("path: {}", path.display()))
+            }
         };
 
         Ok(Self {

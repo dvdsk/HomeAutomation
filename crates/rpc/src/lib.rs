@@ -5,6 +5,9 @@ use serde::{Deserialize, Serialize};
 pub mod client;
 pub mod server;
 
+// 8 MB
+pub(crate) const MAX_PACKAGE_SIZE: usize = 8 * 1024 * 1024;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 enum Request<R> {
     Handshake { client_name: String },
@@ -12,13 +15,12 @@ enum Request<R> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-enum Response<V, E>
+enum Response<V>
 where
     V: Serialize,
-    E: Serialize,
 {
     HandshakeOk,
+    AlreadyConnected,
     TooManyReq { allowed_in: Duration },
     RpcResponse(V),
-    ServerError(E),
 }

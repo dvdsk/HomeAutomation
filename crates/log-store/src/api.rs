@@ -7,9 +7,6 @@ use serde::{Deserialize, Serialize};
 pub mod client;
 pub use client::Client;
 
-// 8 MB
-pub(crate) const MAX_PACKAGE_SIZE: usize = 8 * 1024 * 1024;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) enum Request {
     Handshake { name: String },

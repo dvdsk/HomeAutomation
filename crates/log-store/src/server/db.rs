@@ -34,6 +34,7 @@ pub(crate) async fn run(
                 }
             }
             SubMessage::ErrorReport(report) => logs.set_err(*report, log_dir).await,
+            SubMessage::AffectorControlled { .. } => continue,
         };
 
         const FIVE_MIN: Duration = Duration::from_secs(60 * 5);

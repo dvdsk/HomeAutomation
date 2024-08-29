@@ -8,6 +8,7 @@ data-server = { path = "crates/data-server" }
 data-store = { path = "crates/data-store" }
 log-store = { path = "crates/log-store" }
 protocol = { path = "crates/protocol" }
+rpc = { path = "crates/rpc" }
 ratelimited-logger = { path = "crates/ratelimited-logger" }
 
 byteseries = { git = "https://github.com/dvdsk/byteseries" }
