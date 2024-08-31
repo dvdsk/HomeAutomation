@@ -13,7 +13,7 @@ use embassy_stm32::mode::Async;
 use embassy_stm32::peripherals::IWDG;
 use embassy_stm32::spi::{Config as SpiConfig, Spi};
 use embassy_stm32::time::Hertz;
-use embassy_stm32::usart::{self, DataBits, StopBits, Uart};
+use embassy_stm32::usart::{self, DataBits, Parity, StopBits, Uart};
 use embassy_stm32::wdg::IndependentWatchdog;
 use embassy_stm32::Config;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
@@ -93,7 +93,6 @@ async fn main(spawner: Spawner) {
     usart_config.baudrate = 9600;
     usart_config.data_bits = DataBits::DataBits8;
     usart_config.stop_bits = StopBits::STOP1;
-    // usart_config.parity = Parity::ParityEven;
     let usart_mhz = unwrap!(Uart::new(
         p.USART1,
         p.PB7,
@@ -105,9 +104,10 @@ async fn main(spawner: Spawner) {
     ));
 
     let mut usart_config = usart::Config::default();
-    usart_config.baudrate = 115_200;
+    usart_config.baudrate = 115_200; // sps30 only works at this baud
     usart_config.data_bits = DataBits::DataBits8;
     usart_config.stop_bits = StopBits::STOP1;
+    usart_config.parity = Parity::ParityNone;
     let usart_sps30 = unwrap!(Uart::new(
         p.USART2,
         p.PA3,
@@ -118,6 +118,8 @@ async fn main(spawner: Spawner) {
         usart_config,
     ));
 
+    // we are out of DMA, so we need to use a blocking interface
+    // these sensors are only read once every 5s
     let i2c_1 = I2c::new(
         p.I2C1,
         p.PB8,
@@ -125,11 +127,22 @@ async fn main(spawner: Spawner) {
         Irqs,
         p.DMA1_CH7,
         p.DMA1_CH0,
-        // extra slow, helps with longer cable runs
         Hertz(150_000),
         i2c::Config::default(),
     );
     let i2c_1: Mutex<NoopRawMutex, _> = Mutex::new(i2c_1);
+
+    let i2c_2 = I2c::new_blocking(
+        p.I2C2,
+        p.PB10,
+        p.PB3,
+        // extra slow, helps with longer cable runs
+        Hertz(150_000),
+        i2c::Config::default(),
+    );
+    // even though its used by only one device we still use the (zero cost)
+    // mutex. It allows us to match/reuse the API for syn & async nau7802
+    let i2c_2: Mutex<NoopRawMutex, _> = Mutex::new(i2c_2);
 
     let i2c_3 = I2c::new(
         p.I2C3,
@@ -199,7 +212,7 @@ async fn main(spawner: Spawner) {
     pin_mut!(handle_network);
 
     let init_then_measure =
-        sensors::init_then_measure(&publish, i2c_1, i2c_3, usart_mhz, usart_sps30);
+        sensors::init_then_measure(&publish, i2c_1, i2c_2, i2c_3, usart_mhz, usart_sps30);
     let res = select::select(&mut handle_network, init_then_measure).await;
     let unrecoverable_err = match res {
         Either::First(()) | Either::Second(Ok(())) => defmt::unreachable!(),

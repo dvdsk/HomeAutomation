@@ -2,25 +2,26 @@ use defmt::info;
 use embassy_embedded_hal::shared_bus::I2cDeviceError;
 use embassy_futures::join;
 use embassy_stm32::i2c::I2c;
-use embassy_stm32::mode::Async;
+use embassy_stm32::mode::{Async, Blocking};
 use embassy_stm32::usart::Uart;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::Delay;
 use mhzx::MHZ;
 use protocol::large_bedroom::bed::Device;
-use retry::Nau7802Driver;
 use sps30_async::Sps30;
 
 use crate::channel::Queues;
 use crate::error_cache::{Error, SensorError};
-use crate::sensors::retry::{Bme680Driver, Max44Driver, Sht31Driver, Sps30Driver};
-
-use self::retry::Driver;
 
 pub mod fast;
 pub mod retry;
 pub mod slow;
+
+use retry::{
+    Bme680Driver, Driver, Max44Driver, Nau7802Driver, Nau7802DriverBlocking, Sht31Driver,
+    Sps30Driver,
+};
 
 pub type I2cError = I2cDeviceError<embassy_stm32::i2c::Error>;
 pub type UartError = embassy_stm32::usart::Error;
@@ -28,12 +29,15 @@ pub type UartError = embassy_stm32::usart::Error;
 pub mod concrete_types {
     use embassy_embedded_hal::shared_bus;
     use embassy_stm32::i2c::I2c;
-    use embassy_stm32::mode::Async;
+    use embassy_stm32::mode::{Async, Blocking};
     use embassy_stm32::usart::{RingBufferedUartRx, UartTx};
     use embassy_sync::blocking_mutex::raw::NoopRawMutex;
     use shared_bus::asynch::i2c::I2cDevice;
 
+    use super::I2cWrapper;
+
     pub type ConcreteSharedI2c<'a> = I2cDevice<'a, NoopRawMutex, I2c<'static, Async>>;
+    pub type ConcreteBlockingI2c<'a> = &'a I2cWrapper<I2c<'static, Blocking>>;
     pub type ConcreteTx<'a> = UartTx<'a, Async>;
     pub type ConcreteRx<'a> = RingBufferedUartRx<'a>;
 }
@@ -44,6 +48,7 @@ const SPS30_DRIVER_BUF_SIZE: usize = 2 * SPS30_UART_BUF_SIZE;
 pub async fn init_then_measure(
     publish: &Queues,
     i2c_1: Mutex<NoopRawMutex, I2c<'static, Async>>,
+    i2c_2: Mutex<NoopRawMutex, I2c<'static, Blocking>>,
     i2c_3: Mutex<NoopRawMutex, I2c<'static, Async>>,
     usart_mhz: Uart<'static, Async>,
     usart_sps: Uart<'static, Async>,
@@ -52,6 +57,8 @@ pub async fn init_then_measure(
     let bme = Bme680Driver::new(&i2c_3, Device::Bme680);
     let max44009 = Max44Driver::new(&i2c_1, Device::Max44);
     let sht = Sht31Driver::new(&i2c_1, Device::Sht31);
+    let i2c_2 = I2cWrapper(i2c_2);
+    let nau_right = Nau7802DriverBlocking::new(&i2c_2, Device::Nau7802Right);
     let nau_left = Nau7802Driver::new(&i2c_3, Device::Nau7802Left);
 
     let (tx, rx) = usart_mhz.split();
@@ -64,7 +71,7 @@ pub async fn init_then_measure(
     let rx = rx.into_ring_buffered(&mut usart_buf);
     let sps30 = Sps30Driver::init(tx, rx);
 
-    let sensors_fast = fast::read(max44009, nau_left, /*buttons,*/ publish);
+    let sensors_fast = fast::read(max44009, nau_right, nau_left, /*buttons,*/ publish);
     let sensors_slow = slow::read(sht, bme, mhz, sps30, publish);
     join::join(sensors_fast, sensors_slow).await;
 
@@ -104,5 +111,38 @@ impl<'a> Driver for Sps30<SPS30_DRIVER_BUF_SIZE, Tx<'a>, Rx<'a>, Delay> {
     #[inline(always)]
     fn device(&self) -> protocol::large_bedroom::bed::Device {
         Device::Sps30
+    }
+}
+
+pub(crate) struct I2cWrapper<T>(Mutex<NoopRawMutex, T>);
+
+impl<T: embedded_hal::i2c::ErrorType> embedded_hal_async::i2c::ErrorType for &I2cWrapper<T> {
+    type Error = <T as embedded_hal::i2c::ErrorType>::Error;
+}
+
+impl<T: embedded_hal::i2c::I2c> embedded_hal_async::i2c::I2c for &I2cWrapper<T> {
+    async fn transaction(
+        &mut self,
+        address: u8,
+        operations: &mut [embedded_hal_async::i2c::Operation<'_>],
+    ) -> Result<(), Self::Error> {
+        self.0.lock().await.transaction(address, operations)
+    }
+
+    async fn read(&mut self, address: u8, read: &mut [u8]) -> Result<(), Self::Error> {
+        self.0.lock().await.read(address, read)
+    }
+
+    async fn write(&mut self, address: u8, write: &[u8]) -> Result<(), Self::Error> {
+        self.0.lock().await.write(address, write)
+    }
+
+    async fn write_read(
+        &mut self,
+        address: u8,
+        write: &[u8],
+        read: &mut [u8],
+    ) -> Result<(), Self::Error> {
+        self.0.lock().await.write_read(address, write, read)
     }
 }

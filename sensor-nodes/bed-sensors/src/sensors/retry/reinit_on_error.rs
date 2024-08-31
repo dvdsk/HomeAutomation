@@ -9,7 +9,9 @@ use sht31::SHT31;
 use super::super::concrete_types::ConcreteSharedI2c;
 use super::ReInitableDriver;
 use crate::error_cache::Error;
+use crate::sensors::concrete_types::ConcreteBlockingI2c;
 
+pub type Nau7802DriverBlocking<'a> = ReInitOnErrorDriver<Nau7802<ConcreteBlockingI2c<'a>, Delay>>;
 pub type Nau7802Driver<'a> = ReInitOnErrorDriver<Nau7802<ConcreteSharedI2c<'a>, Delay>>;
 pub type Max44Driver<'a> = ReInitOnErrorDriver<Max44009<ConcreteSharedI2c<'a>>>;
 pub type Bme680Driver<'a> = ReInitOnErrorDriver<Bme680<ConcreteSharedI2c<'a>, Delay>>;
@@ -103,7 +105,7 @@ async fn advance_state<D: ReInitableDriver>(
                 }
                 Err(err) => {
                     // drivers might contain blocking code in their
-                    // error path, this makes sure the executor 
+                    // error path, this makes sure the executor
                     // will not block on retrying.
                     embassy_time::Timer::after_millis(250).await;
                     let new_state = State::Uninit;

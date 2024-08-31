@@ -5,7 +5,7 @@ use embassy_time::{Duration, Instant, Timer};
 
 use protocol::large_bedroom::{bed::Button, bed::Reading};
 
-use super::retry::{Max44Driver, Nau7802Driver};
+use super::retry::{Max44Driver, Nau7802Driver, Nau7802DriverBlocking};
 use crate::channel::Queues;
 
 fn sig_lux_diff(old: f32, new: f32) -> bool {
@@ -51,18 +51,35 @@ async fn report_lux(mut max44: Max44Driver<'_>, publish: &Queues) {
     }
 }
 
-async fn report_weight(mut nau: Nau7802Driver<'_>, publish: &Queues) {
+trait Nau {
+    async fn try_measure(&mut self) -> Result<u32, crate::error_cache::Error>;
+}
+
+impl Nau for Nau7802Driver<'_> {
+    async fn try_measure(&mut self) -> Result<u32, crate::error_cache::Error> {
+        Nau7802Driver::try_measure(self).await
+    }
+}
+
+impl Nau for Nau7802DriverBlocking<'_> {
+    async fn try_measure(&mut self) -> Result<u32, crate::error_cache::Error> {
+        Nau7802DriverBlocking::try_measure(self).await
+    }
+}
+
+// todo deduplicate
+async fn report_weight(mut nau: impl Nau, wrap: impl Fn(u32) -> Reading, publish: &Queues) {
     const MAX_INTERVAL: Duration = Duration::from_secs(5);
 
     let mut prev_weight = u32::MAX;
-    let mut last_lux = Instant::now();
+    let mut reported_at = Instant::now();
 
     // todo!("reinit devices after error");
     loop {
         Timer::after_millis(100).await;
         let weight = match nau.try_measure().await {
             Ok(lux) => lux,
-            Err(err) if last_lux.elapsed() > MAX_INTERVAL => {
+            Err(err) if reported_at.elapsed() > MAX_INTERVAL => {
                 publish.queue_error(err);
                 continue;
             }
@@ -70,16 +87,16 @@ async fn report_weight(mut nau: Nau7802Driver<'_>, publish: &Queues) {
         };
 
         if sig_weight_diff(prev_weight, weight) {
-            publish.send_p2(Reading::WeightLeft(weight));
-        } else if last_lux.elapsed() > MAX_INTERVAL {
-            publish.send_p1(Reading::WeightLeft(weight));
+            publish.send_p2(wrap(weight));
+        } else if reported_at.elapsed() > MAX_INTERVAL {
+            publish.send_p1(wrap(weight));
         } else {
             yield_now().await;
             continue;
         };
 
         prev_weight = weight;
-        last_lux = Instant::now();
+        reported_at = Instant::now();
     }
 }
 
@@ -121,8 +138,9 @@ pub struct ButtonInputs {
     pub lower_outer: ExtiInput<'static>,
 }
 
-pub async fn read(
+pub(crate) async fn read(
     max44: Max44Driver<'_>,
+    nau_right: Nau7802DriverBlocking<'_>,
     nau_left: Nau7802Driver<'_>,
     /*inputs: ButtonInputs,*/ publish: &Queues,
 ) {
@@ -141,7 +159,7 @@ pub async fn read(
     // );
 
     let watch_lux = report_lux(max44, publish);
-    let report_weight = report_weight(nau_left, publish);
-    join::join(watch_lux, report_weight).await;
-    // join::join3(watch_buttons_1, watch_buttons_2, watch_lux).await;
+    let report_right_weight = report_weight(nau_right, Reading::WeightRight, publish);
+    let report_left_weight = report_weight(nau_left, Reading::WeightLeft, publish);
+    join::join3(report_left_weight, report_right_weight, watch_lux).await;
 }
