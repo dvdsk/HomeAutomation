@@ -7,6 +7,7 @@ use embassy_stm32::usart::Uart;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::Delay;
+use fast::ButtonInputs;
 use mhzx::MHZ;
 use protocol::large_bedroom::bed::Device;
 use sps30_async::Sps30;
@@ -52,6 +53,7 @@ pub async fn init_then_measure(
     i2c_3: Mutex<NoopRawMutex, I2c<'static, Async>>,
     usart_mhz: Uart<'static, Async>,
     usart_sps: Uart<'static, Async>,
+    buttons: ButtonInputs,
 ) -> Result<(), Error> {
     info!("initializing sensors");
     let bme = Bme680Driver::new(&i2c_3, Device::Bme680);
@@ -71,7 +73,7 @@ pub async fn init_then_measure(
     let rx = rx.into_ring_buffered(&mut usart_buf);
     let sps30 = Sps30Driver::init(tx, rx);
 
-    let sensors_fast = fast::read(max44009, nau_right, nau_left, /*buttons,*/ publish);
+    let sensors_fast = fast::read(max44009, nau_right, nau_left, buttons, publish);
     let sensors_slow = slow::read(sht, bme, mhz, sps30, publish);
     join::join(sensors_fast, sensors_slow).await;
 

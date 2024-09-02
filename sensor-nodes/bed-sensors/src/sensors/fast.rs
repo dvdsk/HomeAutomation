@@ -1,4 +1,5 @@
 use defmt::warn;
+use embassy_futures::join::{join3, join4};
 use embassy_futures::{join, yield_now};
 use embassy_stm32::exti::ExtiInput;
 use embassy_time::{Duration, Instant, Timer};
@@ -128,8 +129,7 @@ async fn watch_button(
 
 #[allow(dead_code)]
 pub struct ButtonInputs {
-    pub top_left: ExtiInput<'static>,
-    pub top_right: ExtiInput<'static>,
+    pub top: ExtiInput<'static>,
     pub middle_inner: ExtiInput<'static>,
     pub middle_center: ExtiInput<'static>,
     pub middle_outer: ExtiInput<'static>,
@@ -142,24 +142,35 @@ pub(crate) async fn read(
     max44: Max44Driver<'_>,
     nau_right: Nau7802DriverBlocking<'_>,
     nau_left: Nau7802Driver<'_>,
-    /*inputs: ButtonInputs,*/ publish: &Queues,
+    inputs: ButtonInputs,
+    publish: &Queues,
 ) {
-    // let watch_buttons_1 = join5(
-    //     watch_button(inputs.top_left, BedButton::TopLeft, publish),
-    //     watch_button(inputs.top_right, BedButton::TopRight, publish),
-    //     watch_button(inputs.middle_inner, BedButton::MiddleInner, publish),
-    //     watch_button(inputs.middle_center, BedButton::MiddleCenter, publish),
-    //     watch_button(inputs.middle_outer, BedButton::MiddleOuter, publish),
-    // );
-    //
-    // let watch_buttons_2 = join3(
-    //     watch_button(inputs.lower_inner, BedButton::LowerInner, publish),
-    //     watch_button(inputs.lower_center, BedButton::LowerCenter, publish),
-    //     watch_button(inputs.lower_outer, BedButton::LowerOuter, publish),
-    // );
+    use protocol::large_bedroom::bed::Button;
+
+    let watch_buttons_1 = join4(
+        watch_button(inputs.top, Button::TopLeft, publish),
+        watch_button(inputs.middle_inner, Button::MiddleInner, publish),
+        watch_button(inputs.middle_center, Button::MiddleCenter, publish),
+        watch_button(inputs.middle_outer, Button::MiddleOuter, publish),
+    );
+
+    let watch_buttons_2 = join3(
+        watch_button(inputs.lower_inner, Button::LowerInner, publish),
+        watch_button(inputs.lower_center, Button::LowerCenter, publish),
+        watch_button(inputs.lower_outer, Button::LowerOuter, publish),
+    );
+
+    let watch_buttons = join::join(watch_buttons_1, watch_buttons_2);
 
     let watch_lux = report_lux(max44, publish);
     let report_right_weight = report_weight(nau_right, Reading::WeightRight, publish);
     let report_left_weight = report_weight(nau_left, Reading::WeightLeft, publish);
-    join::join3(report_left_weight, report_right_weight, watch_lux).await;
+
+    join::join4(
+        report_left_weight,
+        report_right_weight,
+        watch_lux,
+        watch_buttons,
+    )
+    .await;
 }

@@ -22,6 +22,7 @@ use embassy_time::{Delay, Timer};
 use embedded_hal_bus::spi::ExclusiveDevice;
 use futures::pin_mut;
 use heapless::Vec;
+use sensors::fast::ButtonInputs;
 use static_cell::StaticCell;
 
 use defmt::{error, trace, unwrap};
@@ -156,18 +157,16 @@ async fn main(spawner: Spawner) {
         i2c::Config::default(),
     );
     let i2c_3: Mutex<NoopRawMutex, _> = Mutex::new(i2c_3);
-    /*
-    // let buttons = ButtonInputs {
-    //     top_left: ExtiInput::new(p.PA13, p.EXTI13, Pull::Down),
-    //     top_right: ExtiInput::new(p.PA14, p.EXTI14, Pull::Down),
-    //     middle_inner: ExtiInput::new(p.PA9, p.EXTI9, Pull::Down),
-    //     middle_center: ExtiInput::new(p.PA10, p.EXTI10, Pull::Down),
-    //     middle_outer: ExtiInput::new(p.PA11, p.EXTI11, Pull::Down),
-    //     lower_inner: ExtiInput::new(p.PA12, p.EXTI12, Pull::Down),
-    //     lower_center: ExtiInput::new(p.PA15, p.EXTI15, Pull::Down),
-    //     lower_outer: ExtiInput::new(p.PB5, p.EXTI5, Pull::Down),
-    // };
-     */
+    
+    let buttons = ButtonInputs {
+        top: ExtiInput::new(p.PC14, p.EXTI14, Pull::Down),
+        middle_inner: ExtiInput::new(p.PA9, p.EXTI9, Pull::Down),
+        middle_center: ExtiInput::new(p.PA10, p.EXTI10, Pull::Down),
+        middle_outer: ExtiInput::new(p.PA11, p.EXTI11, Pull::Down),
+        lower_inner: ExtiInput::new(p.PA12, p.EXTI12, Pull::Down),
+        lower_center: ExtiInput::new(p.PA15, p.EXTI15, Pull::Down),
+        lower_outer: ExtiInput::new(p.PB5, p.EXTI5, Pull::Down),
+    };
 
     let mut spi_cfg = SpiConfig::default();
     spi_cfg.frequency = Hertz(5_000_000); // up to 50m works
@@ -211,8 +210,15 @@ async fn main(spawner: Spawner) {
     let handle_network = network::handle(stack, &publish);
     pin_mut!(handle_network);
 
-    let init_then_measure =
-        sensors::init_then_measure(&publish, i2c_1, i2c_2, i2c_3, usart_mhz, usart_sps30);
+    let init_then_measure = sensors::init_then_measure(
+        &publish,
+        i2c_1,
+        i2c_2,
+        i2c_3,
+        usart_mhz,
+        usart_sps30,
+        buttons,
+    );
     let res = select::select(&mut handle_network, init_then_measure).await;
     let unrecoverable_err = match res {
         Either::First(()) | Either::Second(Ok(())) => defmt::unreachable!(),
