@@ -27,6 +27,7 @@ tokio-util = { version = "0.7.11", features = ["codec"] }
 serde = { version = "1.0.208", features = ["derive"] }
 futures-concurrency = "7.6.1"
 slotmap = "1.0.7"
+tracing-futures = "0.2.5"
 
 [dev-dependencies]
 reserve-port = "2"

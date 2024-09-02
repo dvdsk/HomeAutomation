@@ -40,12 +40,23 @@ const TEST_READING: Reading =
 
 async fn send_sensor_value(data_port: u16) -> Result<Done> {
     tokio::time::sleep(Duration::from_millis(500)).await;
-    let mut sensor_msg = protocol::SensorMessage::<50>::default();
-    sensor_msg.values.push(TEST_READING).unwrap();
-    let encoded = protocol::Msg::Readings(sensor_msg).encode();
+
+    let mut list = protocol::affector::ListMessage::<50>::empty();
+    list.values
+        .push(protocol::Affector::LargeBedroom(
+            large_bedroom::Affector::Bed(bed::Affector::Sps30FanClean),
+        ))
+        .unwrap();
+    let handshake = protocol::Msg::AffectorList(list).encode();
 
     let mut conn = TcpStream::connect(("127.0.0.1", data_port)).await.unwrap();
-    conn.write_all(&encoded).await.unwrap();
+    conn.write_all(&handshake).await.unwrap();
+
+    let mut sensor_msg = protocol::SensorMessage::<50>::default();
+    sensor_msg.values.push(TEST_READING).unwrap();
+    let sensor_msg = protocol::Msg::Readings(sensor_msg).encode();
+    conn.write_all(&sensor_msg).await.unwrap();
+
     sleep(Duration::from_secs(999)).await;
     Ok(Done::SendValue)
 }

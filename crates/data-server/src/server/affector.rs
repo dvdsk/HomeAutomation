@@ -1,15 +1,13 @@
 use std::sync::{Arc, Mutex};
 
 use color_eyre::Result;
-use futures::FutureExt;
-use futures_concurrency::future::Race;
 use protocol::Affector;
 use slotmap::{DefaultKey, SlotMap};
 use tokio::io::AsyncWriteExt;
 use tokio::net::tcp::OwnedWriteHalf;
 use tokio::sync::mpsc::{Receiver, Sender};
 
-use tracing::warn;
+use tracing::{debug, instrument, warn};
 
 #[derive(Debug)]
 pub(crate) struct Registration {
@@ -22,6 +20,7 @@ impl Registration {
         if let Some(curr) = self.controls.iter_mut().find(|a| a.is_same_as(&new)) {
             *curr = new;
         } else {
+            debug!("new affector: {new:?} registered");
             self.controls.push(new);
         }
     }
@@ -31,7 +30,7 @@ impl Registration {
 pub struct Registar(Arc<Mutex<SlotMap<DefaultKey, Registration>>>);
 
 impl Registar {
-    fn register(&self, tx: Sender<Affector>) -> DefaultKey {
+    pub(crate) fn register(&self, tx: Sender<Affector>) -> DefaultKey {
         let mut this = self.0.lock().expect("nothing should panic");
         this.insert(Registration {
             tx,
@@ -39,7 +38,7 @@ impl Registar {
         })
     }
 
-    fn update_affectors(&self, key: DefaultKey, affector: Affector) {
+    pub(crate) fn update_affectors(&self, key: DefaultKey, affector: Affector) {
         let mut this = self.0.lock().expect("nothing should panic");
         let registration = this
             .get_mut(key)
@@ -47,7 +46,7 @@ impl Registar {
         registration.update(affector)
     }
 
-    fn remove(&self, key: DefaultKey) {
+    pub(crate) fn remove(&self, key: DefaultKey) {
         let mut this = self.0.lock().expect("nothing should panic");
         this.remove(key).expect("things are only removed once");
     }
@@ -79,51 +78,15 @@ impl Registar {
 
 pub struct Offline;
 
-pub(super) async fn track_and_control_affectors(
-    mut writer: OwnedWriteHalf,
-    mut update_from_same_node: Receiver<Affector>,
-    registar: Registar,
-) {
-    let (tx, mut rx) = tokio::sync::mpsc::channel(10);
-    let key = registar.register(tx);
+#[instrument(skip_all)]
+pub(super) async fn control_affectors(mut writer: OwnedWriteHalf, mut rx: Receiver<Affector>) {
+    debug!("controlling newly connected node's affectors");
 
-    loop {
-        let new_update = update_from_same_node.recv().map(Res::from);
-        let new_order = rx
-            .recv()
-            .map(|opt| opt.expect("Register never drops"))
-            .map(Res::Order);
-
-        let res = (new_update, new_order).race().await;
-        match res {
-            Res::Disconnected => break,
-            Res::Update(affector) => {
-                registar.update_affectors(key, affector);
-            }
-            Res::Order(affector) => {
-                let buf = affector.encode();
-                if let Err(e) = writer.write_all(&buf).await {
-                    warn!("Could not send affector order: {e}");
-                    break;
-                }
-            }
-        }
-    }
-
-    registar.remove(key);
-}
-
-enum Res {
-    Disconnected,
-    Update(protocol::Affector),
-    Order(protocol::Affector),
-}
-
-impl Res {
-    fn from(val: Option<protocol::Affector>) -> Self {
-        match val {
-            Some(affector) => Self::Update(affector),
-            None => Self::Disconnected,
+    while let Some(new_order) = rx.recv().await {
+        let buf = new_order.encode();
+        if let Err(e) = writer.write_all(&buf).await {
+            warn!("Could not send affector order: {e}");
+            break;
         }
     }
 }

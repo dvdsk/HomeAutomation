@@ -2,16 +2,18 @@ use std::net::SocketAddr;
 
 use color_eyre::eyre::{eyre, Context};
 use color_eyre::{Result, Section};
+use futures_concurrency::future::Race;
+use protocol::Affector;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::tcp::OwnedReadHalf;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
-use tokio::sync::mpsc::{self, Sender};
+use tokio::sync::mpsc::Sender;
 
 use super::Event;
-use tracing::{info, warn};
+use tracing::{error, info, instrument, warn};
 
-use super::affector::{track_and_control_affectors, Registar};
+use super::affector::{control_affectors, Registar};
 
 pub async fn handle_nodes(
     addr: SocketAddr,
@@ -28,10 +30,10 @@ pub async fn handle_nodes(
         match res {
             Ok((stream, source)) => {
                 info!("new data source connected from: {source}");
-                tokio::spawn(handle_node(stream, share.clone(), registar.clone()));
+                tokio::spawn(handle_node(stream, source, share.clone(), registar.clone()));
             }
             Err(e) => {
-                println!("new connection failed: {e}");
+                warn!("new connection failed: {e}");
                 continue;
             }
         };
@@ -56,29 +58,63 @@ pub async fn read_and_decode_packet(
     protocol::Msg::<50>::decode(bytes).wrap_err("decode failed")
 }
 
-async fn handle_node(stream: TcpStream, queue: Sender<Event>, registar: Registar) {
+#[instrument(skip(stream, queue, registar))]
+async fn handle_node(
+    stream: TcpStream,
+    source: SocketAddr,
+    queue: Sender<Event>,
+    registar: Registar,
+) {
+    use tracing_futures::Instrument;
     let (reader, writer) = stream.into_split();
-    let reader = BufReader::new(reader);
+    let mut reader = BufReader::new(reader);
 
-    let (tx, rx) = mpsc::channel(100);
-    tokio::join!(
-        receive_and_spread_updates(reader, queue, tx),
-        track_and_control_affectors(writer, rx, registar),
-    );
+    let affectors = match handshake(&mut reader).await {
+        Ok(affectors) => affectors,
+        Err(e) => {
+            error!("failed handshake: {e}");
+            return;
+        }
+    };
+    let (tx, rx) = tokio::sync::mpsc::channel(10);
+    let key = registar.register(tx);
+    for affector in affectors {
+        registar.update_affectors(key, affector);
+    }
+
+    (
+        receive_and_spread_updates(reader, queue).in_current_span(),
+        control_affectors(writer, rx).in_current_span(),
+    )
+        .race()
+        .await;
+
+    registar.remove(key);
 }
 
-async fn receive_and_spread_updates(
-    mut reader: BufReader<OwnedReadHalf>,
-    queue: Sender<Event>,
-    affectors: Sender<protocol::Affector>,
-) {
+async fn handshake(reader: &mut BufReader<OwnedReadHalf>) -> Result<Vec<Affector>, String> {
     let mut buf = Vec::new();
+    let msg = match read_and_decode_packet(reader, &mut buf).await {
+        Ok(decoded) => decoded,
+        Err(e) => {
+            return Err(format!("Error while reading and decoding packet: {e}"));
+        }
+    };
+    let protocol::Msg::AffectorList(list) = msg else {
+        return Err("Must get affector list as first message (handshake)".to_owned());
+    };
 
+    Ok(list.values.to_vec())
+}
+
+#[instrument(skip_all)]
+async fn receive_and_spread_updates(mut reader: BufReader<OwnedReadHalf>, queue: Sender<Event>) {
+    let mut buf = Vec::new();
     loop {
         let msg = match read_and_decode_packet(&mut reader, &mut buf).await {
             Ok(decoded) => decoded,
             Err(e) => {
-                warn!("Error while reading and decoding packet: {e}");
+                error!("Error while reading and decoding packet: {e}");
                 return;
             }
         };
@@ -99,13 +135,9 @@ async fn receive_and_spread_updates(
                     .await
                     .expect("fn spread_updates should stay running");
             }
-            protocol::Msg::AffectorList(list) => {
-                for affector_state in list.values {
-                    affectors
-                        .send(affector_state)
-                        .await
-                        .expect("fn track_and_control_affectors should not end")
-                }
+            protocol::Msg::AffectorList(_) => {
+                error!("Affector list should only be send at the start of the connection");
+                return;
             }
         }
     } // loop

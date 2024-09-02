@@ -119,6 +119,14 @@ impl<const MAX_ITEMS: usize> ListMessage<MAX_ITEMS> {
         postcard::to_allocvec_cobs(self).expect("Encoding should not fail")
     }
 
+    #[must_use]
+    pub fn empty() -> Self {
+        Self {
+            values: heapless::Vec::new(),
+            version: 1,
+        }
+    }
+
     pub fn decode(mut bytes: impl AsMut<[u8]>) -> Result<Self, DecodeMsgError> {
         postcard::from_bytes_cobs(bytes.as_mut()).map_err(DecodeMsgError::CorruptEncoding)
     }
