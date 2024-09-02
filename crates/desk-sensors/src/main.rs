@@ -44,12 +44,22 @@ fn main() {
             Err(err) => panic!("could not connect to server: {}", err),
         };
 
+        let bytes =
+            protocol::Msg::AffectorList(protocol::affector::ListMessage::<50>::empty()).encode();
+        if stream.write_all(&bytes).is_err() {
+            std::thread::sleep(Duration::from_secs(5));
+            break; // reconnect
+        }
+
         loop {
             let result = rx.recv().unwrap();
             let msg = match result {
                 Ok(reading) => {
                     let mut readings = SensorMessage::<1>::default();
-                    readings.values.push(reading).expect("capacity allows one push");
+                    readings
+                        .values
+                        .push(reading)
+                        .expect("capacity allows one push");
                     Msg::Readings(readings)
                 }
                 Err(report) => Msg::ErrorReport(protocol::ErrorReport::new(report)),
