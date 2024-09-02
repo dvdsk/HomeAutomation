@@ -18,7 +18,6 @@ use crate::Response;
 
 pub struct RpcClient<RpcReq, RpcResp>
 where
-    RpcReq: Serialize,
     RpcResp: Serialize,
 {
     stream: tokio_serde::Framed<
@@ -27,6 +26,12 @@ where
         Request<RpcReq>,
         Bincode<Response<RpcResp>, Request<RpcReq>>,
     >,
+}
+
+impl<T, V: Serialize> fmt::Debug for RpcClient<T, V> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RpcClient").finish()
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -91,6 +96,58 @@ where
         }
     }
 
+    pub async fn subscribe(&mut self) -> Result<(), RpcError> {
+        fn send_timeout_err(_: Elapsed) -> RpcError {
+            RpcError::Sending(std::io::Error::new(std::io::ErrorKind::TimedOut, ""))
+        }
+        fn receive_timeout_err(_: Elapsed) -> RpcError {
+            RpcError::Receiving(std::io::Error::new(std::io::ErrorKind::TimedOut, ""))
+        }
+
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let request = Request::Subscribe;
+        timeout_at(deadline, self.stream.send(request))
+            .await
+            .map_err(send_timeout_err)?
+            .map_err(RpcError::Sending)?;
+
+        let response = timeout_at(deadline, self.stream.try_next())
+            .await
+            .map_err(receive_timeout_err)?
+            .map_err(RpcError::Receiving)?
+            .ok_or(RpcError::ConnectionClosed)?;
+        match response {
+            Response::AlreadyConnected
+            | Response::RpcResponse(_)
+            | Response::Update(_)
+            | Response::TooManyReq { .. }
+            | Response::HandshakeOk => {
+                unreachable!("incorrect response to subscribe: {response:?}")
+            }
+            Response::SubscribeOk => Ok(()),
+        }
+    }
+
+    pub async fn next(&mut self) -> Result<RpcResp, RpcError> {
+        let received = self
+            .stream
+            .try_next()
+            .await
+            .map_err(RpcError::Receiving)?
+            .ok_or(RpcError::ConnectionClosed)?;
+
+        match received {
+            Response::AlreadyConnected
+            | Response::RpcResponse(_)
+            | Response::TooManyReq { .. }
+            | Response::HandshakeOk
+            | Response::SubscribeOk => {
+                unreachable!("incorrect response to get next, are we subscribed?")
+            }
+            Response::Update(v) => Ok(v),
+        }
+    }
+
     pub async fn send_receive(&mut self, request: RpcReq) -> Result<RpcResp, RpcError> {
         fn send_timeout_err(_: Elapsed) -> RpcError {
             RpcError::Sending(std::io::Error::new(std::io::ErrorKind::TimedOut, ""))
@@ -109,16 +166,14 @@ where
             .await
             .map_err(receive_timeout_err)?
             .map_err(RpcError::Receiving)?
+            .ok_or(RpcError::ConnectionClosed)?
         {
-            Some(Response::AlreadyConnected) => {
-                unreachable!("not creating a connection")
-            }
-            Some(Response::RpcResponse(v)) => Ok(v),
-            Some(Response::TooManyReq { .. }) => {
-                unreachable!("only creating connections is ratelimited")
-            }
-            Some(Response::HandshakeOk) => unreachable!("is only send during initial connection"),
-            None => Err(RpcError::ConnectionClosed),
+            Response::AlreadyConnected
+            | Response::Update(_)
+            | Response::TooManyReq { .. }
+            | Response::HandshakeOk
+            | Response::SubscribeOk => unreachable!("only expected after a subscribe"),
+            Response::RpcResponse(v) => Ok(v),
         }
     }
 }

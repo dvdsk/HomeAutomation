@@ -15,7 +15,7 @@ color-eyre = { workspace = true }
 tracing = { workspace = true }
 tracing-error = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
-ratelimited-logger = { workspace = true }
+rpc = { workspace = true }
 
 protocol = { workspace = true, features = ["alloc", "thiserror"] }
 tokio = { workspace = true, features = ["rt", "macros", "net", "sync", "io-util"] }
@@ -27,7 +27,6 @@ tokio-util = { version = "0.7.11", features = ["codec"] }
 serde = { version = "1.0.208", features = ["derive"] }
 futures-concurrency = "7.6.1"
 slotmap = "1.0.7"
-governor = "0.6.3"
 
 [dev-dependencies]
 reserve-port = "2"

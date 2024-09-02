@@ -70,7 +70,7 @@ async fn handle_node(stream: TcpStream, queue: Sender<Event>, registar: Registar
 async fn receive_and_spread_updates(
     mut reader: BufReader<OwnedReadHalf>,
     queue: Sender<Event>,
-    affectors: Sender<protocol::Device>,
+    affectors: Sender<protocol::Affector>,
 ) {
     let mut buf = Vec::new();
 
@@ -84,12 +84,8 @@ async fn receive_and_spread_updates(
         };
 
         match msg {
-            protocol::Msg::Readings(readings) => {
-                for value in readings.values {
-                    affectors
-                        .send(value.device())
-                        .await
-                        .expect("fn track_and_control_affectors should not end");
+            protocol::Msg::Readings(list) => {
+                for value in list.values {
                     queue
                         .send(Event::NewReading(Ok(value)))
                         .await
@@ -97,15 +93,19 @@ async fn receive_and_spread_updates(
                 }
             }
             protocol::Msg::ErrorReport(report) => {
-                affectors
-                    .send(report.error.device())
-                    .await
-                    .expect("fn track_and_control_affectors should not end");
                 let boxed = Box::new(report.error);
                 queue
                     .send(Event::NewReading(Err(boxed)))
                     .await
                     .expect("fn spread_updates should stay running");
+            }
+            protocol::Msg::AffectorList(list) => {
+                for affector_state in list.values {
+                    affectors
+                        .send(affector_state)
+                        .await
+                        .expect("fn track_and_control_affectors should not end")
+                }
             }
         }
     } // loop

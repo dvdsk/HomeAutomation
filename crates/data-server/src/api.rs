@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use serde::{Deserialize, Serialize};
 
 pub mod client;
@@ -12,7 +10,6 @@ pub use client::Subscribed as SubscribedClient;
 pub enum Request {
     Handshake { name: String },
     Actuate(protocol::Affector),
-    Subscribe,
     ListAffectors,
 }
 
@@ -29,6 +26,11 @@ pub enum Response {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SubMessage {
     Reading(protocol::Reading),
+    // an affector was moved/updated
+    AffectorControlled {
+        affector: protocol::Affector,
+        controlled_by: String,
+    },
     ErrorReport(Box<protocol::Error>),
 }
 
@@ -43,7 +45,7 @@ pub enum AffectorError {
 pub struct SubscribeError;
 
 #[derive(Clone, Debug, thiserror::Error, Serialize, Deserialize)]
-#[error("placeholder")]
 pub enum ServerError {
-    TooManyRequests(Duration),
+    #[error("Could not activate affector")]
+    FailedToSpread,
 }

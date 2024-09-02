@@ -22,12 +22,13 @@ pub(crate) async fn run(data_server_addr: SocketAddr, data: Data, data_dir: &Pat
     let mut recently_logged = (Instant::now(), String::new());
     loop {
         let msg = sub.next().await;
-        let res = match msg {
-            SubMessage::Reading(reading) => series::store(&data, &reading, data_dir)
-                .await
-                .with_note(|| format!("reading: {reading:?}")),
-            SubMessage::ErrorReport(_) => Ok(()),
+        let SubMessage::Reading(reading) = msg else {
+            continue;
         };
+
+        let res = series::store(&data, &reading, data_dir)
+            .await
+            .with_note(|| format!("reading: {reading:?}"));
 
         const FIVE_MIN: Duration = Duration::from_secs(60 * 5);
         if let Err(report) = res {

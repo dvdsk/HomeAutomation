@@ -1,32 +1,11 @@
-use std::time::Duration;
-
-use color_eyre::eyre::eyre;
-use futures::SinkExt;
 use std::mem;
 use tokio::sync::mpsc;
-use tokio::time::timeout;
 use tracing::debug;
 
 use color_eyre::Result;
 
-use super::{Conn, Event};
-use crate::api::{Response, SubMessage};
-
-pub async fn handle_subscriber(
-    sub: &mut Conn,
-    mut rx: mpsc::Receiver<SubMessage>,
-) -> color_eyre::Report {
-    loop {
-        let update = rx.recv().await.expect("updates always keep coming");
-        let message = Response::SubUpdate(update);
-        if timeout(Duration::from_secs(2), sub.send(message))
-            .await
-            .is_err()
-        {
-            return eyre!("Timed out while sending update");
-        }
-    }
-}
+use super::Event;
+use crate::api::SubMessage;
 
 pub async fn spread_updates(mut events: mpsc::Receiver<Event>) -> Result<()> {
     let mut subscribers = Vec::new();
@@ -45,6 +24,13 @@ pub async fn spread_updates(mut events: mpsc::Receiver<Event>) -> Result<()> {
             }
             Event::NewReading(Ok(reading)) => SubMessage::Reading(reading),
             Event::NewReading(Err(err)) => SubMessage::ErrorReport(err),
+            Event::AffectorControlled {
+                affector,
+                controlled_by,
+            } => SubMessage::AffectorControlled {
+                affector,
+                controlled_by,
+            },
         };
 
         let subs = mem::take(&mut subscribers);

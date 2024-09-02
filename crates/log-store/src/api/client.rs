@@ -12,22 +12,6 @@ use super::Response;
 pub struct Client(rpc::client::RpcClient<super::Request, super::Response>);
 
 #[derive(Debug, thiserror::Error)]
-pub enum ConnectError {
-    #[error("Error while connecting to data server: {0}")]
-    Io(std::io::Error),
-    #[error("Could not send handshake: {0}")]
-    Sending(std::io::Error),
-    #[error("Timed out waiting for ")]
-    Timeout,
-    #[error("Server unexpectedly closed the connection")]
-    Closed,
-    #[error("Server send back an error: {0:?}")]
-    ServerError(super::ServerError),
-    #[error("Could not receive server response: {0:?}")]
-    Receiving(std::io::Error),
-}
-
-#[derive(Debug, thiserror::Error)]
 pub enum Error<T: std::error::Error> {
     #[error("Got unexpected response response to request {request:?}")]
     IncorrectResponse { request: String, response: String },

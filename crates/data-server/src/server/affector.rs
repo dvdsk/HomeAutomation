@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use color_eyre::Result;
@@ -15,7 +14,17 @@ use tracing::warn;
 #[derive(Debug)]
 pub(crate) struct Registration {
     tx: tokio::sync::mpsc::Sender<protocol::Affector>,
-    controls: HashSet<protocol::Affector>,
+    controls: Vec<protocol::Affector>,
+}
+
+impl Registration {
+    fn update(&mut self, new: Affector) {
+        if let Some(curr) = self.controls.iter_mut().find(|a| a.is_same_as(&new)) {
+            *curr = new;
+        } else {
+            self.controls.push(new);
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -26,16 +35,16 @@ impl Registar {
         let mut this = self.0.lock().expect("nothing should panic");
         this.insert(Registration {
             tx,
-            controls: HashSet::new(),
+            controls: Vec::new(),
         })
     }
 
-    fn update_affectors(&self, key: DefaultKey, list: &[Affector]) {
+    fn update_affectors(&self, key: DefaultKey, affector: Affector) {
         let mut this = self.0.lock().expect("nothing should panic");
         let registration = this
             .get_mut(key)
             .expect("items are removed when track_and_control_affectors only");
-        registration.controls.extend(list.iter());
+        registration.update(affector)
     }
 
     fn remove(&self, key: DefaultKey) {
@@ -43,14 +52,15 @@ impl Registar {
         this.remove(key).expect("things are only removed once");
     }
 
-    pub(crate) fn activate(&self, affector: Affector) -> Result<(), Offline> {
-        let this = self.0.lock().expect("nothing should panic");
+    pub(crate) fn activate(&self, order: Affector) -> Result<(), Offline> {
+        let mut this = self.0.lock().expect("nothing should panic");
         for possible_controller in this
-            .iter()
+            .iter_mut()
             .map(|(_, reg)| reg)
-            .filter(|reg| reg.controls.contains(&affector))
+            .filter(|reg| reg.controls.contains(&order))
         {
-            if possible_controller.tx.try_send(affector).is_ok() {
+            if possible_controller.tx.try_send(order).is_ok() {
+                possible_controller.update(order);
                 return Ok(());
             }
         }
@@ -71,7 +81,7 @@ pub struct Offline;
 
 pub(super) async fn track_and_control_affectors(
     mut writer: OwnedWriteHalf,
-    mut update_from_same_node: Receiver<protocol::Device>,
+    mut update_from_same_node: Receiver<Affector>,
     registar: Registar,
 ) {
     let (tx, mut rx) = tokio::sync::mpsc::channel(10);
@@ -87,8 +97,8 @@ pub(super) async fn track_and_control_affectors(
         let res = (new_update, new_order).race().await;
         match res {
             Res::Disconnected => break,
-            Res::Update(device) => {
-                registar.update_affectors(key, device.info().affectors);
+            Res::Update(affector) => {
+                registar.update_affectors(key, affector);
             }
             Res::Order(affector) => {
                 let buf = affector.encode();
@@ -105,14 +115,14 @@ pub(super) async fn track_and_control_affectors(
 
 enum Res {
     Disconnected,
-    Update(protocol::Device),
+    Update(protocol::Affector),
     Order(protocol::Affector),
 }
 
 impl Res {
-    fn from(val: Option<protocol::Device>) -> Self {
+    fn from(val: Option<protocol::Affector>) -> Self {
         match val {
-            Some(device) => Self::Update(device),
+            Some(affector) => Self::Update(affector),
             None => Self::Disconnected,
         }
     }

@@ -6,17 +6,18 @@ use std::time::Duration;
 
 use color_eyre::eyre::Context;
 use color_eyre::Section;
-use futures::{SinkExt, TryStreamExt};
+use futures::{SinkExt, StreamExt, TryStreamExt};
 use governor::clock::{Clock, DefaultClock};
 use governor::{Quota, RateLimiter};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::net::{TcpListener, TcpStream};
+use tokio::pin;
 use tokio_serde::formats::Bincode;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
 use ratelimited_logger::{self as rlog, RateLimitedLogger};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, instrument};
 
 type Conn<RpcReq, RpcResp> = tokio_serde::Framed<
     Framed<TcpStream, LengthDelimitedCodec>,
@@ -25,14 +26,15 @@ type Conn<RpcReq, RpcResp> = tokio_serde::Framed<
     Bincode<crate::Request<RpcReq>, crate::Response<RpcResp>>,
 >;
 
-pub async fn run<RpcReq, RpcResp, Fut>(
+pub async fn run<RpcReq, RpcResp, PerfFut>(
     port: u16,
-    perform_request: impl Fn(RpcReq) -> Fut + Clone + Send + 'static,
+    perform_request: impl Fn(RpcReq, &str) -> PerfFut + Clone + Send + 'static,
+    sub_handler: Option<impl SubscriberHandler<Update = RpcResp> + Clone + Send + 'static>,
 ) -> color_eyre::Result<()>
 where
     RpcReq: Unpin + Serialize + DeserializeOwned + fmt::Debug + Send + 'static,
     RpcResp: Unpin + Serialize + DeserializeOwned + fmt::Debug + Send + 'static,
-    Fut: Future<Output = RpcResp> + Send + 'static,
+    PerfFut: Future<Output = RpcResp> + Send + 'static,
 {
     let quota = Quota::with_period(Duration::from_secs(1))
         .unwrap()
@@ -70,7 +72,12 @@ where
             continue;
         };
 
-        tokio::task::spawn(handle_client(conn, perform_request.clone()));
+        tokio::task::spawn(handle_client(
+            conn,
+            name,
+            perform_request.clone(),
+            sub_handler.clone(),
+        ));
     }
 }
 
@@ -109,13 +116,18 @@ where
 }
 
 use core::future::Future;
-async fn handle_client<RpcReq, RpcResp, Fut>(
+
+use crate::SubscriberHandler;
+#[instrument(skip(conn, perform_request, sub_handler))]
+async fn handle_client<RpcReq, RpcResp, PerfFut>(
     mut conn: Conn<RpcReq, RpcResp>,
-    perform_request: impl Fn(RpcReq) -> Fut + Clone + Send + 'static,
+    client_name: String,
+    perform_request: impl Fn(RpcReq, &str) -> PerfFut + Clone + Send + 'static,
+    mut sub_handler: Option<impl SubscriberHandler<Update = RpcResp> + Send + 'static>,
 ) where
     RpcReq: Unpin + Serialize + DeserializeOwned + fmt::Debug + Send + 'static,
     RpcResp: Unpin + Serialize + DeserializeOwned + fmt::Debug + Send + 'static,
-    Fut: Future<Output = RpcResp> + Send + 'static,
+    PerfFut: Future<Output = RpcResp> + Send + 'static,
 {
     loop {
         let request = match conn.try_next().await {
@@ -129,15 +141,42 @@ async fn handle_client<RpcReq, RpcResp, Fut>(
                 return;
             }
         };
-        let crate::Request::Rpc(rpc_request) = request else {
-            error!("Handshake request is not allowed after we send back HandshakeOk");
-            return;
-        };
+        match request {
+            crate::Request::Rpc(rpc_request) => {
+                let response = perform_request(rpc_request, &client_name).await;
+                if let Err(e) = conn.send(crate::Response::RpcResponse(response)).await {
+                    error!("Error sending response to client: {e:?}");
+                    return;
+                }
+            }
+            crate::Request::Subscribe => {
+                if let Some(mut sub_handler) = sub_handler.take() {
+                    let stream = sub_handler.setup().await;
+                    pin!(stream);
+                    if let Err(e) = conn.send(crate::Response::SubscribeOk).await {
+                        error!("Error sending response to client: {e:?}");
+                        return;
+                    }
 
-        let response = perform_request.clone()(rpc_request).await;
-        if let Err(e) = conn.send(crate::Response::RpcResponse(response)).await {
-            error!("Error sending response to client: {e:?}");
-            return;
-        }
+                    loop {
+                        let Some(update) = stream.next().await else {
+                            error!("Error subscribe stream should never end");
+                            return;
+                        };
+                        if let Err(e) = conn.send(crate::Response::Update(update)).await {
+                            error!("Error sending response to client: {e:?}");
+                            return;
+                        }
+                    }
+                } else {
+                    error!("Got subscribe request but no subscribe possible");
+                    return;
+                }
+            }
+            crate::Request::Handshake { .. } => {
+                error!("Handshake request only allowed during connect");
+                return;
+            }
+        };
     }
 }
