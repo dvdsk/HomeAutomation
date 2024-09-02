@@ -40,13 +40,19 @@ enum Fetchable {
 
 enum Update {
     ReadingList(Vec<protocol::Reading>),
-    Fetched { reading: Reading, thing: Fetchable },
+    Fetched {
+        reading: Reading,
+        thing: Fetchable,
+    },
     FetchError(color_eyre::Report),
     SensorReading(protocol::Reading),
     SensorError(Box<protocol::Error>),
     SubscribeError(color_eyre::Report),
     DeviceList(Vec<protocol::Device>),
-    AffectorControlled(protocol::Affector),
+    AffectorControlled {
+        affector: protocol::Affector,
+        controlled_by: String,
+    },
 }
 
 async fn receive_data(data_server: SocketAddr, tx: mpsc::Sender<Update>) {
@@ -78,6 +84,13 @@ async fn receive_data(data_server: SocketAddr, tx: mpsc::Sender<Update>) {
             .map(|msg| match msg {
                 SubMessage::Reading(reading) => Update::SensorReading(reading),
                 SubMessage::ErrorReport(error) => Update::SensorError(error),
+                SubMessage::AffectorControlled {
+                    affector,
+                    controlled_by,
+                } => Update::AffectorControlled {
+                    affector,
+                    controlled_by,
+                },
             });
 
         match res {

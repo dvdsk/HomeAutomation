@@ -87,8 +87,8 @@ impl Tab {
             | Update::Fetched { .. }
             | Update::FetchError(_)
             | Update::SubscribeError(_) => return,
-            Update::AffectorControlled(a) => {
-                self.update_tree(a);
+            Update::AffectorControlled { affector, .. } => {
+                self.update_tree(affector);
                 return;
             }
             Update::SensorReading(r) => &vec![r.device()],

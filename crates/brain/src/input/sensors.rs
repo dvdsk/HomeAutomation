@@ -12,7 +12,7 @@ pub async fn subscribe(event_tx: broadcast::Sender<Event>, data_server: SocketAd
             SubMessage::Reading(reading) => {
                 event_tx.send(Event::Sensor(reading)).unwrap();
             }
-            SubMessage::ErrorReport(_) => continue,
+            SubMessage::ErrorReport(_) | SubMessage::AffectorControlled { .. } => continue,
         }
     }
 }

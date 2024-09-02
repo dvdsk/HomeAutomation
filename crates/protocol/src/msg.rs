@@ -1,3 +1,5 @@
+use crate::affector;
+
 pub(crate) mod error;
 pub(crate) mod sensor;
 
@@ -6,17 +8,20 @@ pub(crate) mod sensor;
 pub enum Msg<const M: usize> {
     Readings(sensor::SensorMessage<M>),
     ErrorReport(error::ErrorReport),
+    AffectorList(affector::ListMessage<M>),
 }
 
 impl<const M: usize> Msg<M> {
     pub const READINGS: u8 = 1;
     pub const ERROR_REPORT: u8 = 2;
+    pub const AFFECTOR_LIST: u8 = 3;
 
     #[must_use]
     pub fn header(&self) -> u8 {
         let header = match self {
             Msg::Readings(_) => Self::READINGS,
             Msg::ErrorReport(_) => Self::ERROR_REPORT,
+            Msg::AffectorList(_) => Self::AFFECTOR_LIST,
         };
         assert_ne!(header, 0, "0 is reserved for cobs encoding");
         header
@@ -33,6 +38,10 @@ impl<const M: usize> Msg<M> {
             Ok(Self::Readings(sensor::SensorMessage::<M>::decode(bytes)?))
         } else if msg_type == Self::ERROR_REPORT {
             Ok(Self::ErrorReport(error::ErrorReport::decode(bytes)?))
+        } else if msg_type == Self::AFFECTOR_LIST {
+            Ok(Self::AffectorList(affector::ListMessage::<M>::decode(
+                bytes,
+            )?))
         } else {
             Err(DecodeMsgError::IncorrectMsgType(msg_type))
         }
@@ -44,6 +53,7 @@ impl<const M: usize> Msg<M> {
         let mut bytes = match self {
             Msg::Readings(readings) => readings.encode(),
             Msg::ErrorReport(report) => report.encode(),
+            Msg::AffectorList(list) => list.encode(),
         };
 
         bytes.insert(0, self.header());

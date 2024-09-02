@@ -5,8 +5,8 @@ use postcard::accumulator::{CobsAccumulator, FeedResult};
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
-use crate::large_bedroom;
 use crate::msg::cobs_overhead;
+use crate::{large_bedroom, DecodeMsgError};
 
 #[cfg(feature = "alloc")]
 pub mod tree;
@@ -50,7 +50,7 @@ pub enum ControlValue<'a> {
         valid_range: Range<u64>,
         /// FnOnce such that value does become outdated
         setter: Option<Box<dyn FnOnce(usize) + 'a>>,
-        value: usize, 
+        value: usize,
     },
 }
 
@@ -103,5 +103,23 @@ impl Decoder {
             }
         }
         None
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ListMessage<const MAX_ITEMS: usize> {
+    pub values: heapless::Vec<Affector, MAX_ITEMS>,
+    pub version: u8,
+}
+
+impl<const MAX_ITEMS: usize> ListMessage<MAX_ITEMS> {
+    #[cfg(feature = "alloc")]
+    #[must_use]
+    pub fn encode(&self) -> Vec<u8> {
+        postcard::to_allocvec_cobs(self).expect("Encoding should not fail")
+    }
+
+    pub fn decode(mut bytes: impl AsMut<[u8]>) -> Result<Self, DecodeMsgError> {
+        postcard::from_bytes_cobs(bytes.as_mut()).map_err(DecodeMsgError::CorruptEncoding)
     }
 }

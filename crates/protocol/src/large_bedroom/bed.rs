@@ -148,7 +148,7 @@ impl Tree for Reading {
             ),
             Reading::WeightLeft(val) => (
                 *val as f32,
-                Device::Nau7802Left.rooted(),
+                Device::Nau7802Right.rooted(),
                 0.0..24.0_f32.exp2(),
                 1.0,
                 Unit::Ohm,
@@ -357,7 +357,7 @@ impl SensorError {
             SensorError::Max44(_) => Device::Max44,
             SensorError::Mhz14(_) => Device::Mhz14,
             SensorError::Sps30(_) => Device::Sps30,
-            SensorError::Nau7802Left(_) => Device::Nau7802Left,
+            SensorError::Nau7802Left(_) => Device::Nau7802Right,
             SensorError::Nau7802Right(_) => Device::Nau7802Right,
         }
     }
@@ -370,8 +370,8 @@ pub enum Device {
     Max44,
     Mhz14,
     Sps30,
-    Nau7802Left,
     Nau7802Right,
+    Nau7802Left,
     Gpio,
 }
 
