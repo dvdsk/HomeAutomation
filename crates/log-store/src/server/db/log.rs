@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::io::{self, Read, Write};
+use std::iter;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -12,12 +13,14 @@ use serde::{Deserialize, Serialize};
 use series::data::OpenError as DataOpenError;
 use series::Error::Open;
 use tokio::sync::Mutex;
-use tracing::{info, warn};
+use tracing::{debug, info, instrument, warn};
 
 use crate::api::{self, ErrorEvent};
 
-#[derive(Debug)]
+#[derive(derivative::Derivative)]
+#[derivative(Debug)]
 pub(crate) struct Log {
+    #[derivative(Debug = "ignore")]
     history: ByteSeries,
     current: CurrentError,
 }
@@ -83,6 +86,8 @@ impl CurrentError {
         self.file
             .flush()
             .wrap_err("failed to flush current err backup to disk")?;
+
+        self.value = Some(value);
         Ok(())
     }
 
@@ -92,6 +97,7 @@ impl CurrentError {
 }
 
 impl Log {
+    #[instrument]
     pub fn open_or_create(dir: &Path, device: &Device) -> Result<Self> {
         let path = base_path(device);
         let path = dir.join(path);
@@ -143,6 +149,7 @@ impl Log {
         })
     }
 
+    #[instrument]
     pub fn set_err(&mut self, new_report: protocol::Error) -> Result<()> {
         if let Some((started, report)) = self.current.get() {
             if report == &new_report {
@@ -153,20 +160,30 @@ impl Log {
                 error: report.clone(),
             };
             let line = bincode::serialize(&line).wrap_err("Could not serialize ErrorEvent")?;
+            let payload_size = protocol::Error::max_size();
+            let line: Vec<_> = line
+                .into_iter()
+                .chain(iter::repeat(0))
+                .take(payload_size)
+                .collect();
+
             self.history
                 .push_line(started.as_second() as u64, line)
                 .wrap_err("Could not push new ErrorEvent into history")?;
         }
 
+        debug!("Registered new error: {new_report}");
         self.current
             .set(new_report)
             .wrap_err("Failed to set new error in current error store")
     }
 
+    #[instrument]
     fn clear(&mut self) -> Result<()> {
         self.current
             .take()
             .wrap_err("failed to set value of current error to None")?;
+        debug!("Cleared any error");
         Ok(())
     }
 
@@ -183,11 +200,27 @@ impl Log {
                 found: n_lines,
             }));
         }
+
+        let current = self
+            .current
+            .value
+            .as_ref()
+            .map(|(ts, event)| api::ErrorEvent {
+                start: *ts,
+                end: None,
+                error: event.clone(),
+            })
+            .into_iter();
+
+        if n_lines == 0 {
+            return Ok(Ok(current.collect()));
+        }
+
         self.history
             .read_all(.., &mut Decoder, &mut timestamps, &mut data)
-            .wrap_err("Could not read log events form disk")?;
+            .wrap_err("Could not read log events from disk")?;
 
-        let res = timestamps
+        let mut res: Vec<_> = timestamps
             .into_iter()
             .zip(data)
             .map(|(start, StoredErrorEvent { end, error })| api::ErrorEvent {
@@ -197,6 +230,8 @@ impl Log {
                 error,
             })
             .collect();
+        res.extend(current);
+
         Ok(Ok(res))
     }
 }
@@ -241,7 +276,7 @@ impl Logs {
         let mut map = self.0.lock().await;
         if let Some(log) = map.get_mut(device) {
             match log.get_all() {
-                Err(report) => Err(api::GetLogError::InternalError(report.to_string())),
+                Err(report) => Err(api::GetLogError::InternalError(format!("{report:#}"))),
                 Ok(res) => res,
             }
         } else {

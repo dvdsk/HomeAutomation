@@ -12,6 +12,7 @@ pub(crate) use log::Logs;
 
 mod stats;
 pub(crate) use stats::Stats;
+use tracing::debug;
 
 pub(crate) async fn run(
     data_server_addr: SocketAddr,
@@ -20,11 +21,12 @@ pub(crate) async fn run(
     log_dir: &Path,
 ) -> Result<()> {
     let mut sub =
-        ReconnectingClient::new(data_server_addr, "ha-data-store".to_string()).subscribe();
+        ReconnectingClient::new(data_server_addr, "ha-log-store".to_string()).subscribe();
 
     let mut recently_logged = (Instant::now(), String::new());
     loop {
         let msg = sub.next().await;
+        debug!("Got msg from data-server: {msg:?}");
         let res = match msg {
             SubMessage::Reading(reading) => {
                 if let Err(e) = stats.increment(reading.device()).await {

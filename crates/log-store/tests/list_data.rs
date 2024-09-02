@@ -24,11 +24,9 @@ const fn test_readings(v: f32) -> [Reading; 2] {
     ]
 }
 
-fn test_error() -> protocol::Error {
+fn test_error(text: &str) -> protocol::Error {
     protocol::Error::LargeBedroom(large_bedroom::Error::Bed(bed::Error::Setup(
-        bed::SensorError::Sht31(
-            heapless::String::from_str("log server integration test error").unwrap(),
-        ),
+        bed::SensorError::Sht31(heapless::String::from_str(text).unwrap()),
     )))
 }
 
@@ -46,6 +44,10 @@ async fn data_server(client_addr: impl Into<SocketAddr>, data_port: impl Into<So
 
 async fn send_sensor_values(data_port: u16, data_send: &Notify) {
     let mut conn = TcpStream::connect(("127.0.0.1", data_port)).await.unwrap();
+    let list = protocol::affector::ListMessage::<50>::empty();
+    let handshake = protocol::Msg::AffectorList(list).encode();
+    conn.write_all(&handshake).await.unwrap();
+
     for v in [0.1, 0.2, 0.3] {
         let mut sensor_msg = protocol::SensorMessage::<50>::default();
         for val in test_readings(v) {
@@ -61,8 +63,14 @@ async fn send_sensor_values(data_port: u16, data_send: &Notify) {
 
 async fn send_sensor_errors(data_port: u16, data_send: &Notify) {
     let mut conn = TcpStream::connect(("127.0.0.1", data_port)).await.unwrap();
-    for _ in [1, 2, 3, 4] {
-        let report = protocol::ErrorReport::new(test_error());
+    let list = protocol::affector::ListMessage::<50>::empty();
+    let handshake = protocol::Msg::AffectorList(list).encode();
+    conn.write_all(&handshake).await.unwrap();
+
+    for error_type in [1, 1, 2, 1] {
+        let report = protocol::ErrorReport::new(test_error(&format!(
+            "log server integration test error: {error_type}"
+        )));
         let encoded = protocol::Msg::<50>::ErrorReport(report).encode();
         conn.write_all(&encoded).await.unwrap();
         sleep(Duration::from_secs_f32(1.1)).await;
@@ -91,15 +99,14 @@ async fn check_client_get_percentiles(data_store_addr: SocketAddr, data_send: &N
 async fn check_client_get_logs(data_store_addr: SocketAddr, data_send: &Notify) {
     data_send.notified().await;
     sleep(Duration::from_secs_f32(0.1)).await;
-    let mut client =
-        log_store::api::Client::connect(data_store_addr, "data_store_example".to_owned())
-            .await
-            .unwrap();
+    let mut client = log_store::api::Client::connect(data_store_addr, "log_store_test".to_owned())
+        .await
+        .unwrap();
 
     let test_device = test_readings(0.0).first().unwrap().device();
     let logs = client.get_logs(test_device).await.unwrap();
 
-    assert_eq!(logs.len(), 4);
+    assert_eq!(logs.len(), 3);
 }
 
 static SETUP_REPORTING: Once = Once::new();
