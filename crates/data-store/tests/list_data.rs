@@ -37,6 +37,10 @@ async fn data_server(client_addr: impl Into<SocketAddr>, data_port: impl Into<So
 
 async fn send_sensor_values(data_port: u16, values: &[f32], data_send: &Notify) {
     let mut conn = TcpStream::connect(("127.0.0.1", data_port)).await.unwrap();
+    let list = protocol::affector::ListMessage::<50>::empty();
+    let handshake = protocol::Msg::AffectorList(list).encode();
+    conn.write_all(&handshake).await.unwrap();
+
     for v in values {
         let mut sensor_msg = protocol::SensorMessage::<50>::default();
         for val in test_readings(*v) {
