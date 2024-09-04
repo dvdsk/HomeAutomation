@@ -148,7 +148,7 @@ impl Tree for Reading {
             ),
             Reading::WeightLeft(val) => (
                 *val as f32,
-                Device::Nau7802Right.rooted(),
+                Device::Nau7802Left.rooted(),
                 0.0..24.0_f32.exp2(),
                 1.0,
                 Unit::Ohm,
@@ -590,10 +590,7 @@ impl affector::tree::Tree for Affector {
             Affector::RgbLed {..} => "Set color & power of the RGB led at the top of the bed post"
         };
 
-        affector::tree::Item::Leaf(affector::Info {
-            description,
-            free_affectors: &tree![Affector; Affector::RgbLed { red: 0, green: 0, blue: 0 }],
-        })
+        affector::tree::Item::Leaf(affector::Info { description })
     }
 
     fn branch_id(&self) -> affector::tree::Id {

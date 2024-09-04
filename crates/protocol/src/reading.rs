@@ -1,11 +1,11 @@
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
-use crate::{large_bedroom, small_bedroom};
 #[cfg(feature = "alloc")]
 use crate::Device;
 #[cfg(feature = "alloc")]
 use crate::Unit;
+use crate::{large_bedroom, small_bedroom};
 
 #[cfg(feature = "alloc")]
 pub mod tree;
@@ -82,16 +82,17 @@ impl Info {
     /// useful for printing/formatting floats
     /// # Example
     /// ```rust
-    /// use crate::Reading;
-    /// use crate::large_bedroom;
-    /// use crate::large_bedroom::desk;
+    /// use protocol::Reading;
+    /// use protocol::large_bedroom;
+    /// use protocol::large_bedroom::desk;
+    /// use protocol::reading::tree::Tree;
     ///
     /// let reading =
-    /// Reading::LargeBedroom(large_bedroom::Reading(desk::Reading::Temperature(22.428124);
+    /// Reading::LargeBedroom(large_bedroom::Reading::Desk(desk::Reading::Temperature(22.428124)));
     ///
     /// let info = reading.leaf();
     /// let printed = format!("{0:.1$}", info.val, info.precision());
-    /// assert_eq!(printed, "22.42");
+    /// assert_eq!(printed, "22.43");
     /// ```
     #[must_use]
     #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]

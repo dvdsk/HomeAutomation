@@ -36,15 +36,12 @@ tree::all_nodes! {Affector; AffectorDiscriminants; LargeBedroom}
 #[derive(Debug, Clone)]
 pub struct Info {
     pub description: &'static str,
-    /// affectors not related to a reading
-    /// and therefore not related to a read device
-    pub free_affectors: &'static [Affector],
 }
 
 #[cfg(feature = "alloc")]
 pub enum ControlValue<'a> {
     Trigger,
-    /// if you need floats just map this to a float
+    /// If you need floats just map this to a float
     /// in the affector device like: `range = range/x + y`
     SetNum {
         valid_range: Range<u64>,
@@ -70,7 +67,7 @@ impl Affector {
         postcard::to_allocvec_cobs(self).expect("Encoding should not fail")
     }
 
-    // info() is explicitly not defined, use the tree impl to get at it
+    // Info() is explicitly not defined, use the tree impl to get at it
     #[cfg(feature = "alloc")]
     pub fn controls(&mut self) -> Vec<Control> {
         match self {
@@ -80,7 +77,7 @@ impl Affector {
 }
 
 pub struct Decoder {
-    cobs_buf: CobsAccumulator<{ Affector::ENCODED_SIZE }>,
+    cobs_buf: CobsAccumulator<{ 2 * Affector::ENCODED_SIZE }>,
 }
 
 impl Default for Decoder {
@@ -92,7 +89,7 @@ impl Default for Decoder {
 }
 
 impl Decoder {
-    /// if this returns Some(_, remaining) move the remaining into it again
+    /// If this returns Some(_, remaining) move the remaining into it again
     pub fn feed<'a>(&mut self, read_bytes: &'a [u8]) -> Option<(Affector, &'a [u8])> {
         let mut window = read_bytes;
         while !window.is_empty() {
@@ -113,10 +110,24 @@ pub struct ListMessage<const MAX_ITEMS: usize> {
 }
 
 impl<const MAX_ITEMS: usize> ListMessage<MAX_ITEMS> {
+    /// +2 is for the version
+    /// +4 covers the length of the heapless list
+    pub const HALF_ENCODED_SIZE: usize = (MAX_ITEMS * Affector::POSTCARD_MAX_SIZE + 2 + 4);
+    /// cobs and postcard encoded
+    pub const ENCODED_SIZE: usize =
+        Self::HALF_ENCODED_SIZE + cobs_overhead(Self::HALF_ENCODED_SIZE);
+
     #[cfg(feature = "alloc")]
     #[must_use]
     pub fn encode(&self) -> Vec<u8> {
         postcard::to_allocvec_cobs(self).expect("Encoding should not fail")
+    }
+
+    /// Buffer should be at least `Self::ENCODED_SIZE` long. The returned slice contains
+    /// the serialized data. It can be shorter then the input buffer.
+    #[must_use]
+    pub fn encode_slice<'a>(&self, buf: &'a mut [u8]) -> &'a mut [u8] {
+        postcard::to_slice_cobs(self, buf).expect("Encoding should not fail")
     }
 
     #[must_use]
@@ -129,5 +140,34 @@ impl<const MAX_ITEMS: usize> ListMessage<MAX_ITEMS> {
 
     pub fn decode(mut bytes: impl AsMut<[u8]>) -> Result<Self, DecodeMsgError> {
         postcard::from_bytes_cobs(bytes.as_mut()).map_err(DecodeMsgError::CorruptEncoding)
+    }
+}
+
+#[cfg(all(test, feature = "alloc"))]
+mod test {
+    use super::*;
+    use large_bedroom::bed;
+
+    #[test]
+    fn decoder_decodes_encoded() {
+        let test_affector =
+            Affector::LargeBedroom(large_bedroom::Affector::Bed(bed::Affector::RgbLed {
+                red: 0,
+                green: 5,
+                blue: 0,
+            }));
+
+        let encoded = test_affector.encode();
+        let mut encoded_copy = encoded.clone();
+        let decoded: Affector = postcard::from_bytes_cobs(encoded_copy.as_mut_slice()).unwrap();
+        assert_eq!(decoded, test_affector);
+
+        let mut decoder = Decoder::default();
+
+        decoder.feed(&encoded);
+        let res = decoder.feed(&encoded);
+
+        let empty_slice = [].as_slice();
+        assert_eq!(res, Some((test_affector, empty_slice)));
     }
 }
