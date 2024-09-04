@@ -27,8 +27,7 @@ button_enum! {
     /// L: TopLeft, R: TopRight, 1: MiddleInner, 2: MiddleCenter, 3: MiddleOuter,
     /// 4: OuterInner, 5: OuterCenter, 6: OuterOuter
     Button {
-        TopLeft,
-        TopRight,
+        Top,
         MiddleInner,
         MiddleCenter,
         MiddleOuter,
@@ -162,7 +161,7 @@ impl Tree for Reading {
                 Unit::Ohm,
                 "Right weight sensor resistance",
             ),
-            Reading::Button(button) => return button.inner(),
+            Reading::Button(button) => return Item::Node(button),
             Reading::MassPm1_0(val) => (
                 *val,
                 Device::Sps30.rooted(),
@@ -471,8 +470,7 @@ impl Device {
             Device::Gpio => crate::DeviceInfo {
                 name: "Gpio",
                 affects_readings: &tree![Reading;
-                    Reading::Button(Button::TopLeft(Press(0))),
-                    Reading::Button(Button::TopRight(Press(0))),
+                    Reading::Button(Button::Top(Press(0))),
                     Reading::Button(Button::MiddleInner(Press(0))),
                     Reading::Button(Button::MiddleCenter(Press(0))),
                     Reading::Button(Button::MiddleOuter(Press(0))),
