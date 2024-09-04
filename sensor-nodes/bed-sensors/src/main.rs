@@ -2,8 +2,7 @@
 #![no_main]
 
 use embassy_executor::Spawner;
-use embassy_futures::select;
-use embassy_futures::select::Either;
+use embassy_futures::select::{self, Either3};
 use embassy_net::{Ipv4Address, Ipv4Cidr, Stack, StackResources};
 use embassy_net_wiznet::{chip::W5500, Device, Runner, State};
 use embassy_stm32::exti::ExtiInput;
@@ -17,6 +16,7 @@ use embassy_stm32::usart::{self, DataBits, Parity, StopBits, Uart};
 use embassy_stm32::wdg::IndependentWatchdog;
 use embassy_stm32::Config;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+use embassy_sync::channel::Channel;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Delay, Timer};
 use embedded_hal_bus::spi::ExclusiveDevice;
@@ -31,6 +31,7 @@ use {defmt_rtt as _, panic_probe as _};
 mod channel;
 mod error_cache;
 mod network;
+mod rgb_led;
 mod rng;
 mod sensors;
 use crate::channel::Queues;
@@ -119,7 +120,7 @@ async fn main(spawner: Spawner) {
         usart_config,
     ));
 
-    // we are out of DMA, so we need to use a blocking interface
+    // We are out of DMA, so we need to use a blocking interface
     // these sensors are only read once every 5s
     let i2c_1 = I2c::new(
         p.I2C1,
@@ -137,11 +138,12 @@ async fn main(spawner: Spawner) {
         p.I2C2,
         p.PB10,
         p.PB3,
-        // extra slow, helps with longer cable runs
-        Hertz(150_000),
+        // Extra slow, helps with longer cable run
+        // to the right weight sensor
+        Hertz(100_000),
         i2c::Config::default(),
     );
-    // even though its used by only one device we still use the (zero cost)
+    // Even though its used by only one device we still use the (zero cost)
     // mutex. It allows us to match/reuse the API for syn & async nau7802
     let i2c_2: Mutex<NoopRawMutex, _> = Mutex::new(i2c_2);
 
@@ -152,12 +154,12 @@ async fn main(spawner: Spawner) {
         Irqs,
         p.DMA1_CH4,
         p.DMA1_CH1,
-        // extra slow, helps with longer cable runs
+        // Extra slow, helps with longer cable runs
         Hertz(150_000),
         i2c::Config::default(),
     );
     let i2c_3: Mutex<NoopRawMutex, _> = Mutex::new(i2c_3);
-    
+
     let buttons = ButtonInputs {
         top: ExtiInput::new(p.PC14, p.EXTI14, Pull::Down),
         middle_inner: ExtiInput::new(p.PA9, p.EXTI9, Pull::Down),
@@ -169,7 +171,7 @@ async fn main(spawner: Spawner) {
     };
 
     let mut spi_cfg = SpiConfig::default();
-    spi_cfg.frequency = Hertz(5_000_000); // up to 50m works
+    spi_cfg.frequency = Hertz(5_000_000); // Up to 50m works
     let (miso, mosi, clk) = (p.PA6, p.PA7, p.PA5);
     let spi = Spi::new(p.SPI1, clk, mosi, miso, p.DMA2_CH3, p.DMA2_CH0, spi_cfg);
     let cs = Output::new(p.PA4, Level::High, Speed::VeryHigh);
@@ -206,12 +208,17 @@ async fn main(spawner: Spawner) {
     // Launch network task
     unwrap!(spawner.spawn(net_task(stack)));
 
+    let comms = Channel::new();
+    let (mut led_controller, led_handle) =
+        rgb_led::controller_and_handle(p.TIM1, p.PB14, p.PB13, p.PB15, &comms);
+
     let publish = Queues::new();
-    let handle_network = network::handle(stack, &publish);
+    let handle_network = network::handle(stack, &publish, led_handle.clone());
     pin_mut!(handle_network);
 
     let init_then_measure = sensors::init_then_measure(
         &publish,
+        led_handle,
         i2c_1,
         i2c_2,
         i2c_3,
@@ -219,10 +226,16 @@ async fn main(spawner: Spawner) {
         usart_sps30,
         buttons,
     );
-    let res = select::select(&mut handle_network, init_then_measure).await;
+
+    let res = select::select3(
+        &mut handle_network,
+        init_then_measure,
+        led_controller.control(),
+    )
+    .await;
     let unrecoverable_err = match res {
-        Either::First(()) | Either::Second(Ok(())) => defmt::unreachable!(),
-        Either::Second(Err(err)) => err,
+        Either3::First(()) | Either3::Third(()) | Either3::Second(Ok(())) => defmt::unreachable!(),
+        Either3::Second(Err(err)) => err,
     };
 
     // at this point no other errors have occurred

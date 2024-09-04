@@ -14,6 +14,7 @@ use sps30_async::Sps30;
 
 use crate::channel::Queues;
 use crate::error_cache::{Error, SensorError};
+use crate::rgb_led;
 
 pub mod fast;
 pub mod retry;
@@ -48,6 +49,7 @@ const SPS30_DRIVER_BUF_SIZE: usize = 2 * SPS30_UART_BUF_SIZE;
 
 pub async fn init_then_measure(
     publish: &Queues,
+    rgb_led: rgb_led::LedHandle<'_>,
     i2c_1: Mutex<NoopRawMutex, I2c<'static, Async>>,
     i2c_2: Mutex<NoopRawMutex, I2c<'static, Blocking>>,
     i2c_3: Mutex<NoopRawMutex, I2c<'static, Async>>,
@@ -73,7 +75,7 @@ pub async fn init_then_measure(
     let rx = rx.into_ring_buffered(&mut usart_buf);
     let sps30 = Sps30Driver::init(tx, rx);
 
-    let sensors_fast = fast::read(max44009, nau_right, nau_left, buttons, publish);
+    let sensors_fast = fast::read(max44009, nau_right, nau_left, buttons, publish, rgb_led);
     let sensors_slow = slow::read(sht, bme, mhz, sps30, publish);
     join::join(sensors_fast, sensors_slow).await;
 

@@ -2,12 +2,14 @@ use defmt::warn;
 use embassy_futures::join::{join3, join4};
 use embassy_futures::{join, yield_now};
 use embassy_stm32::exti::ExtiInput;
+use embassy_stm32::gpio::Level;
 use embassy_time::{Duration, Instant, Timer};
 
 use protocol::large_bedroom::{bed::Button, bed::Reading};
 
 use super::retry::{Max44Driver, Nau7802Driver, Nau7802DriverBlocking};
 use crate::channel::Queues;
+use crate::rgb_led;
 
 fn sig_lux_diff(old: f32, new: f32) -> bool {
     let diff = old - new;
@@ -20,7 +22,7 @@ fn sig_weight_diff(old: u32, new: u32) -> bool {
     diff > 2000
 }
 
-async fn report_lux(mut max44: Max44Driver<'_>, publish: &Queues) {
+async fn report_lux(mut max44: Max44Driver<'_>, publish: &Queues, rgb_led: rgb_led::LedHandle<'_>) {
     const MAX_INTERVAL: Duration = Duration::from_secs(5);
 
     let mut prev_lux = f32::MAX;
@@ -40,6 +42,7 @@ async fn report_lux(mut max44: Max44Driver<'_>, publish: &Queues) {
 
         if sig_lux_diff(prev_lux, lux) {
             publish.send_p2(Reading::Brightness(lux));
+            rgb_led.update_lux(lux).await;
         } else if last_lux.elapsed() > MAX_INTERVAL {
             publish.send_p1(Reading::Brightness(lux));
         } else {
@@ -101,33 +104,32 @@ async fn report_weight(mut nau: impl Nau, wrap: impl Fn(u32) -> Reading, publish
     }
 }
 
-#[allow(dead_code)]
 async fn watch_button(
     mut input: ExtiInput<'static>,
     event: impl Fn(protocol::button::Press) -> Button,
     channel: &Queues,
 ) {
-    let mut went_high_at: Option<Instant> = None;
+    let mut went_high_at: Option<(Instant)> = None;
     loop {
         if let Some(went_high_at) = went_high_at.take() {
-            input.wait_for_falling_edge().await;
+            input.wait_for_low().await;
             let press = went_high_at.elapsed();
-            if press > Duration::from_millis(5) {
-                let Ok(press) = press.as_millis().try_into() else {
-                    warn!("extremely long button press registered, skipping");
-                    continue;
-                };
-                let event = (event)(protocol::button::Press(press));
-                channel.send_p2(Reading::Button(event));
-            }
+            let Ok(press) = press.as_millis().try_into() else {
+                warn!("extremely long button press registered, skipping");
+                continue;
+            };
+            let event = (event)(protocol::button::Press(press));
+            channel.send_p2(Reading::Button(event));
         } else {
             input.wait_for_rising_edge().await;
-            went_high_at = Some(Instant::now());
+            Timer::after(Duration::from_millis(50)).await;
+            if input.is_high() {
+                went_high_at = Some(Instant::now());
+            }
         }
     }
 }
 
-#[allow(dead_code)]
 pub struct ButtonInputs {
     pub top: ExtiInput<'static>,
     pub middle_inner: ExtiInput<'static>,
@@ -144,11 +146,12 @@ pub(crate) async fn read(
     nau_left: Nau7802Driver<'_>,
     inputs: ButtonInputs,
     publish: &Queues,
+    rgb_led: rgb_led::LedHandle<'_>,
 ) {
     use protocol::large_bedroom::bed::Button;
 
     let watch_buttons_1 = join4(
-        watch_button(inputs.top, Button::TopLeft, publish),
+        watch_button(inputs.top, Button::Top, publish),
         watch_button(inputs.middle_inner, Button::MiddleInner, publish),
         watch_button(inputs.middle_center, Button::MiddleCenter, publish),
         watch_button(inputs.middle_outer, Button::MiddleOuter, publish),
@@ -162,7 +165,7 @@ pub(crate) async fn read(
 
     let watch_buttons = join::join(watch_buttons_1, watch_buttons_2);
 
-    let watch_lux = report_lux(max44, publish);
+    let watch_lux = report_lux(max44, publish, rgb_led);
     let report_right_weight = report_weight(nau_right, Reading::WeightRight, publish);
     let report_left_weight = report_weight(nau_left, Reading::WeightLeft, publish);
 
