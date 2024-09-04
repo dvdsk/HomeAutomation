@@ -69,6 +69,7 @@ where
 {
     pub async fn connect(addr: impl ToSocketAddrs, name: String) -> Result<Self, ConnectError> {
         let stream = TcpStream::connect(addr).await.map_err(ConnectError::Io)?;
+        let _ignore_error = stream.set_nodelay(true);
 
         let length_delimited = Framed::new(
             stream,
