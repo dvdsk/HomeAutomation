@@ -2,7 +2,6 @@ use defmt::warn;
 use embassy_futures::join::{join3, join4};
 use embassy_futures::{join, yield_now};
 use embassy_stm32::exti::ExtiInput;
-use embassy_stm32::gpio::Level;
 use embassy_time::{Duration, Instant, Timer};
 
 use protocol::large_bedroom::{bed::Button, bed::Reading};
@@ -71,14 +70,12 @@ impl Nau for Nau7802DriverBlocking<'_> {
     }
 }
 
-// todo deduplicate
 async fn report_weight(mut nau: impl Nau, wrap: impl Fn(u32) -> Reading, publish: &Queues) {
     const MAX_INTERVAL: Duration = Duration::from_secs(5);
 
     let mut prev_weight = u32::MAX;
     let mut reported_at = Instant::now();
 
-    // todo!("reinit devices after error");
     loop {
         Timer::after_millis(100).await;
         let weight = match nau.try_measure().await {
@@ -109,7 +106,7 @@ async fn watch_button(
     event: impl Fn(protocol::button::Press) -> Button,
     channel: &Queues,
 ) {
-    let mut went_high_at: Option<(Instant)> = None;
+    let mut went_high_at: Option<Instant> = None;
     loop {
         if let Some(went_high_at) = went_high_at.take() {
             input.wait_for_low().await;
