@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
 use crossterm::event::{KeyCode, KeyEvent};
-use protocol::{affector, Affector, Device};
+use protocol::{affector, Affector};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::Frame;
+use tokio::sync::mpsc;
 use tui_tree_widget::{TreeItem, TreeState};
 
 use crate::Update;
@@ -17,10 +18,12 @@ mod render;
 
 pub type TreeKey = [u8; 6];
 
+#[derive(Debug)]
 struct AffectorState {
     affector: Affector,
     selected_control: usize,
     info: affector::Info,
+    device_broken: DeviceBroken,
 }
 
 #[derive(Default)]
@@ -28,7 +31,7 @@ pub struct Tab {
     tree_state: TreeState<TreeKey>,
     pub ground: Vec<TreeItem<'static, TreeKey>>,
     data: HashMap<TreeKey, AffectorState>,
-    registered_affectors: Vec<Affector>,
+    data_server: Option<data_server::api::Client>,
 }
 
 impl Tab {
@@ -49,13 +52,17 @@ impl Tab {
         if let Some(ref mut data) = data {
             let [top, bottom] =
                 Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(right);
-            render::details(frame, &data.info, top);
+            render::details(frame, &data, top);
             render::controls(frame, data, bottom);
         };
         render::footer(frame, footer, data, theme)
     }
 
-    pub fn handle_key(&mut self, key: KeyEvent) -> Option<KeyEvent> {
+    pub fn handle_key(
+        &mut self,
+        key: KeyEvent,
+        control: &mut mpsc::Sender<protocol::Affector>,
+    ) -> Option<KeyEvent> {
         let data = self
             .tree_state
             .selected()
@@ -74,7 +81,7 @@ impl Tab {
             }
             _ => {
                 if let Some(state) = data {
-                    return handle_key::handle(key, state);
+                    return handle_key::handle(key, state, control);
                 }
             }
         }
@@ -82,38 +89,28 @@ impl Tab {
     }
 
     pub fn process_update(&mut self, update: &Update) {
-        let devices = match update {
+        match update {
             Update::ReadingList(_)
             | Update::Fetched { .. }
             | Update::FetchError(_)
+            | Update::SensorReading(_)
+            | Update::DeviceList(_)
             | Update::SubscribeError(_) => return,
             Update::AffectorControlled { affector, .. } => {
-                self.update_tree(affector);
-                return;
+                self.update_tree(affector, DeviceBroken::No);
             }
-            Update::SensorReading(r) => &vec![r.device()],
-            Update::SensorError(err) => &vec![err.device()],
-            Update::DeviceList(devices) => devices,
-        };
-
-        let mut possibly_new = devices
-            .iter()
-            .map(Device::info)
-            .flat_map(|info| info.affectors);
-
-        let first = possibly_new.next();
-        let free = if let Some(first) = first {
-            first.leaf().free_affectors
-        } else {
-            &[]
-        };
-
-        for new in possibly_new.chain(first.into_iter()).chain(free.iter()) {
-            if !self.registered_affectors.iter().any(|a| a.is_same_as(new)) {
-                self.registered_affectors.push(*new);
-                self.update_tree(new);
+            Update::SensorError(err) => {
+                let broken = err.device().info().affectors;
+                for affector in broken {
+                    self.update_tree(affector, DeviceBroken::Yes);
+                }
             }
-        }
+            Update::AffectorList(affectors) => {
+                for affector in affectors {
+                    self.update_tree(affector, DeviceBroken::No);
+                }
+            }
+        };
 
         if self.tree_state.selected().is_empty() {
             self.tree_state.select_first();
@@ -121,8 +118,14 @@ impl Tab {
     }
 }
 
+#[derive(Debug)]
+enum DeviceBroken {
+    Yes,
+    No,
+}
+
 impl Tab {
-    fn update_tree(&mut self, affector: &protocol::Affector) {
+    fn update_tree(&mut self, affector: &protocol::Affector, broken: DeviceBroken) {
         let key = tree_key(affector);
 
         let mut tree = add_root(affector as &dyn AffectorTree, &mut self.ground);
@@ -135,14 +138,15 @@ impl Tab {
                 Item::Leaf(info) => {
                     let text = tree_node.name();
                     add_leaf(text, tree, key);
-                    self.data.insert(
-                        key,
-                        AffectorState {
+                    self.data
+                        .entry(key)
+                        .and_modify(|state| state.affector = affector.clone())
+                        .or_insert(AffectorState {
                             affector: affector.clone(),
                             info,
                             selected_control: 0,
-                        },
-                    );
+                            device_broken: broken,
+                        });
                     return;
                 }
                 Item::Node(inner) => {

@@ -10,7 +10,7 @@ use tui_tree_widget::{TreeItem, TreeState};
 
 use crate::tui::Theme;
 
-use super::{AffectorState, TreeKey};
+use super::{AffectorState, DeviceBroken, TreeKey};
 
 pub(super) fn tree(
     frame: &mut Frame,
@@ -33,8 +33,15 @@ pub(super) fn tree(
     );
 }
 
-pub(super) fn details(frame: &mut Frame, info: &affector::Info, top: Rect) {
-    let text = info.description;
+pub(super) fn details(frame: &mut Frame, data: &&mut AffectorState, top: Rect) {
+    let text = if let DeviceBroken::No = data.device_broken {
+        data.info.description.to_string()
+    } else {
+        format!(
+            "{}\n\nWarning: Device reports error, affector might not work",
+            data.info.description
+        )
+    };
     frame.render_widget(
         widgets::Paragraph::new(text)
             .block(Block::bordered().title("Details"))
@@ -90,7 +97,6 @@ fn render_slider(
         Style::default()
     };
 
-    tracing::debug!("slider");
     let percentage = (current_value as u64 * 100) / (valid_range.end - valid_range.start);
     frame.render_widget(
         Gauge::default()
@@ -131,10 +137,10 @@ pub(crate) fn footer(
         }) => {
             footer.push("u/d: select prev/next");
             match affector.controls()[*selected_control].value {
-            C::Trigger => footer.push("enter: trigger affector"),
-            C::SetNum { .. } => footer.push("f/b increase/decrease"),
+                C::Trigger => footer.push("enter: trigger affector"),
+                C::SetNum { .. } => footer.push("f/b increase/decrease"),
+            }
         }
-        },
         None => (),
     }
 

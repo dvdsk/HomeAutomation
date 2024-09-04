@@ -119,7 +119,7 @@ impl Tab {
 
         match update {
             Update::SensorReading(reading) => {
-                self.readings.add(reading);
+                self.readings.update(reading);
             }
             Update::ReadingList(list) => {
                 self.readings.populate_from_reading_list(list);

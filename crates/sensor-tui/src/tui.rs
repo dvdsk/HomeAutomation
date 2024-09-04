@@ -3,6 +3,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
+use protocol::Affector;
 use ratatui::{
     prelude::{CrosstermBackend, Terminal},
     style::{Color, Style},
@@ -60,6 +61,7 @@ impl Default for Theme {
 pub fn run(
     rx: mpsc::Receiver<Update>,
     shutdown_tx: mpsc::Sender<UserIntent>,
+    control_tx: tokio::sync::mpsc::Sender<Affector>,
     fetcher: Fetch,
 ) -> Result<(), std::io::Error> {
     stdout().execute(EnterAlternateScreen)?;
@@ -67,7 +69,7 @@ pub fn run(
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
     terminal.clear()?;
 
-    let res = App::default().run(terminal, rx, fetcher);
+    let res = App::default().run(terminal, rx, control_tx, fetcher);
     shutdown_tx.send(UserIntent::Shutdown).unwrap();
 
     stdout().execute(LeaveAlternateScreen)?;
@@ -89,6 +91,7 @@ impl App {
         &mut self,
         mut terminal: Terminal<CrosstermBackend<Stdout>>,
         rx: mpsc::Receiver<Update>,
+        mut control_tx: tokio::sync::mpsc::Sender<Affector>,
         mut fetcher: Fetch,
     ) -> Result<(), std::io::Error> {
         loop {
@@ -122,7 +125,9 @@ impl App {
 
                         let res = match self.active_tab {
                             ActiveTab::Readings => self.readings_tab.handle_key(key),
-                            ActiveTab::Affectors => self.affectors_tab.handle_key(key),
+                            ActiveTab::Affectors => {
+                                self.affectors_tab.handle_key(key, &mut control_tx)
+                            }
                         };
                         if let Some(unhandled_key) = res {
                             match unhandled_key.code {

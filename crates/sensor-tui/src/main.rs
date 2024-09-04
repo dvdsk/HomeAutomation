@@ -4,11 +4,11 @@ use std::sync::mpsc;
 use std::thread;
 
 use clap::Parser;
-use color_eyre::eyre::{Report, WrapErr};
 use color_eyre::Result;
-use data_server::api::{Client, SubMessage};
 
+mod receive;
 mod fetch;
+mod control;
 mod populate;
 mod time;
 mod tui;
@@ -53,57 +53,10 @@ enum Update {
         affector: protocol::Affector,
         controlled_by: String,
     },
+    AffectorList(Vec<protocol::Affector>),
 }
 
-async fn receive_data(data_server: SocketAddr, tx: mpsc::Sender<Update>) {
-    let client = match Client::connect(data_server, client_name()).await {
-        Ok(client) => client,
-        Err(err) => {
-            let _ignore_panicked_ui = tx.send(Update::SubscribeError(
-                Report::new(err).wrap_err("Could not connect to data server"),
-            ));
-            return;
-        }
-    };
 
-    let mut subbed = match client.subscribe().await {
-        Ok(client) => client,
-        Err(err) => {
-            let _ignore_panicked_ui = tx.send(Update::SubscribeError(
-                Report::new(err).wrap_err("Could not subscribe to data server"),
-            ));
-            return;
-        }
-    };
-
-    loop {
-        let res = subbed
-            .next()
-            .await
-            .wrap_err("Error getting next reading from server")
-            .map(|msg| match msg {
-                SubMessage::Reading(reading) => Update::SensorReading(reading),
-                SubMessage::ErrorReport(error) => Update::SensorError(error),
-                SubMessage::AffectorControlled {
-                    affector,
-                    controlled_by,
-                } => Update::AffectorControlled {
-                    affector,
-                    controlled_by,
-                },
-            });
-
-        match res {
-            Ok(msg) => {
-                tx.send(msg).unwrap();
-            }
-            Err(err) => {
-                tx.send(Update::SubscribeError(err)).unwrap();
-                break;
-            }
-        }
-    }
-}
 
 #[derive(Parser)]
 #[command(name = "sensor tui")]
@@ -135,14 +88,17 @@ async fn main() -> Result<()> {
 
     let (tx1, rx1) = mpsc::channel();
     let (tx2, rx2) = mpsc::channel();
+    let (tx3, rx3) = tokio::sync::mpsc::channel(100);
 
     let fetcher = Fetch::new(data_store, log_store, tx1.clone());
 
     let tx1_clone1 = tx1.clone();
     let tx1_clone2 = tx1.clone();
-    task::spawn(receive_data(data_server, tx1_clone1));
-    thread::spawn(move || tui::run(rx1, tx2, fetcher));
-    thread::spawn(move || populate::tree(data_store, log_store, tx1_clone2));
+
+    thread::spawn(move || tui::run(rx1, tx2, tx3, fetcher));
+    task::spawn(receive::receive_data(data_server, tx1_clone1));
+    thread::spawn(move || populate::tree(data_server, data_store, log_store, tx1_clone2));
+    task::spawn(control::watch_and_send(data_server, rx3));
 
     loop {
         let UserIntent::Shutdown = rx2.recv()?;

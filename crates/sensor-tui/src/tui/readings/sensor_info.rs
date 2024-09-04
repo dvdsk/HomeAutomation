@@ -267,7 +267,7 @@ enum IsPlaceholder {
 }
 
 impl Readings {
-    pub fn add(&mut self, reading: Reading) {
+    pub fn update(&mut self, reading: Reading) {
         self.update_tree(&reading, IsPlaceholder::No);
         self.record_data(reading);
     }
@@ -385,21 +385,22 @@ impl Readings {
 
     fn update_tree(&mut self, reading: &Reading, placeholder: IsPlaceholder) {
         let key = tree_key(reading);
+        tracing::debug!("reading: {reading:?}");
 
         let mut tree = add_root(reading as &dyn Tree, &mut self.ground);
-        let mut tomato = match reading.inner() {
+        let mut node = match reading.inner() {
             Item::Leaf(_) => unreachable!("no values at level 0"),
             Item::Node(inner) => inner,
         };
         loop {
-            match tomato.inner() {
+            match node.inner() {
                 Item::Leaf(info) => {
                     let text = if let IsPlaceholder::Yes = placeholder {
-                        tomato.name()
+                        node.name()
                     } else {
                         format!(
                             "{0}: {1:.2$} {3}",
-                            tomato.name(),
+                            node.name(),
                             info.val,
                             info.precision(),
                             info.unit
@@ -409,8 +410,8 @@ impl Readings {
                     return;
                 }
                 Item::Node(inner) => {
-                    tree = add_node(tomato, tree);
-                    tomato = inner;
+                    tree = add_node(node, tree);
+                    node = inner;
                 }
             };
         }
