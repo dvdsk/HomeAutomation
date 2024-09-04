@@ -1,6 +1,6 @@
 use std::mem;
 use tokio::sync::mpsc;
-use tracing::debug;
+use tracing::trace;
 
 use color_eyre::Result;
 
@@ -15,7 +15,7 @@ pub async fn spread_updates(mut events: mpsc::Receiver<Event>) -> Result<()> {
             .recv()
             .await
             .expect("queue is kept open by register_subs");
-        debug!("event: {event:?}");
+        trace!("event: {event:?}");
 
         let msg = match event {
             Event::NewSub { tx } => {

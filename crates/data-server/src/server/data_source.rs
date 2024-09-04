@@ -1,9 +1,11 @@
 use std::net::SocketAddr;
+use std::time::Duration;
 
 use color_eyre::eyre::{eyre, Context};
 use color_eyre::{Result, Section};
 use futures_concurrency::future::Race;
 use protocol::Affector;
+use socket2::TcpKeepalive;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::tcp::OwnedReadHalf;
 use tokio::net::TcpListener;
@@ -11,7 +13,7 @@ use tokio::net::TcpStream;
 use tokio::sync::mpsc::Sender;
 
 use super::Event;
-use tracing::{error, info, instrument, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 use super::affector::{control_affectors, Registar};
 
@@ -66,6 +68,16 @@ async fn handle_node(
     registar: Registar,
 ) {
     use tracing_futures::Instrument;
+
+    let sock_ref = socket2::SockRef::from(&stream);
+    sock_ref
+        .set_tcp_keepalive(
+            &TcpKeepalive::new()
+                .with_time(Duration::from_secs(5))
+                .with_retries(1) // 1 is minimum
+                .with_interval(Duration::from_secs(1)),
+        )
+        .expect("4 sec keepalive should work on tcp stream");
     let (reader, writer) = stream.into_split();
     let mut reader = BufReader::new(reader);
 
@@ -76,12 +88,10 @@ async fn handle_node(
             return;
         }
     };
-    let (tx, rx) = tokio::sync::mpsc::channel(10);
-    let key = registar.register(tx);
-    for affector in affectors {
-        registar.update_affectors(key, affector);
-    }
+    debug!("new node connected with affectors: {affectors:?}");
 
+    let (tx, rx) = tokio::sync::mpsc::channel(10);
+    let key = registar.register(tx, affectors);
     (
         receive_and_spread_updates(reader, queue).in_current_span(),
         control_affectors(writer, rx).in_current_span(),
@@ -90,6 +100,7 @@ async fn handle_node(
         .await;
 
     registar.remove(key);
+    debug!("node removed");
 }
 
 async fn handshake(reader: &mut BufReader<OwnedReadHalf>) -> Result<Vec<Affector>, String> {
@@ -140,5 +151,5 @@ async fn receive_and_spread_updates(mut reader: BufReader<OwnedReadHalf>, queue:
                 return;
             }
         }
-    } // loop
+    } // Loop
 }

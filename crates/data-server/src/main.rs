@@ -14,11 +14,11 @@ use data_server::server;
 #[command(version = "1.0")]
 #[command(about = "Receives sensor events and spreads those to subscribed services")]
 struct Cli {
-    /// addr to which subscribers can connect
+    /// Addr to which subscribers can connect
     #[arg(short, long)]
     subscribe_addr: SocketAddr,
 
-    /// addr to which data-source can supply msg's
+    /// Addr to which data-source can supply messages
     #[arg(short, long)]
     update_addr: SocketAddr,
 }

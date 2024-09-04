@@ -7,7 +7,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::tcp::OwnedWriteHalf;
 use tokio::sync::mpsc::{Receiver, Sender};
 
-use tracing::{debug, instrument, warn};
+use tracing::{instrument, warn};
 
 #[derive(Debug)]
 pub(crate) struct Registration {
@@ -17,12 +17,12 @@ pub(crate) struct Registration {
 
 impl Registration {
     fn update(&mut self, new: Affector) {
-        if let Some(curr) = self.controls.iter_mut().find(|a| a.is_same_as(&new)) {
-            *curr = new;
-        } else {
-            debug!("new affector: {new:?} registered");
-            self.controls.push(new);
-        }
+        let curr = self
+            .controls
+            .iter_mut()
+            .find(|a| a.is_same_as(&new))
+            .unwrap();
+        *curr = new;
     }
 }
 
@@ -30,20 +30,30 @@ impl Registration {
 pub struct Registar(Arc<Mutex<SlotMap<DefaultKey, Registration>>>);
 
 impl Registar {
-    pub(crate) fn register(&self, tx: Sender<Affector>) -> DefaultKey {
+    pub(crate) fn register(&self, tx: Sender<Affector>, affectors: Vec<Affector>) -> DefaultKey {
         let mut this = self.0.lock().expect("nothing should panic");
+
+        let to_remove: Vec<_> = this
+            .iter_mut()
+            .filter(|(_, reg)| {
+                reg.controls.iter().any(|control| {
+                    affectors
+                        .iter()
+                        .any(|affector| affector.is_same_as(control))
+                })
+            })
+            .map(|(key, _)| key)
+            .collect();
+
+        for key in to_remove {
+            this.remove(key)
+                .expect("held lock so can not have been removed");
+        }
+
         this.insert(Registration {
             tx,
-            controls: Vec::new(),
+            controls: affectors,
         })
-    }
-
-    pub(crate) fn update_affectors(&self, key: DefaultKey, affector: Affector) {
-        let mut this = self.0.lock().expect("nothing should panic");
-        let registration = this
-            .get_mut(key)
-            .expect("items are removed when track_and_control_affectors only");
-        registration.update(affector)
     }
 
     pub(crate) fn remove(&self, key: DefaultKey) {
@@ -53,11 +63,11 @@ impl Registar {
 
     pub(crate) fn activate(&self, order: Affector) -> Result<(), Offline> {
         let mut this = self.0.lock().expect("nothing should panic");
-        for possible_controller in this
-            .iter_mut()
-            .map(|(_, reg)| reg)
-            .filter(|reg| reg.controls.contains(&order))
-        {
+        for possible_controller in this.iter_mut().map(|(_, reg)| reg).filter(|reg| {
+            reg.controls
+                .iter()
+                .any(|control| control.is_same_as(&order))
+        }) {
             if possible_controller.tx.try_send(order).is_ok() {
                 possible_controller.update(order);
                 return Ok(());
@@ -80,8 +90,6 @@ pub struct Offline;
 
 #[instrument(skip_all)]
 pub(super) async fn control_affectors(mut writer: OwnedWriteHalf, mut rx: Receiver<Affector>) {
-    debug!("controlling newly connected node's affectors");
-
     while let Some(new_order) = rx.recv().await {
         let buf = new_order.encode();
         if let Err(e) = writer.write_all(&buf).await {
