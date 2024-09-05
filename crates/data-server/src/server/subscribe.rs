@@ -5,7 +5,7 @@ use tracing::trace;
 use color_eyre::Result;
 
 use super::Event;
-use crate::api::SubMessage;
+use crate::api::subscriber::SubMessage;
 
 pub async fn spread_updates(mut events: mpsc::Receiver<Event>) -> Result<()> {
     let mut subscribers = Vec::new();

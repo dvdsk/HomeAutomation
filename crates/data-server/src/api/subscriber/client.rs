@@ -4,10 +4,8 @@ use tokio::net::ToSocketAddrs;
 use super::AffectorError;
 use super::Request;
 use super::Response;
-use super::ServerError;
-use super::SubMessage;
-use super::SubscribeError;
 
+use crate::api::subscriber;
 pub(crate) mod reconnecting;
 
 #[derive(Debug)]
@@ -49,7 +47,7 @@ impl Client {
         }
     }
 
-    pub async fn subscribe(mut self) -> Result<Subscribed, Error<SubscribeError>> {
+    pub async fn subscribe(mut self) -> Result<Subscribed, Error<subscriber::SubscribeError>> {
         self.0.subscribe().await?;
         Ok(Subscribed(self))
     }
@@ -59,10 +57,10 @@ impl Client {
 pub struct Subscribed(Client);
 
 impl Subscribed {
-    pub async fn next(&mut self) -> Result<SubMessage, Error<SubscribeError>> {
+    pub async fn next(&mut self) -> Result<subscriber::SubMessage, Error<subscriber::SubscribeError>> {
         let received = self.0 .0.next().await?;
 
-        if let Response::SubUpdate(update) = received {
+        if let subscriber::Response::SubUpdate(update) = received {
             Ok(update)
         } else {
             Err(Error::IncorrectResponse {
@@ -82,7 +80,7 @@ pub enum Error<T: std::error::Error> {
     #[error("Error while sending request: {0}")]
     Receiving(std::io::Error),
     #[error("General error while processing request")]
-    Server(ServerError),
+    Server(subscriber::ServerError),
     #[error("Server ran into an specific error with our request: {0}")]
     Request(T),
     #[error("Error while communicating with server: {0}")]

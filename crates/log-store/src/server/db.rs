@@ -2,10 +2,10 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use data_server::api::ReconnectingClient;
+use data_server::api::subscriber::ReconnectingClient;
+use data_server::api::subscriber::SubMessage;
 
 use color_eyre::Result;
-use data_server::api::SubMessage;
 
 mod log;
 pub(crate) use log::Logs;

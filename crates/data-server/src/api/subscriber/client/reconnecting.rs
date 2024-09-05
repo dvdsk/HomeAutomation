@@ -1,4 +1,4 @@
-use crate::api::SubMessage;
+use crate::api::subscriber;
 
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -102,7 +102,7 @@ pub struct SubscribedClient {
 }
 
 impl SubscribedClient {
-    pub async fn next(&mut self) -> SubMessage {
+    pub async fn next(&mut self) -> subscriber::SubMessage {
         loop {
             let conn = if let Some(conn) = self.connection.take() {
                 conn

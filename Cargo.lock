@@ -972,6 +972,7 @@ dependencies = [
  "bme280",
  "clap",
  "color-eyre",
+ "data-server",
  "embedded-hal-async",
  "gpiocdev-embedded-hal",
  "heapless 0.8.0",

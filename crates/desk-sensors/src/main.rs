@@ -1,11 +1,11 @@
 use clap::Parser;
 use color_eyre::Result;
-use protocol::{Msg, SensorMessage};
-use std::io::{ErrorKind, Write};
-use std::net::{SocketAddr, TcpStream};
-use std::sync::mpsc::{self, Sender};
-use std::time::Duration;
-use tracing::{debug, info, warn};
+use data_server::api::data_source;
+use std::net::SocketAddr;
+
+use tokio::sync::mpsc::{self, Sender};
+
+use tracing::info;
 
 mod sensors;
 
@@ -19,58 +19,26 @@ struct Cli {
     update_port: u16,
 }
 
-fn main() {
+#[tokio::main(flavor = "current_thread")]
+async fn main() {
     color_eyre::install().unwrap();
     let cli = Cli::parse();
 
     setup_tracing().unwrap();
 
-    let (tx, rx) = mpsc::channel();
+    let (tx, mut rx) = mpsc::channel(100);
     if let Err(error) = sensors::start_monitoring(tx.clone()) {
         send_error(&tx, error);
     }
 
     let addr = SocketAddr::from(([127, 0, 0, 1], cli.update_port));
     info!("connecting to dataserver on: {}", cli.update_port);
+    let mut client = data_source::reconnecting::Client::new(addr, Vec::new());
 
     loop {
-        let mut stream = match TcpStream::connect(addr) {
-            Ok(stream) => stream,
-            Err(err) if err.kind() == ErrorKind::ConnectionRefused => {
-                warn!("could not connect to data server, retrying in 5 seconds");
-                std::thread::sleep(Duration::from_secs(5));
-                continue;
-            }
-            Err(err) => panic!("could not connect to server: {}", err),
-        };
-
-        let bytes =
-            protocol::Msg::AffectorList(protocol::affector::ListMessage::<50>::empty()).encode();
-        if stream.write_all(&bytes).is_err() {
-            std::thread::sleep(Duration::from_secs(5));
-            break; // reconnect
-        }
-
-        loop {
-            let result = rx.recv().unwrap();
-            let msg = match result {
-                Ok(reading) => {
-                    let mut readings = SensorMessage::<1>::default();
-                    readings
-                        .values
-                        .push(reading)
-                        .expect("capacity allows one push");
-                    Msg::Readings(readings)
-                }
-                Err(report) => Msg::ErrorReport(protocol::ErrorReport::new(report)),
-            };
-
-            debug!("Sending message: {msg:?}");
-            let bytes = msg.encode();
-            if stream.write_all(&bytes).is_err() {
-                std::thread::sleep(Duration::from_secs(5));
-                break; // reconnect
-            }
+        match rx.recv().await.expect("sensor monitoring never stops") {
+            Ok(reading) => client.send_reading(reading).await,
+            Err(report) => client.send_error(report).await,
         }
     }
 }
@@ -98,7 +66,7 @@ fn send_error(
 ) {
     use protocol::large_bedroom::Error::Desk as DeskE;
     use protocol::Error::LargeBedroom as LbE;
-    tx.send(Err(LbE(DeskE(error)))).unwrap();
+    tx.blocking_send(Err(LbE(DeskE(error)))).unwrap();
 }
 
 fn send_reading(
@@ -107,5 +75,5 @@ fn send_reading(
 ) {
     use protocol::large_bedroom::Reading::Desk;
     use protocol::Reading::LargeBedroom as Lb;
-    tx.send(Ok(Lb(Desk(reading)))).unwrap();
+    tx.blocking_send(Ok(Lb(Desk(reading)))).unwrap();
 }

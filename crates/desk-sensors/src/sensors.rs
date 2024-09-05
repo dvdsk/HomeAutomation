@@ -4,7 +4,7 @@ use hal::{Delay, I2cdev};
 use linux_embedded_hal as hal;
 use tracing::debug;
 
-use std::sync::mpsc::Sender;
+use tokio::sync::mpsc::Sender;
 use std::thread;
 use std::time::{Duration, Instant};
 

@@ -1,5 +1,5 @@
 use color_eyre::eyre::eyre;
-use data_server::api::ReconnectingSubscribedClient;
+use data_server::api::subscriber::ReconnectingSubscribedClient;
 use nucleo_matcher::pattern::Pattern;
 use protocol::Reading;
 use std::time::Duration;

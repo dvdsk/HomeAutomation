@@ -4,8 +4,7 @@ use tokio::sync::mpsc;
 
 use color_eyre::Result;
 
-use crate::api::AffectorError;
-use crate::api::{self, ServerError};
+use crate::api::subscriber;
 
 use super::{affector::Offline, affector::Registar, Event};
 
@@ -16,7 +15,7 @@ struct SubHandler {
 
 async fn do_setup(
     new_events: mpsc::Sender<Event>,
-) -> impl Stream<Item = api::Response> + Send + 'static {
+) -> impl Stream<Item = subscriber::Response> + Send + 'static {
     let (tx, rx) = tokio::sync::mpsc::channel(100);
     new_events
         .send(Event::NewSub { tx })
@@ -25,13 +24,13 @@ async fn do_setup(
     stream::unfold(rx, |mut rx| async move {
         rx.recv()
             .await
-            .map(api::Response::SubUpdate)
+            .map(subscriber::Response::SubUpdate)
             .map(|yielded| (yielded, rx))
     })
 }
 
 impl rpc::SubscriberHandler for SubHandler {
-    type Update = crate::api::Response;
+    type Update = subscriber::Response;
 
     fn setup(
         &mut self,
@@ -65,28 +64,28 @@ pub async fn handle(
 }
 
 async fn perform_request(
-    request: api::Request,
+    request: subscriber::Request,
     client_name: String,
     new_event: mpsc::Sender<Event>,
     affectors: Registar,
-) -> api::Response {
+) -> subscriber::Response {
     match perform_request_inner(request, client_name, new_event, affectors).await {
         Ok(response) => response,
-        Err(error) => api::Response::Error(error),
+        Err(error) => subscriber::Response::Error(error),
     }
 }
 
 async fn perform_request_inner(
-    request: api::Request,
+    request: subscriber::Request,
     client_name: String,
     new_event: mpsc::Sender<Event>,
     affectors: Registar,
-) -> Result<api::Response, ServerError> {
+) -> Result<subscriber::Response, subscriber::ServerError> {
     Ok(match request {
-        api::Request::Handshake { .. } => {
+        subscriber::Request::Handshake { .. } => {
             unreachable!("handshake only takes place during connection")
         }
-        api::Request::Actuate(affector) => match affectors.activate(affector) {
+        subscriber::Request::Actuate(affector) => match affectors.activate(affector) {
             Ok(()) => {
                 new_event
                     .send(Event::AffectorControlled {
@@ -94,11 +93,11 @@ async fn perform_request_inner(
                         controlled_by: client_name.to_owned(),
                     })
                     .await
-                    .map_err(|_| ServerError::FailedToSpread)?;
-                api::Response::Actuate(Ok(()))
+                    .map_err(|_| subscriber::ServerError::FailedToSpread)?;
+                subscriber::Response::Actuate(Ok(()))
             }
-            Err(Offline) => api::Response::Actuate(Err(AffectorError::Offline)),
+            Err(Offline) => subscriber::Response::Actuate(Err(subscriber::AffectorError::Offline)),
         },
-        api::Request::ListAffectors => api::Response::ListAffectors(affectors.list()),
+        subscriber::Request::ListAffectors => subscriber::Response::ListAffectors(affectors.list()),
     })
 }

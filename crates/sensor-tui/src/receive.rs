@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 use std::sync::mpsc;
 
 use color_eyre::eyre::{Report, WrapErr};
-use data_server::api::{Client, SubMessage};
+use data_server::api::subscriber::{Client, SubMessage};
 
 use crate::{client_name, Update};
 

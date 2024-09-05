@@ -10,13 +10,15 @@ linux-embedded-hal = "0.4"
 gpiocdev-embedded-hal = { version = "0.1.1", features = ["async_tokio"] }
 bme280 = { version = "0.5", git = "https://github.com/dvdsk/bme280-rs", features = ["postcard", "serde", "with_std"] }
 
+data-server = { workspace = true }
+protocol = { workspace = true, features = ["alloc"] }
+
 clap = { workspace = true}
 color-eyre = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace =true, features = ["env-filter"] }
 tracing-error = { workspace = true }
 
-protocol = { workspace = true, features = ["alloc"] }
 tokio = { workspace = true, features = ["rt", "time", "macros"] }
 embedded-hal-async = "1.0.0"
 heapless = "0.8.0"

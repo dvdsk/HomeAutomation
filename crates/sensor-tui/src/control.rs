@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use data_server::api::Client;
+use data_server::api::subscriber::Client;
 use protocol::Affector;
 use tokio::sync::mpsc;
 use tracing::error;

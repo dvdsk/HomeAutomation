@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 use std::sync::mpsc;
 
 use color_eyre::Result;
+use data_server::api::subscriber;
 use tracing::warn;
 
 use crate::{client_name, Update};
@@ -40,7 +41,7 @@ pub fn tree(
 }
 
 async fn list_from_server(data_server_addr: SocketAddr, tx: mpsc::Sender<Update>) -> Result<()> {
-    let mut client = data_server::api::Client::connect(data_server_addr, client_name()).await?;
+    let mut client = subscriber::Client::connect(data_server_addr, client_name()).await?;
     let list = client.list_affectors().await?;
     tracing::debug!("affector list: {list:?}");
     tx.send(Update::AffectorList(list)).unwrap();

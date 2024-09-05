@@ -4,11 +4,11 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use data_server::api::ReconnectingClient;
-use tokio::sync::Mutex;
+use data_server::api::subscriber::ReconnectingClient;
+use data_server::api::subscriber::SubMessage;
 
+use tokio::sync::Mutex;
 use color_eyre::{Result, Section};
-use data_server::api::SubMessage;
 
 mod series;
 use series::Series;

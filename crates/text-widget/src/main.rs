@@ -1,7 +1,7 @@
 use color_eyre::eyre::{eyre, Context};
 use color_eyre::Result;
-use data_server::api::SubMessage;
-use data_server::api::{ReconnectingClient, ReconnectingSubscribedClient};
+use data_server::api::subscriber::SubMessage;
+use data_server::api::subscriber::{ReconnectingClient, ReconnectingSubscribedClient};
 use gethostname::gethostname;
 use protocol::reading::tree::Tree;
 use protocol::Reading;

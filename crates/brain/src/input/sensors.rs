@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use data_server::api::{ReconnectingClient, SubMessage};
+use data_server::api::subscriber::{ReconnectingClient, SubMessage};
 use tokio::sync::broadcast;
 
 use crate::controller::Event;

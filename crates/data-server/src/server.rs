@@ -14,14 +14,13 @@ pub use affector::Registar as AffectorRegistar;
 pub use data_source::handle_nodes;
 pub use subscribe::spread_updates;
 
-use crate::api;
-use crate::api::SubMessage;
+use crate::api::subscriber::{self, SubMessage};
 
 pub type Conn = tokio_serde::Framed<
     Framed<TcpStream, LengthDelimitedCodec>,
-    api::Request,
-    api::Response,
-    Bincode<api::Request, api::Response>,
+    subscriber::Request,
+    subscriber::Response,
+    Bincode<subscriber::Request, subscriber::Response>,
 >;
 
 #[derive(Debug)]

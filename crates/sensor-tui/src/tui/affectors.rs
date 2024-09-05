@@ -31,7 +31,6 @@ pub struct Tab {
     tree_state: TreeState<TreeKey>,
     pub ground: Vec<TreeItem<'static, TreeKey>>,
     data: HashMap<TreeKey, AffectorState>,
-    data_server: Option<data_server::api::Client>,
 }
 
 impl Tab {
