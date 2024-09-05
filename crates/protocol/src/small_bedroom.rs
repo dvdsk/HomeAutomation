@@ -35,8 +35,9 @@ crate::button_enum! {
     MaxSize,
     PartialEq,
 )]
+#[repr(u8)]
 pub enum Reading {
-    ButtonPanel(ButtonPanel),
+    ButtonPanel(ButtonPanel) = 0,
 }
 
 #[cfg(feature = "alloc")]

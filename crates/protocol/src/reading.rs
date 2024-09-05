@@ -22,9 +22,10 @@ pub mod tree;
     PartialEq,
 )]
 #[strum_discriminants(derive(Hash))]
+#[repr(u8)]
 pub enum Reading {
-    LargeBedroom(large_bedroom::Reading),
-    SmallBedroom(small_bedroom::Reading),
+    LargeBedroom(large_bedroom::Reading) = 0,
+    SmallBedroom(small_bedroom::Reading) = 1,
     // Test,
 }
 

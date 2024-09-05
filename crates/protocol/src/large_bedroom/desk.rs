@@ -38,11 +38,12 @@ button_enum! {
     PartialEq,
 )]
 #[strum_discriminants(derive(Hash))]
+#[repr(u8)]
 pub enum Reading {
-    Temperature(f32),
-    Humidity(f32),
-    Pressure(f32),
-    Button(Button),
+    Temperature(f32) = 0,
+    Humidity(f32) = 1,
+    Pressure(f32) = 2,
+    Button(Button) = 3,
 }
 
 #[cfg(feature = "alloc")]

@@ -50,40 +50,41 @@ button_enum! {
     PartialEq,
 )]
 #[strum_discriminants(derive(Hash))]
+#[repr(u8)]
 pub enum Reading {
-    Button(Button),
-    Brightness(f32),
-    Temperature(f32),
-    Humidity(f32),
-    GassResistance(f32), // in Ohm
-    Pressure(f32),
-    /// parts per million
-    Co2(u16),
-    /// weight on the left side of the bed
-    WeightLeft(u32),
-    /// weight on the right side of the bed
-    WeightRight(u32),
+    Button(Button) = 0,
+    Brightness(f32) = 1,
+    Temperature(f32) = 2,
+    Humidity(f32) = 3,
+    GassResistance(f32) = 4, // In Ohm
+    Pressure(f32) = 5,
+    /// Parts per million
+    Co2(u16) = 6,
+    /// Weight on the left side of the bed
+    WeightLeft(u32) = 7,
+    /// Weight on the right side of the bed
+    WeightRight(u32) = 8,
 
     /// Mass Concentration PM1.0 \[μg/m³\]
-    MassPm1_0(f32),
+    MassPm1_0(f32) = 9,
     /// Mass Concentration PM2.5 \[μg/m³\]
-    MassPm2_5(f32),
+    MassPm2_5(f32) = 10,
     /// Mass Concentration PM4.0 \[μg/m³\]
-    MassPm4_0(f32),
+    MassPm4_0(f32) = 11,
     /// Mass Concentration PM10 \[μg/m³\]
-    MassPm10(f32),
+    MassPm10(f32) = 12,
     /// Number Concentration PM0.5 \[#/cm³\]
-    NumberPm0_5(f32),
+    NumberPm0_5(f32) = 13,
     /// Number Concentration PM1.0 \[#/cm³\]
-    NumberPm1_0(f32),
+    NumberPm1_0(f32) = 14,
     /// Number Concentration PM2.5 \[#/cm³\]
-    NumberPm2_5(f32),
+    NumberPm2_5(f32) = 15,
     /// Number Concentration PM4.0 \[#/cm³\]
-    NumberPm4_0(f32),
+    NumberPm4_0(f32) = 16,
     /// Number Concentration PM10 \[#/cm³\]
-    NumberPm10(f32),
+    NumberPm10(f32) = 17,
     /// Typical Particle Size8 \[μm\]
-    TypicalParticleSize(f32),
+    TypicalParticleSize(f32) = 18,
 }
 
 #[cfg(feature = "alloc")]

@@ -19,9 +19,10 @@ pub mod desk;
     PartialEq,
 )]
 #[strum_discriminants(derive(Hash))]
+#[repr(u8)]
 pub enum Reading {
-    Bed(bed::Reading),
-    Desk(desk::Reading),
+    Bed(bed::Reading) = 0,
+    Desk(desk::Reading) = 1,
 }
 
 #[cfg(feature = "alloc")]
