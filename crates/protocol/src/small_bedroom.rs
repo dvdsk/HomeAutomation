@@ -7,6 +7,8 @@ use crate::button::Press;
 #[cfg(feature = "alloc")]
 use crate::reading::tree::{Item, Tree};
 
+pub mod desk;
+
 crate::button_enum! {
     /// +-----------------------------------------+
     /// | TopLeft    | TopMiddle    | TopRight    |
@@ -38,6 +40,7 @@ crate::button_enum! {
 #[repr(u8)]
 pub enum Reading {
     ButtonPanel(ButtonPanel) = 0,
+    Desk(desk::Reading) = 1,
 }
 
 #[cfg(feature = "alloc")]
@@ -45,6 +48,7 @@ impl Tree for Reading {
     fn inner(&self) -> Item<'_> {
         match self {
             Reading::ButtonPanel(inner) => return Item::Node(inner),
+            Reading::Desk(inner) => return Item::Node(inner),
         }
     }
 
@@ -58,6 +62,40 @@ impl Reading {
     pub fn is_same_as(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::ButtonPanel(a), Self::ButtonPanel(b)) => a.is_same_as(b),
+            (Self::Desk(a), Self::Desk(b)) => a.is_same_as(b),
+            _ => false,
+        }
+    }
+}
+
+#[derive(
+    strum::EnumDiscriminants,
+    Clone,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    Eq,
+    PartialEq,
+)]
+pub enum Error {
+    Desk(desk::Error),
+}
+
+impl Error {
+    #[must_use]
+    pub fn device(&self) -> Device {
+        match self {
+            Error::Desk(error) => Device::Desk(error.device()),
+        }
+    }
+}
+
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Error::Desk(error) => write!(f, "{error}"),
         }
     }
 }
@@ -65,6 +103,7 @@ impl Reading {
 #[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Hash, PartialEq, Eq)]
 pub enum Device {
     Gpio,
+    Desk(desk::Device),
 }
 
 macro_rules! tree {
@@ -96,6 +135,7 @@ impl Device {
                 min_sample_interval: Duration::from_millis(2),
                 max_sample_interval: Duration::MAX,
             },
+            Device::Desk(device) => device.info(),
         }
     }
 }

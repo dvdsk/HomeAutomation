@@ -9,22 +9,20 @@ pub(crate) use button::button_enum;
 pub mod large_bedroom;
 pub mod small_bedroom;
 
-pub mod reading;
+pub mod affector;
 mod device;
 mod error;
-pub mod affector;
+pub mod reading;
 
 mod msg;
-pub use msg::{Msg, DecodeMsgError};
-pub use msg::sensor::SensorMessage;
-pub use msg::error::ErrorReport;
-pub use msg::error::make_error_string;
-pub use reading::Reading;
+pub use affector::Affector;
 pub use device::Device;
 pub use device::Info as DeviceInfo;
 pub use error::Error;
-pub use affector::Affector;
-
+pub use msg::error::{make_error_string, ErrorReport, ErrorString};
+pub use msg::sensor::SensorMessage;
+pub use msg::{DecodeMsgError, Msg};
+pub use reading::Reading;
 
 #[derive(Debug, Clone)]
 pub enum Unit {

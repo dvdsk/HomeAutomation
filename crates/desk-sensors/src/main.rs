@@ -3,10 +3,11 @@ use color_eyre::Result;
 use data_server::api::data_source;
 use std::net::SocketAddr;
 
-use tokio::sync::mpsc::{self, Sender};
+use tokio::sync::mpsc;
 
 use tracing::info;
 
+mod room;
 mod sensors;
 
 #[derive(Parser)]
@@ -14,9 +15,12 @@ mod sensors;
 #[command(version = "1.0")]
 #[command(about = "reads sensors attached to rpi gpio pins and i2c perhipheral")]
 struct Cli {
-    /// where to send the data on the local system
+    /// Where to send the data on the local system
     #[arg(short, long, default_value = "1234")]
     update_port: u16,
+    /// Is this the pi in the large bedroom or small bedroom?
+    #[arg(short, long)]
+    room: room::Bedroom,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -27,9 +31,7 @@ async fn main() {
     setup_tracing().unwrap();
 
     let (tx, mut rx) = mpsc::channel(100);
-    if let Err(error) = sensors::start_monitoring(tx.clone()) {
-        send_error(&tx, error);
-    }
+    sensors::start_monitoring(tx.clone(), cli.room);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], cli.update_port));
     info!("connecting to dataserver on: {}", cli.update_port);
@@ -58,22 +60,4 @@ fn setup_tracing() -> Result<()> {
         .with(ErrorLayer::default())
         .init();
     Ok(())
-}
-
-fn send_error(
-    tx: &Sender<Result<protocol::Reading, protocol::Error>>,
-    error: protocol::large_bedroom::desk::Error,
-) {
-    use protocol::large_bedroom::Error::Desk as DeskE;
-    use protocol::Error::LargeBedroom as LbE;
-    tx.blocking_send(Err(LbE(DeskE(error)))).unwrap();
-}
-
-fn send_reading(
-    tx: &Sender<Result<protocol::Reading, protocol::Error>>,
-    reading: protocol::large_bedroom::desk::Reading,
-) {
-    use protocol::large_bedroom::Reading::Desk;
-    use protocol::Reading::LargeBedroom as Lb;
-    tx.blocking_send(Ok(Lb(Desk(reading)))).unwrap();
 }
