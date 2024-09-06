@@ -8,7 +8,7 @@ use ratatui::{
     prelude::{CrosstermBackend, Terminal},
     style::{Color, Style},
 };
-use render::render_tab;
+use render::render;
 use std::{
     io::{stdout, Stdout},
     sync::mpsc,
@@ -20,6 +20,7 @@ use crate::{Fetch, Update, UserIntent};
 mod affectors;
 mod readings;
 mod render;
+mod reports;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 enum ActiveTab {
@@ -84,6 +85,7 @@ struct App {
     active_tab: ActiveTab,
     readings_tab: readings::Tab,
     affectors_tab: affectors::Tab,
+    reports: reports::Reports,
 }
 
 impl App {
@@ -96,7 +98,7 @@ impl App {
     ) -> Result<(), std::io::Error> {
         loop {
             terminal.draw(|frame| {
-                let layout = render_tab(frame, self);
+                let layout = render(frame, self);
                 match self.active_tab {
                     ActiveTab::Readings => {
                         self.readings_tab
@@ -110,25 +112,28 @@ impl App {
                 if let event::Event::Key(key) = event::read()? {
                     tracing::trace!("key pressed: {key:?}");
                     if key.kind == KeyEventKind::Press {
-                        match key.code {
+                        let res = match key.code {
                             KeyCode::Left => {
                                 self.active_tab = self.active_tab.swap();
+                                None
                             }
                             KeyCode::Right => {
                                 self.active_tab = self.active_tab.swap();
+                                None
                             }
                             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                                 break Ok(());
                             }
-                            _ => (),
+                            _ => Some(key),
                         }
-
-                        let res = match self.active_tab {
+                        .and_then(|key| match self.active_tab {
                             ActiveTab::Readings => self.readings_tab.handle_key(key),
                             ActiveTab::Affectors => {
                                 self.affectors_tab.handle_key(key, &mut control_tx)
                             }
-                        };
+                        })
+                        .and_then(|key| self.reports.handle_key(key));
+
                         if let Some(unhandled_key) = res {
                             match unhandled_key.code {
                                 KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
@@ -143,8 +148,30 @@ impl App {
                 continue;
             };
 
-            self.affectors_tab.process_update(&update);
+            let Some(update) = self.register_errors(update) else {
+                continue;
+            };
+            let Some(update) = self.affectors_tab.process_update(update) else {
+                continue;
+            };
             self.readings_tab.process_update(update);
         }
+    }
+
+    fn register_errors(&mut self, update: Update) -> Option<Update> {
+        match update {
+            Update::AffectorControlled { .. }
+            | Update::AffectorList(_)
+            | Update::DeviceList(_)
+            | Update::Fetched { .. }
+            | Update::ReadingList(_)
+            | Update::SensorError(_)
+            | Update::SensorReading(_) => return Some(update),
+            Update::FetchError(e) => self.reports.add(e.wrap_err("Error fetching data")),
+            Update::SubscribeError(e) => self
+                .reports
+                .add(e.wrap_err("Error while subscribing to data-server")),
+        }
+        None
     }
 }

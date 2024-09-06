@@ -87,33 +87,38 @@ impl Tab {
         None
     }
 
-    pub fn process_update(&mut self, update: &Update) {
-        match update {
+    pub fn process_update(&mut self, update: Update) -> Option<Update> {
+        let update = match update {
             Update::ReadingList(_)
             | Update::Fetched { .. }
             | Update::FetchError(_)
             | Update::SensorReading(_)
             | Update::DeviceList(_)
-            | Update::SubscribeError(_) => return,
+            | Update::SubscribeError(_) => Some(update),
             Update::AffectorControlled { affector, .. } => {
-                self.update_tree(affector, DeviceBroken::No);
+                self.update_tree(&affector, DeviceBroken::No);
+                None
             }
-            Update::SensorError(err) => {
+            Update::SensorError(ref err) => {
                 let broken = err.device().info().affectors;
                 for affector in broken {
                     self.update_tree(affector, DeviceBroken::Yes);
                 }
+                Some(update)
             }
             Update::AffectorList(affectors) => {
                 for affector in affectors {
-                    self.update_tree(affector, DeviceBroken::No);
+                    self.update_tree(&affector, DeviceBroken::No);
                 }
+                None
             }
         };
 
         if self.tree_state.selected().is_empty() {
             self.tree_state.select_first();
         }
+
+        update
     }
 }
 
