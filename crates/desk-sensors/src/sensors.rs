@@ -9,7 +9,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc::Sender;
 
-use crate::room;
+use crate::bedroom;
 
 pub fn init() -> Result<Bme280<I2cdev>, ErrorString> {
     let i2c_bus = I2cdev::new("/dev/i2c-1")
@@ -24,7 +24,7 @@ pub fn init() -> Result<Bme280<I2cdev>, ErrorString> {
     Ok(bme280)
 }
 
-pub fn start_monitoring(tx: Sender<Result<Reading, protocol::Error>>, room: room::Bedroom) {
+pub fn start_monitoring(tx: Sender<Result<Reading, protocol::Error>>, room: bedroom::Bedroom) {
     let mut last_warning = Instant::now() - Duration::from_secs(10_000);
     thread::spawn(move || loop {
         let mut bme = match init() {

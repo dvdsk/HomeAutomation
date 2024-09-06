@@ -7,7 +7,7 @@ use tokio::sync::mpsc;
 
 use tracing::info;
 
-mod room;
+mod bedroom;
 mod sensors;
 
 #[derive(Parser)]
@@ -20,7 +20,7 @@ struct Cli {
     update_port: u16,
     /// Is this the pi in the large bedroom or small bedroom?
     #[arg(short, long)]
-    room: room::Bedroom,
+    bedroom: bedroom::Bedroom,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -31,7 +31,7 @@ async fn main() {
     setup_tracing().unwrap();
 
     let (tx, mut rx) = mpsc::channel(100);
-    sensors::start_monitoring(tx.clone(), cli.room);
+    sensors::start_monitoring(tx.clone(), cli.bedroom);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], cli.update_port));
     info!("connecting to dataserver on: {}", cli.update_port);
