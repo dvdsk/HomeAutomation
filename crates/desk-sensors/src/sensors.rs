@@ -71,6 +71,4 @@ pub fn start_monitoring(tx: Sender<Result<Reading, protocol::Error>>, room: bedr
         }
         std::thread::sleep(Duration::from_secs(20));
     });
-
-    unreachable!()
 }

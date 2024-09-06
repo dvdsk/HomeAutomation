@@ -16,4 +16,4 @@ sudo chown ha:ha /home/ha/$NAME
 sudo systemctl restart $NAME.service
 "
 
-ssh -t sgc "$cmds"
+ssh -t $SERVER "$cmds"

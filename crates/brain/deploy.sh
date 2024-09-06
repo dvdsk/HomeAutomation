@@ -14,4 +14,4 @@ sudo chown ha:ha /home/ha/brain
 sudo systemctl restart brain
 "
 
-ssh -t sgc "$cmds"
+ssh -t $SERVER "$cmds"

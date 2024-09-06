@@ -16,8 +16,8 @@ mod sensors;
 #[command(about = "reads sensors attached to rpi gpio pins and i2c perhipheral")]
 struct Cli {
     /// Where to send the data on the local system
-    #[arg(short, long, default_value = "1234")]
-    update_port: u16,
+    #[arg(short, long("data-server"))]
+    data_server: SocketAddr,
     /// Is this the pi in the large bedroom or small bedroom?
     #[arg(short, long)]
     bedroom: bedroom::Bedroom,
@@ -33,9 +33,8 @@ async fn main() {
     let (tx, mut rx) = mpsc::channel(100);
     sensors::start_monitoring(tx.clone(), cli.bedroom);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], cli.update_port));
-    info!("connecting to dataserver on: {}", cli.update_port);
-    let mut client = data_source::reconnecting::Client::new(addr, Vec::new());
+    info!("connecting to dataserver on: {}", cli.data_server);
+    let mut client = data_source::reconnecting::Client::new(cli.data_server, Vec::new());
 
     loop {
         match rx.recv().await.expect("sensor monitoring never stops") {

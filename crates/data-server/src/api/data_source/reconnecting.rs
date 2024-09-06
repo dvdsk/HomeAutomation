@@ -44,7 +44,7 @@ impl Client {
                     return msg;
                 }
                 Err(issue) => {
-                    warn!("Conn issue while getting next_msg: {issue}, reconnecting");
+                    warn!("Conn issue while sending new reading: {issue}, reconnecting");
                 }
             };
         }
@@ -70,7 +70,7 @@ impl Client {
                     return msg;
                 }
                 Err(issue) => {
-                    warn!("Conn issue while getting next_msg: {issue}, reconnecting");
+                    warn!("Conn issue while sending new error: {issue}, reconnecting");
                 }
             };
         }

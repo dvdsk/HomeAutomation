@@ -16,4 +16,19 @@ sudo chown ha:ha /home/ha/desk-sensors
 sudo systemctl restart desk-sensors.service
 "
 
-ssh -t sgc "$cmds"
+ssh -t $SERVER "$cmds"
+
+
+SERVER="atlantis"  # ssh config name or full address
+cargo build --target=armv7-unknown-linux-musleabihf $BUILD_ARG
+rsync -vh --progress \
+  ../../target/armv7-unknown-linux-musleabihf/$RELEASE/desk-sensors \
+  $SERVER:/tmp/
+
+cmds="
+sudo mv /tmp/desk-sensors /home/eva/desk-sensors
+sudo chown eva:eva /home/eva/desk-sensors
+sudo systemctl restart desk-sensors.service
+"
+
+ssh -t $SERVER "$cmds"
