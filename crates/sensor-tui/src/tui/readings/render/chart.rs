@@ -13,7 +13,7 @@ use labels::labels;
 
 pub fn render(frame: &mut Frame, layout: Rect, tab: &mut UiState, chart: ChartParts) {
     let dataset = Dataset::default()
-        .marker(symbols::Marker::Dot)
+        .marker(symbols::Marker::Braille)
         .graph_type(GraphType::Line)
         .style(Style::default())
         .data(chart.data);
