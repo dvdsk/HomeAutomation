@@ -24,7 +24,6 @@ async fn perform_request_inner(
     data: Data,
 ) -> Result<api::Response, ServerError> {
     Ok(match request {
-        api::Request::Handshake { .. } => return Err(ServerError::AlreadyConnected),
         api::Request::ListData => api::Response::ListData(data.list().await),
         api::Request::GetData {
             reading,
@@ -32,8 +31,8 @@ async fn perform_request_inner(
             end,
             n,
         } => {
-            let (time, data) = data.get(reading, start, end, n).await?;
-            api::Response::GetData { time, data }
+            let res = data.get(reading, start, end, n).await;
+            api::Response::GetData(res)
         }
     })
 }

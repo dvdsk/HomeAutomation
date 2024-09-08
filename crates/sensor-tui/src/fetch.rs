@@ -5,6 +5,7 @@ use std::ops::RangeInclusive;
 use std::sync::mpsc;
 use std::time::Duration;
 
+use color_eyre::eyre::Context;
 use color_eyre::Result;
 use jiff::{Span, Timestamp};
 use log_store::api::{ErrorEvent, Percentile};
@@ -270,12 +271,21 @@ pub async fn get_data(
     reading: Reading,
     range: RangeInclusive<Timestamp>,
 ) -> Result<(Vec<Timestamp>, Vec<f32>)> {
+    use data_store::api::{client::Error, Data, GetDataError};
+
     let mut api = data_store::api::Client::connect(data_store, client_name()).await?;
 
-    let history = api
+    match api
         .get_data(*range.start(), *range.end(), reading, 300)
-        .await?;
-    Ok(history)
+        .await
+    {
+        Ok(Data { time, values }) => Ok((time, values)),
+        Err(Error::Request(GetDataError::NotFound))
+        | Err(Error::Request(GetDataError::EmptyFile))
+        | Err(Error::Request(GetDataError::StartAfterData))
+        | Err(Error::Request(GetDataError::StopBeforeData)) => Ok((Vec::new(), Vec::new())),
+        Err(other) => Err(other).wrap_err("Could not get data from store"),
+    }
 }
 
 pub async fn get_logs(log_store: SocketAddr, reading: Reading) -> Result<Vec<ErrorEvent>> {

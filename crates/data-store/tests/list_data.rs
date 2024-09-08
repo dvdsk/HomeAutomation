@@ -3,6 +3,7 @@ use std::sync::Once;
 use std::time::Duration;
 
 use data_server::server::AffectorRegistar;
+use data_store::api::Data;
 use futures::FutureExt;
 use futures_concurrency::future::Race;
 use protocol::large_bedroom::bed;
@@ -95,7 +96,7 @@ async fn check_client_get_data(
         data_store::api::Client::connect(data_store_addr, "data_store_example".to_owned())
             .await
             .unwrap();
-    let (time, data) = client
+    let Data { time, values: data } = client
         .get_data(
             jiff::Timestamp::now() - jiff::Span::default().seconds(30),
             jiff::Timestamp::now() + jiff::Span::default().seconds(30),
