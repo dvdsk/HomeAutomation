@@ -1,4 +1,5 @@
 use rpc::client::RpcClient;
+use rpc::client::RpcError;
 use tokio::net::ToSocketAddrs;
 
 use super::AffectorError;
@@ -27,10 +28,10 @@ impl Client {
         let request = Request::Actuate(affector);
         match self.0.send_receive(request.clone()).await? {
             Response::Actuate(res) => res.map_err(Error::Request),
-            response => Err(Error::IncorrectResponse {
+            response => Err(Error::Comms(RpcError::IncorrectResponse {
                 request: format!("{request:?}"),
                 response: format!("{response:?}"),
-            }),
+            })),
         }
     }
 
@@ -40,10 +41,10 @@ impl Client {
         let request = Request::ListAffectors;
         match self.0.send_receive(request.clone()).await? {
             Response::ListAffectors(list) => Ok(list),
-            response => Err(Error::IncorrectResponse {
+            response => Err(Error::Comms(RpcError::IncorrectResponse {
                 request: format!("{request:?}"),
                 response: format!("{response:?}"),
-            }),
+            })),
         }
     }
 
@@ -57,24 +58,24 @@ impl Client {
 pub struct Subscribed(Client);
 
 impl Subscribed {
-    pub async fn next(&mut self) -> Result<subscriber::SubMessage, Error<subscriber::SubscribeError>> {
+    pub async fn next(
+        &mut self,
+    ) -> Result<subscriber::SubMessage, Error<subscriber::SubscribeError>> {
         let received = self.0 .0.next().await?;
 
         if let subscriber::Response::SubUpdate(update) = received {
             Ok(update)
         } else {
-            Err(Error::IncorrectResponse {
+            Err(Error::Comms(RpcError::IncorrectResponse {
                 request: "none, we are subscribed".to_string(),
                 response: format!("{received:?}"),
-            })
+            }))
         }
     }
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<T: std::error::Error> {
-    #[error("Got unexpected response response to request {request:?}")]
-    IncorrectResponse { request: String, response: String },
     #[error("Error while sending request: {0}")]
     Sending(std::io::Error),
     #[error("Error while sending request: {0}")]
@@ -84,5 +85,5 @@ pub enum Error<T: std::error::Error> {
     #[error("Server ran into an specific error with our request: {0}")]
     Request(T),
     #[error("Error while communicating with server: {0}")]
-    Comms(#[from] rpc::client::RpcError),
+    Comms(#[from] RpcError),
 }

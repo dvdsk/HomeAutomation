@@ -27,3 +27,4 @@ jiff = { workspace = true }
 thiserror.workspace = true
 itertools = "0.13.0"
 gethostname = "0.5.0"
+strip-ansi-escapes = "0.2.0"

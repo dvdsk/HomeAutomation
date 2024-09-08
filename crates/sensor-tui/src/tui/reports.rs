@@ -5,6 +5,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Color, Style, Styled, Stylize};
 use ratatui::text::Text;
+use ratatui::widgets::{Paragraph, Wrap};
 use ratatui::Frame;
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -15,9 +16,20 @@ struct Report {
 
 impl From<eyre::Report> for Report {
     fn from(value: eyre::Report) -> Self {
+        let detailed = format!("{value:?}");
+        let detailed = strip_ansi_escapes::strip_str(&detailed);
+        let last_paragraph = detailed
+            .find("Location:")
+            .expect("Detailed report always lists a location");
+        let backtrace_start = last_paragraph
+            + detailed[last_paragraph..]
+                .find("\n\n")
+                .expect("Should be a double line-end before backtrace");
+        let detailed = &detailed[..backtrace_start];
+
         Self {
             short: value.to_string(),
-            detailed: format!("{value:#}"),
+            detailed: detailed.to_owned(),
         }
     }
 }
@@ -33,6 +45,7 @@ pub(super) struct Reports {
 impl Reports {
     pub(super) fn add(&mut self, raw_report: eyre::Report) {
         let report = Report::from(raw_report);
+        tracing::debug!("report: {report:?}");
         if self.to_ignore.contains(&report) {
             return;
         }
@@ -61,7 +74,12 @@ impl Reports {
                     .style(error_style),
                 hint,
             );
-            frame.render_widget(Text::raw(&current.detailed).style(error_style), error);
+            frame.render_widget(
+                Paragraph::new(current.detailed.as_str())
+                    .wrap(Wrap { trim: false })
+                    .style(error_style),
+                error,
+            );
         } else {
             frame.render_widget(
                 Text::raw("e: show details, x: close this error, i: ignore this error")
@@ -87,7 +105,7 @@ impl Reports {
 
     fn close_current(&mut self) {
         let Some(current) = self.current.take() else {
-            return
+            return;
         };
 
         self.list.retain(|report| *report != current);

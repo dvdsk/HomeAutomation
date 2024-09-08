@@ -1,5 +1,6 @@
 use protocol::Device;
 use rpc::client::RpcClient;
+use rpc::client::RpcError;
 use tokio::net::ToSocketAddrs;
 
 use crate::api::Percentile;
@@ -13,12 +14,10 @@ pub struct Client(rpc::client::RpcClient<super::Request, super::Response>);
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<T: std::error::Error> {
-    #[error("Got unexpected response response to request {request:?}")]
-    IncorrectResponse { request: String, response: String },
     #[error("Server ran into an specific error with our request: {0}")]
     Request(T),
     #[error("Error while communicating with server: {0}")]
-    Comms(#[from] rpc::client::RpcError),
+    Comms(#[from] RpcError),
 }
 
 impl Client {
@@ -38,10 +37,10 @@ impl Client {
         match self.0.send_receive(request.clone()).await? {
             Response::GetStats(Ok(percentiles)) => Ok(percentiles),
             Response::GetStats(Err(e)) => Err(Error::Request(e)),
-            response => Err(Error::IncorrectResponse {
+            response => Err(Error::Comms(RpcError::IncorrectResponse {
                 request: format!("{request:?}"),
                 response: format!("{response:?}"),
-            }),
+            })),
         }
     }
 
@@ -53,10 +52,10 @@ impl Client {
         match self.0.send_receive(request.clone()).await? {
             Response::GetLog(Ok(log)) => Ok(log),
             Response::GetLog(Err(e)) => Err(Error::Request(e)),
-            response => Err(Error::IncorrectResponse {
+            response => Err(Error::Comms(RpcError::IncorrectResponse {
                 request: format!("{request:?}"),
                 response: format!("{response:?}"),
-            }),
+            })),
         }
     }
 
@@ -64,10 +63,10 @@ impl Client {
         let request = super::Request::ListDevices;
         match self.0.send_receive(request.clone()).await? {
             Response::ListDevices(logs) => Ok(logs),
-            response => Err(Error::IncorrectResponse {
+            response => Err(Error::Comms(RpcError::IncorrectResponse {
                 request: format!("{request:?}"),
                 response: format!("{response:?}"),
-            }),
+            })),
         }
     }
 }

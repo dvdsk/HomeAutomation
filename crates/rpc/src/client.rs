@@ -52,7 +52,7 @@ pub enum ConnectError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum RpcError {
-    #[error("Got unexpected response response to request {request:?}")]
+    #[error("Got unexpected response response to request.\nRequest was: {request:?},\nGot response: {response:?}")]
     IncorrectResponse { request: String, response: String },
     #[error("Error while sending request: {0}")]
     Sending(std::io::Error),
