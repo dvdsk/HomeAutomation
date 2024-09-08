@@ -1,9 +1,12 @@
 use std::net::SocketAddr;
+use std::num::NonZeroU32;
 use std::time::Duration;
 
 use color_eyre::eyre::{eyre, Context};
 use color_eyre::{Result, Section};
 use futures_concurrency::future::Race;
+use governor::clock::Clock;
+use governor::{Quota, RateLimiter};
 use protocol::Affector;
 use socket2::TcpKeepalive;
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -120,8 +123,23 @@ async fn handshake(reader: &mut BufReader<OwnedReadHalf>) -> Result<Vec<Affector
 
 #[instrument(skip_all)]
 async fn receive_and_spread_updates(mut reader: BufReader<OwnedReadHalf>, queue: Sender<Event>) {
+    let quota = Quota::with_period(Duration::from_secs(40))
+        .unwrap()
+        .allow_burst(NonZeroU32::new(200u32).unwrap());
+    let limiter = RateLimiter::direct(quota);
+
     let mut buf = Vec::new();
     loop {
+        if let Err(allowed_again) = limiter.check() {
+            let now = governor::clock::DefaultClock::default().now();
+            let allowed_in = allowed_again.wait_time_from(now);
+            error!(
+                "Refusing to read packet: (generous) ratelimit surpassed. \
+                Next packet allowed in {allowed_in:?}. Sleeping till then"
+            );
+            tokio::time::sleep(allowed_in).await;
+        }
+
         let msg = match read_and_decode_packet(&mut reader, &mut buf).await {
             Ok(decoded) => decoded,
             Err(e) => {

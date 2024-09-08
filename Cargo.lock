@@ -856,6 +856,7 @@ dependencies = [
  "color-eyre",
  "futures",
  "futures-concurrency",
+ "governor",
  "protocol",
  "reserve-port",
  "rpc",
