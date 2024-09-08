@@ -283,7 +283,8 @@ pub async fn get_data(
         Err(Error::Request(GetDataError::NotFound))
         | Err(Error::Request(GetDataError::EmptyFile))
         | Err(Error::Request(GetDataError::StartAfterData))
-        | Err(Error::Request(GetDataError::StopBeforeData)) => Ok((Vec::new(), Vec::new())),
+        | Err(Error::Request(GetDataError::StopBeforeData))
+        | Err(Error::Request(GetDataError::NotInStore { .. })) => Ok((Vec::new(), Vec::new())),
         Err(other) => Err(other).wrap_err("Could not get data from store"),
     }
 }
