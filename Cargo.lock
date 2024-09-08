@@ -975,6 +975,7 @@ dependencies = [
  "color-eyre",
  "data-server",
  "embedded-hal-async",
+ "governor",
  "gpiocdev-embedded-hal",
  "heapless 0.8.0",
  "linux-embedded-hal",

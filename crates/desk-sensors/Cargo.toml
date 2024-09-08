@@ -22,3 +22,4 @@ tracing-error = { workspace = true }
 tokio = { workspace = true, features = ["rt", "time", "macros"] }
 embedded-hal-async = "1.0.0"
 heapless = "0.8.0"
+governor = "0.6.3"
