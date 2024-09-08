@@ -123,8 +123,7 @@ async fn handshake(reader: &mut BufReader<OwnedReadHalf>) -> Result<Vec<Affector
 
 #[instrument(skip_all)]
 async fn receive_and_spread_updates(mut reader: BufReader<OwnedReadHalf>, queue: Sender<Event>) {
-    let quota = Quota::with_period(Duration::from_secs(40))
-        .unwrap()
+    let quota = Quota::per_second(NonZeroU32::new(40).unwrap())
         .allow_burst(NonZeroU32::new(200u32).unwrap());
     let limiter = RateLimiter::direct(quota);
 
