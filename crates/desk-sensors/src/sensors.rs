@@ -33,6 +33,7 @@ pub fn start_monitoring(tx: Sender<Result<Reading, protocol::Error>>, room: bedr
                 tracing::error!("Could not setup bme280 sensor: {e}");
                 tx.blocking_send(Err(room.make_setup_error(e)))
                     .expect("main should not return or panic");
+                std::thread::sleep(Duration::from_secs(5));
                 continue;
             }
         };
