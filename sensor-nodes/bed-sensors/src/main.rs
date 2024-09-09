@@ -109,7 +109,7 @@ async fn main(spawner: Spawner) {
     usart_config.baudrate = 115_200; // sps30 only works at this baud
     usart_config.data_bits = DataBits::DataBits8;
     usart_config.stop_bits = StopBits::STOP1;
-    usart_config.parity = Parity::ParityNone;
+    // usart_config.parity = Parity::ParityNone;
     let usart_sps30 = unwrap!(Uart::new(
         p.USART2,
         p.PA3,
@@ -162,10 +162,12 @@ async fn main(spawner: Spawner) {
 
     let buttons = ButtonInputs {
         top: ExtiInput::new(p.PC14, p.EXTI14, Pull::Down),
-        middle_inner: ExtiInput::new(p.PA9, p.EXTI9, Pull::Down), // Not working
+        // Not working but is connected (continuity checked)
+        middle_inner: ExtiInput::new(p.PA9, p.EXTI9, Pull::Down),
         middle_center: ExtiInput::new(p.PA10, p.EXTI10, Pull::Down),
         middle_outer: ExtiInput::new(p.PA11, p.EXTI11, Pull::Down),
-        lower_inner: ExtiInput::new(p.PA12, p.EXTI12, Pull::Down), // Not working
+        // Not working but is connected (continuity checked)
+        lower_inner: ExtiInput::new(p.PA12, p.EXTI12, Pull::Down), 
         lower_center: ExtiInput::new(p.PA15, p.EXTI15, Pull::Down),
         lower_outer: ExtiInput::new(p.PB5, p.EXTI5, Pull::Down),
     };
