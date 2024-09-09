@@ -8,7 +8,7 @@ authors = ["David Kleingeld & Eva van Houten"]
 
 [dependencies]
 embassy-stm32 = { version = "0.1.0", features = [ "defmt", "stm32f401cc",
-"unstable-pac", "memory-x", "time-driver-any", "time", "exti" ]  }
+"unstable-pac", "memory-x", "time-driver-tim9", "time", "exti" ]  }
 embassy-net = { version = "0.4.0", features = ["defmt", "proto-ipv4", "tcp", "dhcpv4","medium-ethernet"] }
 embassy-net-wiznet = { version = "0.1.0", features = ["defmt"] }
 embassy-sync = { version = "0.6.0", features = ["defmt"] }
@@ -32,6 +32,7 @@ panic-probe = { version = "0.3", features = ["print-defmt"] }
 futures = { version = "0.3.17", default-features = false, features = ["async-await"] }
 heapless = { version = "0.8", default-features = false }
 nb = "1.0.0"
+rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
 static_cell = "2.0.0"
 
 # sensors
@@ -44,13 +45,6 @@ nau7802-async = { path = "/home/david/tmp/nau7802-rs", features = ["serde", "pos
 
 # encoding
 protocol = { path = "../../crates/protocol" }
-
-# used only for RNG since embassy's adc is currently broken and we need
-# an adc to get a true RNG.
-# stm32f4xx-hal = { version = "0.21.0", default-features = false, features = ["stm32f401"] }
-stm32f4 = { version = "0.15.1", default-features = false, features = ["stm32f401"] }
-rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
-# fasthash = { version = "0.4.0", default-features = false }
 
 [patch.crates-io]
 embassy-stm32 = {git = "https://github.com/embassy-rs/embassy", rev = "0ef06cc" }

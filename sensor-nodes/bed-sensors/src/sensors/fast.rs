@@ -27,7 +27,6 @@ async fn report_lux(mut max44: Max44Driver<'_>, publish: &Queues, rgb_led: rgb_l
     let mut prev_lux = f32::MAX;
     let mut last_lux = Instant::now();
 
-    // todo!("reinit devices after error");
     loop {
         Timer::after_millis(50).await;
         let lux = match max44.try_measure().await {
@@ -118,8 +117,16 @@ async fn watch_button(
             let event = (event)(protocol::button::Press(press));
             channel.send_p2(Reading::Button(event));
         } else {
-            input.wait_for_rising_edge().await;
-            Timer::after(Duration::from_millis(50)).await;
+            input.wait_for_high().await;
+            Timer::after(Duration::from_millis(20)).await;
+            if input.is_low() {
+                continue;
+            }
+            Timer::after(Duration::from_millis(20)).await;
+            if input.is_low() {
+                continue;
+            }
+            Timer::after(Duration::from_millis(10)).await;
             if input.is_high() {
                 went_high_at = Some(Instant::now());
             }
