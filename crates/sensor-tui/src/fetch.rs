@@ -2,15 +2,16 @@ use std::collections::VecDeque;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::ops::RangeInclusive;
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc};
 use std::time::Duration;
 
-use color_eyre::eyre::{self, Context};
+use color_eyre::eyre::{self, Context, Report};
 use color_eyre::Result;
 use jiff::{Span, Timestamp};
 use log_store::api::{ErrorEvent, Percentile};
 use protocol::Reading;
-use tokio::task;
+use std::sync::Mutex;
+use tokio::time::Instant;
 use tracing::debug;
 
 use crate::{client_name, Fetchable, Update};
@@ -76,7 +77,7 @@ impl Fetch {
     ) -> Self {
         let (tx, rx) = tokio::sync::mpsc::channel(32);
 
-        task::spawn(handle_requests(data_store, log_store, rx, update_tx));
+        tokio::spawn(handle_requests(data_store, log_store, rx, update_tx));
         Self {
             recently_issued: VecDeque::new(),
             tx,
@@ -203,53 +204,68 @@ pub(crate) async fn handle_requests(
     mut rx: tokio::sync::mpsc::Receiver<Request>,
     tx: mpsc::Sender<Update>,
 ) {
+    let data_store_queue = Queue::default();
+    let log_store_queue = Queue::default();
+
     let mut inflight_request = VecDeque::new();
     while let Some(request) = rx.recv().await {
         let data_store = data_store.clone();
         let tx = tx.clone();
         let handle = match request {
-            Request::Data(Data { reading, range }) => tokio::spawn(get_wrap_send(
-                get_data(data_store, reading.clone(), range),
-                "Could not fetch data for graph",
-                |res| match res {
-                    Ok(data) => Update::Fetched {
-                        reading,
-                        thing: Fetchable::Data {
-                            timestamps: data.0,
-                            data: data.1,
+            Request::Data(Data { reading, range }) => {
+                let reading_clone = reading.clone();
+                tokio::spawn(get_retry_then_wrap_send(
+                    move || get_data(data_store, reading.clone(), range.clone()),
+                    data_store_queue.clone(),
+                    "Could not fetch data for graph",
+                    move |res| match res {
+                        Ok(data) => Update::Fetched {
+                            reading: reading_clone,
+                            thing: Fetchable::Data {
+                                timestamps: data.0,
+                                data: data.1,
+                            },
                         },
+                        Err(err) => Update::FetchError(err),
                     },
-                    Err(err) => Update::FetchError(err),
-                },
-                tx,
-            )),
-            Request::Logs(Logs { reading, range }) => tokio::spawn(get_wrap_send(
-                get_logs(log_store, reading.clone()),
-                "Could not fetch logs",
-                move |res| match res {
-                    Ok(logs) => Update::Fetched {
-                        reading,
-                        thing: Fetchable::Logs {
-                            logs,
-                            start_at: *range.start(),
+                    tx,
+                ))
+            }
+            Request::Logs(Logs { reading, range }) => {
+                let reading_clone = reading.clone();
+                tokio::spawn(get_retry_then_wrap_send(
+                    move || get_logs(log_store, reading.clone().clone()),
+                    log_store_queue.clone(),
+                    "Could not fetch logs",
+                    move |res| match res {
+                        Ok(logs) => Update::Fetched {
+                            reading: reading_clone,
+                            thing: Fetchable::Logs {
+                                logs,
+                                start_at: *range.start(),
+                            },
                         },
+                        Err(err) => Update::FetchError(err),
                     },
-                    Err(err) => Update::FetchError(err),
-                },
-                tx,
-            )),
-            Request::Hist(Hist { reading, range }) => tokio::spawn(get_wrap_send(
-                get_percentiles(log_store, reading.clone()),
-                "Could not fetch percentiles for histogram",
-                move |res| match res {
-                    Ok(percentiles) => Update::Fetched {
-                        reading,
-                        thing: Fetchable::Hist { percentiles, range },
+                    tx,
+                ))
+            }
+            Request::Hist(Hist { reading, range }) => {
+                let reading_clone = reading.clone();
+                tokio::spawn(get_retry_then_wrap_send(
+                    move || get_percentiles(log_store, reading.clone()),
+                    log_store_queue.clone(),
+                    "Could not fetch percentiles for histogram",
+                    move |res| match res {
+                        Ok(percentiles) => Update::Fetched {
+                            reading: reading_clone,
+                            thing: Fetchable::Hist { percentiles, range },
+                        },
+                        Err(err) => Update::FetchError(err),
                     },
-                    Err(err) => Update::FetchError(err),
-                },
-                tx,
-            )),
+                    tx,
+                ))
+            }
         };
         inflight_request.push_front(handle);
         if inflight_request.len() > 6 {
@@ -259,62 +275,151 @@ pub(crate) async fn handle_requests(
     }
 }
 
-pub async fn get_wrap_send<T>(
-    getter: impl Future<Output = Result<T, eyre::Report>>,
+#[derive(Debug, Clone, Default)]
+struct Queue(Arc<Mutex<InnerLimits>>);
+
+impl Queue {
+    fn register(&self) -> usize {
+        let this = self.0.lock().unwrap();
+        let mut most_recent_request = this.most_recent_request;
+        most_recent_request += 1;
+        most_recent_request
+    }
+
+    fn set_next_allowed(&self, at: Instant) {
+        let mut this = self.0.lock().unwrap();
+        this.next_allowed = Some(at);
+    }
+
+    fn our_turn(&self, id: usize) -> Result<Option<Instant>, Instant> {
+        let this = self.0.lock().unwrap();
+        if let Some(next_allowed) = this.next_allowed {
+            if this.most_recent_request == id {
+                Ok(Some(next_allowed))
+            } else {
+                Err(next_allowed)
+            }
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct InnerLimits {
+    next_allowed: Option<Instant>,
+    most_recent_request: usize,
+}
+
+#[must_use]
+enum GetResult<T> {
+    Ok(T),
+    Err(eyre::Error),
+    RateLimited { allowed_in: Duration },
+}
+
+impl<T> From<Result<T, eyre::Report>> for GetResult<T> {
+    fn from(value: Result<T, eyre::Report>) -> Self {
+        match value {
+            Ok(v) => Self::Ok(v),
+            Err(e) => Self::Err(e),
+        }
+    }
+}
+
+async fn get_retry_then_wrap_send<T, F: Future<Output = GetResult<T>>>(
+    getter: impl Fn() -> F,
+    queue: Queue,
     err_text: &'static str,
     wrapper: impl FnOnce(Result<T, eyre::Report>) -> Update,
     tx: mpsc::Sender<Update>,
 ) {
-    let val = getter.await.wrap_err(err_text);
-    let update = (wrapper)(val);
+    let id = queue.register();
+
+    let update = loop {
+        match queue.our_turn(id) {
+            Ok(Some(allowed_at)) => tokio::time::sleep_until(allowed_at).await,
+            Ok(None) => (),
+            Err(recheck_at) => {
+                tokio::time::sleep_until(recheck_at).await;
+                continue;
+            }
+        }
+
+        match getter().await {
+            GetResult::Ok(val) => break wrapper(Ok(val)),
+            GetResult::Err(e) => break wrapper(Err(e).wrap_err(err_text)),
+            GetResult::RateLimited { allowed_in } => {
+                queue.set_next_allowed(Instant::now() + allowed_in);
+            }
+        }
+    };
     tx.send(update).unwrap();
 }
 
-pub async fn get_data(
+async fn get_data(
     data_store: SocketAddr,
     reading: Reading,
     range: RangeInclusive<Timestamp>,
-) -> Result<(Vec<Timestamp>, Vec<f32>)> {
-    use data_store::api::{client::Error, Data, GetDataError};
+) -> GetResult<(Vec<Timestamp>, Vec<f32>)> {
+    use data_store::api::{client::ConnectError, client::Error, Data, GetDataError};
 
-    let mut api = data_store::api::Client::connect(data_store, client_name())
-        .await
-        .wrap_err("Could not connect to data-store")?;
+    let mut api = match data_store::api::Client::connect(data_store, client_name()).await {
+        Ok(api) => api,
+        Err(ConnectError::RateLimited(d)) => return GetResult::RateLimited { allowed_in: d },
+        Err(other) => {
+            return GetResult::Err(Report::new(other).wrap_err("Could not connect to data-store"))
+        }
+    };
 
     match api
         .get_data(*range.start(), *range.end(), reading, 300)
         .await
     {
-        Ok(Data { time, values }) => Ok((time, values)),
+        Ok(Data { time, values }) => GetResult::Ok((time, values)),
         Err(Error::Request(GetDataError::NotFound))
         | Err(Error::Request(GetDataError::EmptyFile))
         | Err(Error::Request(GetDataError::StartAfterData))
         | Err(Error::Request(GetDataError::StopBeforeData))
-        | Err(Error::Request(GetDataError::NotInStore { .. })) => Ok((Vec::new(), Vec::new())),
-        Err(other) => Err(other).wrap_err("Data-store returned an error to our request"),
+        | Err(Error::Request(GetDataError::NotInStore { .. })) => {
+            GetResult::Ok((Vec::new(), Vec::new()))
+        }
+        Err(other) => GetResult::Err(
+            Report::new(other).wrap_err("Data-store returned an error to our request"),
+        ),
     }
 }
 
-pub async fn get_logs(log_store: SocketAddr, reading: Reading) -> Result<Vec<ErrorEvent>> {
-    let mut api = log_store::api::Client::connect(log_store, client_name())
-        .await
-        .wrap_err("Could not connect to log-store")?;
+async fn get_logs(log_store: SocketAddr, reading: Reading) -> GetResult<Vec<ErrorEvent>> {
+    use log_store::api::client::{Client, ConnectError};
 
-    let history = api
-        .get_logs(reading.device())
+    let mut api = match Client::connect(log_store, client_name()).await {
+        Ok(api) => api,
+        Err(ConnectError::RateLimited(d)) => return GetResult::RateLimited { allowed_in: d },
+        Err(other) => {
+            return GetResult::Err(Report::new(other).wrap_err("Could not connect to log-store"))
+        }
+    };
+
+    api.get_logs(reading.device())
         .await
-        .wrap_err("Log store returned an error to our request")?;
-    Ok(history)
+        .wrap_err("Log store returned an error to our request")
+        .into()
 }
 
-pub async fn get_percentiles(log_store: SocketAddr, reading: Reading) -> Result<Vec<Percentile>> {
-    let mut api = log_store::api::Client::connect(log_store, client_name())
-        .await
-        .wrap_err("Could not connect to log-store")?;
+async fn get_percentiles(log_store: SocketAddr, reading: Reading) -> GetResult<Vec<Percentile>> {
+    use log_store::api::client::{Client, ConnectError};
 
-    let percentile = api
-        .get_percentiles(reading.device())
+    let mut api = match Client::connect(log_store, client_name()).await {
+        Ok(api) => api,
+        Err(ConnectError::RateLimited(d)) => return GetResult::RateLimited { allowed_in: d },
+        Err(other) => {
+            return GetResult::Err(Report::new(other).wrap_err("Could not connect to log-store"))
+        }
+    };
+
+    api.get_percentiles(reading.device())
         .await
-        .wrap_err("Log store returned an error to our request")?;
-    Ok(percentile)
+        .wrap_err("Log store returned an error to our request")
+        .into()
 }

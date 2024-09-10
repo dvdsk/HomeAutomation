@@ -8,6 +8,7 @@ use serde::Serialize;
 use tokio::net::TcpStream;
 use tokio::net::ToSocketAddrs;
 use tokio::time::error::Elapsed;
+use tokio::time::sleep;
 use tokio::time::timeout_at;
 use tokio::time::Instant;
 use tokio_serde::formats::Bincode;
@@ -16,16 +17,18 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 use crate::Request;
 use crate::Response;
 
+type Stream<RpcReq, RpcResp> = tokio_serde::Framed<
+    Framed<TcpStream, LengthDelimitedCodec>,
+    Response<RpcResp>,
+    Request<RpcReq>,
+    Bincode<Response<RpcResp>, Request<RpcReq>>,
+>;
+
 pub struct RpcClient<RpcReq, RpcResp>
 where
     RpcResp: Serialize,
 {
-    stream: tokio_serde::Framed<
-        Framed<TcpStream, LengthDelimitedCodec>,
-        Response<RpcResp>,
-        Request<RpcReq>,
-        Bincode<Response<RpcResp>, Request<RpcReq>>,
-    >,
+    stream: Stream<RpcReq, RpcResp>,
 }
 
 impl<T, V: Serialize> fmt::Debug for RpcClient<T, V> {
@@ -48,6 +51,8 @@ pub enum ConnectError {
     Receiving(std::io::Error),
     #[error("Client was already connected")]
     AlreadyConnected,
+    #[error("Client tried to connected too many times, allowed again in: {0:?}")]
+    RateLimited(Duration),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -67,7 +72,10 @@ where
     RpcReq: Unpin + Serialize + fmt::Debug,
     RpcResp: Unpin + Serialize + DeserializeOwned + fmt::Debug,
 {
-    pub async fn connect(addr: impl ToSocketAddrs, name: String) -> Result<Self, ConnectError> {
+    async fn try_connect(
+        addr: impl ToSocketAddrs,
+        name: String,
+    ) -> Result<Stream<RpcReq, RpcResp>, ConnectError> {
         let stream = TcpStream::connect(addr).await.map_err(ConnectError::Io)?;
         let _ignore_error = stream.set_nodelay(true);
 
@@ -83,10 +91,18 @@ where
             .send(Request::Handshake { client_name: name })
             .await
             .map_err(ConnectError::Sending)?;
+        Ok(stream)
+    }
 
+    pub async fn connect(addr: impl ToSocketAddrs, name: String) -> Result<Self, ConnectError> {
+        let mut stream = Self::try_connect(addr, name).await?;
         match tokio::time::timeout(Duration::from_secs(2), stream.try_next()).await {
             Ok(Ok(Some(Response::HandshakeOk))) => Ok(Self { stream }),
             Ok(Ok(Some(Response::AlreadyConnected))) => Err(ConnectError::AlreadyConnected),
+            Ok(Ok(Some(Response::TooManyReq { allowed_in }))) => {
+                Err(ConnectError::RateLimited(allowed_in))
+            }
+
             Ok(Ok(Some(other))) => unreachable!(
                 "Server should return handshake response or error after sending \
                 first handshake, got impossible response: {other:?}"

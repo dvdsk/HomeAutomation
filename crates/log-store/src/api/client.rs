@@ -11,6 +11,7 @@ use super::GetStatsError;
 use super::Response;
 
 pub struct Client(rpc::client::RpcClient<super::Request, super::Response>);
+pub use rpc::client::ConnectError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<T: std::error::Error> {

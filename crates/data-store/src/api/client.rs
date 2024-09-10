@@ -1,4 +1,5 @@
-use rpc::client::{RpcClient, RpcError};
+pub use rpc::client::{RpcError, ConnectError};
+use rpc::client::RpcClient;
 use tokio::net::ToSocketAddrs;
 
 use super::Response;
