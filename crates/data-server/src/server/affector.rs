@@ -58,7 +58,7 @@ impl Registar {
 
     pub(crate) fn remove(&self, key: DefaultKey) {
         let mut this = self.0.lock().expect("nothing should panic");
-        this.remove(key).expect("things are only removed once");
+        let _ = this.remove(key); // could have been removed by register
     }
 
     pub(crate) fn activate(&self, order: Affector) -> Result<(), Offline> {

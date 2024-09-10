@@ -326,6 +326,7 @@ pub enum SensorError {
     Max44(heapless::String<200>),
     Mhz14(heapless::String<200>),
     Sps30(heapless::String<200>),
+    Button(heapless::String<200>),
     Nau7802Left(heapless::String<200>),
     Nau7802Right(heapless::String<200>),
 }
@@ -338,6 +339,7 @@ impl core::fmt::Display for SensorError {
             | SensorError::Max44(e)
             | SensorError::Mhz14(e)
             | SensorError::Sps30(e)
+            | SensorError::Button(e)
             | SensorError::Nau7802Left(e)
             | SensorError::Nau7802Right(e) => write!(f, "{e}"),
         }
@@ -357,6 +359,7 @@ impl SensorError {
             SensorError::Max44(_) => Device::Max44,
             SensorError::Mhz14(_) => Device::Mhz14,
             SensorError::Sps30(_) => Device::Sps30,
+            SensorError::Button(_) => Device::Gpio,
             SensorError::Nau7802Left(_) => Device::Nau7802Right,
             SensorError::Nau7802Right(_) => Device::Nau7802Right,
         }

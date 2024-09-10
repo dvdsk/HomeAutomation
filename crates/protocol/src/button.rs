@@ -56,6 +56,12 @@ macro_rules! button_enum {
                     $(Self::$variant(d) => *d,)*
                 }
             }
+
+            pub fn variant_name(&self) -> &'static str {
+                match self {
+                    $(Self::$variant(_) => stringify!($variant),)*
+                }
+            }
         }
 
         impl From<$name> for f32 {
@@ -81,12 +87,7 @@ macro_rules! button_enum {
                 })
             }
             fn name(&self) -> String {
-                let dbg_repr = format!("{:?}", self);
-                dbg_repr
-                    .split_once('(')
-                    .map(|(name, _)| name)
-                    .unwrap_or("-")
-                    .to_string()
+                self.variant_name().to_owned()
             }
             fn branch_id(&self) -> crate::reading::tree::Id {
                 // SAFETY: Because `Self` is marked `repr(u8)`, its layout is a

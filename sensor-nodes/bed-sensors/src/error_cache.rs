@@ -4,7 +4,7 @@ use protocol::make_error_string;
 use crate::sensors::{I2cError, UartError};
 
 #[derive(defmt::Format, PartialEq, Eq, Clone)]
-pub enum SensorError {
+pub(crate) enum SensorError {
     Mhz14(mhzx::Error<UartError, UartError>),
     Sps30(sps30_async::Error<UartError, UartError>),
     Sht31(sht31::SHTError),
@@ -12,6 +12,18 @@ pub enum SensorError {
     Max44(max44009::Error<I2cError>),
     Nau7802Left(nau7802_async::Error<I2cError>),
     Nau7802Right(nau7802_async::Error<embassy_stm32::i2c::Error>),
+    Button(PressTooLong),
+}
+
+#[derive(defmt::Format, PartialEq, Eq, Clone)]
+pub(crate) struct PressTooLong {
+    pub(crate) button: &'static str,
+}
+
+impl core::fmt::Debug for PressTooLong {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_fmt(format_args!("Button {}, pressed too long", self.button))
+    }
 }
 
 impl From<SensorError> for bed::SensorError {
@@ -24,16 +36,16 @@ impl From<SensorError> for bed::SensorError {
             SensorError::Max44(e) => bed::SensorError::Max44(make_error_string(e)),
             SensorError::Nau7802Left(e) => bed::SensorError::Nau7802Left(make_error_string(e)),
             SensorError::Nau7802Right(e) => bed::SensorError::Nau7802Right(make_error_string(e)),
+            SensorError::Button(e) => bed::SensorError::Button(make_error_string(e)),
         }
     }
 }
 
 #[derive(defmt::Format, PartialEq, Eq, Clone)]
-pub enum Error {
+pub(crate) enum Error {
     Running(SensorError),
     Setup(SensorError),
     Timeout(Device),
-    SetupTimedOut(Device),
 }
 
 impl From<Error> for bed::Error {
@@ -42,7 +54,6 @@ impl From<Error> for bed::Error {
             Error::Running(e) => bed::Error::Running(e.into()),
             Error::Setup(e) => bed::Error::Setup(e.into()),
             Error::Timeout(dev) => bed::Error::Timeout(dev),
-            Error::SetupTimedOut(dev) => bed::Error::SetupTimedOut(dev),
         }
     }
 }

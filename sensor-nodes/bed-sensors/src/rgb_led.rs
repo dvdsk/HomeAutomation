@@ -56,11 +56,11 @@ impl RgbLed {
     }
 
     fn set_red(&mut self, brightness: f32) {
-        self.set(timer::Channel::Ch2, brightness);
+        self.set(timer::Channel::Ch1, brightness);
     }
 
     fn set_blue(&mut self, brightness: f32) {
-        self.set(timer::Channel::Ch1, brightness);
+        self.set(timer::Channel::Ch2, brightness);
     }
 
     fn set_green(&mut self, brightness: f32) {

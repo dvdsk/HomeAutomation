@@ -19,8 +19,11 @@ use super::concrete_types::ConcreteRx as Rx;
 use super::concrete_types::ConcreteTx as Tx;
 
 type Signal = embassy_sync::signal::Signal<NoopRawMutex, ()>;
+
+/// Measure when signal is received or control the device's
+/// affector when it is ordered
 #[inline(always)]
-async fn measure_and_send_on_signal<D, F>(mut driver: D, send: F, signal: &Signal)
+async fn measure_and_control<D, F>(mut driver: D, send: F, signal: &Signal)
 where
     D: Driver,
     F: Fn(Result<D::Measurement, Error>) -> (),
@@ -58,10 +61,10 @@ pub async fn read(
 
     join5(
         order_measurements_every_period(&signals),
-        measure_and_send_on_signal(sht, |res| publish_sht_result(res, &publish), &signals[0]),
-        measure_and_send_on_signal(bme, |res| publish_bme_result(res, &publish), &signals[1]),
-        measure_and_send_on_signal(mhz, |res| publish_mhz_result(res, &publish), &signals[2]),
-        measure_and_send_on_signal(sps, |res| publish_sps_result(res, &publish), &signals[3]),
+        measure_and_control(sht, |res| publish_sht_result(res, &publish), &signals[0]),
+        measure_and_control(bme, |res| publish_bme_result(res, &publish), &signals[1]),
+        measure_and_control(mhz, |res| publish_mhz_result(res, &publish), &signals[2]),
+        measure_and_control(sps, |res| publish_sps_result(res, &publish), &signals[3]),
     )
     .await;
 }

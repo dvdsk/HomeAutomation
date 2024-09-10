@@ -1,4 +1,3 @@
-use defmt::warn;
 use embassy_futures::join::{join3, join4};
 use embassy_futures::{join, yield_now};
 use embassy_stm32::exti::ExtiInput;
@@ -105,13 +104,19 @@ async fn watch_button(
     event: impl Fn(protocol::button::Press) -> Button,
     channel: &Queues,
 ) {
+    use crate::error_cache::{Error, PressTooLong, SensorError};
+
     let mut went_high_at: Option<Instant> = None;
     loop {
         if let Some(went_high_at) = went_high_at.take() {
             input.wait_for_low().await;
             let press = went_high_at.elapsed();
             let Ok(press) = press.as_millis().try_into() else {
-                warn!("extremely long button press registered, skipping");
+                let event_for_printing = (event)(protocol::button::Press(0));
+                let name = event_for_printing.variant_name();
+                channel.queue_error(Error::Running(SensorError::Button(PressTooLong {
+                    button: name,
+                })));
                 continue;
             };
             let event = (event)(protocol::button::Press(press));

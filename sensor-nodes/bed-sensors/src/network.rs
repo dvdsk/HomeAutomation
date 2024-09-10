@@ -86,7 +86,7 @@ pub async fn handle(stack: &Stack<impl Driver>, publish: &Queues, led: LedHandle
             continue;
         }
         info!("(re-)connected");
-        // prevent out-dated data from being send
+        // Prevent out-dated data from being send
         publish.clear().await;
 
         let (reader, writer) = socket.split();
@@ -94,9 +94,11 @@ pub async fn handle(stack: &Stack<impl Driver>, publish: &Queues, led: LedHandle
             select::Either::First(e) => warn!("Error while sending messages: {}", e),
             select::Either::Second(e) => warn!("Error receiving orders: {}", e),
         };
-        // or the socket will hang for a while waiting to close this makes sure
+        // Or the socket will hang for a while waiting to close this makes sure
         // we can reconnect instantly
         socket.abort();
+        // Do not trigger data-server rate-limit
+        Timer::after(Duration::from_secs(2)).await;
     }
 }
 
