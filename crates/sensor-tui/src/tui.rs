@@ -167,7 +167,7 @@ impl App {
             | Update::ReadingList(_)
             | Update::SensorError(_)
             | Update::SensorReading(_) => return Some(update),
-            Update::FetchError(e) => self.reports.add(e.wrap_err("Error fetching data")),
+            Update::FetchError(e) => self.reports.add(e.wrap_err("Error fetching")),
             Update::SubscribeError(e) => self
                 .reports
                 .add(e.wrap_err("Error while subscribing to data-server")),

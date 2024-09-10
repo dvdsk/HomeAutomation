@@ -5,7 +5,7 @@ use std::ops::RangeInclusive;
 use std::sync::mpsc;
 use std::time::Duration;
 
-use color_eyre::eyre::Context;
+use color_eyre::eyre::{self, Context};
 use color_eyre::Result;
 use jiff::{Span, Timestamp};
 use log_store::api::{ErrorEvent, Percentile};
@@ -188,7 +188,7 @@ impl Fetch {
     fn request(&mut self, req: Request) {
         self.tx.blocking_send(req.clone()).unwrap();
         self.recently_issued.push_front(req);
-        // might get out of sync with request handler, that is okay
+        // Might get out of sync with request handler, that is okay
         // false positives in self.recently_issued are allowed. They only
         // delay an update by a single frame.
         if self.recently_issued.len() > MAX_IN_FLIGHT_REQUESTS {
@@ -210,6 +210,7 @@ pub(crate) async fn handle_requests(
         let handle = match request {
             Request::Data(Data { reading, range }) => tokio::spawn(get_wrap_send(
                 get_data(data_store, reading.clone(), range),
+                "Could not fetch data for graph",
                 |res| match res {
                     Ok(data) => Update::Fetched {
                         reading,
@@ -224,6 +225,7 @@ pub(crate) async fn handle_requests(
             )),
             Request::Logs(Logs { reading, range }) => tokio::spawn(get_wrap_send(
                 get_logs(log_store, reading.clone()),
+                "Could not fetch logs",
                 move |res| match res {
                     Ok(logs) => Update::Fetched {
                         reading,
@@ -238,6 +240,7 @@ pub(crate) async fn handle_requests(
             )),
             Request::Hist(Hist { reading, range }) => tokio::spawn(get_wrap_send(
                 get_percentiles(log_store, reading.clone()),
+                "Could not fetch percentiles for histogram",
                 move |res| match res {
                     Ok(percentiles) => Update::Fetched {
                         reading,
@@ -257,11 +260,12 @@ pub(crate) async fn handle_requests(
 }
 
 pub async fn get_wrap_send<T>(
-    getter: impl Future<Output = T>,
-    wrapper: impl FnOnce(T) -> Update,
+    getter: impl Future<Output = Result<T, eyre::Report>>,
+    err_text: &'static str,
+    wrapper: impl FnOnce(Result<T, eyre::Report>) -> Update,
     tx: mpsc::Sender<Update>,
 ) {
-    let val = getter.await;
+    let val = getter.await.wrap_err(err_text);
     let update = (wrapper)(val);
     tx.send(update).unwrap();
 }
@@ -273,7 +277,9 @@ pub async fn get_data(
 ) -> Result<(Vec<Timestamp>, Vec<f32>)> {
     use data_store::api::{client::Error, Data, GetDataError};
 
-    let mut api = data_store::api::Client::connect(data_store, client_name()).await?;
+    let mut api = data_store::api::Client::connect(data_store, client_name())
+        .await
+        .wrap_err("Could not connect to data-store")?;
 
     match api
         .get_data(*range.start(), *range.end(), reading, 300)
@@ -285,20 +291,30 @@ pub async fn get_data(
         | Err(Error::Request(GetDataError::StartAfterData))
         | Err(Error::Request(GetDataError::StopBeforeData))
         | Err(Error::Request(GetDataError::NotInStore { .. })) => Ok((Vec::new(), Vec::new())),
-        Err(other) => Err(other).wrap_err("Could not get data from store"),
+        Err(other) => Err(other).wrap_err("Data-store returned an error to our request"),
     }
 }
 
 pub async fn get_logs(log_store: SocketAddr, reading: Reading) -> Result<Vec<ErrorEvent>> {
-    let mut api = log_store::api::Client::connect(log_store, client_name()).await?;
+    let mut api = log_store::api::Client::connect(log_store, client_name())
+        .await
+        .wrap_err("Could not connect to log-store")?;
 
-    let history = api.get_logs(reading.device()).await?;
+    let history = api
+        .get_logs(reading.device())
+        .await
+        .wrap_err("Log store returned an error to our request")?;
     Ok(history)
 }
 
 pub async fn get_percentiles(log_store: SocketAddr, reading: Reading) -> Result<Vec<Percentile>> {
-    let mut api = log_store::api::Client::connect(log_store, client_name()).await?;
+    let mut api = log_store::api::Client::connect(log_store, client_name())
+        .await
+        .wrap_err("Could not connect to log-store")?;
 
-    let percentile = api.get_percentiles(reading.device()).await?;
+    let percentile = api
+        .get_percentiles(reading.device())
+        .await
+        .wrap_err("Log store returned an error to our request")?;
     Ok(percentile)
 }
