@@ -63,7 +63,7 @@ where
 
         if let Err(allowed_again) = limiter.check_key(&(source.ip(), name.clone())) {
             let allowed_in = allowed_again.wait_time_from(DefaultClock::default().now());
-            let _ignore_err = conn.send(crate::Response::TooManyReq { allowed_in });
+            let _ignore_err = conn.send(crate::Response::TooManyReq { allowed_in }).await;
             continue;
         }
 
