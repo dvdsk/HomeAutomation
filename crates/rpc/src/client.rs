@@ -8,7 +8,6 @@ use serde::Serialize;
 use tokio::net::TcpStream;
 use tokio::net::ToSocketAddrs;
 use tokio::time::error::Elapsed;
-use tokio::time::sleep;
 use tokio::time::timeout_at;
 use tokio::time::Instant;
 use tokio_serde::formats::Bincode;

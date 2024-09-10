@@ -22,6 +22,7 @@ pub type TreeKey = [u8; 6];
 struct AffectorState {
     affector: Affector,
     selected_control: usize,
+    last_controlled_by: Option<String>,
     info: affector::Info,
     device_broken: DeviceBroken,
 }
@@ -95,20 +96,23 @@ impl Tab {
             | Update::SensorReading(_)
             | Update::DeviceList(_)
             | Update::SubscribeError(_) => Some(update),
-            Update::AffectorControlled { affector, .. } => {
-                self.update_tree(&affector, DeviceBroken::No);
+            Update::AffectorControlled {
+                affector,
+                controlled_by,
+            } => {
+                self.update_tree(&affector, Some(controlled_by), DeviceBroken::No);
                 None
             }
             Update::SensorError(ref err) => {
                 let broken = err.device().info().affectors;
                 for affector in broken {
-                    self.update_tree(affector, DeviceBroken::Yes);
+                    self.update_tree(affector, None, DeviceBroken::Yes);
                 }
                 Some(update)
             }
             Update::AffectorList(affectors) => {
                 for affector in affectors {
-                    self.update_tree(&affector, DeviceBroken::No);
+                    self.update_tree(&affector, None, DeviceBroken::No);
                 }
                 None
             }
@@ -129,7 +133,12 @@ enum DeviceBroken {
 }
 
 impl Tab {
-    fn update_tree(&mut self, affector: &protocol::Affector, broken: DeviceBroken) {
+    fn update_tree(
+        &mut self,
+        affector: &protocol::Affector,
+        controller: Option<String>,
+        broken: DeviceBroken,
+    ) {
         let key = tree_key(affector);
 
         let mut tree = add_root(affector as &dyn AffectorTree, &mut self.ground);
@@ -145,10 +154,16 @@ impl Tab {
                     self.data
                         .entry(key)
                         .and_modify(|state| state.affector = affector.clone())
+                        .and_modify(|state| {
+                            if controller.is_some() {
+                                state.last_controlled_by = controller.clone();
+                            }
+                        })
                         .or_insert(AffectorState {
                             affector: affector.clone(),
                             info,
                             selected_control: 0,
+                            last_controlled_by: controller,
                             device_broken: broken,
                         });
                     return;

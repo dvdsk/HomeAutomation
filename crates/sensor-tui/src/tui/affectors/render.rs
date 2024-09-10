@@ -34,14 +34,15 @@ pub(super) fn tree(
 }
 
 pub(super) fn details(frame: &mut Frame, data: &&mut AffectorState, top: Rect) {
-    let text = if let DeviceBroken::No = data.device_broken {
-        data.info.description.to_string()
-    } else {
-        format!(
-            "{}\n\nWarning: Device reports error, affector might not work",
-            data.info.description
-        )
-    };
+    let mut text = vec![data.info.description.to_owned()];
+    if let Some(ref name) = data.last_controlled_by {
+        text.push(format!("\nlast controlled by: {name}"));
+    }
+    if let DeviceBroken::Yes = data.device_broken {
+        text.push("\nWarning: Device reports error, affector might not work".to_owned());
+    }
+    let text = text.join("\n");
+
     frame.render_widget(
         widgets::Paragraph::new(text)
             .block(Block::bordered().title("Details"))
