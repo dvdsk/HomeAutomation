@@ -13,6 +13,8 @@ pub(crate) const MAX_PACKAGE_SIZE: usize = 8 * 1024 * 1024;
 
 pub trait SubscriberHandler: Send + 'static {
     type Update;
+
+    /// The returned stream should never end before the client disconnects.
     #[allow(async_fn_in_trait)]
     fn setup(
         &mut self,

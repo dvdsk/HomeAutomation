@@ -1,9 +1,8 @@
 use std::collections::VecDeque;
 use std::future::Future;
 use std::net::SocketAddr;
-use std::ops::{Mul, RangeInclusive};
+use std::ops::RangeInclusive;
 use std::sync::{mpsc, Arc};
-use std::thread;
 use std::time::Duration;
 
 use color_eyre::eyre::{self, Context, Report};

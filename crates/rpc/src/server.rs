@@ -67,7 +67,7 @@ where
             continue;
         }
 
-        info!("Client {name} connected from {source}");
+        debug!("Client {name} connected from {source}");
         let Ok(()) = conn.send(crate::Response::HandshakeOk).await else {
             continue;
         };
@@ -119,6 +119,8 @@ use core::future::Future;
 
 use crate::SubscriberHandler;
 #[instrument(skip(conn, perform_request, sub_handler))]
+/// When the provided sub_handler is used to create a stream that stream should
+/// never end before the client disconnects
 async fn handle_client<RpcReq, RpcResp, PerfFut>(
     mut conn: Conn<RpcReq, RpcResp>,
     client_name: String,
@@ -154,17 +156,17 @@ async fn handle_client<RpcReq, RpcResp, PerfFut>(
                     let stream = sub_handler.setup().await;
                     pin!(stream);
                     if let Err(e) = conn.send(crate::Response::SubscribeOk).await {
-                        error!("Error sending response to client: {e:?}");
+                        debug!("Error sending response to client: {e:?}");
                         return;
                     }
 
                     loop {
-                        let Some(update) = stream.next().await else {
-                            error!("Error subscribe stream should never end");
-                            return;
-                        };
+                        let update = stream
+                            .next()
+                            .await
+                            .expect("subscribe stream should never end");
                         if let Err(e) = conn.send(crate::Response::Update(update)).await {
-                            error!("Error sending response to client: {e:?}");
+                            debug!("Error sending response to client: {e:?}");
                             return;
                         }
                     }

@@ -87,11 +87,11 @@ async fn handle_node(
     let affectors = match handshake(&mut reader).await {
         Ok(affectors) => affectors,
         Err(e) => {
-            error!("failed handshake: {e}");
+            error!("failed node handshake: {e}");
             return;
         }
     };
-    debug!("new node connected with affectors: {affectors:?}");
+    info!("new node connected with affectors: {affectors:?}");
 
     let (tx, rx) = tokio::sync::mpsc::channel(10);
     let key = registar.register(tx, affectors);
@@ -103,7 +103,7 @@ async fn handle_node(
         .await;
 
     registar.remove(key);
-    debug!("node removed");
+    warn!("node removed (lost connection)");
 }
 
 async fn handshake(reader: &mut BufReader<OwnedReadHalf>) -> Result<Vec<Affector>, String> {
