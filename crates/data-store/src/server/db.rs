@@ -33,7 +33,6 @@ pub(crate) async fn run(data_server_addr: SocketAddr, data: Data, data_dir: &Pat
         const FIVE_MIN: Duration = Duration::from_secs(60 * 5);
         if let Err(report) = res {
             let e = format!("got error with report: {report:?}");
-            tracing::warn!("test: {e}");
             if recently_logged.1 == e && recently_logged.0.elapsed() <= FIVE_MIN {
                 continue;
             } else {

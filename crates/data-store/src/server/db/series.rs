@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use byteseries::{downsample, series, ByteSeries};
-use color_eyre::eyre::WrapErr;
+use color_eyre::eyre::{eyre, WrapErr};
 use color_eyre::{Result, Section};
 use protocol::reading;
 use protocol::reading::tree::{Item, Tree};
@@ -113,6 +113,14 @@ impl Series {
             );
 
         let meta = &mut self.meta_list[index];
+        if !reading.leaf().range.contains(*reading.leaf().val) {
+            return Err(eyre!(
+                "value {} is out of range: {:?}",
+                reading.leaf().val,
+                reading.leaf().range
+            ));
+        }
+
         meta.field.encode(reading.leaf().val, &mut self.line);
         meta.set_at = Some(Instant::now());
 
@@ -122,9 +130,7 @@ impl Series {
             .meta_list
             .iter()
             .map(|Meta { set_at, .. }| set_at)
-            .all(|set| {
-                set.is_some_and(|set| set.elapsed() < max_interval)
-            })
+            .all(|set| set.is_some_and(|set| set.elapsed() < max_interval))
         {
             let time = jiff::Timestamp::now();
 

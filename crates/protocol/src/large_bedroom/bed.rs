@@ -97,7 +97,7 @@ impl Tree for Reading {
             Reading::Brightness(val) => (
                 *val,
                 Device::Max44.rooted(),
-                0.045..188.000,
+                0.0..188.000,
                 0.045,
                 Unit::Lux,
                 "Brightness",
