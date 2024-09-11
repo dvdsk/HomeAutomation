@@ -43,11 +43,12 @@ enum RelevantEvent {
     // WeightRight(u32),
     // Brightness(f32), // millilux
     DeskButton(protocol::large_bedroom::desk::Button),
+    BedButton(protocol::large_bedroom::bed::Button),
     // BedButton(protocol::large_bedroom::bed::Button),
 }
 
 fn filter(event: Event) -> Option<RelevantEvent> {
-    // use protocol::large_bedroom::bed::Reading as B;
+    use protocol::large_bedroom::bed::Reading as B;
     use protocol::large_bedroom::desk::Reading as D;
     use protocol::large_bedroom::Reading as R;
     use protocol::Reading::LargeBedroom as LB;
@@ -56,7 +57,7 @@ fn filter(event: Event) -> Option<RelevantEvent> {
     Some(match event {
         WakeUp => RelevantEvent::WakeUp,
         Sensor(LB(R::Desk(D::Button(b)))) => RelevantEvent::DeskButton(b),
-        // Sensor(LB(R::Bed(B::Button(b)))) => RelevantEvent::BedButton(b),
+        Sensor(LB(R::Bed(B::Button(b)))) => RelevantEvent::BedButton(b),
         // Sensor(LB(R::Bed(B::Brightness(l)))) => RelevantEvent::Brightness(l),
         // Sensor(LB(R::Bed(B::WeightLeft(w)))) => RelevantEvent::WeightLeft(w),
         // Sensor(LB(R::Bed(B::WeightRight(w)))) => RelevantEvent::WeightRight(w),
@@ -121,7 +122,7 @@ async fn update(system: &mut RestrictedSystem, state: &State) -> Option<State> {
             system.all_lamps_on().await;
             system.all_lamps_ct(1, u8::MAX).await;
             if started.elapsed() > Duration::from_secs(40) {
-                return Some(State::Off)
+                return Some(State::Off);
             }
         }
     }
@@ -147,12 +148,13 @@ fn handle_event(e: RelevantEvent) -> Option<State> {
         // RelevantEvent::WeightLeft(_) => (),
         // RelevantEvent::WeightRight(_) => (),
         // RelevantEvent::Brightness(_) => (),
-        RelevantEvent::DeskButton(b) => handle_button(b),
+        RelevantEvent::DeskButton(b) => handle_desk_button(b),
+        RelevantEvent::BedButton(b) => handle_bed_button(b),
         // RelevantEvent::BedButton(_) => (),
     }
 }
 
-fn handle_button(b: protocol::large_bedroom::desk::Button) -> Option<State> {
+fn handle_desk_button(b: protocol::large_bedroom::desk::Button) -> Option<State> {
     use protocol::large_bedroom::desk::Button;
 
     println!("button pressed: {b:?}");
@@ -166,6 +168,18 @@ fn handle_button(b: protocol::large_bedroom::desk::Button) -> Option<State> {
         // Button::OneOfThree(_) => todo!(),
         // Button::TwoOfThree(_) => todo!(),
         // Button::ThreeOfThree(_) => todo!(),
+        _ => None,
+    }
+}
+
+fn handle_bed_button(b: protocol::large_bedroom::bed::Button) -> Option<State> {
+    use protocol::large_bedroom::bed::Button as B;
+
+    println!("button pressed: {b:?}");
+    match b {
+        B::MiddleOuter(_) => Some(State::Bright),
+        B::MiddleInner(_) => Some(State::Normal),
+        B::MiddleCenter(_) => Some(State::FadeOut(Instant::now())),
         _ => None,
     }
 }
