@@ -1,18 +1,19 @@
 use std::collections::VecDeque;
 use std::future::Future;
 use std::net::SocketAddr;
-use std::ops::RangeInclusive;
+use std::ops::{Mul, RangeInclusive};
 use std::sync::{mpsc, Arc};
+use std::thread;
 use std::time::Duration;
 
 use color_eyre::eyre::{self, Context, Report};
 use color_eyre::Result;
-use jiff::{Span, Timestamp};
+use jiff::{Span, Timestamp, Unit};
 use log_store::api::{ErrorEvent, Percentile};
 use protocol::Reading;
 use std::sync::Mutex;
 use tokio::time::Instant;
-use tracing::debug;
+use tracing::{debug, instrument};
 
 use crate::{client_name, Fetchable, Update};
 
@@ -84,6 +85,7 @@ impl Fetch {
         }
     }
 
+    #[instrument(skip(self, on_fetch_start))]
     pub fn assure_up_to_date(
         &mut self,
         history_len: Duration,
@@ -119,26 +121,36 @@ impl Fetch {
         }
     }
 
+    #[instrument(skip(self))]
     fn history_outdated_not_updating(
         &mut self,
         reading: &Reading,
         oldest_needed: Timestamp,
         oldest_in_history: Timestamp,
     ) -> bool {
-        if oldest_in_history <= oldest_needed {
-            return false;
+        let target_span = Timestamp::now() - oldest_needed;
+        let target_span = target_span.total(Unit::Millisecond).expect("fits i64");
+        let max_span = (target_span as f64 * 1.2) as i64;
+
+        let oldest_allowed = Timestamp::now().as_millisecond() - max_span;
+        let up_to_date = |start: &i64| *start >= oldest_allowed as i64;
+
+        let curr_up_to_date = up_to_date(&oldest_in_history.as_millisecond());
+        let curr_range_correct = oldest_in_history <= oldest_needed;
+
+        if curr_up_to_date && curr_range_correct {
+            return false; // no need for update
         }
 
-        let margin = oldest_needed.as_millisecond() as f64 * 1.2;
-        let not_too_old = |start: &i64| *start < margin as i64;
-
+        // is there an ongoing request that will fix this?
         !self
             .recently_issued
             .iter()
             .filter_map(Request::data)
             .filter(|req| req.reading.is_same_as(reading))
             .map(|req| req.range.start().as_millisecond())
-            .filter(not_too_old)
+            .filter(up_to_date)
+            .inspect(|start| tracing::debug!("start: {start}"))
             .any(|start| start <= oldest_needed.as_millisecond())
     }
 
