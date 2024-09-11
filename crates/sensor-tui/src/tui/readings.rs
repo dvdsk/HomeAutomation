@@ -50,7 +50,7 @@ impl Default for Tab {
 }
 
 impl Tab {
-    pub fn render(&mut self, fetcher: &mut Fetch, frame: &mut Frame, layout: Rect, theme: &Theme) {
+    pub fn render(&mut self, frame: &mut Frame, layout: Rect, theme: &Theme) {
         let Self {
             ui_state,
             readings,
@@ -64,17 +64,7 @@ impl Tab {
                 .last() // unique leaf id
                 .and_then(|key| readings.data.get_mut(key));
 
-            let dur = ui_state.history_length.dur;
-            let history_len = &mut ui_state.history_length.state;
             if let Some(data) = data {
-                fetcher.assure_up_to_date(
-                    dur,
-                    || *history_len = history_len::State::Fetching(Instant::now()),
-                    data.reading.clone(),
-                    data.oldest_in_history(),
-                    data.logs_from_store_hist,
-                    data.histogram_range.clone(),
-                );
                 (
                     data.chart(plot_buf),
                     data.percentiles(),
@@ -147,6 +137,29 @@ impl Tab {
         if self.ui_state.tree_state.selected().is_empty() {
             self.ui_state.tree_state.select_first();
         }
+    }
+
+    pub(crate) fn fetch_if_needed(&mut self, fetcher: &mut Fetch) {
+        let Some(data) = self
+            .ui_state
+            .tree_state
+            .selected()
+            .last() // Unique leaf id
+            .and_then(|key| self.readings.data.get_mut(key))
+        else {
+            return; // nothing selected
+        };
+
+        let dur = self.ui_state.history_length.dur;
+        let history_len = &mut self.ui_state.history_length.state;
+        fetcher.assure_up_to_date(
+            dur,
+            || *history_len = history_len::State::Fetching(Instant::now()),
+            data.reading.clone(),
+            data.oldest_in_history(),
+            data.logs_from_store_hist,
+            data.histogram_range.clone(),
+        );
     }
 }
 

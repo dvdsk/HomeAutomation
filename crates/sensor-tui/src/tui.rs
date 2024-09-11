@@ -102,11 +102,15 @@ impl App {
                 match self.active_tab {
                     ActiveTab::Readings => {
                         self.readings_tab
-                            .render(&mut fetcher, frame, layout, &self.theme)
+                            .render(frame, layout, &self.theme)
                     }
                     ActiveTab::Affectors => self.affectors_tab.render(frame, layout, &self.theme),
                 }
             })?;
+
+            if let ActiveTab::Readings = self.active_tab {
+                self.readings_tab.fetch_if_needed(&mut fetcher);
+            }
 
             if event::poll(Duration::from_millis(16))? {
                 if let event::Event::Key(key) = event::read()? {

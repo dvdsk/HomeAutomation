@@ -113,7 +113,7 @@ impl Series {
             );
 
         let meta = &mut self.meta_list[index];
-        if !reading.leaf().range.contains(*reading.leaf().val) {
+        if !reading.leaf().range.contains(&reading.leaf().val) {
             return Err(eyre!(
                 "value {} is out of range: {:?}",
                 reading.leaf().val,
