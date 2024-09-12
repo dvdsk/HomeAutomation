@@ -138,7 +138,7 @@ impl Fetch {
         let curr_range_correct = oldest_in_history <= oldest_needed;
 
         if curr_up_to_date && curr_range_correct {
-            return false; // no need for update
+            return false; // No need for update
         }
 
         // is there an ongoing request that will fix this?
@@ -293,7 +293,6 @@ impl Queue {
         let mut this = self.0.lock().unwrap();
         let most_recent_request = &mut this.most_recent_request;
         *most_recent_request += 1;
-        tracing::trace!("registered new request: {most_recent_request}");
         *most_recent_request
     }
 
@@ -304,13 +303,10 @@ impl Queue {
 
     fn our_turn(&self, id: usize) -> Result<Option<Instant>, Instant> {
         let this = self.0.lock().unwrap();
-        let until_next_allowed = match this.next_allowed {
-            Some(at) => at - Instant::now(),
-            None => Duration::ZERO,
-        };
-        tracing::trace!("next allowed in: {until_next_allowed:?}");
         if let Some(next_allowed) = this.next_allowed {
-            if until_next_allowed.is_zero() {
+            let until = next_allowed.saturating_duration_since(Instant::now());
+
+            if until.is_zero() {
                 Ok(None)
             } else if this.most_recent_request == id {
                 Ok(Some(next_allowed))
@@ -358,12 +354,10 @@ async fn get_retry_then_wrap_send<T, F: Future<Output = GetResult<T>>>(
     let update = loop {
         match queue.our_turn(id) {
             Ok(Some(allowed_at)) => {
-                tracing::trace!("ratelimited {id}, we are next in line");
                 tokio::time::sleep_until(allowed_at).await;
             }
-            Ok(None) => tracing::trace!("{id} not ratelimited"),
+            Ok(None) => (),
             Err(recheck_at) => {
-                tracing::trace!("ratelimited {id}, we are queued");
                 tokio::time::sleep_until(recheck_at).await;
                 continue;
             }
@@ -373,9 +367,6 @@ async fn get_retry_then_wrap_send<T, F: Future<Output = GetResult<T>>>(
             GetResult::Ok(val) => break wrapper(Ok(val)),
             GetResult::Err(e) => break wrapper(Err(e).wrap_err(err_text)),
             GetResult::RateLimited { allowed_in } => {
-                tracing::trace!(
-                    "request: {id} ratelimited, next request allowed in: {allowed_in:?}"
-                );
                 queue.set_next_allowed(Instant::now() + allowed_in);
             }
         }
