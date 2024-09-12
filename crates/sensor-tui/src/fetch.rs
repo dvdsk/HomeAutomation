@@ -149,7 +149,6 @@ impl Fetch {
             .filter(|req| req.reading.is_same_as(reading))
             .map(|req| req.range.start().as_millisecond())
             .filter(up_to_date)
-            .inspect(|start| tracing::debug!("start: {start}"))
             .any(|start| start <= oldest_needed.as_millisecond())
     }
 
@@ -291,10 +290,11 @@ struct Queue(Arc<Mutex<InnerLimits>>);
 
 impl Queue {
     fn register(&self) -> usize {
-        let this = self.0.lock().unwrap();
-        let mut most_recent_request = this.most_recent_request;
-        most_recent_request += 1;
-        most_recent_request
+        let mut this = self.0.lock().unwrap();
+        let most_recent_request = &mut this.most_recent_request;
+        *most_recent_request += 1;
+        tracing::trace!("registered new request: {most_recent_request}");
+        *most_recent_request
     }
 
     fn set_next_allowed(&self, at: Instant) {
@@ -304,11 +304,19 @@ impl Queue {
 
     fn our_turn(&self, id: usize) -> Result<Option<Instant>, Instant> {
         let this = self.0.lock().unwrap();
+        let until_next_allowed = match this.next_allowed {
+            Some(at) => at - Instant::now(),
+            None => Duration::ZERO,
+        };
+        tracing::trace!("next allowed in: {until_next_allowed:?}");
         if let Some(next_allowed) = this.next_allowed {
-            if this.most_recent_request == id {
+            if until_next_allowed.is_zero() {
+                Ok(None)
+            } else if this.most_recent_request == id {
                 Ok(Some(next_allowed))
             } else {
-                Err(next_allowed)
+                // Queue behind highest priority
+                Err(next_allowed + Duration::from_millis(10))
             }
         } else {
             Ok(None)
@@ -349,9 +357,13 @@ async fn get_retry_then_wrap_send<T, F: Future<Output = GetResult<T>>>(
 
     let update = loop {
         match queue.our_turn(id) {
-            Ok(Some(allowed_at)) => tokio::time::sleep_until(allowed_at).await,
-            Ok(None) => (),
+            Ok(Some(allowed_at)) => {
+                tracing::trace!("ratelimited {id}, we are next in line");
+                tokio::time::sleep_until(allowed_at).await;
+            }
+            Ok(None) => tracing::trace!("{id} not ratelimited"),
             Err(recheck_at) => {
+                tracing::trace!("ratelimited {id}, we are queued");
                 tokio::time::sleep_until(recheck_at).await;
                 continue;
             }
@@ -361,6 +373,9 @@ async fn get_retry_then_wrap_send<T, F: Future<Output = GetResult<T>>>(
             GetResult::Ok(val) => break wrapper(Ok(val)),
             GetResult::Err(e) => break wrapper(Err(e).wrap_err(err_text)),
             GetResult::RateLimited { allowed_in } => {
+                tracing::trace!(
+                    "request: {id} ratelimited, next request allowed in: {allowed_in:?}"
+                );
                 queue.set_next_allowed(Instant::now() + allowed_in);
             }
         }
