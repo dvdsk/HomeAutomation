@@ -95,6 +95,7 @@ impl Tab {
             | Update::FetchError(_)
             | Update::SensorReading(_)
             | Update::DeviceList(_)
+            | Update::PopulateError(_)
             | Update::SubscribeError(_) => Some(update),
             Update::AffectorControlled {
                 affector,

@@ -54,6 +54,7 @@ enum Update {
         controlled_by: String,
     },
     AffectorList(Vec<protocol::Affector>),
+    PopulateError(color_eyre::Report),
 }
 
 
@@ -63,15 +64,15 @@ enum Update {
 #[command(version = "1.0")]
 #[command(about = "View sensor values")]
 struct Cli {
-    /// server where we can subscribe for sensor data updates
+    /// Server where we can subscribe for sensor data updates
     #[arg(short, long, default_value_t = SocketAddr::from(([192,168,1,43], 1235)))]
     data_server: SocketAddr,
 
-    /// server where we can fetch historical sensor data
+    /// Server where we can fetch historical sensor data
     #[arg(short='s', long, default_value_t = SocketAddr::from(([192,168,1,43], 1236)))]
     data_store: SocketAddr,
 
-    /// server where we can fetch logs and timing information
+    /// Server where we can fetch logs and timing information
     #[arg(short, long, default_value_t = SocketAddr::from(([192,168,1,43], 1237)))]
     log_store: SocketAddr,
 }
@@ -97,7 +98,7 @@ async fn main() -> Result<()> {
 
     thread::spawn(move || tui::run(rx1, tx2, tx3, fetcher));
     task::spawn(receive::receive_data(data_server, tx1_clone1));
-    thread::spawn(move || populate::tree(data_server, data_store, log_store, tx1_clone2));
+    task::spawn(populate::tree(data_server, data_store, log_store, tx1_clone2));
     task::spawn(control::watch_and_send(data_server, rx3));
 
     loop {

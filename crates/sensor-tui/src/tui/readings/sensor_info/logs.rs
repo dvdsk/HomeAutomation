@@ -85,7 +85,7 @@ impl Logs {
         buckets.map(|(_, count)| count as f32)
     }
 
-    pub(crate) fn list(&self) -> Vec<api::ErrorEvent> {
+    pub(crate) fn list(&self) -> (Vec<api::ErrorEvent>, LogSource) {
         let last = self
             .from_store
             .as_ref()
@@ -107,7 +107,12 @@ impl Logs {
             .cloned()
             .unwrap_or(Vec::new());
         logs.extend(without_duplicates);
-        logs
+
+        if self.from_store.is_some() {
+            (logs, LogSource::Store)
+        } else {
+            (logs, LogSource::Local)
+        }
     }
 
     pub(crate) fn covers_from(&self) -> jiff::Timestamp {
@@ -117,4 +122,9 @@ impl Logs {
             .map(|FromStore { since, .. }| since)
             .unwrap_or(&self.local.since)
     }
+}
+
+pub enum LogSource {
+    Local,
+    Store,
 }

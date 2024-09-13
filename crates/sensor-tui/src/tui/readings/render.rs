@@ -13,7 +13,7 @@ use tui_tree_widget::Tree;
 use crate::tui::Theme;
 
 use super::{
-    sensor_info::{ChartParts, Details, ErrorDensity, Readings},
+    sensor_info::{ChartParts, Details, ErrorDensity, LogSource, Readings},
     UiState,
 };
 
@@ -25,10 +25,10 @@ pub(crate) fn layout(
     layout: Rect,
     ui_state: &mut UiState,
     readings: &Readings,
-    chart: &Option<ChartParts>,
-    logs: &Option<Vec<ErrorEvent>>,
+    chart: bool,
+    logs: bool,
 ) -> [Rect; 3] {
-    let [list_constraint, graph_constraint] = if chart.is_some() {
+    let [list_constraint, graph_constraint] = if chart {
         let tree_height = 2 + ui_state.tree_state.flatten(&readings.ground).len();
         let details_height = 9;
         if (frame.area().height as f32) / 3. > tree_height as f32 {
@@ -39,7 +39,7 @@ pub(crate) fn layout(
         } else {
             [Constraint::Ratio(1, 3), Constraint::Ratio(2, 3)]
         }
-    } else if logs.is_some() {
+    } else if logs {
         [Constraint::Percentage(60), Constraint::Percentage(40)]
     } else {
         [Constraint::Percentage(100), Constraint::Percentage(0)]
@@ -84,7 +84,7 @@ pub fn graph_hist_logs(
     layout: Rect,
     app: &mut UiState,
     percentiles: &[Percentile],
-    logs: Option<Vec<ErrorEvent>>,
+    logs: Option<(Vec<ErrorEvent>, LogSource)>,
     chart: Option<ChartParts>,
     theme: &Theme,
 ) {
@@ -94,7 +94,7 @@ pub fn graph_hist_logs(
     if chart.is_some() {
         constraints[0] = Constraint::Fill(10);
     }
-    if logs.as_ref().is_some_and(|logs| !logs.is_empty()) && app.show_logs {
+    if logs.as_ref().is_some_and(|(logs, _)| !logs.is_empty()) && app.show_logs {
         constraints[1] = Constraint::Fill(10);
     }
     if !percentiles.is_empty() && app.show_histogram {

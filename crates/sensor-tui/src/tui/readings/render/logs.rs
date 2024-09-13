@@ -1,11 +1,13 @@
 use jiff::tz::TimeZone;
 use jiff::Zoned;
 use log_store::api::ErrorEvent;
-use ratatui::layout::{Constraint, Flex, Rect};
+use ratatui::layout::{Constraint, Direction, Flex, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::Text;
 use ratatui::widgets::{Cell, HighlightSpacing, Row, Table, TableState};
 use ratatui::Frame;
+
+use crate::tui::readings::sensor_info::LogSource;
 
 use super::centered_text;
 
@@ -13,17 +15,32 @@ pub fn render(
     frame: &mut Frame,
     layout: Rect,
     table_state: &mut TableState,
-    logs: Option<Vec<ErrorEvent>>,
+    logs: Option<(Vec<ErrorEvent>, LogSource)>,
     theme: &super::Theme,
 ) {
-    if let Some(logs) = logs {
-        if logs.is_empty() {
-            centered_text("Logs are empty", frame, layout, theme)
-        } else {
-            render_table(frame, layout, table_state, logs)
+    match logs {
+        Some((logs, LogSource::Store)) => {
+            if logs.is_empty() {
+                centered_text("All logs are empty", frame, layout, theme)
+            } else {
+                render_table(frame, layout, table_state, logs)
+            }
         }
-    } else {
-        centered_text("No logs", frame, layout, theme)
+        Some((logs, LogSource::Local)) => {
+            let [status, layout] = Layout::new(
+                Direction::Vertical,
+                [Constraint::Max(1), Constraint::Fill(1)],
+            )
+            .areas(layout);
+
+            centered_text("Loading logs from store ..", frame, status, theme);
+            if logs.is_empty() {
+                centered_text("Local logs are empty", frame, layout, theme);
+            } else {
+                render_table(frame, layout, table_state, logs);
+            }
+        }
+        None => centered_text("This item can not have logs", frame, layout, theme),
     }
 }
 

@@ -2,7 +2,6 @@ use hdrhistogram::Histogram;
 use itertools::Itertools;
 use jiff::Unit;
 use log_store::api::{self, ErrorEvent, Percentile};
-use logs::FromStore;
 use protocol::reading;
 use protocol::reading::tree::{Item, Tree};
 use protocol::Reading;
@@ -15,6 +14,7 @@ use tui_tree_widget::TreeItem;
 use crate::Fetchable;
 
 mod logs;
+pub(crate) use logs::LogSource;
 
 #[derive(Debug)]
 pub struct SensorInfo {
@@ -152,9 +152,8 @@ impl SensorInfo {
         })
     }
 
-    pub fn logs(&self) -> Vec<ErrorEvent> {
+    pub fn logs(&self) -> (Vec<ErrorEvent>, logs::LogSource) {
         self.logs.list()
-            compile_error!("mark status such as loading more from store")
     }
 
     pub(crate) fn oldest_in_history(&self) -> jiff::Timestamp {

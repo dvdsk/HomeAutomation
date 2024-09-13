@@ -100,10 +100,7 @@ impl App {
             terminal.draw(|frame| {
                 let layout = render(frame, self);
                 match self.active_tab {
-                    ActiveTab::Readings => {
-                        self.readings_tab
-                            .render(frame, layout, &self.theme)
-                    }
+                    ActiveTab::Readings => self.readings_tab.render(frame, layout, &self.theme),
                     ActiveTab::Affectors => self.affectors_tab.render(frame, layout, &self.theme),
                 }
             })?;
@@ -171,6 +168,7 @@ impl App {
             | Update::ReadingList(_)
             | Update::SensorError(_)
             | Update::SensorReading(_) => return Some(update),
+            Update::PopulateError(e) => self.reports.add(e.wrap_err("Error populating lists")),
             Update::FetchError(e) => self.reports.add(e.wrap_err("Error fetching")),
             Update::SubscribeError(e) => self
                 .reports

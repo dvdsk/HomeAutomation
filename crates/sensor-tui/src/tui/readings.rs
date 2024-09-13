@@ -77,8 +77,14 @@ impl Tab {
             }
         };
 
-        let [top, bottom, footer] =
-            render::layout(frame, layout, ui_state, readings, &chart, &logs);
+        let [top, bottom, footer] = render::layout(
+            frame,
+            layout,
+            ui_state,
+            readings,
+            chart.is_some(),
+            logs.is_some(),
+        );
 
         let have_details = details.is_some();
         render::readings_and_details(frame, top, ui_state, readings, details);
@@ -157,7 +163,7 @@ impl Tab {
             || *history_len = history_len::State::Fetching(Instant::now()),
             data.reading.clone(),
             data.oldest_in_history(),
-            data.logs.cover_from(),
+            data.logs.covers_from(),
             data.histogram_range.clone(),
         );
     }
