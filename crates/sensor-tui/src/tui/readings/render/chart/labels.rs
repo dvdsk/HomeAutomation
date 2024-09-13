@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use jiff::tz::TimeZone;
 use protocol::reading;
 use ratatui::layout::Rect;
 use ratatui::text::Span;
@@ -45,6 +46,7 @@ fn fmt_seconds(secs: f64) -> String {
 fn fmt_hh_mm(secs: f64) -> String {
     let now = jiff::Timestamp::now();
     let label = now - Duration::from_secs_f64(secs);
+    let label = label.to_zoned(TimeZone::system());
     label.strftime("%H:%M").to_string()
 }
 
