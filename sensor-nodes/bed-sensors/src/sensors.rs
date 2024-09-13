@@ -44,11 +44,12 @@ pub mod concrete_types {
     pub type ConcreteRx<'a> = RingBufferedUartRx<'a>;
 }
 
-const SPS30_UART_BUF_SIZE: usize = 100;
+const SPS30_UART_BUF_SIZE: usize = 300;
 const SPS30_DRIVER_BUF_SIZE: usize = 2 * SPS30_UART_BUF_SIZE;
 
 pub async fn init_then_measure(
     publish: &Queues,
+    orderers: &slow::DriverOrderers,
     rgb_led: rgb_led::LedHandle<'_>,
     i2c_1: Mutex<NoopRawMutex, I2c<'static, Async>>,
     i2c_2: Mutex<NoopRawMutex, I2c<'static, Blocking>>,
@@ -76,7 +77,13 @@ pub async fn init_then_measure(
     let sps30 = Sps30Driver::init(tx, rx);
 
     let sensors_fast = fast::read(max44009, nau_right, nau_left, buttons, publish, rgb_led);
-    let sensors_slow = slow::read(sht, bme, mhz, sps30, publish);
+    let drivers = slow::Drivers {
+        sht,
+        bme,
+        mhz,
+        sps: sps30,
+    };
+    let sensors_slow = slow::read(drivers, orderers, publish);
     join::join(sensors_fast, sensors_slow).await;
 
     defmt::unreachable!();
@@ -86,6 +93,7 @@ use concrete_types::ConcreteRx as Rx;
 use concrete_types::ConcreteTx as Tx;
 impl<'a> Driver for MHZ<Tx<'a>, Rx<'a>> {
     type Measurement = mhzx::Measurement;
+    type Affector = ();
 
     #[inline(always)]
     async fn try_measure(&mut self) -> Result<Self::Measurement, crate::error_cache::Error> {
@@ -103,6 +111,7 @@ impl<'a> Driver for MHZ<Tx<'a>, Rx<'a>> {
 
 impl<'a> Driver for Sps30<SPS30_DRIVER_BUF_SIZE, Tx<'a>, Rx<'a>, Delay> {
     type Measurement = sps30_async::Measurement;
+    type Affector = ();
 
     #[inline(always)]
     async fn try_measure(&mut self) -> Result<Self::Measurement, crate::error_cache::Error> {

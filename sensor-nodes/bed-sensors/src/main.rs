@@ -23,6 +23,7 @@ use embedded_hal_bus::spi::ExclusiveDevice;
 use futures::pin_mut;
 use heapless::Vec;
 use sensors::fast::ButtonInputs;
+use sensors::slow;
 use static_cell::StaticCell;
 
 use defmt::{error, trace, unwrap};
@@ -212,12 +213,14 @@ async fn main(spawner: Spawner) {
     let (mut led_controller, led_handle) =
         rgb_led::controller_and_handle(p.TIM1, p.PB14, p.PB13, p.PB15, &comms);
 
+    let driver_orderers = slow::DriverOrderers::new();
     let publish = Queues::new();
-    let handle_network = network::handle(stack, &publish, led_handle.clone());
+    let handle_network = network::handle(stack, &publish, led_handle.clone(), &driver_orderers);
     pin_mut!(handle_network);
 
     let init_then_measure = sensors::init_then_measure(
         &publish,
+        &driver_orderers,
         led_handle,
         i2c_1,
         i2c_2,

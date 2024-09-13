@@ -74,7 +74,7 @@ impl<'a> ReInitableDriver for Max44009<ConcreteSharedI2c<'a>> {
 
     async fn init(parts: Self::Parts) -> Result<Self, SensorError> {
         let shared_i2c = shared_bus::asynch::i2c::I2cDevice::new(parts);
-        // wrap these two into something returning Ok or Err
+        // Wrap these two into something returning Ok or Err
         // then make it a generic arg, maybe Driverfactory::init
         let mut driver = Max44009::new(shared_i2c, SlaveAddr::default());
         driver
@@ -94,7 +94,7 @@ impl<'a> ReInitableDriver for Nau7802<ConcreteSharedI2c<'a>, Delay> {
 
     async fn init(parts: Self::Parts) -> Result<Self, SensorError> {
         let shared_i2c = shared_bus::asynch::i2c::I2cDevice::new(parts);
-        // wrap these two into something returning Ok or Err
+        // Wrap these two into something returning Ok or Err
         // then make it a generic arg, maybe Driverfactory::init
         let driver = Nau7802::new(shared_i2c, Delay)
             .await
@@ -113,7 +113,7 @@ impl<'a> ReInitableDriver for Nau7802<ConcreteBlockingI2c<'a>, Delay> {
 
     async fn init(parts: Self::Parts) -> Result<Self, SensorError> {
         let shared_i2c = parts;
-        // wrap these two into something returning Ok or Err
+        // Wrap these two into something returning Ok or Err
         // then make it a generic arg, maybe Driverfactory::init
         let driver = Nau7802::new(shared_i2c, Delay)
             .await
@@ -126,7 +126,7 @@ impl<'a> ReInitableDriver for Nau7802<ConcreteBlockingI2c<'a>, Delay> {
     }
 }
 
-/// a driver that can be re-initialized from copyable parts
+/// A driver that can be re-initialized from copy-able parts
 pub trait ReInitableDriver: Sized {
     type Parts: Clone;
     type Measurement;
@@ -137,6 +137,11 @@ pub trait ReInitableDriver: Sized {
 
 pub trait Driver {
     type Measurement;
+    type Affector;
     async fn try_measure(&mut self) -> Result<Self::Measurement, crate::error_cache::Error>;
+    /// For example calibrate, run sensor cleaning etc
+    async fn affect(&mut self, _: Self::Affector) -> Result<(), crate::error_cache::Error> {
+        Ok(())
+    }
     fn device(&self) -> protocol::large_bedroom::bed::Device;
 }

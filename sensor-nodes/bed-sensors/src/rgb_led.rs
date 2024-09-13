@@ -72,7 +72,6 @@ impl RgbLed {
         let r = self.r / sum;
         let b = self.b / sum;
         let g = self.g / sum;
-        defmt::debug!("bri: {}, r: {}, g: {}, b: {}", bri, r, b, g);
         self.set_red(bri * r);
         self.set_blue(bri * b);
         self.set_green(bri * g);

@@ -1,6 +1,8 @@
 use defmt::unwrap;
 use embassy_futures::join::join5;
+use embassy_futures::select;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+use embassy_sync::channel::Channel;
 use embassy_time::Timer;
 use embassy_time::{with_timeout, Duration};
 
@@ -23,20 +25,36 @@ type Signal = embassy_sync::signal::Signal<NoopRawMutex, ()>;
 /// Measure when signal is received or control the device's
 /// affector when it is ordered
 #[inline(always)]
-async fn measure_and_control<D, F>(mut driver: D, send: F, signal: &Signal)
-where
+async fn measure_and_control<D, F>(
+    mut driver: D,
+    order: &Channel<NoopRawMutex, D::Affector, 1>,
+    send: F,
+    signal: &Signal,
+) where
     D: Driver,
     F: Fn(Result<D::Measurement, Error>) -> (),
 {
     let timeout = Duration::from_secs(15);
     loop {
-        signal.wait().await;
-        let try_measure = Driver::try_measure(&mut driver);
-        let res = match with_timeout(timeout, try_measure).await {
-            Ok(res) => res,
-            Err(_) => Err(Error::Timeout(driver.device())),
-        };
-        send(res);
+        match select::select(signal.wait(), order.receive()).await {
+            select::Either::First(_) => {
+                let try_measure = Driver::try_measure(&mut driver);
+                let res = match with_timeout(timeout, try_measure).await {
+                    Ok(res) => res,
+                    Err(_) => Err(Error::Timeout(driver.device())),
+                };
+                send(res);
+            }
+            select::Either::Second(order) => {
+                let affect = Driver::affect(&mut driver, order);
+                let res = match with_timeout(timeout, affect).await {
+                    Ok(Ok(_)) => continue,
+                    Ok(Err(e)) => Err(e),
+                    Err(_) => Err(Error::Timeout(driver.device())),
+                };
+                send(res);
+            }
+        }
     }
 }
 
@@ -49,22 +67,60 @@ async fn order_measurements_every_period(signals: &[Signal]) {
     }
 }
 
+pub(crate) struct Drivers<'a> {
+    pub sht: Sht31Driver<'a>,
+    pub bme: Bme680Driver<'a>,
+    pub mhz: MHZ<Tx<'a>, Rx<'a>>,
+    pub sps: Sps30Driver<'a>,
+}
+
+pub(crate) struct DriverOrderers {
+    pub sht: Channel<NoopRawMutex, (), 1>,
+    pub bme: Channel<NoopRawMutex, (), 1>,
+    pub mhz: Channel<NoopRawMutex, (), 1>,
+    pub sps: Channel<NoopRawMutex, (), 1>,
+}
+impl DriverOrderers {
+    pub(crate) fn new() -> Self {
+        Self {
+            sht: Channel::new(),
+            bme: Channel::new(),
+            mhz: Channel::new(),
+            sps: Channel::new(),
+        }
+    }
+}
+
 #[inline(always)]
-pub async fn read(
-    sht: Sht31Driver<'_>,
-    bme: Bme680Driver<'_>,
-    mhz: MHZ<Tx<'_>, Rx<'_>>,
-    sps: Sps30Driver<'_>,
-    publish: &'_ Queues,
-) {
+pub async fn read(drivers: Drivers<'_>, orderers: &DriverOrderers, publish: &'_ Queues) {
     let signals = [const { Signal::new() }; 4];
 
     join5(
         order_measurements_every_period(&signals),
-        measure_and_control(sht, |res| publish_sht_result(res, &publish), &signals[0]),
-        measure_and_control(bme, |res| publish_bme_result(res, &publish), &signals[1]),
-        measure_and_control(mhz, |res| publish_mhz_result(res, &publish), &signals[2]),
-        measure_and_control(sps, |res| publish_sps_result(res, &publish), &signals[3]),
+        measure_and_control(
+            drivers.sht,
+            &orderers.sht,
+            |res| publish_sht_result(res, &publish),
+            &signals[0],
+        ),
+        measure_and_control(
+            drivers.bme,
+            &orderers.bme,
+            |res| publish_bme_result(res, &publish),
+            &signals[1],
+        ),
+        measure_and_control(
+            drivers.mhz,
+            &orderers.mhz,
+            |res| publish_mhz_result(res, &publish),
+            &signals[2],
+        ),
+        measure_and_control(
+            drivers.sps,
+            &orderers.sps,
+            |res| publish_sps_result(res, &publish),
+            &signals[3],
+        ),
     )
     .await;
 }

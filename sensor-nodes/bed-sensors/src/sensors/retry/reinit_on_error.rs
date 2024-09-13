@@ -33,6 +33,7 @@ where
 
 impl<D: ReInitableDriver> super::Driver for ReInitOnErrorDriver<D> {
     type Measurement = D::Measurement;
+    type Affector = ();
 
     #[inline(always)]
     async fn try_measure(&mut self) -> Result<D::Measurement, Error> {

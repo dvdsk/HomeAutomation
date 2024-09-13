@@ -10,6 +10,7 @@ use protocol::{affector, Affector, ErrorReport, SensorMessage};
 
 use crate::channel::{PriorityValue, QueueItem, Queues};
 use crate::rgb_led::LedHandle;
+use crate::sensors::slow;
 
 type SensMsg = SensorMessage<10>;
 
@@ -67,7 +68,12 @@ const fn max(a: usize, b: usize) -> usize {
     [a, b][(a < b) as usize]
 }
 
-pub async fn handle(stack: &Stack<impl Driver>, publish: &Queues, led: LedHandle<'_>) {
+pub async fn handle(
+    stack: &Stack<impl Driver>,
+    publish: &Queues,
+    led: LedHandle<'_>,
+    driver_orderers: &slow::DriverOrderers,
+) {
     let mut rx_buffer = [0; 1024];
     let mut tx_buffer = [0; max(SensMsg::ENCODED_SIZE, ErrorReport::ENCODED_SIZE) * 2];
 
@@ -82,7 +88,7 @@ pub async fn handle(stack: &Stack<impl Driver>, publish: &Queues, led: LedHandle
         debug!("socket state: {:?}", socket.state());
         if let Err(e) = socket.connect((host_addr, host_port)).await {
             warn!("connect error: {}", e);
-            Timer::after_secs(1).await;
+            Timer::after_secs(5).await;
             continue;
         }
         info!("(re-)connected");
@@ -90,15 +96,18 @@ pub async fn handle(stack: &Stack<impl Driver>, publish: &Queues, led: LedHandle
         publish.clear().await;
 
         let (reader, writer) = socket.split();
-        match select(send_messages(writer, publish), receive_orders(reader, &led)).await {
+        match select(
+            send_messages(writer, publish),
+            receive_orders(reader, &led, &driver_orderers),
+        )
+        .await
+        {
             select::Either::First(e) => warn!("Error while sending messages: {}", e),
             select::Either::Second(e) => warn!("Error receiving orders: {}", e),
         };
         // Or the socket will hang for a while waiting to close this makes sure
         // we can reconnect instantly
         socket.abort();
-        // Do not trigger data-server rate-limit
-        Timer::after(Duration::from_secs(2)).await;
     }
 }
 
@@ -133,7 +142,7 @@ async fn send_messages(mut tcp: TcpWriter<'_>, publish: &Queues) -> embassy_net:
         affector::ListMessage::<5>::ENCODED_SIZE,
     )];
     let encoded_len = affector_list().encode_slice(&mut buf[1..]).len();
-    buf[0] = protocol::Msg::<0>::AFFECTOR_LIST;
+    buf[0] = protocol::Msg::<5>::AFFECTOR_LIST;
     let to_send = &buf[..=encoded_len];
     if let Err(e) = tcp.write_all(to_send).await {
         return e;
@@ -153,7 +162,11 @@ enum ReadError {
     TcpError(embassy_net::tcp::Error),
 }
 
-async fn receive_orders(mut tcp: TcpReader<'_>, led: &LedHandle<'_>) -> ReadError {
+async fn receive_orders(
+    mut tcp: TcpReader<'_>,
+    led: &LedHandle<'_>,
+    driver_orderers: &slow::DriverOrderers,
+) -> ReadError {
     defmt::debug!("ready to receive orders");
     let mut decoder = affector::Decoder::default();
     let mut buf = [0u8; 100];
@@ -171,16 +184,20 @@ async fn receive_orders(mut tcp: TcpReader<'_>, led: &LedHandle<'_>) -> ReadErro
             #[allow(irrefutable_let_patterns)] // Will change in the future
             let Affector::LargeBedroom(large_bedroom::Affector::Bed(affector)) = item
             else {
-                defmt::warn!("Got affector for other node");
+                defmt::error!("Got affector for other node");
                 continue;
             };
 
+            defmt::info!("got affector order: {:?}", affector);
             match affector {
-                bed::Affector::MhzZeroPointCalib
-                | bed::Affector::Nau7802LeftCalib
-                | bed::Affector::Nau7802RightCalib
-                | bed::Affector::Sps30FanClean => {
+                bed::Affector::Nau7802LeftCalib | bed::Affector::Nau7802RightCalib => {
                     defmt::warn!("unimplemented affector: {:?}", affector)
+                }
+                bed::Affector::MhzZeroPointCalib => {
+                    driver_orderers.mhz.send(()).await;
+                }
+                bed::Affector::Sps30FanClean => {
+                    driver_orderers.sps.send(()).await;
                 }
                 bed::Affector::RgbLed { red, green, blue } => {
                     led.set_color(
