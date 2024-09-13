@@ -15,9 +15,11 @@ pub(crate) fn handle(
     let control = &mut controls[state.selected_control].value;
 
     match key.code {
+        KeyCode::Char('t') => handle_trigger(control),
         KeyCode::Char('f') => handle_increase(control),
         KeyCode::Char('b') => handle_decrease(control),
 
+        // Otherwise return since we have not changed the affector
         KeyCode::Char('d') => {
             state.selected_control = (state.selected_control + 1).min(controls.len() - 1);
             return None;
@@ -37,6 +39,13 @@ pub(crate) fn handle(
     }
 
     None
+}
+
+fn handle_trigger(control: &mut C) {
+    match control {
+        C::Trigger => (),
+        C::SetNum { .. } => (),
+    }
 }
 
 fn handle_increase(control: &mut C) {

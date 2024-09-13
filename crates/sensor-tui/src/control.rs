@@ -20,6 +20,7 @@ pub(crate) async fn watch_and_send(data_server: SocketAddr, mut rx: mpsc::Receiv
             },
         };
 
+        tracing::debug!("got affect order: {order:?}");
         if let Some(mut client) = connected_client.take() {
             if let Err(e) = client.actuate_affector(order).await {
                 error!("Could not actuate affector: {e:?}");

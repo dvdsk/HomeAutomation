@@ -138,7 +138,7 @@ pub(crate) fn footer(
         }) => {
             footer.push("u/d: select prev/next");
             match affector.controls()[*selected_control].value {
-                C::Trigger => footer.push("enter: trigger affector"),
+                C::Trigger => footer.push("t: trigger affector"),
                 C::SetNum { .. } => footer.push("f/b increase/decrease"),
             }
         }

@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use protocol::reading;
 use ratatui::layout::Rect;
 use ratatui::text::Span;
@@ -17,10 +19,10 @@ pub fn labels<'a>(
     let y_label_spacing = 10;
     let info = &chart.reading;
 
-    // characters are about twice as high as wide
+    // Characters are about twice as high as wide
     let x = evenly_spaced_labels(layout.width / y_label_spacing / 2, info, x_bounds)
         .rev()
-        .map(crate::time::format::fmt_seconds)
+        .map(fmt_seconds)
         .map(Into::into)
         .collect();
     let y = evenly_spaced_labels(layout.height / y_label_spacing, info, y_bounds)
@@ -28,6 +30,22 @@ pub fn labels<'a>(
         .collect();
 
     (x, y)
+}
+
+fn fmt_seconds(secs: f64) -> String {
+    if secs == 0.0 {
+        "now".to_string()
+    } else if secs > 2. * 60. * 60. && secs < 24. * 60. * 60. {
+        fmt_hh_mm(secs)
+    } else {
+        "-".to_string() + &crate::time::format::fmt_seconds(secs)
+    }
+}
+
+fn fmt_hh_mm(secs: f64) -> String {
+    let now = jiff::Timestamp::now();
+    let label = now - Duration::from_secs_f64(secs);
+    label.strftime("%H:%M").to_string()
 }
 
 fn evenly_spaced_labels(
