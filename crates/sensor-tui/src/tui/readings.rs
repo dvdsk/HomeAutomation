@@ -61,7 +61,7 @@ impl Tab {
             let data = ui_state
                 .tree_state
                 .selected()
-                .last() // unique leaf id
+                .last() // Unique leaf id
                 .and_then(|key| readings.data.get_mut(key));
 
             if let Some(data) = data {
@@ -104,7 +104,7 @@ impl Tab {
             .ui_state
             .tree_state
             .selected()
-            .last() // unique leaf id
+            .last() // Unique leaf id
             .and_then(|key| self.readings.data.get_mut(key));
 
         match update {
@@ -147,7 +147,7 @@ impl Tab {
             .last() // Unique leaf id
             .and_then(|key| self.readings.data.get_mut(key))
         else {
-            return; // nothing selected
+            return; // Nothing selected
         };
 
         let dur = self.ui_state.history_length.dur;
@@ -157,7 +157,7 @@ impl Tab {
             || *history_len = history_len::State::Fetching(Instant::now()),
             data.reading.clone(),
             data.oldest_in_history(),
-            data.logs_from_store_hist,
+            data.logs.cover_from(),
             data.histogram_range.clone(),
         );
     }

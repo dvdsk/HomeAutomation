@@ -91,7 +91,7 @@ impl Fetch {
         on_fetch_start: impl FnOnce() -> (),
         reading: Reading,
         oldest_in_data: Timestamp,
-        logs_cover_from: Option<Timestamp>,
+        logs_cover_from: Timestamp,
         hist_cover: Option<RangeInclusive<Timestamp>>,
     ) {
         let history_spans = Span::try_from(history_len).unwrap();
@@ -156,9 +156,9 @@ impl Fetch {
         &mut self,
         reading: &Reading,
         oldest_needed: Timestamp,
-        logs_cover_from: Option<Timestamp>,
+        logs_cover_from: Timestamp,
     ) -> bool {
-        if logs_cover_from.is_some_and(|oldest| oldest <= oldest_needed) {
+        if logs_cover_from <= oldest_needed {
             return false;
         }
 

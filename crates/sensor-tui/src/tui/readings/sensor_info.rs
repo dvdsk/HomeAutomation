@@ -2,6 +2,7 @@ use hdrhistogram::Histogram;
 use itertools::Itertools;
 use jiff::Unit;
 use log_store::api::{self, ErrorEvent, Percentile};
+use logs::FromStore;
 use protocol::reading;
 use protocol::reading::tree::{Item, Tree};
 use protocol::Reading;
@@ -27,9 +28,7 @@ pub struct SensorInfo {
     pub histogram_range: Option<RangeInclusive<jiff::Timestamp>>,
     pub history_from_store: Vec<(jiff::Timestamp, f32)>,
     condition: Result<(), Box<Error>>,
-    logs: logs::Logs,
-    pub logs_from_store: Vec<ErrorEvent>,
-    pub logs_from_store_hist: Option<jiff::Timestamp>,
+    pub logs: logs::Logs,
 }
 
 pub struct ErrorDensity {
@@ -154,19 +153,8 @@ impl SensorInfo {
     }
 
     pub fn logs(&self) -> Vec<ErrorEvent> {
-        let last = self
-            .logs_from_store
-            .last()
-            .map(|ErrorEvent { start, .. }| *start)
-            .unwrap_or(jiff::Timestamp::from_second(0).unwrap());
-        let without_duplicates = self
-            .logs
-            .list()
-            .skip_while(|ErrorEvent { start, .. }| start < &last)
-            .cloned();
-        let mut logs = self.logs_from_store.clone();
-        logs.extend(without_duplicates);
-        logs
+        self.logs.list()
+            compile_error!("mark status such as loading more from store")
     }
 
     pub(crate) fn oldest_in_history(&self) -> jiff::Timestamp {
@@ -190,15 +178,15 @@ impl SensorInfo {
 /// encoded with the last byte byte being the leaf's id
 pub type TreeKey = [u8; 6];
 pub struct Readings {
-    // in the ground there are multiple trees
+    // In the ground there are multiple trees
     pub ground: Vec<TreeItem<'static, TreeKey>>,
     pub data: HashMap<TreeKey, SensorInfo>,
 }
 
 fn add_leaf(text: String, tree: &mut TreeItem<'static, TreeKey>, key: TreeKey) {
     let new_item = TreeItem::new_leaf(key, text.clone());
-    // todo is exists its fine handle that
-    let _ignore_existing = tree.add_child(new_item); // errors when identifier already exists
+    // Todo is exists its fine handle that
+    let _ignore_existing = tree.add_child(new_item); // Errors when identifier already exists
 
     let new_child = tree
         .children()
@@ -232,7 +220,7 @@ fn add_node<'a>(
 ) -> &'a mut TreeItem<'static, TreeKey> {
     let key = [tomato.branch_id(); 6];
     let new_item = TreeItem::new(key, tomato.name(), Vec::new()).unwrap();
-    // add just in case it was not there yet
+    // Add just in case it was not there yet
     let _ignore_existing = tree.add_child(new_item);
     let new_child = tree
         .children()
@@ -311,8 +299,6 @@ impl Readings {
 
                         recent_history: Vec::new(),
                         history_from_store: Vec::new(),
-                        logs_from_store: Vec::new(),
-                        logs_from_store_hist: Option::None,
 
                         condition: Err(error.clone()),
                         logs,
@@ -347,8 +333,6 @@ impl Readings {
 
                     recent_history: history,
                     history_from_store: Vec::new(),
-                    logs_from_store: Vec::new(),
-                    logs_from_store_hist: Option::None,
 
                     condition: Ok(()),
                     logs: logs::Logs::new_empty(),
@@ -374,8 +358,6 @@ impl Readings {
 
                 recent_history: Vec::new(),
                 history_from_store: Vec::new(),
-                logs_from_store: Vec::new(),
-                logs_from_store_hist: Option::None,
 
                 condition: Ok(()),
                 logs: logs::Logs::new_empty(),
@@ -453,8 +435,10 @@ impl Readings {
                     timestamps.into_iter().zip(data.into_iter()).collect()
             }
             Fetchable::Logs { logs, start_at } => {
-                sensorinfo.logs_from_store = logs;
-                sensorinfo.logs_from_store_hist = Some(start_at);
+                sensorinfo.logs.from_store = Some(logs::FromStore {
+                    list: logs,
+                    since: start_at,
+                })
             }
             Fetchable::Hist { percentiles, range } => {
                 sensorinfo.percentiles_from_store = percentiles;
@@ -475,5 +459,3 @@ pub struct ChartParts<'a> {
     pub reading: reading::Info,
     pub data: &'a [(f64, f64)],
 }
-
-

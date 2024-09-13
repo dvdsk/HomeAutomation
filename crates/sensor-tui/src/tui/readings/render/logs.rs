@@ -1,3 +1,5 @@
+use jiff::tz::TimeZone;
+use jiff::Zoned;
 use log_store::api::ErrorEvent;
 use ratatui::layout::{Constraint, Flex, Rect};
 use ratatui::style::{Color, Modifier, Style, Stylize};
@@ -48,6 +50,8 @@ pub fn render_table(
         .map(|ErrorEvent { error, .. }| error.to_string().chars().count() as u16)
         .max()
         .unwrap_or_default();
+
+    let now = Zoned::now();
     let rows = logs
         .into_iter()
         .rev()
@@ -57,16 +61,25 @@ pub fn render_table(
                 0 => Color::Gray,
                 _ => Color::White,
             };
-            let end = if let Some(timestamp) = end {
-                format!("{}", timestamp.strftime("%I:%M:%S"))
+
+            let start = start.to_zoned(TimeZone::system());
+            let start = if start.day() == now.day() && start.year() == now.year() {
+                format!("{}", start.strftime("%I:%M:%S"))
+            } else {
+                format!("{}", start.strftime("%D %I:%M:%S"))
+            };
+
+            let end = if let Some(end) = end {
+                let end = end.to_zoned(TimeZone::system());
+                if end.day() == now.day() && end.year() == now.year() {
+                    format!("{}", end.strftime("%I:%M:%S"))
+                } else {
+                    format!("{}", end.strftime("%D %I:%M:%S"))
+                }
             } else {
                 "ongoing".to_owned()
             };
-            let item = [
-                format!("{error}"),
-                format!("{}", start.strftime("%I:%M:%S")),
-                end,
-            ];
+            let item = [format!("{error}"), start, end];
             item.into_iter()
                 .map(|content| Text::from(content))
                 .map(|content| Cell::from(content))
@@ -80,8 +93,8 @@ pub fn render_table(
         rows,
         [
             Constraint::Max(longest_error_msg),
-            Constraint::Max(10),
-            Constraint::Max(10),
+            Constraint::Max(18),
+            Constraint::Max(18),
         ],
     )
     .header(header)
