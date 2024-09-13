@@ -66,7 +66,7 @@ impl Tab {
 
             if let Some(data) = data {
                 (
-                    data.chart(plot_buf),
+                    data.chart(plot_buf, ui_state.history_length.dur),
                     data.percentiles(),
                     Some(data.details()),
                     Some(data.logs()),

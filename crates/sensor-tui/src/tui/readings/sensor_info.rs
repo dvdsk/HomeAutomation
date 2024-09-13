@@ -9,6 +9,7 @@ use protocol::{Device, Error};
 
 use std::collections::HashMap;
 use std::ops::RangeInclusive;
+use std::time::Duration;
 use tui_tree_widget::TreeItem;
 
 use crate::Fetchable;
@@ -114,21 +115,21 @@ impl SensorInfo {
             .collect_vec()
     }
 
-    pub fn chart<'a>(&mut self, plot_buf: &'a mut Vec<(f64, f64)>) -> Option<ChartParts<'a>> {
-        let reference = self
-            .history_from_store
-            .first()
-            .map(|(t, _)| t)
-            .or_else(|| self.recent_history.first().map(|(t, _)| t))?;
+    pub fn chart<'a>(
+        &mut self,
+        plot_buf: &'a mut Vec<(f64, f64)>,
+        history_len: Duration,
+    ) -> Option<ChartParts<'a>> {
+        let reference = jiff::Timestamp::now() - history_len;
 
         let first_recent = self
             .recent_history
             .first()
             .map(|(t, _)| t)
             .cloned()
-            .unwrap_or(jiff::Timestamp::default());
-        plot_buf.clear();
+            .unwrap_or(jiff::Timestamp::MAX);
 
+        plot_buf.clear();
         for xy in self
             .history_from_store
             .iter()
@@ -136,7 +137,7 @@ impl SensorInfo {
             .chain(self.recent_history.iter())
             .map(|(x, y)| {
                 (
-                    (*x - *reference)
+                    (*x - reference)
                         .total(jiff::Unit::Second)
                         .expect("unit is not a calander unit"),
                     *y as f64,
@@ -431,7 +432,7 @@ impl Readings {
         match fetched {
             Fetchable::Data { timestamps, data } => {
                 sensorinfo.history_from_store =
-                    timestamps.into_iter().zip(data.into_iter()).collect()
+                    timestamps.into_iter().zip(data.into_iter()).collect();
             }
             Fetchable::Logs { logs, start_at } => {
                 sensorinfo.logs.from_store = Some(logs::FromStore {

@@ -393,7 +393,9 @@ async fn get_data(
         .get_data(*range.start(), *range.end(), reading, 300)
         .await
     {
-        Ok(Data { time, values }) => GetResult::Ok((time, values)),
+        Ok(Data { time, values }) => {
+            GetResult::Ok((time, values))
+        }
         Err(Error::Request(GetDataError::NotFound))
         | Err(Error::Request(GetDataError::EmptyFile))
         | Err(Error::Request(GetDataError::StartAfterData))
