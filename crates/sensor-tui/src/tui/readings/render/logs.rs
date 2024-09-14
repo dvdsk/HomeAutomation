@@ -81,17 +81,17 @@ pub fn render_table(
 
             let start = start.to_zoned(TimeZone::system());
             let start = if start.day() == now.day() && start.year() == now.year() {
-                format!("{}", start.strftime("%I:%M:%S"))
+                format!("{}", start.strftime("%H:%M:%S"))
             } else {
-                format!("{}", start.strftime("%D %I:%M:%S"))
+                format!("{}", start.strftime("%D %H:%M:%S"))
             };
 
             let end = if let Some(end) = end {
                 let end = end.to_zoned(TimeZone::system());
                 if end.day() == now.day() && end.year() == now.year() {
-                    format!("{}", end.strftime("%I:%M:%S"))
+                    format!("{}", end.strftime("%H:%M:%S"))
                 } else {
-                    format!("{}", end.strftime("%D %I:%M:%S"))
+                    format!("{}", end.strftime("%D %H:%M:%S"))
                 }
             } else {
                 "ongoing".to_owned()
