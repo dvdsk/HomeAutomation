@@ -58,10 +58,11 @@ impl Registar {
 
     pub(crate) fn remove(&self, key: DefaultKey) {
         let mut this = self.0.lock().expect("nothing should panic");
-        let _ = this.remove(key); // could have been removed by register
+        let _ = this.remove(key); // Could have been removed by register
     }
 
     pub(crate) fn activate(&self, order: Affector) -> Result<(), Offline> {
+        tracing::info!("client is trying to activate: {order:?}");
         let mut this = self.0.lock().expect("nothing should panic");
         for possible_controller in this.iter_mut().map(|(_, reg)| reg).filter(|reg| {
             reg.controls

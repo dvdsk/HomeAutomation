@@ -17,7 +17,7 @@ use tokio_serde::formats::Bincode;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
 use ratelimited_logger::{self as rlog, RateLimitedLogger};
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, instrument};
 
 type Conn<RpcReq, RpcResp> = tokio_serde::Framed<
     Framed<TcpStream, LengthDelimitedCodec>,

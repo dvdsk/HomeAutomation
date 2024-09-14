@@ -16,7 +16,7 @@ use tokio::net::TcpStream;
 use tokio::sync::mpsc::Sender;
 
 use super::Event;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{error, info, instrument, warn};
 
 use super::affector::{control_affectors, Registar};
 
