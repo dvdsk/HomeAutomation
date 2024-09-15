@@ -132,19 +132,19 @@ fn publish_sps_result(sps_res: Result<sps30::Measurement, Error>, publish: &Queu
             mass_pm2_5,
             mass_pm4_0,
             mass_pm10,
+            number_pm0_5,
             number_pm1_0,
             number_pm2_5,
             number_pm4_0,
             number_pm10,
             typical_particle_size,
             ..
-            // mass_pm0_5,
         }) => {
             publish.send_p0(Reading::MassPm1_0(mass_pm1_0));
             publish.send_p0(Reading::MassPm2_5(mass_pm2_5));
             publish.send_p0(Reading::MassPm4_0(mass_pm4_0));
             publish.send_p0(Reading::MassPm10(mass_pm10));
-            // publish.send_p0(Reading::MassPm0_5(mass_pm0_5));
+            publish.send_p0(Reading::NumberPm0_5(number_pm0_5));
             publish.send_p0(Reading::NumberPm1_0(number_pm1_0));
             publish.send_p0(Reading::NumberPm2_5(number_pm2_5));
             publish.send_p0(Reading::NumberPm4_0(number_pm4_0));

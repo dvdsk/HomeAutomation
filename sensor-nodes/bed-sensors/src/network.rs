@@ -108,6 +108,7 @@ pub async fn handle(
         // Or the socket will hang for a while waiting to close this makes sure
         // we can reconnect instantly
         socket.abort();
+        Timer::after_secs(60).await; // Experiment: does this help?
     }
 }
 
