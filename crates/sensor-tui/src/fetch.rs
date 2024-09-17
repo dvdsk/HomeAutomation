@@ -141,7 +141,7 @@ impl Fetch {
             return false; // No need for update
         }
 
-        // is there an ongoing request that will fix this?
+        // Is there an ongoing request that will fix this?
         !self
             .recently_issued
             .iter()
@@ -200,7 +200,7 @@ impl Fetch {
         self.tx.blocking_send(req.clone()).unwrap();
         self.recently_issued.push_front(req);
         // Might get out of sync with request handler, that is okay
-        // false positives in self.recently_issued are allowed. They only
+        // false positives in `self.recently_issued` are allowed. They only
         // delay an update by a single frame.
         if self.recently_issued.len() > MAX_IN_FLIGHT_REQUESTS {
             self.recently_issued.pop_back();
@@ -243,8 +243,9 @@ pub(crate) async fn handle_requests(
             }
             Request::Logs(Logs { reading, range }) => {
                 let reading_clone = reading.clone();
+                let range_clone = range.clone();
                 tokio::spawn(get_retry_then_wrap_send(
-                    move || get_logs(log_store, reading.clone().clone()),
+                    move || get_logs(log_store, reading.clone(), range.clone()),
                     log_store_queue.clone(),
                     "Could not fetch logs",
                     move |res| match res {
@@ -252,7 +253,7 @@ pub(crate) async fn handle_requests(
                             reading: reading_clone,
                             thing: Fetchable::Logs {
                                 logs,
-                                start_at: *range.start(),
+                                start_at: *range_clone.start(),
                             },
                         },
                         Err(err) => Update::FetchError(err),
@@ -393,9 +394,7 @@ async fn get_data(
         .get_data(*range.start(), *range.end(), reading, 300)
         .await
     {
-        Ok(Data { time, values }) => {
-            GetResult::Ok((time, values))
-        }
+        Ok(Data { time, values }) => GetResult::Ok((time, values)),
         Err(Error::Request(GetDataError::NotFound))
         | Err(Error::Request(GetDataError::EmptyFile))
         | Err(Error::Request(GetDataError::StartAfterData))
@@ -409,7 +408,11 @@ async fn get_data(
     }
 }
 
-async fn get_logs(log_store: SocketAddr, reading: Reading) -> GetResult<Vec<ErrorEvent>> {
+async fn get_logs(
+    log_store: SocketAddr,
+    reading: Reading,
+    range: RangeInclusive<Timestamp>,
+) -> GetResult<Vec<ErrorEvent>> {
     use log_store::api::client::{Client, ConnectError};
 
     let mut api = match Client::connect(log_store, client_name()).await {
@@ -420,7 +423,7 @@ async fn get_logs(log_store: SocketAddr, reading: Reading) -> GetResult<Vec<Erro
         }
     };
 
-    api.get_logs(reading.device())
+    api.get_logs(reading.device(), range)
         .await
         .wrap_err("Log store returned an error to our request")
         .into()

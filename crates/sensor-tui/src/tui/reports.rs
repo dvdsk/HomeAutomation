@@ -3,7 +3,7 @@ use std::collections::{HashSet, VecDeque};
 use color_eyre::eyre;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
-use ratatui::style::{Color, Style, Styled, Stylize};
+use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::Text;
 use ratatui::widgets::{Paragraph, Wrap};
 use ratatui::Frame;

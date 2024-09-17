@@ -1,3 +1,5 @@
+use std::ops::{Bound, RangeBounds};
+
 use jiff::Unit;
 use log_store::api::{self, ErrorEvent};
 
@@ -85,7 +87,7 @@ impl Logs {
         buckets.map(|(_, count)| count as f32)
     }
 
-    pub(crate) fn list(&self) -> (Vec<api::ErrorEvent>, LogSource) {
+    pub(crate) fn list(&self) -> List {
         let last = self
             .from_store
             .as_ref()
@@ -100,18 +102,33 @@ impl Logs {
             .iter()
             .skip_while(|ErrorEvent { start, .. }| start < &last)
             .cloned();
-        let mut logs = self
+        let mut items = self
             .from_store
             .as_ref()
             .map(|FromStore { list, .. }| list)
             .cloned()
             .unwrap_or(Vec::new());
-        logs.extend(without_duplicates);
+        items.extend(without_duplicates);
+
+        let covers = if let Some(ref from_store) = self.from_store {
+            from_store.since..
+        } else {
+            self.local.since..
+        };
+        let covers = (covers.start_bound().cloned(), covers.end_bound().cloned());
 
         if self.from_store.is_some() {
-            (logs, LogSource::Store)
+            List {
+                items,
+                source: LogSource::Store,
+                covers,
+            }
         } else {
-            (logs, LogSource::Local)
+            List {
+                items,
+                source: LogSource::Local,
+                covers,
+            }
         }
     }
 
@@ -122,6 +139,12 @@ impl Logs {
             .map(|FromStore { since, .. }| since)
             .unwrap_or(&self.local.since)
     }
+}
+
+pub(crate) struct List {
+    pub items: Vec<api::ErrorEvent>,
+    pub source: LogSource,
+    pub covers: (Bound<jiff::Timestamp>, Bound<jiff::Timestamp>),
 }
 
 pub enum LogSource {

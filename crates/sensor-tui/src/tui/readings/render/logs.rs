@@ -1,3 +1,5 @@
+use std::ops::Bound;
+
 use jiff::tz::TimeZone;
 use jiff::Zoned;
 use log_store::api::ErrorEvent;
@@ -7,37 +9,72 @@ use ratatui::text::Text;
 use ratatui::widgets::{Cell, HighlightSpacing, Row, Table, TableState};
 use ratatui::Frame;
 
-use crate::tui::readings::sensor_info::LogSource;
+use crate::time::format::progressively_more_specified::FmtScale;
+use crate::tui::readings::sensor_info::{LogList, LogSource};
 
 use super::centered_text;
+
+pub fn render_log_range((start, stop): (Bound<jiff::Timestamp>, Bound<jiff::Timestamp>)) -> String {
+    let start = match start {
+        Bound::Included(start) | Bound::Excluded(start) => {
+            let elapsed = start.duration_until(jiff::Timestamp::now()).unsigned_abs();
+            FmtScale::optimal_for(start, elapsed).render(start, elapsed, " ago")
+        }
+        Bound::Unbounded => unreachable!("unbounded not allowed for log range start"),
+    };
+    let stop = match stop {
+        Bound::Included(stop) | Bound::Excluded(stop) => {
+            let elapsed = stop.duration_until(jiff::Timestamp::now()).unsigned_abs();
+            FmtScale::optimal_for(stop, elapsed).render(stop, elapsed, " ago")
+        }
+        Bound::Unbounded => "now".to_owned(),
+    };
+
+    format!("{start} and {stop}")
+}
 
 pub fn render(
     frame: &mut Frame,
     layout: Rect,
     table_state: &mut TableState,
-    logs: Option<(Vec<ErrorEvent>, LogSource)>,
+    logs: Option<LogList>,
     theme: &super::Theme,
 ) {
     match logs {
-        Some((logs, LogSource::Store)) => {
-            if logs.is_empty() {
-                centered_text("All logs are empty", frame, layout, theme)
+        Some(LogList {
+            items,
+            source: LogSource::Store,
+            covers,
+        }) => {
+            if items.is_empty() {
+                let text = format!("No logs between {}", render_log_range(covers));
+                centered_text(&text, frame, layout, theme)
             } else {
-                render_table(frame, layout, table_state, logs)
+                render_table(frame, layout, table_state, items)
             }
         }
-        Some((logs, LogSource::Local)) => {
+        Some(LogList {
+            items,
+            source: LogSource::Local,
+            covers,
+        }) => {
             let [status, layout] = Layout::new(
                 Direction::Vertical,
                 [Constraint::Max(1), Constraint::Fill(1)],
             )
             .areas(layout);
 
-            centered_text("Loading logs from store ..", frame, status, theme);
-            if logs.is_empty() {
-                centered_text("Local logs are empty", frame, layout, theme);
+            centered_text(
+                "Loading additional logs from store ..",
+                frame,
+                status,
+                theme,
+            );
+            if items.is_empty() {
+                let text = format!("No local logs between {}", render_log_range(covers));
+                centered_text(&text, frame, layout, theme)
             } else {
-                render_table(frame, layout, table_state, logs);
+                render_table(frame, layout, table_state, items);
             }
         }
         None => centered_text("This item can not have logs", frame, layout, theme),

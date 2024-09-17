@@ -1,7 +1,9 @@
+pub mod progressively_more_specified;
+
 struct FmtOption {
     unit: &'static str,
     factor: usize,
-    /// at a max display this numb of items
+    /// At a max display this numb of items
     /// before going to the bigger FmtOption
     next: usize,
 }
@@ -11,11 +13,10 @@ impl FmtOption {
         (seconds / self.factor as f64).floor() as usize
     }
 }
-
-pub fn fmt_seconds(secs: f64) -> String {
+pub fn duration(secs: f64) -> String {
     #[rustfmt::skip]
     let mut options = [
-        // next is purposefully set wrong, we set it in a loop below
+        // Next is purposefully set wrong, we set it in a loop below
         FmtOption{unit: "s", factor: 1, next: 0},
         FmtOption{unit: "m", factor: 60, next: 0},
         FmtOption{unit: "h", factor: 60 * 60, next: 0},
@@ -57,7 +58,6 @@ pub fn fmt_seconds(secs: f64) -> String {
     unreachable!()
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -75,7 +75,7 @@ mod tests {
         ];
 
         for (input, correct_output) in cases {
-            assert_eq!(fmt_seconds(input as f64), correct_output);
+            assert_eq!(duration(input as f64), correct_output);
         }
     }
 }

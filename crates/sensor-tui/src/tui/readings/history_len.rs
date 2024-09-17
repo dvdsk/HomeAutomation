@@ -5,7 +5,7 @@ use ratatui::{
 };
 use std::time::{Duration, Instant};
 
-use crate::time::format::fmt_seconds;
+use crate::time::format::duration;
 use crate::time::parse::parse_duration;
 
 #[derive(Debug, Clone, Copy)]
@@ -27,7 +27,7 @@ pub struct HistoryLen {
 impl Default for HistoryLen {
     fn default() -> Self {
         let dur = Duration::from_secs(15 * 60);
-        let text_input = fmt_seconds(dur.as_secs_f64());
+        let text_input = duration(dur.as_secs_f64());
         Self {
             text_input,
             editing: false,

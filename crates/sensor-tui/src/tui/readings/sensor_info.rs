@@ -1,7 +1,7 @@
 use hdrhistogram::Histogram;
 use itertools::Itertools;
 use jiff::Unit;
-use log_store::api::{self, ErrorEvent, Percentile};
+use log_store::api::{self, Percentile};
 use protocol::reading;
 use protocol::reading::tree::{Item, Tree};
 use protocol::Reading;
@@ -15,6 +15,7 @@ use tui_tree_widget::TreeItem;
 use crate::Fetchable;
 
 mod logs;
+pub(crate) use logs::List as LogList;
 pub(crate) use logs::LogSource;
 
 #[derive(Debug)]
@@ -153,7 +154,7 @@ impl SensorInfo {
         })
     }
 
-    pub fn logs(&self) -> (Vec<ErrorEvent>, logs::LogSource) {
+    pub fn logs(&self) -> logs::List {
         self.logs.list()
     }
 

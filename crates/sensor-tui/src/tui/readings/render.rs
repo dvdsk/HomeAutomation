@@ -1,5 +1,5 @@
 use jiff::Timestamp;
-use log_store::api::{ErrorEvent, Percentile};
+use log_store::api::Percentile;
 use ratatui::{
     self,
     layout::{Alignment, Constraint, Direction, Flex, Layout, Rect},
@@ -13,7 +13,7 @@ use tui_tree_widget::Tree;
 use crate::tui::Theme;
 
 use super::{
-    sensor_info::{ChartParts, Details, ErrorDensity, LogSource, Readings},
+    sensor_info::{ChartParts, Details, ErrorDensity, LogList, Readings},
     UiState,
 };
 
@@ -84,7 +84,7 @@ pub fn graph_hist_logs(
     layout: Rect,
     app: &mut UiState,
     percentiles: &[Percentile],
-    logs: Option<(Vec<ErrorEvent>, LogSource)>,
+    logs: Option<LogList>,
     chart: Option<ChartParts>,
     theme: &Theme,
 ) {
@@ -94,7 +94,11 @@ pub fn graph_hist_logs(
     if chart.is_some() {
         constraints[0] = Constraint::Fill(10);
     }
-    if logs.as_ref().is_some_and(|(logs, _)| !logs.is_empty()) && app.show_logs {
+    if logs
+        .as_ref()
+        .is_some_and(|LogList { items, .. }| !items.is_empty())
+        && app.show_logs
+    {
         constraints[1] = Constraint::Fill(10);
     }
     if !percentiles.is_empty() && app.show_histogram {
@@ -217,7 +221,7 @@ fn render_details(frame: &mut Frame, layout: Rect, details: Details) {
                 .since(ts)
                 .expect("should make sense")
                 .get_seconds();
-            let time_ago = crate::time::format::fmt_seconds(seconds_ago as f64);
+            let time_ago = crate::time::format::duration(seconds_ago as f64);
             format!("last read: {time_ago} ago, value: {val}")
         }
     };

@@ -1,10 +1,10 @@
 use std::time::Duration;
 
-use jiff::tz::TimeZone;
 use protocol::reading;
 use ratatui::layout::Rect;
 use ratatui::text::Span;
 
+use crate::time::format::progressively_more_specified;
 use crate::tui::readings::sensor_info::ChartParts;
 
 use super::Bounds;
@@ -20,10 +20,12 @@ pub fn labels<'a>(
     let y_label_spacing = 10;
     let info = &chart.reading;
 
+    let scale = scale(x_bounds[1]);
+
     // Characters are about twice as high as wide
     let x = evenly_spaced_labels(layout.width / y_label_spacing / 2, info, x_bounds)
         .rev()
-        .map(fmt_seconds)
+        .map(|x| fmt(x, &scale))
         .map(Into::into)
         .collect();
     let y = evenly_spaced_labels(layout.height / y_label_spacing, info, y_bounds)
@@ -33,21 +35,19 @@ pub fn labels<'a>(
     (x, y)
 }
 
-fn fmt_seconds(secs: f64) -> String {
-    if secs == 0.0 {
-        "now".to_string()
-    } else if secs > 2. * 60. * 60. && secs < 24. * 60. * 60. {
-        fmt_hh_mm(secs)
-    } else {
-        "-".to_string() + &crate::time::format::fmt_seconds(secs)
-    }
+fn fmt(x: f64, scale: &progressively_more_specified::FmtScale) -> String {
+    let now = jiff::Timestamp::now();
+    let elapsed = Duration::from_secs_f64(x);
+    let time = now - elapsed;
+    scale.render(time, elapsed, "")
 }
 
-fn fmt_hh_mm(secs: f64) -> String {
+fn scale(secs: f64) -> progressively_more_specified::FmtScale {
     let now = jiff::Timestamp::now();
-    let label = now - Duration::from_secs_f64(secs);
-    let label = label.to_zoned(TimeZone::system());
-    label.strftime("%H:%M").to_string()
+    let elapsed = Duration::from_secs_f64(secs);
+    let time = now - elapsed;
+
+    progressively_more_specified::FmtScale::optimal_for(time, elapsed)
 }
 
 fn evenly_spaced_labels(
