@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use protocol::Device;
 use rpc::client::RpcClient;
 use rpc::client::RpcError;
@@ -48,8 +50,9 @@ impl Client {
     pub async fn get_logs(
         &mut self,
         device: protocol::Device,
+        range: RangeInclusive<jiff::Timestamp>,
     ) -> Result<Vec<ErrorEvent>, Error<GetLogError>> {
-        let request = super::Request::GetLog(device);
+        let request = super::Request::GetLog { device, range };
         match self.0.send_receive(request.clone()).await? {
             Response::GetLog(Ok(log)) => Ok(log),
             Response::GetLog(Err(e)) => Err(Error::Request(e)),

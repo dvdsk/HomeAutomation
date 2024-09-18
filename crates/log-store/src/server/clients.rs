@@ -27,7 +27,7 @@ async fn perform_request_inner(
 ) -> Result<api::Response, ServerError> {
     Ok(match request {
         api::Request::Handshake { .. } => return Err(ServerError::AlreadyConnected),
-        api::Request::GetLog(device) => api::Response::GetLog(logs.get(&device).await),
+        api::Request::GetLog { device, range } => api::Response::GetLog(logs.get(&device, range).await),
         api::Request::GetStats(device) => api::Response::GetStats(stats.get(&device).await),
         api::Request::ListDevices => api::Response::ListDevices(logs.list_devices().await),
     })

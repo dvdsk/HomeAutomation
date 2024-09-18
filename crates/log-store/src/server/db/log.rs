@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::{self, Read, Write};
 use std::iter;
+use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -187,13 +188,29 @@ impl Log {
         Ok(())
     }
 
-    fn get_all(&mut self) -> Result<ApiResult<Vec<ErrorEvent>>> {
+    fn get(
+        &mut self,
+        range: RangeInclusive<jiff::Timestamp>,
+    ) -> Result<ApiResult<Vec<ErrorEvent>>> {
         let mut timestamps = Vec::new();
         let mut data = Vec::new();
-        let n_lines = self.history.n_lines_between(..).wrap_err(
-            "Could not check if there is not too much data \
-            between the requested points",
-        )?;
+        let range = RangeInclusive::new(
+            range.start().as_second() as u64,
+            range.end().as_second() as u64,
+        );
+        let n_lines = match self.history.n_lines_between(range) {
+            Ok(n_lines) => n_lines,
+            Err(byteseries::series::Error::InvalidRange(
+                byteseries::seek::Error::StartAfterData | byteseries::seek::Error::StopBeforeData,
+            )) => return Ok(Ok(Vec::new())),
+            Err(other) => {
+                return Err(other).wrap_err(
+                    "Could not check if there is not too much data between \
+                    the requested points",
+                )
+            }
+        };
+
         if n_lines > 200 {
             return Ok(Err(api::GetLogError::TooMuchData {
                 max: 200,
@@ -272,10 +289,14 @@ impl Logs {
         Ok(())
     }
 
-    pub async fn get(&self, device: &protocol::Device) -> ApiResult<Vec<api::ErrorEvent>> {
+    pub async fn get(
+        &self,
+        device: &protocol::Device,
+        range: RangeInclusive<jiff::Timestamp>,
+    ) -> ApiResult<Vec<api::ErrorEvent>> {
         let mut map = self.0.lock().await;
         if let Some(log) = map.get_mut(device) {
-            match log.get_all() {
+            match log.get(range) {
                 Err(report) => Err(api::GetLogError::InternalError(format!("{report:#}"))),
                 Ok(res) => res,
             }
@@ -298,7 +319,7 @@ impl Logs {
     }
 }
 
-/// relative path without extension
+/// Relative path without extension
 fn base_path(device: &protocol::Device) -> PathBuf {
     use protocol::reading::tree::{Item, Tree};
     use protocol::reading::Info;

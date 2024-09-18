@@ -104,7 +104,8 @@ async fn check_client_get_logs(data_store_addr: SocketAddr, data_send: &Notify) 
         .unwrap();
 
     let test_device = test_readings(0.0).first().unwrap().device();
-    let logs = client.get_logs(test_device).await.unwrap();
+    let range = jiff::Timestamp::new(0, 0).unwrap()..=jiff::Timestamp::now();
+    let logs = client.get_logs(test_device, range).await.unwrap();
 
     assert_eq!(logs.len(), 3);
 }

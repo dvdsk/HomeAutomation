@@ -1,3 +1,4 @@
+use std::ops::RangeInclusive;
 use std::time::Duration;
 
 use protocol::{Device, Reading};
@@ -9,8 +10,13 @@ pub use client::Client;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) enum Request {
-    Handshake { name: String },
-    GetLog(protocol::Device),
+    Handshake {
+        name: String,
+    },
+    GetLog {
+        device: protocol::Device,
+        range: RangeInclusive<jiff::Timestamp>,
+    },
     GetStats(protocol::Device),
     ListDevices,
 }
