@@ -3,7 +3,7 @@
 
 use embassy_executor::Spawner;
 use embassy_futures::select::{self, Either3};
-use embassy_net::{Ipv4Address, Ipv4Cidr, Stack, StackResources};
+use embassy_net::{Ipv4Address, Ipv4Cidr, StackResources};
 use embassy_net_wiznet::{chip::W5500, Device, Runner, State};
 use embassy_stm32::exti::ExtiInput;
 use embassy_stm32::gpio::{Level, Output, Pull, Speed};
@@ -55,8 +55,8 @@ async fn ethernet_task(
 }
 
 #[embassy_executor::task]
-async fn net_task(stack: &'static Stack<Device<'static>>) -> ! {
-    stack.run().await
+async fn net_task(mut runner: embassy_net::Runner<'static, Device<'static>>) -> ! {
+    runner.run().await
 }
 
 // 84 Mhz clock stm32f401
@@ -193,21 +193,17 @@ async fn main(spawner: Spawner) {
     unwrap!(dns_servers.push(Ipv4Address([192, 168, 1, 1])));
     unwrap!(dns_servers.push(Ipv4Address([192, 168, 1, 1])));
     unwrap!(dns_servers.push(Ipv4Address([192, 168, 1, 1])));
-    static STACK: StaticCell<Stack<Device>> = StaticCell::new();
     static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
-    let stack = &*STACK.init(Stack::new(
-        device,
-        embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
-            address: Ipv4Cidr::new(Ipv4Address([192, 168, 1, 7]), 24),
-            gateway: Some(Ipv4Address([192, 168, 1, 1])),
-            dns_servers,
-        }),
-        RESOURCES.init(StackResources::<3>::new()),
-        seed,
-    ));
+    let config = embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
+        address: Ipv4Cidr::new(Ipv4Address([192, 168, 1, 7]), 24),
+        gateway: Some(Ipv4Address([192, 168, 1, 1])),
+        dns_servers,
+    });
+    let (stack, runner) =
+        embassy_net::new(device, config, RESOURCES.init(StackResources::new()), seed);
 
     // Launch network task
-    unwrap!(spawner.spawn(net_task(stack)));
+    unwrap!(spawner.spawn(net_task(runner)));
 
     let comms = Channel::new();
     let (mut led_controller, led_handle) =
@@ -215,7 +211,7 @@ async fn main(spawner: Spawner) {
 
     let driver_orderers = slow::DriverOrderers::new();
     let publish = Queues::new();
-    let handle_network = network::handle(stack, &publish, led_handle.clone(), &driver_orderers);
+    let handle_network = network::handle(&stack, &publish, led_handle.clone(), &driver_orderers);
     pin_mut!(handle_network);
 
     let init_then_measure = sensors::init_then_measure(

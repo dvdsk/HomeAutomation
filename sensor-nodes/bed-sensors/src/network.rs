@@ -1,6 +1,5 @@
 use defmt::{debug, info, unwrap, warn};
 use embassy_futures::select::{self, select};
-use embassy_net::driver::Driver;
 use embassy_net::tcp::{TcpReader, TcpSocket, TcpWriter};
 use embassy_net::{Ipv4Address, Stack};
 use embassy_time::{with_timeout, Duration, Instant, Timer};
@@ -69,7 +68,7 @@ const fn max(a: usize, b: usize) -> usize {
 }
 
 pub async fn handle(
-    stack: &Stack<impl Driver>,
+    stack: &Stack<'_>,
     publish: &Queues,
     led: LedHandle<'_>,
     driver_orderers: &slow::DriverOrderers,
@@ -77,7 +76,7 @@ pub async fn handle(
     let mut rx_buffer = [0; 1024];
     let mut tx_buffer = [0; max(SensMsg::ENCODED_SIZE, ErrorReport::ENCODED_SIZE) * 2];
 
-    let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
+    let mut socket = TcpSocket::new(*stack, &mut rx_buffer, &mut tx_buffer);
     socket.set_timeout(Some(Duration::from_secs(5)));
     socket.set_keep_alive(Some(Duration::from_secs(1)));
     let host_addr = Ipv4Address::new(192, 168, 1, 43);
