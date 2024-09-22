@@ -1065,11 +1065,12 @@ dependencies = [
 
 [[package]]
 name = "sps30-async"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "defmt",
  "embedded-hal-async",
  "embedded-io-async",
+ "futures",
  "heapless 0.8.0",
  "postcard",
  "serde",

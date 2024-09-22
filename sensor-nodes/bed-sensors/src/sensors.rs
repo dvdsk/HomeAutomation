@@ -44,7 +44,7 @@ pub mod concrete_types {
     pub type ConcreteRx<'a> = RingBufferedUartRx<'a>;
 }
 
-const SPS30_UART_BUF_SIZE: usize = 300;
+const SPS30_UART_BUF_SIZE: usize = 150;
 const SPS30_DRIVER_BUF_SIZE: usize = 2 * SPS30_UART_BUF_SIZE;
 
 pub async fn init_then_measure(

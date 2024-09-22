@@ -3,13 +3,14 @@ use sps30_async::Sps30;
 
 use crate::error_cache::{Error, SensorError};
 use crate::sensors::concrete_types::{ConcreteRx, ConcreteTx};
-use crate::sensors::SPS30_UART_BUF_SIZE;
+use crate::sensors::SPS30_DRIVER_BUF_SIZE;
 
 use super::Driver;
 
+/// reset the device when an error occurs
 pub struct Sps30Driver<'a> {
     is_init: bool,
-    driver: Sps30<SPS30_UART_BUF_SIZE, ConcreteTx<'a>, ConcreteRx<'a>, Delay>,
+    driver: Sps30<SPS30_DRIVER_BUF_SIZE, ConcreteTx<'a>, ConcreteRx<'a>, Delay>,
 }
 
 impl<'a> Sps30Driver<'a> {
@@ -23,12 +24,14 @@ impl<'a> Sps30Driver<'a> {
 
     async fn measure(&mut self) -> Result<sps30_async::Measurement, Error> {
         if self.is_init {
-            return self
+            let res = self
                 .driver
                 .read_measurement()
                 .await
                 .map_err(SensorError::Sps30)
                 .map_err(Error::Running);
+            self.is_init = res.is_ok();
+            return res;
         }
 
         self.driver
@@ -42,12 +45,15 @@ impl<'a> Sps30Driver<'a> {
             .map_err(SensorError::Sps30)
             .map_err(Error::Setup)?;
 
-        self.is_init = true;
-        self.driver
+        let res = self
+            .driver
             .read_measurement()
             .await
             .map_err(SensorError::Sps30)
-            .map_err(Error::Running)
+            .map_err(Error::Running);
+
+        self.is_init = res.is_ok();
+        res
     }
 }
 
@@ -65,7 +71,7 @@ impl<'a> Driver for Sps30Driver<'a> {
             .await
             .map_err(SensorError::Sps30)
             .map_err(Error::Running)?;
-        // Fan cleaning takes 10 seconds, make sure its done before 
+        // Fan cleaning takes 10 seconds, make sure its done before
         // allowing the next reading
         embassy_time::Timer::after(embassy_time::Duration::from_secs(11)).await;
         Ok(())
