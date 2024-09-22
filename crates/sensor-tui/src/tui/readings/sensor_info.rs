@@ -144,6 +144,7 @@ impl SensorInfo {
                     *y as f64,
                 )
             })
+            .skip_while(|(x, _)| *x > history_len.as_secs_f64())
         {
             plot_buf.push(xy);
         }
@@ -368,7 +369,7 @@ impl Readings {
 
     fn update_tree(&mut self, reading: &Reading, placeholder: IsPlaceholder) {
         let key = tree_key(reading);
-        tracing::debug!("reading: {reading:?}");
+        tracing::trace!("reading: {reading:?}");
 
         let mut tree = add_root(reading as &dyn Tree, &mut self.ground);
         let mut node = match reading.inner() {

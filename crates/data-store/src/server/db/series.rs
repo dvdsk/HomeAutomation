@@ -98,7 +98,7 @@ impl Series {
         })
     }
 
-    #[instrument]
+    #[instrument(skip(self))]
     fn append(&mut self, reading: &protocol::Reading) -> Result<()> {
         let index = reading
             .device()
@@ -282,6 +282,7 @@ pub(crate) async fn store(data: &Data, reading: &protocol::Reading, data_dir: &P
         let existing = data.insert(key, series);
         assert!(existing.is_none(), "should not race we still hold the lock");
     }
+    trace!("stored new reading");
 
     Ok(())
 }

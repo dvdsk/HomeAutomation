@@ -1,14 +1,17 @@
 use std::ops::RangeInclusive;
+use std::time::Duration;
 
 use protocol::Device;
 use rpc::client::RpcClient;
 use rpc::client::RpcError;
 use tokio::net::ToSocketAddrs;
+use tokio::time::sleep;
+use tracing::instrument;
 
 use crate::api::Percentile;
 
 use super::ErrorEvent;
-use super::GetLogError;
+use super::GetLogResponse;
 use super::GetStatsError;
 use super::Response;
 
@@ -16,7 +19,7 @@ pub struct Client(rpc::client::RpcClient<super::Request, super::Response>);
 pub use rpc::client::ConnectError;
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error<T: std::error::Error> {
+pub enum Error<T> {
     #[error("Server ran into an specific error with our request: {0}")]
     Request(T),
     #[error("Error while communicating with server: {0}")]
@@ -47,23 +50,49 @@ impl Client {
         }
     }
 
+    #[instrument(err, skip(self))]
     pub async fn get_logs(
         &mut self,
         device: protocol::Device,
-        range: RangeInclusive<jiff::Timestamp>,
-    ) -> Result<Vec<ErrorEvent>, Error<GetLogError>> {
-        let request = super::Request::GetLog { device, range };
-        match self.0.send_receive(request.clone()).await? {
-            Response::GetLog(Ok(log)) => Ok(log),
-            Response::GetLog(Err(e)) => Err(Error::Request(e)),
-            response => Err(Error::Comms(RpcError::IncorrectResponse {
-                request: format!("{request:?}"),
-                response: format!("{response:?}"),
-            })),
+        mut range: RangeInclusive<jiff::Timestamp>,
+    ) -> Result<Vec<ErrorEvent>, Error<String>> {
+        tracing::debug!("get all logs between: {range:?}");
+        let mut all = Vec::new();
+
+        while !range.is_empty() {
+            let request = super::Request::GetLog {
+                device: device.clone(),
+                range: range.clone(),
+            };
+            let partial = match self.0.send_receive(request.clone()).await? {
+                Response::GetLog(GetLogResponse::All(log)) => {
+                    all.extend_from_slice(&log);
+                    return Ok(all);
+                }
+                Response::GetLog(GetLogResponse::Partial(log)) => log,
+                Response::GetLog(GetLogResponse::Err(e)) => return Err(Error::Request(e)),
+                response => {
+                    return Err(Error::Comms(RpcError::IncorrectResponse {
+                        request: format!("{request:?}"),
+                        response: format!("{response:?}"),
+                    }))
+                }
+            };
+
+            let partial_ends = partial
+                .last()
+                .expect("if log.len() == 0 then response is GetLogResponse::All")
+                .start;
+            range = RangeInclusive::new(partial_ends + jiff::Span::new().seconds(1), *range.end());
+            tracing::debug!("Got logs up till {partial_ends}, next requesting: {range:?}");
+            all.extend_from_slice(&partial);
+            // do not overburden the server
+            sleep(Duration::from_millis(100)).await;
         }
+        Ok(all)
     }
 
-    pub async fn list_devices(&mut self) -> Result<Vec<Device>, Error<GetLogError>> {
+    pub async fn list_devices(&mut self) -> Result<Vec<Device>, Error<String>> {
         let request = super::Request::ListDevices;
         match self.0.send_receive(request.clone()).await? {
             Response::ListDevices(logs) => Ok(logs),

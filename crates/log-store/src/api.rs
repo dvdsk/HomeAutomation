@@ -37,14 +37,6 @@ pub enum GetStatsError {
     InternalError(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, thiserror::Error)]
-pub enum GetLogError {
-    #[error("Too many error events ({found}) between requested timepoints, max is: {max}")]
-    TooMuchData { max: i32, found: u64 },
-    #[error("Internal error while reading data, error: {0}")]
-    InternalError(String),
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Percentile {
     pub bucket_ends: u64,
@@ -61,8 +53,19 @@ pub struct ErrorEvent {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) enum GetLogResponse {
+    Err(String),
+    /// all logs between requested ranges
+    All(Vec<ErrorEvent>),
+    /// could not send more logs due to rate limits
+    /// user should request more starting at the last
+    /// item in the list
+    Partial(Vec<ErrorEvent>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) enum Response {
-    GetLog(Result<Vec<ErrorEvent>, GetLogError>),
+    GetLog(GetLogResponse),
     ListDevices(Vec<Device>),
     GetStats(Result<Vec<Percentile>, GetStatsError>),
     Error(ServerError),

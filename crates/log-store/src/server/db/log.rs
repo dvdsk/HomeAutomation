@@ -16,7 +16,7 @@ use series::Error::Open;
 use tokio::sync::Mutex;
 use tracing::{debug, info, instrument, warn};
 
-use crate::api::{self, ErrorEvent};
+use crate::api::{self, ErrorEvent, GetLogResponse};
 
 #[derive(derivative::Derivative)]
 #[derivative(Debug)]
@@ -188,35 +188,15 @@ impl Log {
         Ok(())
     }
 
-    fn get(
-        &mut self,
-        range: RangeInclusive<jiff::Timestamp>,
-    ) -> Result<ApiResult<Vec<ErrorEvent>>> {
-        let mut timestamps = Vec::new();
-        let mut data = Vec::new();
-        let range = RangeInclusive::new(
+    fn get(&mut self, range: RangeInclusive<jiff::Timestamp>) -> GetLogResponse {
+        use byteseries::seek::Error::{StartAfterData, StopBeforeData};
+        use byteseries::series::Error::InvalidRange;
+        const MAX_IN_ONE_READ: usize = 200;
+
+        let ts_range = RangeInclusive::new(
             range.start().as_second() as u64,
             range.end().as_second() as u64,
         );
-        let n_lines = match self.history.n_lines_between(range) {
-            Ok(n_lines) => n_lines,
-            Err(byteseries::series::Error::InvalidRange(
-                byteseries::seek::Error::StartAfterData | byteseries::seek::Error::StopBeforeData,
-            )) => return Ok(Ok(Vec::new())),
-            Err(other) => {
-                return Err(other).wrap_err(
-                    "Could not check if there is not too much data between \
-                    the requested points",
-                )
-            }
-        };
-
-        if n_lines > 200 {
-            return Ok(Err(api::GetLogError::TooMuchData {
-                max: 200,
-                found: n_lines,
-            }));
-        }
 
         let current = self
             .current
@@ -229,13 +209,26 @@ impl Log {
             })
             .into_iter();
 
-        if n_lines == 0 {
-            return Ok(Ok(current.collect()));
+        let mut timestamps = Vec::new();
+        let mut data = Vec::new();
+        match self.history.read_first_n(
+            MAX_IN_ONE_READ,
+            &mut Decoder,
+            ts_range,
+            &mut timestamps,
+            &mut data,
+        ) {
+            Ok(()) => (),
+            Err(InvalidRange(StartAfterData | StopBeforeData)) => {
+                return GetLogResponse::All(current.collect())
+            }
+            Err(other) => {
+                let report = color_eyre::eyre::Report::new(other)
+                    .wrap_err("Could not read log events from disk")
+                    .to_string();
+                return GetLogResponse::Err(report);
+            }
         }
-
-        self.history
-            .read_all(.., &mut Decoder, &mut timestamps, &mut data)
-            .wrap_err("Could not read log events from disk")?;
 
         let mut res: Vec<_> = timestamps
             .into_iter()
@@ -247,9 +240,18 @@ impl Log {
                 error,
             })
             .collect();
-        res.extend(current);
 
-        Ok(Ok(res))
+        if res.len() < MAX_IN_ONE_READ {
+            res.extend(
+                current.filter(|ErrorEvent { start, .. }| {
+                    start >= range.start() && start <= range.end()
+                }),
+            );
+
+            GetLogResponse::All(res)
+        } else {
+            GetLogResponse::Partial(res)
+        }
     }
 }
 
@@ -268,8 +270,6 @@ impl byteseries::Decoder for Decoder {
         bincode::deserialize(payload).expect("if its successfully serialized it should deserialize")
     }
 }
-
-type ApiResult<T> = std::result::Result<T, api::GetLogError>;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Logs(pub(crate) Arc<Mutex<HashMap<protocol::Device, Log>>>);
@@ -293,15 +293,12 @@ impl Logs {
         &self,
         device: &protocol::Device,
         range: RangeInclusive<jiff::Timestamp>,
-    ) -> ApiResult<Vec<api::ErrorEvent>> {
+    ) -> api::GetLogResponse {
         let mut map = self.0.lock().await;
         if let Some(log) = map.get_mut(device) {
-            match log.get(range) {
-                Err(report) => Err(api::GetLogError::InternalError(format!("{report:#}"))),
-                Ok(res) => res,
-            }
+            log.get(range)
         } else {
-            Ok(Vec::new())
+            api::GetLogResponse::All(Vec::new())
         }
     }
 
