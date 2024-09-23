@@ -4,7 +4,7 @@ pub(crate) mod error;
 pub(crate) mod sensor;
 
 #[derive(Debug)]
-#[allow(clippy::large_enum_variant)] // can not use Box on embedded
+#[allow(clippy::large_enum_variant)] // Can not use Box on embedded
 pub enum Msg<const M: usize> {
     Readings(sensor::SensorMessage<M>),
     ErrorReport(error::ErrorReport),
@@ -58,6 +58,27 @@ impl<const M: usize> Msg<M> {
 
         bytes.insert(0, self.header());
         bytes
+    }
+
+    #[must_use]
+    pub fn encode_slice<'a>(&self, buf: &'a mut [u8]) -> &'a mut [u8] {
+        match self {
+            Msg::Readings(msg) => {
+                buf[0] = Self::READINGS;
+                let len = msg.encode_slice(&mut buf[1..]).len();
+                &mut buf[..1 + len]
+            }
+            Msg::ErrorReport(report) => {
+                buf[0] = Self::ERROR_REPORT;
+                let len = report.encode_slice(&mut buf[1..]).len();
+                &mut buf[..1 + len]
+            }
+            Msg::AffectorList(list) => {
+                buf[0] = Self::AFFECTOR_LIST;
+                let len = list.encode_slice(&mut buf[1..]).len();
+                &mut buf[..1 + len]
+            }
+        }
     }
 }
 

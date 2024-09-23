@@ -1,4 +1,4 @@
-use protocol::affector;
+use protocol::{affector, DecodeMsgError};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::{TcpStream, ToSocketAddrs};
@@ -71,6 +71,16 @@ impl Client {
         self.sender.send_error(report).await
     }
 
+    /// Checks if the encoded message can be decoded then sends it.
+    pub async fn check_send_encoded(&mut self, msg: &[u8]) -> Result<(), SendPreEncodedError> {
+        protocol::Msg::<50>::decode(msg.to_vec()).map_err(SendPreEncodedError::EncodingCheck)?;
+        self.send_bytes(msg).await.map_err(SendPreEncodedError::Io)
+    }
+
+    pub(crate) async fn send_bytes(&mut self, bytes: &[u8]) -> Result<(), std::io::Error> {
+        self.sender.send_bytes(bytes).await
+    }
+
     pub fn split(self) -> (Sender, Receiver) {
         (self.sender, self.receiver)
     }
@@ -83,7 +93,19 @@ pub struct Receiver {
     buffer: Vec<u8>,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum SendPreEncodedError {
+    #[error("Ran into io error while sending pre-encoded msg: {0}")]
+    Io(std::io::Error),
+    #[error("Pre-encoded message, could not be decoded it might be from a previous version: {0}")]
+    EncodingCheck(DecodeMsgError),
+}
+
 impl Sender {
+    pub(crate) async fn send_bytes(&mut self, bytes: &[u8]) -> Result<(), std::io::Error> {
+        self.0.write_all(&bytes).await
+    }
+
     pub async fn send_reading(&mut self, reading: protocol::Reading) -> Result<(), std::io::Error> {
         let mut readings = protocol::SensorMessage::<1>::default();
         readings
