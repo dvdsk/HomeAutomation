@@ -1,0 +1,24 @@
+[package]
+name = "host"
+version = "0.1.0"
+rust-version = "1.78"
+edition = "2021"
+license = "GPLv3"
+authors = ["David Kleingeld & Eva van Houten"]
+
+[dependencies]
+heapless = "0.8.0"
+postcard = { version = "1.0.10", features = ["experimental-derive"] }
+postcard-rpc = { version = "0.7.0", features = ["raw-nusb"] }
+
+protocol = { path = "../../../crates/protocol" }
+data-server = { path = "../../../crates/data-server", features = ["api"] }
+ratelimited-logger = { path = "../../../crates/ratelimited-logger" }
+
+schema = { path = "../schema" }
+tokio = { version = "1.40.0", features = ["macros", "net", "rt-multi-thread", "time"] }
+clap = { version = "4.5.18", features = ["derive"] }
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+tracing-error = "0.2.0"
+tracing = "0.1.40"
+
