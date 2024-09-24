@@ -5,9 +5,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::button::Press;
 #[cfg(feature = "alloc")]
+use crate::affector;
+#[cfg(feature = "alloc")]
 use crate::reading::tree::{Item, Tree};
 
 pub mod desk;
+pub mod bed;
 
 crate::button_enum! {
     /// +-----------------------------------------+
@@ -41,6 +44,7 @@ crate::button_enum! {
 pub enum Reading {
     ButtonPanel(ButtonPanel) = 0,
     Desk(desk::Reading) = 1,
+    Bed(bed::Reading) = 2,
 }
 
 #[cfg(feature = "alloc")]
@@ -49,6 +53,7 @@ impl Tree for Reading {
         match self {
             Reading::ButtonPanel(inner) => return Item::Node(inner),
             Reading::Desk(inner) => return Item::Node(inner),
+            Reading::Bed(inner) => return Item::Node(inner),
         }
     }
 
@@ -81,6 +86,7 @@ impl Reading {
 )]
 pub enum Error {
     Desk(desk::Error),
+    Bed(bed::Error),
 }
 
 impl Error {
@@ -88,6 +94,7 @@ impl Error {
     pub fn device(&self) -> Device {
         match self {
             Error::Desk(error) => Device::Desk(error.device()),
+            Error::Bed(error) => Device::Bed(error.device()),
         }
     }
 }
@@ -96,6 +103,7 @@ impl core::fmt::Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Error::Desk(error) => write!(f, "{error}"),
+            Error::Bed(error) => write!(f, "{error}"),
         }
     }
 }
@@ -104,6 +112,7 @@ impl core::fmt::Display for Error {
 pub enum Device {
     Gpio,
     Desk(desk::Device),
+    Bed(bed::Device),
 }
 
 macro_rules! tree {
@@ -136,6 +145,37 @@ impl Device {
                 max_sample_interval: Duration::MAX,
             },
             Device::Desk(device) => device.info(),
+            Device::Bed(device) => device.info(),
         }
     }
 }
+
+#[derive(
+    strum::EnumDiscriminants,
+    Clone,
+    Copy,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    PartialEq,
+    Eq,
+    Hash,
+)]
+#[strum_discriminants(derive(Hash))]
+pub enum Affector {
+    Bed(bed::Affector),
+}
+
+impl Affector {
+    #[cfg(feature = "alloc")]
+    pub(crate) fn controls(&mut self) -> Vec<affector::Control> {
+        match self {
+            Affector::Bed(a) => a.controls(),
+        }
+    }
+}
+
+#[cfg(feature = "alloc")]
+affector::tree::all_nodes! {Affector; AffectorDiscriminants; Bed}

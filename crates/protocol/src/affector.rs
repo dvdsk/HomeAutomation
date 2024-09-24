@@ -6,7 +6,7 @@ use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
 use crate::msg::cobs_overhead;
-use crate::{large_bedroom, DecodeMsgError};
+use crate::{large_bedroom, small_bedroom, DecodeMsgError};
 
 #[cfg(feature = "alloc")]
 pub mod tree;
@@ -27,10 +27,11 @@ pub mod tree;
 #[strum_discriminants(derive(Hash))]
 pub enum Affector {
     LargeBedroom(large_bedroom::Affector),
+    SmallBedroom(small_bedroom::Affector),
 }
 
 #[cfg(feature = "alloc")]
-tree::all_nodes! {Affector; AffectorDiscriminants; LargeBedroom}
+tree::all_nodes! {Affector; AffectorDiscriminants; LargeBedroom, SmallBedroom}
 
 #[cfg(feature = "alloc")]
 #[derive(Debug, Clone)]
@@ -72,6 +73,7 @@ impl Affector {
     pub fn controls(&mut self) -> Vec<Control> {
         match self {
             Affector::LargeBedroom(a) => a.controls(),
+            Affector::SmallBedroom(a) => a.controls(),
         }
     }
 }
