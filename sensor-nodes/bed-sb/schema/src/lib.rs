@@ -20,14 +20,23 @@ pub struct StackVec {
 }
 
 impl StackVec {
-    fn new() -> Self {
+    pub fn new() -> Self {
         StackVec {
             bytes: [0u8; 250],
             len: 0,
         }
     }
-    fn as_slice(&self) -> &[u8] {
+    pub fn capacity(&self) -> usize {
+        self.bytes.len()
+    }
+    pub fn set_len(&mut self, len: usize) {
+        self.len = len.min(self.capacity()) as u8;
+    }
+    pub fn as_slice(&self) -> &[u8] {
         &self.bytes[..self.len as usize]
+    }
+    pub fn as_mut_slice(&mut self) -> &mut [u8] {
+        &mut self.bytes[..self.len as usize]
     }
 }
 
@@ -36,6 +45,12 @@ impl core::ops::Deref for StackVec {
 
     fn deref(&self) -> &Self::Target {
         self.as_slice()
+    }
+}
+
+impl core::ops::DerefMut for StackVec {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.as_mut_slice()
     }
 }
 
