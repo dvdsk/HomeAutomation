@@ -7,14 +7,14 @@ use super::App;
 pub(super) fn render(frame: &mut Frame, app: &App) -> Rect {
     let report_needs_lines = app.reports.needed_lines();
     let constraints = report_needs_lines
-        .map(|l| Constraint::Max(l))
+        .map(Constraint::Max)
         .into_iter()
         .chain([Constraint::Min(1), Constraint::Fill(1)]);
     let layout = Layout::default()
         .constraints(constraints)
         .flex(Flex::Legacy)
         .split(frame.area());
-    let mut layout = layout.into_iter();
+    let mut layout = layout.iter();
 
     if report_needs_lines.is_some() {
         app.reports

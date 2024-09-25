@@ -103,7 +103,7 @@ pub enum SendPreEncodedError {
 
 impl Sender {
     pub(crate) async fn send_bytes(&mut self, bytes: &[u8]) -> Result<(), std::io::Error> {
-        self.0.write_all(&bytes).await
+        self.0.write_all(bytes).await
     }
 
     pub async fn send_reading(&mut self, reading: protocol::Reading) -> Result<(), std::io::Error> {
@@ -138,7 +138,7 @@ impl Receiver {
     pub async fn receive(&mut self) -> Result<protocol::Affector, ReceiveError> {
         loop {
             if !self.buffer.is_empty() {
-                if let Some((item, remaining)) = self.decoder.feed(&mut self.buffer) {
+                if let Some((item, remaining)) = self.decoder.feed(&self.buffer) {
                     let new_buffer = remaining.to_vec();
                     self.buffer = new_buffer;
                     return Ok(item);

@@ -40,7 +40,7 @@ impl ReconnectingUsbSub {
         ReconnectingUsbSub {
             serial_number,
             conn: None,
-            logger: ratelimited_logger::RateLimitedLogger::new(),
+            logger: ratelimited_logger::RateLimitedLogger::default(),
         }
     }
 

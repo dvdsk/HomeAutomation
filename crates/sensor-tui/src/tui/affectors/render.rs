@@ -58,7 +58,7 @@ pub(crate) fn controls(frame: &mut Frame, data: &mut &mut AffectorState, bottom:
     let constraints =
         iter::once(Constraint::Max(1)).chain(controls.iter().map(|_| Constraint::Max(3)));
     let layout = Layout::default().constraints(constraints).split(bottom);
-    let mut layout = layout.into_iter();
+    let mut layout = layout.iter();
 
     frame.render_widget(
         Block::new().title("Controls").borders(Borders::TOP),
@@ -75,7 +75,7 @@ pub(crate) fn controls(frame: &mut Frame, data: &mut &mut AffectorState, bottom:
                 frame,
                 *layout,
                 control.name,
-                &valid_range,
+                valid_range,
                 *value,
                 is_selected,
             ),
@@ -130,19 +130,17 @@ pub(crate) fn footer(
     let mut footer = Vec::new();
 
     use affector::ControlValue as C;
-    match data {
-        Some(AffectorState {
-            affector,
-            selected_control,
-            ..
-        }) => {
-            footer.push("u/d: select prev/next");
-            match affector.controls()[*selected_control].value {
-                C::Trigger => footer.push("t: trigger affector"),
-                C::SetNum { .. } => footer.push("f/b increase/decrease"),
-            }
+    if let Some(AffectorState {
+        affector,
+        selected_control,
+        ..
+    }) = data
+    {
+        footer.push("u/d: select prev/next");
+        match affector.controls()[*selected_control].value {
+            C::Trigger => footer.push("t: trigger affector"),
+            C::SetNum { .. } => footer.push("f/b increase/decrease"),
         }
-        None => (),
     }
 
     let footer = footer.join("  ");

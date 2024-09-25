@@ -11,7 +11,7 @@ use super::Bounds;
 
 type Labels = Vec<Span<'static>>;
 
-pub fn labels<'a>(
+pub fn labels(
     chart: &ChartParts,
     layout: Rect,
     x_bounds: Bounds,
@@ -61,7 +61,5 @@ fn evenly_spaced_labels(
     let n_labels = max_labels.min(steps_in_data as u16).max(2);
 
     let y_spacing = (bounds[1] - bounds[0]) / n_labels as f64;
-    (0..=n_labels)
-        .into_iter()
-        .map(move |i| bounds[0] + y_spacing * i as f64)
+    (0..=n_labels).map(move |i| bounds[0] + y_spacing * i as f64)
 }

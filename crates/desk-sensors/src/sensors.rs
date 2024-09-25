@@ -16,16 +16,17 @@ use tokio::sync::mpsc::Sender;
 
 use crate::bedroom;
 
+#[allow(clippy::result_large_err)] // its send directly after
 pub fn init() -> Result<Bme280<I2cdev>, ErrorString> {
     let i2c_bus = I2cdev::new("/dev/i2c-1")
         .inspect_err(|e| tracing::error!("Could not open i2c bus: {e}"))
-        .map_err(|e| protocol::make_error_string(e))?;
+        .map_err(protocol::make_error_string)?;
 
     let mut bme280 = Bme280::new_primary(i2c_bus);
     bme280
         .init(&mut Delay)
         .inspect_err(|e| tracing::error!("Could not init bme280 sensor: {e}"))
-        .map_err(|e| protocol::make_error_string(e))?;
+        .map_err(protocol::make_error_string)?;
     Ok(bme280)
 }
 

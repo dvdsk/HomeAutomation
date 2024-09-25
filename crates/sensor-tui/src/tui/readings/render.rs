@@ -112,7 +112,7 @@ pub fn graph_hist_logs(
         .flex(Flex::Legacy)
         .split(layout);
 
-    let mut layout = layout.into_iter().cloned();
+    let mut layout = layout.iter().cloned();
 
     if let Some(chart) = chart {
         chart::render(frame, layout.next().unwrap(), app, chart);
@@ -150,7 +150,7 @@ pub fn graph_hist_logs(
 }
 
 fn render_histogram(frame: &mut Frame, lower: Rect, percentiles: &[Percentile]) {
-    let histogram = histogram_bars(&percentiles);
+    let histogram = histogram_bars(percentiles);
     let barchart = BarChart::default()
         .block(Block::bordered().title("Histogram"))
         .data(BarGroup::default().bars(&histogram))
@@ -160,7 +160,7 @@ fn render_histogram(frame: &mut Frame, lower: Rect, percentiles: &[Percentile]) 
 
 fn histogram_bars(percentiles: &[log_store::api::Percentile]) -> Vec<Bar<'static>> {
     percentiles
-        .into_iter()
+        .iter()
         .map(
             |log_store::api::Percentile {
                  bucket_ends,

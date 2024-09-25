@@ -52,7 +52,7 @@ impl Tab {
         if let Some(ref mut data) = data {
             let [top, bottom] =
                 Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(right);
-            render::details(frame, &data, top);
+            render::details(frame, data, top);
             render::controls(frame, data, bottom);
         };
         render::footer(frame, footer, data, theme)
@@ -154,14 +154,14 @@ impl Tab {
                     add_leaf(text, tree, key);
                     self.data
                         .entry(key)
-                        .and_modify(|state| state.affector = affector.clone())
+                        .and_modify(|state| state.affector = *affector)
                         .and_modify(|state| {
                             if controller.is_some() {
                                 state.last_controlled_by = controller.clone();
                             }
                         })
                         .or_insert(AffectorState {
-                            affector: affector.clone(),
+                            affector: *affector,
                             info,
                             selected_control: 0,
                             last_controlled_by: controller,

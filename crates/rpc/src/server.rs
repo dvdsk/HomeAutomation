@@ -29,7 +29,7 @@ type Conn<RpcReq, RpcResp> = tokio_serde::Framed<
 pub async fn run<RpcReq, RpcResp, PerfFut>(
     port: u16,
     perform_request: impl Fn(RpcReq, &str) -> PerfFut + Clone + Send + 'static,
-    sub_handler: Option<impl SubscriberHandler<Update = RpcResp> + Clone + Send + 'static>,
+    sub_handler: Option<impl SubscriberHandler<Update = RpcResp> + Clone + 'static>,
 ) -> color_eyre::Result<()>
 where
     RpcReq: Unpin + Serialize + DeserializeOwned + fmt::Debug + Send + 'static,
@@ -44,7 +44,7 @@ where
         .await
         .wrap_err("Could not bind to address")
         .with_note(|| format!("port: {port}"))?;
-    let mut logger = RateLimitedLogger::new();
+    let mut logger = RateLimitedLogger::default();
 
     loop {
         let (socket, source) = match listener.accept().await {
@@ -125,7 +125,7 @@ async fn handle_client<RpcReq, RpcResp, PerfFut>(
     mut conn: Conn<RpcReq, RpcResp>,
     client_name: String,
     perform_request: impl Fn(RpcReq, &str) -> PerfFut + Clone + Send + 'static,
-    mut sub_handler: Option<impl SubscriberHandler<Update = RpcResp> + Send + 'static>,
+    mut sub_handler: Option<impl SubscriberHandler<Update = RpcResp> + 'static>,
 ) where
     RpcReq: Unpin + Serialize + DeserializeOwned + fmt::Debug + Send + 'static,
     RpcResp: Unpin + Serialize + DeserializeOwned + fmt::Debug + Send + 'static,

@@ -128,7 +128,7 @@ impl CachedBridge {
             }
             Change::Off { name } => {
                 let Some(lamp_id) = self.lookup.get(*name) else {
-                    self.report_missing_if_not_reported_yet(*name);
+                    self.report_missing_if_not_reported_yet(name);
                     return;
                 };
                 if let Some(lamp) = self.needed_state.get_mut(lamp_id) {
@@ -139,10 +139,10 @@ impl CachedBridge {
             }
             Change::On { name } => {
                 let Some(lamp_id) = self.lookup.get(*name) else {
-                    self.report_missing_if_not_reported_yet(*name);
+                    self.report_missing_if_not_reported_yet(name);
                     return;
                 };
-                if let Some(lamp) = self.needed_state.get_mut(&lamp_id) {
+                if let Some(lamp) = self.needed_state.get_mut(lamp_id) {
                     lamp.on = true;
                 } else {
                     error!("no lamp with id: {lamp_id} exists");
@@ -150,7 +150,7 @@ impl CachedBridge {
             }
             Change::CtBri { name, bri, ct } => {
                 let Some(lamp_id) = self.lookup.get(*name) else {
-                    self.report_missing_if_not_reported_yet(*name);
+                    self.report_missing_if_not_reported_yet(name);
                     return;
                 };
                 if let Some(lamp) = self.needed_state.get_mut(lamp_id) {
@@ -161,7 +161,7 @@ impl CachedBridge {
             }
             Change::XyBri { name, bri, xy } => {
                 let Some(lamp_id) = self.lookup.get(*name) else {
-                    self.report_missing_if_not_reported_yet(*name);
+                    self.report_missing_if_not_reported_yet(name);
                     return;
                 };
                 if let Some(lamp) = self.needed_state.get_mut(lamp_id) {

@@ -2,7 +2,6 @@ use std::array;
 use std::net::{IpAddr, SocketAddr};
 
 use clap::Parser;
-use sled;
 use tokio::sync::broadcast;
 use tracing::warn;
 

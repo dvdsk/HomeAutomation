@@ -40,7 +40,7 @@ impl Job {
     ) -> Self {
         Job {
             time,
-            event: event.into(),
+            event,
             expiration,
         }
     }
@@ -111,12 +111,10 @@ fn waker(
         } else {
             //no alarm to wait on, wait for instructions
             info!("no alarm in the future");
-            loop {
-                //A message through the mpsc signals an alarm has been added
-                match waker_rx.recv() {
-                    Ok(_) => break,   //alarms were added or remove, go back and start waiting on it
-                    Err(_) => return, //cant have timed out thus program should exit
-                }
+            //A message through the mpsc signals an alarm has been added
+            match waker_rx.recv() {
+                Ok(_) => break,   //alarms were added or remove, go back and start waiting on it
+                Err(_) => return, //cant have timed out thus program should exit
             }
         }
     }
@@ -190,7 +188,7 @@ impl JobList {
         //self.db.cas(&[1], None as Option<&[u8]>, Some(&[10])
         //TODO check how this works and expand sled documentation for fail cases
         while let Err(_old_event) = self.db.compare_and_swap(
-            &timestamp_array,
+            timestamp_array,
             None as Option<&[u8]>,
             Some(alarm.clone()),
         )? {

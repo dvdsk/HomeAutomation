@@ -99,9 +99,8 @@ impl Lighting {
             .send((tx, Change::AllXY { bri, xy }))
             .expect("manage_bridge should never return");
 
-        let res = rx.blocking_recv().expect(
+        rx.blocking_recv().expect(
             "managed_bridge should not crash and thus not drop the receive end of the channel",
-        );
-        res
+        )
     }
 }

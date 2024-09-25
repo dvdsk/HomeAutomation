@@ -17,14 +17,13 @@ impl Lamp {
         let mut light_cmd = CommandLight::default().with_bri(self.bri);
         light_cmd.on = Some(self.on);
 
-        let light_cmd = if let Some((x, y)) = self.xy {
+        if let Some((x, y)) = self.xy {
             light_cmd.with_xy(x, y)
         } else if let Some(ct) = self.ct {
             light_cmd.with_ct(ct)
         } else {
             unreachable!("lamp must have ct or xy set");
-        };
-        light_cmd
+        }
     }
 }
 

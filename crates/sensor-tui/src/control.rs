@@ -26,10 +26,8 @@ pub(crate) async fn watch_and_send(data_server: SocketAddr, mut rx: mpsc::Receiv
                 error!("Could not actuate affector: {e:?}");
             }
             connected_client = Some(client)
-        } else {
-            if let Ok(c) = Client::connect(data_server, client_name()).await {
-                connected_client = Some(c)
-            }
+        } else if let Ok(c) = Client::connect(data_server, client_name()).await {
+            connected_client = Some(c)
         }
     }
 }

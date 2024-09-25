@@ -93,13 +93,12 @@ impl Inner {
 
         let usually = db
             .get("usually")?
-            .map(|b| bincode::deserialize(&b).unwrap())
-            .flatten(); // we want bincode to deserialize to Option<(u8,u8)> not (u8,u8)
+            // we want bincode to deserialize to Option<(u8,u8)> not (u8,u8)
+            .and_then(|b| bincode::deserialize(&b).unwrap());
         let job_id = db.get("job_id")?.map(|b| bincode::deserialize(&b).unwrap());
         let next_alarm = job_id
             .as_ref()
-            .map(|id| jobs.get(*id).unwrap())
-            .flatten()
+            .and_then(|id| jobs.get(*id).unwrap())
             .map(|job| job.time.into())
             .map(|t: DateTime<Local>| t)
             .map(|t| (t.hour() as u8, t.minute() as u8));
@@ -178,10 +177,8 @@ impl Inner {
                 self.replace_job(job).await?;
             }
             None => {
-                if self.job_id.is_some() {
-                    if self.tomorrow.is_none() {
-                        self.remove_job()?;
-                    }
+                if self.job_id.is_some() && self.tomorrow.is_none() {
+                    self.remove_job()?;
                 }
             }
         }

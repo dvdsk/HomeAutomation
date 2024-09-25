@@ -64,7 +64,7 @@ impl HistoryLen {
     pub(crate) fn style_left_x_label(&self, org_label: Span<'static>) -> Span<'static> {
         let mut text = self.text_input.clone();
         if self.editing {
-            text.push_str("_");
+            text.push('_');
         }
         match self.state {
             State::Empty => {

@@ -36,13 +36,14 @@ enum RelevantEvent {
     // DeskButton(protocol::large_bedroom::DeskButton),
 }
 
-fn filter(event: Event) -> Option<RelevantEvent> {
-    match event {
-        // Event::Sensor(SensorValue::ButtonPress(Button::LargeBedroomDesk(desk))) => {
-        //     Some(RelevantEvent::DeskButton(desk))
-        // }
-        _ => None,
-    }
+fn filter(_event: Event) -> Option<RelevantEvent> {
+    // match event {
+    //     // Event::Sensor(SensorValue::ButtonPress(Button::LargeBedroomDesk(desk))) => {
+    //     //     Some(RelevantEvent::DeskButton(desk))
+    //     // }
+    //     _ => None,
+    // }
+    None
 }
 
 pub async fn run(

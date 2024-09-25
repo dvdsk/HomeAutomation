@@ -32,7 +32,7 @@ pub(crate) fn handle(
     };
 
     core::mem::drop(controls);
-    match control_tx.try_send(state.affector.clone()) {
+    match control_tx.try_send(state.affector) {
         Ok(_) => (),
         Err(TrySendError::Full(_)) => warn!("control lagging behind ui inputs"),
         Err(TrySendError::Closed(_)) => error!("control lost connection to data-server"),

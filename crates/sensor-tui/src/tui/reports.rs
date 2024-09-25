@@ -63,7 +63,7 @@ impl Reports {
             .expect("should only be called when current is Some/needed lines > 0");
 
         let [hint, error] =
-            Layout::vertical(&[Constraint::Max(1), Constraint::Min(1)]).areas(layout);
+            Layout::vertical([Constraint::Max(1), Constraint::Min(1)]).areas(layout);
 
         let error_style = Style::default().on_light_red().fg(Color::White);
 
@@ -92,9 +92,7 @@ impl Reports {
     }
 
     pub(super) fn needed_lines(&self) -> Option<u16> {
-        let Some(ref current) = self.current else {
-            return None;
-        };
+        let current = self.current.as_ref()?;
 
         Some(if self.show_details {
             1 + current.detailed.lines().count() as u16

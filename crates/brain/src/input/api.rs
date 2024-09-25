@@ -17,22 +17,20 @@ pub enum Error {
 /// sends back bincode serialized
 async fn usually(aState(state): aState<State>) -> Vec<u8> {
     let usually = state.wakeup.usually().await;
-    let usually = bincode::serialize(&usually).expect("Should be serializable");
-    usually
+    bincode::serialize(&usually).expect("Should be serializable")
 }
 
 /// sends back bincode serialized
 async fn tomorrow(aState(state): aState<State>) -> Vec<u8> {
-    let usually = state.wakeup.tomorrow().await;
-    let usually = bincode::serialize(&usually).expect("Should be serializable");
-    usually
+    let tomorrow = state.wakeup.tomorrow().await;
+    bincode::serialize(&tomorrow).expect("Should be serializable")
 }
 
 async fn set_usually(aState(state): aState<State>, body: Bytes) -> StatusCode {
     let time: Option<(u8, u8)> = bincode::deserialize(&body[..])
         .map_err(|_| "Could not deserialize into time")
         .unwrap();
-    let _ignore = state
+    state
         .wakeup
         .set_usually(time)
         .await
@@ -46,7 +44,7 @@ async fn set_tomorrow(aState(state): aState<State>, body: Bytes) -> StatusCode {
     let time: Option<(u8, u8)> = bincode::deserialize(&body[..])
         .map_err(|_| "Could not deserialize into time")
         .unwrap();
-    let _ignore = state
+    state
         .wakeup
         .set_tomorrow(time)
         .await
@@ -61,10 +59,7 @@ pub struct State {
     wakeup: WakeUp,
 }
 
-pub async fn setup(
-    wakeup: WakeUp,
-    port: u16,
-) -> Result<(), Error> {
+pub async fn setup(wakeup: WakeUp, port: u16) -> Result<(), Error> {
     let app = Router::new()
         .route("/alarm/usually", get(usually).post(set_usually))
         .route("/alarm/tomorrow", get(tomorrow).post(set_tomorrow))

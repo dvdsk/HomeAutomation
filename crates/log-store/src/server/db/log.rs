@@ -39,6 +39,7 @@ impl CurrentError {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(path)
             .wrap_err("Could not open or create on disk backup")?;
         let mut buf = Vec::new();

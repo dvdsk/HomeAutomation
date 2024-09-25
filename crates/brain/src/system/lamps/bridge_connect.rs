@@ -36,12 +36,12 @@ async fn register(ip: IpAddr) -> Result<Bridge, RegisterError> {
             }
         }
     }
-    return Err(RegisterError::Timedout);
+    Err(RegisterError::Timedout)
 }
 
 fn saved_bridge_info() -> Result<(String, String), ()> {
     let path = Path::new("hueBridgeLogin");
-    match File::open(&path) {
+    match File::open(path) {
         Err(e) => error!("find ip and login file, error: {}", e),
         Ok(f) => match serde_yaml::from_reader(f) {
             Ok((ip, login)) => return Ok((ip, login)),
@@ -63,7 +63,7 @@ pub enum SaveBridgeError {
 }
 fn update_saved_bridge_info(bridge_ip: IpAddr, login: &str) -> Result<(), SaveBridgeError> {
     let path = Path::new("hueBridgeLogin");
-    let file = File::create(&path).map_err(|err| SaveBridgeError::CreatingFile { err, path })?;
+    let file = File::create(path).map_err(|err| SaveBridgeError::CreatingFile { err, path })?;
     serde_yaml::to_writer(file, &(bridge_ip, login)).map_err(SaveBridgeError::Writing)
 }
 
@@ -72,8 +72,8 @@ pub async fn get_bridge_and_status(
 ) -> Result<(Bridge, Vec<hueclient::IdentifiedLight>), Error> {
     let ip: IpAddr = ip.parse().expect("string should be an ip");
     let Ok((ip, login)) = saved_bridge_info() else {
-        let bridge = register(ip.clone()).await?;
-        update_saved_bridge_info(ip.clone(), &bridge.username)?;
+        let bridge = register(ip).await?;
+        update_saved_bridge_info(ip, &bridge.username)?;
 
         let lights_info = bridge
             .get_all_lights()
@@ -89,8 +89,8 @@ pub async fn get_bridge_and_status(
     match res {
         Ok(lights_info) => Ok((bridge, lights_info)),
         Err(_) => {
-            let bridge = register(ip.clone()).await?;
-            update_saved_bridge_info(ip.clone(), &bridge.username)?;
+            let bridge = register(ip).await?;
+            update_saved_bridge_info(ip, &bridge.username)?;
 
             let lights_info = bridge
                 .get_all_lights()

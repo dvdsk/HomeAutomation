@@ -6,10 +6,10 @@ use std::thread;
 use clap::Parser;
 use color_eyre::Result;
 
-mod receive;
-mod fetch;
 mod control;
+mod fetch;
 mod populate;
+mod receive;
 mod time;
 mod tui;
 
@@ -57,8 +57,6 @@ enum Update {
     PopulateError(color_eyre::Report),
 }
 
-
-
 #[derive(Parser)]
 #[command(name = "sensor tui")]
 #[command(version = "1.0")]
@@ -98,13 +96,16 @@ async fn main() -> Result<()> {
 
     thread::spawn(move || tui::run(rx1, tx2, tx3, fetcher));
     task::spawn(receive::receive_data(data_server, tx1_clone1));
-    task::spawn(populate::tree(data_server, data_store, log_store, tx1_clone2));
+    task::spawn(populate::tree(
+        data_server,
+        data_store,
+        log_store,
+        tx1_clone2,
+    ));
     task::spawn(control::watch_and_send(data_server, rx3));
 
-    loop {
-        let UserIntent::Shutdown = rx2.recv()?;
-        break Ok(());
-    }
+    let UserIntent::Shutdown = rx2.recv()?;
+    Ok(())
 }
 
 fn setup_tracing() -> Result<()> {

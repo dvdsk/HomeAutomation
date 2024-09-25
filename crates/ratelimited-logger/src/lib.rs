@@ -44,8 +44,8 @@ macro_rules! info {
     };
 }
 
-impl RateLimitedLogger {
-    pub fn new() -> Self {
+impl Default for RateLimitedLogger {
+    fn default() -> Self {
         let quota = Quota::with_period(Duration::from_secs(1))
             .unwrap()
             .allow_burst(NonZeroU32::new(5).unwrap());
@@ -54,7 +54,9 @@ impl RateLimitedLogger {
             withheld: 0,
         }
     }
+}
 
+impl RateLimitedLogger {
     pub fn warn(&mut self, txt: &str) {
         if self.rate_limiter.check().is_err() {
             self.withheld += 1;

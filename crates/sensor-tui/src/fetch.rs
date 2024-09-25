@@ -88,7 +88,7 @@ impl Fetch {
     pub fn assure_up_to_date(
         &mut self,
         history_len: Duration,
-        on_fetch_start: impl FnOnce() -> (),
+        on_fetch_start: impl FnOnce(),
         reading: Reading,
         oldest_in_data: Timestamp,
         logs_cover_from: Timestamp,
@@ -128,11 +128,11 @@ impl Fetch {
         oldest_in_history: Timestamp,
     ) -> bool {
         let target_span = Timestamp::now() - oldest_needed;
-        let target_span = target_span.total(Unit::Millisecond).expect("fits i64");
-        let max_span = (target_span as f64 * 1.2) as i64;
+        let target_span = target_span.total(Unit::Millisecond).expect("fits f64");
+        let max_span = (target_span * 1.2) as i64;
 
         let oldest_allowed = Timestamp::now().as_millisecond() - max_span;
-        let up_to_date = |start: &i64| *start >= oldest_allowed as i64;
+        let up_to_date = |start: &i64| *start >= oldest_allowed;
 
         let curr_up_to_date = up_to_date(&oldest_in_history.as_millisecond());
         let curr_range_correct = oldest_in_history <= oldest_needed;
@@ -219,7 +219,6 @@ pub(crate) async fn handle_requests(
 
     let mut inflight_request = VecDeque::new();
     while let Some(request) = rx.recv().await {
-        let data_store = data_store.clone();
         let tx = tx.clone();
         let handle = match request {
             Request::Data(Data { reading, range }) => {

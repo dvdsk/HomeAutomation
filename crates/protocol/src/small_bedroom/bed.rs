@@ -485,6 +485,7 @@ pub enum Affector {
 impl Affector {
     #[must_use]
     pub fn is_same_as(&self, other: &Self) -> bool {
+        #[allow(clippy::match_like_matches_macro)]
         match (self, other) {
             (Affector::Sps30FanClean, Affector::Sps30FanClean) => true,
             (Affector::MhzZeroPointCalib, Affector::MhzZeroPointCalib) => true,

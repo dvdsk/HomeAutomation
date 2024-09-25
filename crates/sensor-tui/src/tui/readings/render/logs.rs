@@ -135,8 +135,8 @@ pub fn render_table(
             };
             let item = [format!("{error}"), start, end];
             item.into_iter()
-                .map(|content| Text::from(content))
-                .map(|content| Cell::from(content))
+                .map(Text::from)
+                .map(Cell::from)
                 .collect::<Row>()
                 .style(Style::new().fg(Color::Black).bg(color))
                 .height(1)

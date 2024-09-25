@@ -92,8 +92,7 @@ impl Logs {
             .from_store
             .as_ref()
             .map(|FromStore { list, .. }| list)
-            .map(|list| list.last())
-            .flatten()
+            .and_then(|list| list.last())
             .map(|ErrorEvent { start, .. }| *start)
             .unwrap_or(jiff::Timestamp::from_second(0).unwrap());
         let without_duplicates = self

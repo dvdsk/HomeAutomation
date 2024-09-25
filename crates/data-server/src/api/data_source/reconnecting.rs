@@ -78,7 +78,7 @@ impl Client {
 
     pub async fn check_send_encoded(&mut self, msg: &[u8]) -> Result<(), SendPreEncodedError> {
         protocol::Msg::<50>::decode(msg.to_vec()).map_err(SendPreEncodedError::EncodingCheck)?;
-        self.send_bytes(&msg).await;
+        self.send_bytes(msg).await;
         Ok(())
     }
 }

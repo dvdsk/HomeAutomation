@@ -271,7 +271,7 @@ impl Readings {
 
     pub(crate) fn populate_from_device_list(&mut self, list: Vec<Device>) {
         for reading in list.iter().flat_map(|d| d.info().affects_readings) {
-            self.update_tree(&reading, IsPlaceholder::Yes);
+            self.update_tree(reading, IsPlaceholder::Yes);
             self.record_missing_data(reading.clone());
         }
     }
@@ -434,7 +434,7 @@ impl Readings {
         match fetched {
             Fetchable::Data { timestamps, data } => {
                 sensorinfo.history_from_store =
-                    timestamps.into_iter().zip(data.into_iter()).collect();
+                    timestamps.into_iter().zip(data).collect();
             }
             Fetchable::Logs { logs, start_at } => {
                 sensorinfo.logs.from_store = Some(logs::FromStore {
