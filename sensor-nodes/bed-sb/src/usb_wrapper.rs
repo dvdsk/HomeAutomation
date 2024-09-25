@@ -3,20 +3,9 @@ use embassy_sync::channel::Channel;
 use embassy_usb::control::{InResponse, OutResponse, Recipient, RequestType};
 use embassy_usb::types::InterfaceNumber;
 use embassy_usb::UsbDevice;
-use protocol::{affector, ErrorReport};
+use protocol::affector;
 
-const fn max(a: usize, b: usize) -> usize {
-    [a, b][(a < b) as usize]
-}
-
-const MAX_SEND_ITEM_SIZE: usize = 1 + max(
-    max(
-        crate::comms::SensMsg::ENCODED_SIZE,
-        ErrorReport::ENCODED_SIZE,
-    ),
-    affector::ListMessage::<5>::ENCODED_SIZE,
-);
-
+const MAX_SEND_ITEM_SIZE: usize = 1 + protocol::Msg::<10>::max_size();
 const MAX_RECV_ITEM_SIZE: usize = 1 + affector::Affector::ENCODED_SIZE;
 
 pub(crate) type SendItem = heapless::Vec<u8, MAX_SEND_ITEM_SIZE>;

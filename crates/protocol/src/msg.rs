@@ -17,6 +17,21 @@ impl<const M: usize> Msg<M> {
     pub const AFFECTOR_LIST: u8 = 3;
 
     #[must_use]
+    pub const fn max_size() -> usize {
+        const fn max(a: usize, b: usize) -> usize {
+            [a, b][(a < b) as usize]
+        }
+
+        1 + max(
+            max(
+                sensor::SensorMessage::<M>::ENCODED_SIZE,
+                error::ErrorReport::ENCODED_SIZE,
+            ),
+            affector::ListMessage::<5>::ENCODED_SIZE,
+        )
+    }
+
+    #[must_use]
     pub fn header(&self) -> u8 {
         let header = match self {
             Msg::Readings(_) => Self::READINGS,

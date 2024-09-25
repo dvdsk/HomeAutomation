@@ -16,7 +16,7 @@ use ratelimited_logger as rl;
 #[command(about = "reads sensors attached to rpi gpio pins and i2c perhipheral")]
 struct Cli {
     /// Where to send the data on the local system
-    #[arg(short, long("data-server"))]
+    #[arg(short, long("data-server"), default_value = "192.168.1.43:1234")]
     data_server: SocketAddr,
     /// Serial number of the device to connect case insensitive
     #[arg(short, long)]
@@ -30,7 +30,14 @@ struct ReconnectingUsbSub {
 }
 
 fn request_msg() -> transfer::ControlIn {
-    todo!()
+    transfer::ControlIn {
+        control_type: transfer::ControlType::Vendor,
+        recipient: transfer::Recipient::Interface,
+        request: 42,
+        value: 0,
+        index: 0,
+        length: protocol::Msg::<10>::max_size().try_into().expect("should fit"),
+    }
 }
 
 type EncodedProtocolMsg = Vec<u8>;
