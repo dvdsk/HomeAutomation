@@ -59,13 +59,17 @@ pub struct Control<'a> {
 }
 
 impl Affector {
-    const ENCODED_SIZE: usize =
+    pub const ENCODED_SIZE: usize =
         Affector::POSTCARD_MAX_SIZE + cobs_overhead(Affector::POSTCARD_MAX_SIZE);
 
     #[cfg(feature = "alloc")]
     #[must_use]
     pub fn encode(&self) -> Vec<u8> {
         postcard::to_allocvec_cobs(self).expect("Encoding should not fail")
+    }
+
+    pub fn decode(mut bytes: impl AsMut<[u8]>) -> Result<Self, DecodeMsgError> {
+        postcard::from_bytes_cobs(bytes.as_mut()).map_err(DecodeMsgError::CorruptEncoding)
     }
 
     // Info() is explicitly not defined, use the tree impl to get at it

@@ -82,7 +82,7 @@ impl<const M: usize> Msg<M> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, defmt::Format)]
 #[cfg_attr(feature = "thiserror", derive(thiserror::Error))]
 pub enum DecodeMsgError {
     #[cfg_attr(feature = "thiserror", error("Could not decode SensorMessage: {0}"))]
