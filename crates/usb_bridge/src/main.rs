@@ -2,15 +2,13 @@ use std::{net::SocketAddr, time::Duration};
 
 use clap::Parser;
 
-use postcard_rpc::{
-    host_client::{HostClient, IoClosed, Subscription},
-    standard_icd::{WireError, ERROR_PATH},
-};
-
+use color_eyre::eyre::{eyre, Context};
+use color_eyre::Section;
 use data_server::api::data_source;
-use schema::ProtocolMsg;
-use schema::ProtocolTopic;
+use nusb::transfer;
 use tokio::time::sleep;
+
+use ratelimited_logger as rl;
 
 #[derive(Parser)]
 #[command(name = "local sensors")]
@@ -27,56 +25,72 @@ struct Cli {
 
 struct ReconnectingUsbSub {
     serial_number: String,
-    conn: Option<HostClient<WireError>>,
-    sub: Option<Subscription<ProtocolMsg>>,
+    conn: Option<nusb::Device>,
     logger: ratelimited_logger::RateLimitedLogger,
 }
+
+fn request_msg() -> transfer::ControlIn {
+    todo!()
+}
+
+type EncodedProtocolMsg = Vec<u8>;
 
 impl ReconnectingUsbSub {
     fn new(serial_number: String) -> Self {
         ReconnectingUsbSub {
             serial_number,
             conn: None,
-            sub: None,
             logger: ratelimited_logger::RateLimitedLogger::new(),
         }
     }
 
-    async fn recv(&mut self) -> ProtocolMsg {
+    async fn recv(&mut self) -> EncodedProtocolMsg {
         loop {
-            if let Some(sub) = &mut self.sub {
-                match sub.recv().await {
-                    Some(msg) => return msg,
-                    None => self.sub = None,
-                }
-            }
-
-            if let Some(conn) = &mut self.conn {
-                match conn.subscribe::<ProtocolTopic>(8).await {
-                    Ok(sub) => {
-                        self.sub = Some(sub);
-                        continue;
-                    }
-                    Err(IoClosed) => self.conn = None,
-                }
-            }
-
-            match HostClient::try_new_raw_nusb(
-                |d| {
-                    d.serial_number()
-                        .is_some_and(|d| d.eq_ignore_ascii_case(&self.serial_number))
-                },
-                ERROR_PATH,
-                1,
-            ) {
-                Ok(conn) => self.conn = Some(conn),
+            match self.try_recv_step().await {
+                Ok(Some(msg)) => return msg,
+                Ok(None) => (),
                 Err(e) => {
                     let logger = &mut self.logger;
-                    ratelimited_logger::warn!(logger; "Could not connect to usbdevice: {e:?}");
+                    rl::warn!(logger; "{e}");
                     sleep(Duration::from_secs(1)).await;
                 }
             }
         }
+    }
+
+    async fn try_recv_step(&mut self) -> color_eyre::Result<Option<EncodedProtocolMsg>> {
+        if let Some(device) = self.conn.take() {
+            let msg = device
+                .control_in(request_msg())
+                .await
+                .into_result()
+                .wrap_err("Something went wrong with control_in request")?;
+
+            self.conn = Some(device);
+            return Ok(Some(msg));
+        }
+
+        let list: Vec<_> = nusb::list_devices()
+            .wrap_err("Could not list usb devices")?
+            .filter(|d| {
+                d.serial_number()
+                    .is_some_and(|d| d.eq_ignore_ascii_case(&self.serial_number))
+            })
+            .collect();
+
+        self.conn = match list.as_slice() {
+            [dev] => dev,
+            [] => return Err(eyre!("No usb device found with the correct serial")),
+            more => {
+                return Err(eyre!("Multiple usb devices have the same serial number")
+                    .with_note(|| format!("they are: {more:?}")))
+            }
+        }
+        .open()
+        .map(Option::Some)
+        .wrap_err("Could not open the usb device")?;
+
+        Ok(None) // no errors but not done yet, call us again
     }
 }
 
@@ -89,10 +103,9 @@ async fn main() {
     let mut server_client = data_source::reconnecting::Client::new(args.data_server, Vec::new());
 
     loop {
-        let msg = usb.recv().await;
-        let encoded_protocol_msg = msg.0;
+        let encoded_msg = usb.recv().await;
         server_client
-            .check_send_encoded(&encoded_protocol_msg)
+            .check_send_encoded(&encoded_msg)
             .await
             .expect("Should be correctly encoded");
     }
