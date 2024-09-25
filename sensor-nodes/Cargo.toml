@@ -1,0 +1,48 @@
+[workspace]
+resolver = "2"
+members = ["bed-sb", "bed-lb"]
+
+[workspace.dependencies]
+protocol = { path = "../crates/protocol" }
+
+embassy-stm32 = { version = "0.1.0", features = [ "defmt", "stm32f401cc",
+"unstable-pac", "memory-x", "time-driver-tim9", "time", "exti" ]  }
+embassy-net = { version = "0.4.0", features = ["defmt", "proto-ipv4", "tcp", "dhcpv4","medium-ethernet"] }
+embassy-net-wiznet = { version = "0.1.0", features = ["defmt"] }
+embassy-sync = { version = "0.6.0", features = ["defmt"] }
+embassy-executor = { version = "0.6.0", features = ["arch-cortex-m",
+"executor-thread", "defmt", "integrated-timers", "executor-interrupt"] }
+embassy-embedded-hal = { version = "0.2.0" }
+embassy-time = { version = "0.3.2", features = ["defmt",
+"defmt-timestamp-uptime-ms", "tick-hz-32_768"] }
+embassy-futures = { version = "0.1.0"}
+
+[patch.crates-io]
+embassy-stm32 = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-net = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-net-wiznet = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-sync = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-executor = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-embedded-hal = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-futures = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-time = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-time-driver = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-time-queue-driver = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-usb = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+
+[workspace.package]
+rust-version = "1.78"
+edition = "2021"
+license = "GPLv3"
+authors = ["David Kleingeld & Eva van Houten"]
+
+[profile.dev]
+opt-level = "s"
+
+[profile.release]
+lto = "fat"
+opt-level = "s"
+incremental = false
+codegen-units = 1
+# note: debug = true is okay - debuginfo isn't flashed to the device!
+debug = true
