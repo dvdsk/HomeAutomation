@@ -150,7 +150,7 @@ pub struct StackB<'a> {
     config_descriptor: [u8; 256],
     bos_descriptor: [u8; 256],
     msos_descriptor: [u8; 256],
-    control_buf: [u8; 64],
+    control_buf: [u8; 208],
     handler: UsbControlHandler<'a>,
 }
 
@@ -160,7 +160,7 @@ impl<'a> StackB<'a> {
             config_descriptor: [0u8; 256],
             bos_descriptor: [0u8; 256],
             msos_descriptor: [0u8; 256],
-            control_buf: [0u8; 64],
+            control_buf: [0u8; 208],
 
             handler: UsbControlHandler {
                 if_num: None,

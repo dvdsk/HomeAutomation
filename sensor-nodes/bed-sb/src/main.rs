@@ -38,14 +38,14 @@ embassy_stm32::bind_interrupts!(struct Irqs {
     OTG_FS => embassy_stm32::usb::InterruptHandler<embassy_stm32::peripherals::USB_OTG_FS>;
 });
 
-// todo use nusb to write driver
-
 // 84 Mhz clock stm32f401
+// 48 Mhz clock for usb
 fn config() -> Config {
     use embassy_stm32::rcc::{
-        AHBPrescaler, APBPrescaler, Hse, HseMode, Pll, PllMul, PllPDiv, PllPreDiv, PllSource,
+        AHBPrescaler, APBPrescaler, Hse, HseMode, Pll, PllMul, PllPDiv, PllQDiv, PllPreDiv, PllSource,
         Sysclk,
     };
+    use embassy_stm32::rcc::mux;
 
     let mut config = Config::default();
     config.rcc.hse = Some(Hse {
@@ -56,14 +56,15 @@ fn config() -> Config {
     config.rcc.pll = Some(Pll {
         prediv: PllPreDiv::DIV25,
         mul: PllMul::MUL336,
-        divp: Some(PllPDiv::DIV4),
-        divq: None,
+        divp: Some(PllPDiv::DIV4), // 25mhz / 25 * 336 / 4 = 84Mhz.
+        divq: Some(PllQDiv::DIV7), // 25mhz / 25 * 336 / 7 = 48Mhz.
         divr: None,
     });
     config.rcc.ahb_pre = AHBPrescaler::DIV1;
     config.rcc.apb1_pre = APBPrescaler::DIV2;
     config.rcc.apb2_pre = APBPrescaler::DIV1;
     config.rcc.sys = Sysclk::PLL1_P;
+    config.rcc.mux.clk48sel = mux::Clk48sel::PLL1_Q;
     config
 }
 
