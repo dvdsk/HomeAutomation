@@ -1,19 +1,20 @@
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Channel;
+use embassy_sync::mutex::Mutex;
 use embassy_usb::control::{InResponse, OutResponse, Recipient, RequestType};
 use embassy_usb::types::InterfaceNumber;
 use embassy_usb::UsbDevice;
 use protocol::affector;
 
-const MAX_SEND_ITEM_SIZE: usize = 1 + protocol::Msg::<10>::max_size();
+/// USB full speed devices such as this one have a max data packet size of 1023
+const SEND_BUFFER_SIZE: usize = 128;
 const MAX_RECV_ITEM_SIZE: usize = 1 + affector::Affector::ENCODED_SIZE;
 
-pub(crate) type SendItem = heapless::Vec<u8, MAX_SEND_ITEM_SIZE>;
 pub(crate) type RecvItem = heapless::Vec<u8, MAX_RECV_ITEM_SIZE>;
 
 pub struct UsbControlHandler<'a> {
     pub if_num: Option<InterfaceNumber>,
-    send_queue: &'a Channel<NoopRawMutex, SendItem, 2>,
+    send_queue: &'a Mutex<NoopRawMutex, heapless::Deque<u8, SEND_BUFFER_SIZE>>,
     receive_queue: &'a Channel<NoopRawMutex, RecvItem, 2>,
 }
 
@@ -74,21 +75,34 @@ impl embassy_usb::Handler for UsbControlHandler<'_> {
             return None;
         }
 
-        let Ok(to_send) = self.send_queue.try_receive() else {
+        if buf.len() != SEND_BUFFER_SIZE {
+            defmt::warn!(
+                "Send buffer is incorrect size ({}), should be: {}. \
+                Please adjuct host driver (usb-bridge) os the usb stack here",
+                buf.len(),
+                SEND_BUFFER_SIZE
+            );
+            return Some(InResponse::Rejected);
+        }
+
+        let Ok(mut send_queue) = self.send_queue.try_lock() else {
             return None;
         };
 
-        if to_send.len() > buf.len() {
-            return None;
+        for byte in buf.iter_mut() {
+            if let Some(to_send) = send_queue.pop_front() {
+                *byte = to_send;
+            } else {
+                *byte = 0; // end of encoded data
+            }
         }
 
-        buf[0..to_send.len()].copy_from_slice(&to_send);
         Some(InResponse::Accepted(buf))
     }
 }
 
 pub struct UsbHandle<'a> {
-    send_queue: &'a Channel<NoopRawMutex, heapless::Vec<u8, MAX_SEND_ITEM_SIZE>, 2>,
+    send_queue: &'a Mutex<NoopRawMutex, heapless::Deque<u8, SEND_BUFFER_SIZE>>,
     receive_queue: &'a Channel<NoopRawMutex, heapless::Vec<u8, MAX_RECV_ITEM_SIZE>, 2>,
 }
 
@@ -106,12 +120,28 @@ impl<'a> UsbHandle<'a> {
 }
 
 pub struct UsbSender<'a> {
-    send_queue: &'a Channel<NoopRawMutex, heapless::Vec<u8, MAX_SEND_ITEM_SIZE>, 2>,
+    send_queue: &'a Mutex<NoopRawMutex, heapless::Deque<u8, SEND_BUFFER_SIZE>>,
 }
 
 impl UsbSender<'_> {
-    pub(crate) async fn send(&self, item: SendItem) {
-        self.send_queue.send(item).await;
+    pub(crate) async fn send(&self, to_send: &[u8]) {
+        let mut queue = self.send_queue.lock().await;
+        let free = queue.capacity() - queue.len();
+        if free < 1 + to_send.len() {
+            defmt::trace!("dropping package because queue is full");
+            return; // drop the package
+        }
+
+        defmt::unwrap!(queue.push_back(
+            to_send
+                .len()
+                .try_into()
+                .expect("send only supports buffers up to and including u8::MAX long"),
+        ));
+
+        for byte in to_send {
+            defmt::unwrap!(queue.push_back(*byte))
+        }
     }
 }
 
@@ -133,14 +163,14 @@ pub fn config() -> embassy_usb::Config<'static> {
 }
 
 pub struct StackA {
-    send_queue: Channel<NoopRawMutex, heapless::Vec<u8, MAX_SEND_ITEM_SIZE>, 2>,
+    send_queue: Mutex<NoopRawMutex, heapless::Deque<u8, SEND_BUFFER_SIZE>>,
     receive_queue: Channel<NoopRawMutex, heapless::Vec<u8, MAX_RECV_ITEM_SIZE>, 2>,
 }
 
 impl StackA {
     pub(crate) fn new() -> Self {
         Self {
-            send_queue: Channel::new(),
+            send_queue: Mutex::new(heapless::Deque::new()),
             receive_queue: Channel::new(),
         }
     }
@@ -150,7 +180,7 @@ pub struct StackB<'a> {
     config_descriptor: [u8; 256],
     bos_descriptor: [u8; 256],
     msos_descriptor: [u8; 256],
-    control_buf: [u8; 208],
+    control_buf: [u8; SEND_BUFFER_SIZE],
     handler: UsbControlHandler<'a>,
 }
 
@@ -160,7 +190,7 @@ impl<'a> StackB<'a> {
             config_descriptor: [0u8; 256],
             bos_descriptor: [0u8; 256],
             msos_descriptor: [0u8; 256],
-            control_buf: [0u8; 208],
+            control_buf: [0u8; SEND_BUFFER_SIZE],
 
             handler: UsbControlHandler {
                 if_num: None,

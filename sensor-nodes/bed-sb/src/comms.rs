@@ -6,7 +6,7 @@ use protocol::{affector, Affector, ErrorReport, SensorMessage};
 
 use crate::channel::{PriorityValue, QueueItem, Queues};
 use crate::sensors::slow;
-use crate::usb_wrapper::{self, UsbHandle, UsbReceiver, UsbSender};
+use crate::usb_wrapper::{UsbHandle, UsbReceiver, UsbSender};
 
 pub(crate) type SensMsg = SensorMessage<10>;
 async fn collect_pending(publish: &Queues, reading: PriorityValue) -> SensorMessage<10> {
@@ -94,19 +94,15 @@ fn affector_list() -> affector::ListMessage<5> {
 }
 
 async fn send_messages(usb: UsbSender<'_>, publish: &Queues) {
-    let mut buf = usb_wrapper::SendItem::new();
-    unwrap!(buf.resize_default(buf.capacity()));
-    let encoded_list_len = affector_list().encode_slice(&mut buf[1..]).len();
+    let mut buf = [0; protocol::Msg::<5>::max_size()];
+    let encoded_len = affector_list().encode_slice(&mut buf[1..]).len();
     buf[0] = protocol::Msg::<5>::AFFECTOR_LIST;
-    buf.truncate(encoded_list_len + 1);
-    usb.send(buf).await;
+    let to_send = &buf[..=encoded_len];
+    usb.send(to_send).await;
 
     loop {
-        let mut buf = usb_wrapper::SendItem::new();
-        unwrap!(buf.resize_default(buf.capacity()));
-        let encoded_len = get_messages(publish, &mut buf).await.len();
-        buf.truncate(encoded_len);
-        usb.send(buf).await;
+        let to_send = get_messages(publish, &mut buf).await;
+        usb.send(to_send).await;
     }
 }
 

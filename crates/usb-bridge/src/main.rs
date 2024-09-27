@@ -1,8 +1,9 @@
+use std::vec;
 use std::{net::SocketAddr, time::Duration};
 
 use clap::Parser;
 
-use color_eyre::eyre::{eyre, Context};
+use color_eyre::eyre::{bail, eyre, Context};
 use color_eyre::Section;
 use data_server::api::data_source;
 use nusb::transfer;
@@ -25,7 +26,11 @@ struct Cli {
 
 struct ReconnectingUsbSub {
     serial_number: String,
+    /// when we are allowed to poll the usb
+    /// device for more data again
+    next_poll: Instant,
     conn: Option<nusb::Device>,
+    bytes: vec::IntoIter<u8>,
     logger: ratelimited_logger::RateLimitedLogger,
 }
 
@@ -36,42 +41,53 @@ fn request_msg() -> transfer::ControlIn {
         request: 42,
         value: 0,
         index: 0,
-        length: protocol::Msg::<10>::max_size()
-            .try_into()
-            .expect("should fit"),
+        // must match SEND_BUFFER_SIZE in usb nodes
+        length: 128,
     }
 }
-
-type EncodedProtocolMsg = Vec<u8>;
 
 impl ReconnectingUsbSub {
     fn new(serial_number: String) -> Self {
         ReconnectingUsbSub {
             serial_number,
+            next_poll: Instant::now(),
             conn: None,
+            bytes: Vec::new().into_iter(),
             logger: ratelimited_logger::RateLimitedLogger::default(),
         }
     }
 
-    async fn recv(&mut self) -> EncodedProtocolMsg {
+    async fn recv(&mut self) -> Vec<u8> {
         let mut retry_period = Duration::from_millis(100);
         loop {
-            match self.try_recv_step().await {
-                Ok(Some(msg)) => return msg,
-                Ok(None) => (),
-                Err(e) => {
-                    let logger = &mut self.logger;
-                    rl::warn!(logger; "{e:?}");
-                    retry_period *= 2;
-                    let retry_period = retry_period.min(Duration::from_secs(30));
-                    sleep(retry_period).await;
+            if let Some(len) = self.bytes.next() {
+                if len == 0 {
+                    self.bytes = Vec::new().into_iter();
+                    continue;
                 }
+                return self.bytes.by_ref().take(len as usize).collect();
             }
+
+            self.bytes = loop {
+                match self.try_recv_step().await {
+                    Ok(Some(bytes)) => break bytes.into_iter(),
+                    Ok(None) => continue,
+                    Err(e) => {
+                        let logger = &mut self.logger;
+                        rl::warn!(logger; "{e:?}");
+                        retry_period *= 2;
+                        let retry_period = retry_period.min(Duration::from_secs(30));
+                        sleep(retry_period).await;
+                    }
+                };
+            };
         }
     }
 
-    async fn try_recv_step(&mut self) -> color_eyre::Result<Option<EncodedProtocolMsg>> {
+    async fn try_recv_step(&mut self) -> color_eyre::Result<Option<Vec<u8>>> {
         if let Some(device) = self.conn.take() {
+            sleep_until(self.next_poll).await;
+            self.next_poll = Instant::now() + Duration::from_millis(100);
             let msg = device
                 .control_in(request_msg())
                 .await
@@ -92,7 +108,7 @@ impl ReconnectingUsbSub {
 
         self.conn = match list.as_slice() {
             [dev] => dev,
-            [] => return Err(eyre!("No usb device found with the correct serial")),
+            [] => bail!("No usb device found with the correct serial"),
             more => {
                 return Err(eyre!("Multiple usb devices have the same serial number")
                     .with_note(|| format!("they are: {more:?}")))
@@ -118,7 +134,8 @@ impl ReconnectingUsbSub {
 }
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() {
+async fn main() -> Result<(), color_eyre::Report> {
+    color_eyre::install().unwrap();
     setup_tracing();
     let args = Cli::parse();
 
@@ -126,13 +143,12 @@ async fn main() {
     let mut server_client = data_source::reconnecting::Client::new(args.data_server, Vec::new());
 
     loop {
-        let last_poll = Instant::now();
         let encoded_msg = usb.recv().await;
         server_client
             .check_send_encoded(&encoded_msg)
             .await
-            .expect("Should be correctly encoded");
-        sleep_until(last_poll + Duration::from_millis(100)).await;
+            .wrap_err("Should be correctly encoded")
+            .suggestion("Check if this needs to be updated")?;
     }
 }
 

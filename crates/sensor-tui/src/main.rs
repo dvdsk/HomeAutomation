@@ -1,61 +1,18 @@
 use std::net::SocketAddr;
-use std::ops::RangeInclusive;
 use std::sync::mpsc;
 use std::thread;
 
 use clap::Parser;
 use color_eyre::Result;
-
-mod control;
-mod fetch;
-mod populate;
-mod receive;
-mod time;
-mod tui;
-
-pub(crate) use fetch::Fetch;
-use log_store::api::{ErrorEvent, Percentile};
-use protocol::Reading;
+use sensor_tui::control;
+use sensor_tui::UserIntent;
 use tokio::task;
 
-#[derive(Debug, PartialEq, Eq)]
-enum UserIntent {
-    Shutdown,
-}
+use sensor_tui::Fetch;
+use sensor_tui::tui;
+use sensor_tui::receive;
+use sensor_tui::populate;
 
-enum Fetchable {
-    Data {
-        timestamps: Vec<jiff::Timestamp>,
-        data: Vec<f32>,
-    },
-    Logs {
-        logs: Vec<ErrorEvent>,
-        start_at: jiff::Timestamp,
-    },
-    Hist {
-        percentiles: Vec<Percentile>,
-        range: RangeInclusive<jiff::Timestamp>,
-    },
-}
-
-enum Update {
-    ReadingList(Vec<protocol::Reading>),
-    Fetched {
-        reading: Reading,
-        thing: Fetchable,
-    },
-    FetchError(color_eyre::Report),
-    SensorReading(protocol::Reading),
-    SensorError(Box<protocol::Error>),
-    SubscribeError(color_eyre::Report),
-    DeviceList(Vec<protocol::Device>),
-    AffectorControlled {
-        affector: protocol::Affector,
-        controlled_by: String,
-    },
-    AffectorList(Vec<protocol::Affector>),
-    PopulateError(color_eyre::Report),
-}
 
 #[derive(Parser)]
 #[command(name = "sensor tui")]
@@ -127,12 +84,6 @@ fn setup_tracing() -> Result<()> {
         .with(ErrorLayer::default())
         .init();
     Ok(())
-}
-
-fn client_name() -> String {
-    let host = gethostname::gethostname();
-    let host = host.to_string_lossy();
-    format!("sensor-tui@{host}")
 }
 
 /// Similar to the `std::dbg!` macro, but generates `tracing` events rather

@@ -7,7 +7,7 @@ use tracing::error;
 
 use crate::client_name;
 
-pub(crate) async fn watch_and_send(data_server: SocketAddr, mut rx: mpsc::Receiver<Affector>) {
+pub async fn watch_and_send(data_server: SocketAddr, mut rx: mpsc::Receiver<Affector>) {
     let mut connected_client: Option<Client> = None;
     let mut queued = None;
 
