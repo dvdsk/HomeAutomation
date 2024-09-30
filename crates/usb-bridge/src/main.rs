@@ -42,7 +42,7 @@ fn request_msg() -> transfer::ControlIn {
         value: 0,
         index: 0,
         // must match SEND_BUFFER_SIZE in usb nodes
-        length: 128,
+        length: 208,
     }
 }
 

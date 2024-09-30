@@ -7,7 +7,7 @@ use embassy_usb::UsbDevice;
 use protocol::affector;
 
 /// USB full speed devices such as this one have a max data packet size of 1023
-const SEND_BUFFER_SIZE: usize = 128;
+const SEND_BUFFER_SIZE: usize = 208;
 const MAX_RECV_ITEM_SIZE: usize = 1 + affector::Affector::ENCODED_SIZE;
 
 pub(crate) type RecvItem = heapless::Vec<u8, MAX_RECV_ITEM_SIZE>;
@@ -59,8 +59,6 @@ impl embassy_usb::Handler for UsbControlHandler<'_> {
         req: embassy_usb::control::Request,
         buf: &'a mut [u8],
     ) -> Option<InResponse<'a>> {
-        defmt::info!("Got control_in, request={}", req);
-
         // Only handle Vendor request types to an Interface.
         if req.request_type != RequestType::Vendor {
             return None;
@@ -159,6 +157,14 @@ pub fn config() -> embassy_usb::Config<'static> {
     config.manufacturer = Some("Vid");
     config.product = Some(concat!("sensor node ", env!("CARGO_PKG_NAME")));
     config.serial_number = Some("2139874"); // random, host driver finds device using this
+
+    // Required for windows compatibility.
+    // https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.9.1/kconfig/CONFIG_CDC_ACM_IAD.html#help
+    config.device_class = 0xEF;
+    config.device_sub_class = 0x02;
+    config.device_protocol = 0x01;
+    config.composite_with_iads = true;
+
     config
 }
 
@@ -214,6 +220,8 @@ pub(crate) fn new<'a, D: embassy_usb::driver::Driver<'a>>(
     stack_b: &'a mut StackB<'a>,
     driver: D,
 ) -> (Usb<'a, D>, UsbHandle<'a>) {
+    use embassy_usb::msos::{self, windows_version};
+
     let StackB {
         config_descriptor,
         bos_descriptor,
@@ -230,6 +238,25 @@ pub(crate) fn new<'a, D: embassy_usb::driver::Driver<'a>>(
         msos_descriptor,
         control_buf,
     );
+
+    // Add the Microsoft OS Descriptor (MSOS/MOD) descriptor.
+    // We tell Windows that this entire device is compatible with the "WINUSB" feature,
+    // which causes it to use the built-in WinUSB driver automatically, which in turn
+    // can be used by libusb/rusb software without needing a custom driver or INF file.
+    // In principle you might want to call msos_feature() just on a specific function,
+    // if your device also has other functions that still use standard class drivers.
+    builder.msos_descriptor(windows_version::WIN8_1, 0);
+    builder.msos_feature(msos::CompatibleIdFeatureDescriptor::new("WINUSB", ""));
+
+    // Randomly generated UUID because Windows requires you provide one to use WinUSB.
+    // In principle WinUSB-using software could find this device (or a specific interface
+    // on it) by its GUID instead of using the VID/PID, but in practice that seems unhelpful.
+    const DEVICE_INTERFACE_GUIDS: &[&str] = &["{DAC2087C-63FA-458D-A55D-827C0762DEC7}"];
+
+    builder.msos_feature(msos::RegistryPropertyFeatureDescriptor::new(
+        "DeviceInterfaceGUIDs",
+        msos::PropertyData::RegMultiSz(DEVICE_INTERFACE_GUIDS),
+    ));
 
     let mut function = builder.function(0xFF, 0, 0);
     let mut interface = function.interface();
