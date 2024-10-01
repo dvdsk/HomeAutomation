@@ -4,7 +4,7 @@ use protocol::reading;
 use ratatui::layout::Rect;
 use ratatui::text::Span;
 
-use crate::time::format::progressively_more_specified::{self, FmtScale};
+use crate::time::format::progressively_more_specified;
 use crate::tui::readings::sensor_info::ChartParts;
 
 use super::Bounds;
@@ -16,11 +16,10 @@ pub fn labels(
     layout: Rect,
     x_bounds: Bounds,
     y_bounds: Bounds,
-    scale: &progressively_more_specified::FmtScale
+    scale: &progressively_more_specified::FmtScale,
 ) -> (Labels, Labels) {
     let y_label_spacing = 10;
     let info = &chart.reading;
-
 
     // Characters are about twice as high as wide
     let x = evenly_spaced_labels(layout.width / y_label_spacing / 2, info, x_bounds)
