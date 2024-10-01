@@ -7,7 +7,6 @@ use crate::button::Press;
 #[cfg(feature = "alloc")]
 use crate::affector;
 #[cfg(feature = "alloc")]
-use crate::reading::tree::{Item, Tree};
 
 pub mod desk;
 pub mod bed;
@@ -47,31 +46,7 @@ pub enum Reading {
     Bed(bed::Reading) = 2,
 }
 
-#[cfg(feature = "alloc")]
-impl Tree for Reading {
-    fn inner(&self) -> Item<'_> {
-        match self {
-            Reading::ButtonPanel(inner) => return Item::Node(inner),
-            Reading::Desk(inner) => return Item::Node(inner),
-            Reading::Bed(inner) => return Item::Node(inner),
-        }
-    }
-
-    fn branch_id(&self) -> crate::reading::tree::Id {
-        ReadingDiscriminants::from(self) as crate::reading::tree::Id
-    }
-}
-
-impl Reading {
-    #[must_use]
-    pub fn is_same_as(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::ButtonPanel(a), Self::ButtonPanel(b)) => a.is_same_as(b),
-            (Self::Desk(a), Self::Desk(b)) => a.is_same_as(b),
-            _ => false,
-        }
-    }
-}
+crate::reading::tree::all_nodes!{Reading; ReadingDiscriminants; ButtonPanel, Desk, Bed}
 
 #[derive(
     strum::EnumDiscriminants,

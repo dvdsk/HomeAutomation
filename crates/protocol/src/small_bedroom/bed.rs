@@ -529,3 +529,19 @@ impl affector::tree::Tree for Affector {
         AffectorDiscriminants::from(self) as Id
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    #[cfg(feature = "alloc")]
+    fn test_is_same_as() {
+        assert!(Reading::Co2(5).is_same_as(&Reading::Co2(0)));
+
+        let a = crate::Reading::SmallBedroom(crate::small_bedroom::Reading::Bed(Reading::Co2(5)));
+        let b = crate::Reading::SmallBedroom(crate::small_bedroom::Reading::Bed(Reading::Co2(0)));
+
+        assert!(a.is_same_as(&b));
+    }
+}
