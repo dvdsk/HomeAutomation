@@ -4,7 +4,7 @@ use protocol::reading;
 use ratatui::layout::Rect;
 use ratatui::text::Span;
 
-use crate::time::format::progressively_more_specified;
+use crate::time::format::progressively_more_specified::{self, FmtScale};
 use crate::tui::readings::sensor_info::ChartParts;
 
 use super::Bounds;
@@ -16,11 +16,11 @@ pub fn labels(
     layout: Rect,
     x_bounds: Bounds,
     y_bounds: Bounds,
+    scale: &progressively_more_specified::FmtScale
 ) -> (Labels, Labels) {
     let y_label_spacing = 10;
     let info = &chart.reading;
 
-    let scale = scale(x_bounds[1]);
 
     // Characters are about twice as high as wide
     let x = evenly_spaced_labels(layout.width / y_label_spacing / 2, info, x_bounds)
@@ -42,7 +42,7 @@ fn fmt(x: f64, scale: &progressively_more_specified::FmtScale) -> String {
     scale.render(time, elapsed, "")
 }
 
-fn scale(secs: f64) -> progressively_more_specified::FmtScale {
+pub fn scale(secs: f64) -> progressively_more_specified::FmtScale {
     let now = jiff::Timestamp::now();
     let elapsed = Duration::from_secs_f64(secs);
     let time = now - elapsed;

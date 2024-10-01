@@ -19,14 +19,15 @@ pub fn render(frame: &mut Frame, layout: Rect, tab: &mut UiState, chart: ChartPa
         .data(chart.data);
 
     let (x_bounds, y_bounds) = bounds(&chart, layout);
-    let (mut x_labels, y_labels) = labels(&chart, layout, x_bounds, y_bounds);
+    let scale = labels::scale(x_bounds[1]);
+    let (mut x_labels, y_labels) = labels(&chart, layout, x_bounds, y_bounds, &scale);
 
     let borrowed = x_labels.first_mut().expect("min labels is 2");
     let owned = std::mem::take(borrowed);
     x_labels[0] = tab.history_length.style_left_x_label(owned);
 
     let x_axis = Axis::default()
-        .title("Time")
+        .title(format!("Time ({scale})",))
         .style(Style::default())
         .bounds(x_bounds)
         .labels(x_labels)
