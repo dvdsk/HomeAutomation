@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use crate::button::Press;
 #[cfg(feature = "alloc")]
 use crate::affector;
-#[cfg(feature = "alloc")]
 
 pub mod desk;
 pub mod bed;
@@ -46,6 +45,7 @@ pub enum Reading {
     Bed(bed::Reading) = 2,
 }
 
+#[cfg(feature = "alloc")]
 crate::reading::tree::all_nodes!{Reading; ReadingDiscriminants; ButtonPanel, Desk, Bed}
 
 #[derive(
