@@ -2,7 +2,7 @@ use ratelimited_logger::{warn, RateLimitedLogger};
 
 fn main() {
     setup_tracing();
-    let mut logger = RateLimitedLogger::new();
+    let mut logger = RateLimitedLogger::default();
 
     warn!(logger; "oh no the number is: {}", 5);
 }

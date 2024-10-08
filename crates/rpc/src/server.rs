@@ -38,7 +38,7 @@ where
 {
     let quota = Quota::with_period(Duration::from_secs(1))
         .unwrap()
-        .allow_burst(NonZeroU32::new(5u32).unwrap());
+        .allow_burst(NonZeroU32::new(30u32).unwrap());
     let limiter = RateLimiter::keyed(quota);
     let listener = TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
