@@ -18,7 +18,7 @@ use std::{
 use crate::{Fetch, Update, UserIntent};
 
 mod affectors;
-mod readings;
+pub mod readings;
 mod render;
 mod reports;
 
@@ -45,7 +45,7 @@ impl ActiveTab {
     }
 }
 
-pub(crate) struct Theme {
+pub struct Theme {
     bars: Style,
     centered_text: Style,
 }

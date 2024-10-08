@@ -30,7 +30,7 @@ pub struct SensorInfo {
     pub histogram_range: Option<RangeInclusive<jiff::Timestamp>>,
     pub history_from_store: Vec<(jiff::Timestamp, f32)>,
     condition: Result<(), Box<Error>>,
-    pub logs: logs::Logs,
+    pub(crate) logs: logs::Logs,
 }
 
 pub struct ErrorDensity {
@@ -155,7 +155,7 @@ impl SensorInfo {
         })
     }
 
-    pub fn logs(&self) -> logs::List {
+    pub(crate) fn logs(&self) -> logs::List {
         self.logs.list()
     }
 
@@ -459,5 +459,6 @@ impl Readings {
 
 pub struct ChartParts<'a> {
     pub reading: reading::Info,
+    /// array of time, y
     pub data: &'a [(f64, f64)],
 }

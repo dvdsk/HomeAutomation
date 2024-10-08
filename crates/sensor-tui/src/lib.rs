@@ -16,7 +16,7 @@ fn client_name() -> String {
     format!("sensor-tui@{host}")
 }
 
-enum Fetchable {
+pub enum Fetchable {
     Data {
         timestamps: Vec<jiff::Timestamp>,
         data: Vec<f32>,

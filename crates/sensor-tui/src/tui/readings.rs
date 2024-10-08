@@ -7,7 +7,7 @@ use ratatui::Frame;
 use tui_tree_widget::TreeState;
 
 pub(crate) mod history_len;
-mod render;
+pub mod render;
 pub mod sensor_info;
 use history_len::HistoryLen;
 

@@ -17,7 +17,7 @@ use super::{
     UiState,
 };
 
-mod chart;
+pub mod chart;
 mod logs;
 
 pub(crate) fn layout(
@@ -50,7 +50,7 @@ pub(crate) fn layout(
         .areas(layout)
 }
 
-pub fn footer(frame: &mut Frame, layout: Rect, app: &mut UiState, theme: &Theme) {
+pub(crate) fn footer(frame: &mut Frame, layout: Rect, app: &mut UiState, theme: &Theme) {
     let mut footer = Vec::new();
 
     if app.history_length.editing {
@@ -79,7 +79,7 @@ pub fn footer(frame: &mut Frame, layout: Rect, app: &mut UiState, theme: &Theme)
     frame.render_widget(footer, layout)
 }
 
-pub fn graph_hist_logs(
+pub(crate) fn graph_hist_logs(
     frame: &mut Frame,
     layout: Rect,
     app: &mut UiState,
