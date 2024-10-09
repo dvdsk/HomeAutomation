@@ -96,9 +96,8 @@ impl Tab {
 
     pub fn handle_key(&mut self, key: KeyEvent) -> Option<KeyEvent> {
         self.ui_state.handle_key_all_modes(key)?;
-        let plot_open = !self.plot_buf.is_empty();
         match self.ui_state.input_mode {
-            InputMode::Normal => self.ui_state.handle_key_normal_mode(key, plot_open)?,
+            InputMode::Normal => self.ui_state.handle_key_normal_mode(key)?,
             InputMode::EditingBounds => self.ui_state.handle_key_bounds_mode(key)?,
         };
 
@@ -170,13 +169,11 @@ impl Tab {
 }
 
 impl UiState {
-    fn handle_key_normal_mode(&mut self, key: KeyEvent, plot_open: bool) -> Option<KeyEvent> {
+    fn handle_key_normal_mode(&mut self, key: KeyEvent) -> Option<KeyEvent> {
         match key.code {
             KeyCode::Char('b') => {
-                if plot_open {
-                    self.history_length.start_editing();
-                    self.input_mode = InputMode::EditingBounds;
-                }
+                self.history_length.start_editing();
+                self.input_mode = InputMode::EditingBounds;
             }
             KeyCode::Char('h') => {
                 self.show_histogram = !self.show_histogram;

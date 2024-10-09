@@ -42,6 +42,7 @@ fn fmt(x: f64, scale: &progressively_more_specified::FmtScale) -> String {
 }
 
 pub fn scale(secs: f64) -> progressively_more_specified::FmtScale {
+    assert!(secs >= 0.0, "Argument must be larger then or equal to zero");
     let now = jiff::Timestamp::now();
     let elapsed = Duration::from_secs_f64(secs);
     let time = now - elapsed;

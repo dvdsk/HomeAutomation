@@ -17,7 +17,9 @@ fn data_with_gap(buffer: &mut Vec<(f64, f64)>) -> ChartParts<'_> {
 
     let info = protocol::reading::Info {
         val: 0.0,
-        device: protocol::Device::SmallBedroom(protocol::small_bedroom::Device::Gpio),
+        device: protocol::Device::SmallBedroom(protocol::small_bedroom::Device::Bed(
+            protocol::small_bedroom::bed::Device::Bme680,
+        )),
         resolution: 1.0,
         range: 0.0..5.0,
         unit: protocol::Unit::Ohm,

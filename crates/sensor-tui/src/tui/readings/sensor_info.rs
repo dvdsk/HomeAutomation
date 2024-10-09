@@ -134,6 +134,7 @@ impl SensorInfo {
         for xy in self
             .history_from_store
             .iter()
+            .skip_while(|(t, _)| *t < reference)
             .take_while(|(t, _)| *t < first_recent)
             .chain(self.recent_history.iter())
             .map(|(x, y)| {
@@ -148,6 +149,14 @@ impl SensorInfo {
         {
             plot_buf.push(xy);
         }
+
+        assert!(
+            plot_buf.iter().all(|(x, _)| *x > 0.0),
+            "negative x is not allowed. Arguments: 
+            \thistory_len: {history_len:?}
+            \tfirst_recent: {first_recent}
+            \reference: {reference}"
+        );
 
         Some(ChartParts {
             reading: self.info.clone(),
@@ -433,8 +442,7 @@ impl Readings {
             .expect("data is never removed");
         match fetched {
             Fetchable::Data { timestamps, data } => {
-                sensorinfo.history_from_store =
-                    timestamps.into_iter().zip(data).collect();
+                sensorinfo.history_from_store = timestamps.into_iter().zip(data).collect();
             }
             Fetchable::Logs { logs, start_at } => {
                 sensorinfo.logs.from_store = Some(logs::FromStore {
