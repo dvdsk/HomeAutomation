@@ -9,15 +9,10 @@ use ratatui::{
 use crate::tui::readings::{sensor_info::ChartParts, UiState};
 
 mod labels;
+mod split;
 use labels::labels;
 
 pub fn render(frame: &mut Frame, layout: Rect, tab: &mut UiState, chart: ChartParts) {
-    let dataset = Dataset::default()
-        .marker(symbols::Marker::Braille)
-        .graph_type(GraphType::Line)
-        .style(Style::default())
-        .data(chart.data);
-
     let (x_bounds, y_bounds) = bounds(&chart, layout);
     let scale = labels::scale(x_bounds[1]);
     let (mut x_labels, y_labels) = labels(&chart, layout, x_bounds, y_bounds, &scale);
@@ -37,7 +32,18 @@ pub fn render(frame: &mut Frame, layout: Rect, tab: &mut UiState, chart: ChartPa
         .style(Style::default())
         .bounds(y_bounds)
         .labels(y_labels);
-    let linechart = Chart::new(vec![dataset])
+
+    let datasets = split::split(&chart, layout.width)
+        .map(|line| {
+            Dataset::default()
+                .marker(symbols::Marker::Braille)
+                .graph_type(GraphType::Line)
+                .style(Style::default())
+                .data(line)
+        })
+        .collect();
+
+    let linechart = Chart::new(datasets)
         .block(Block::bordered().title("History"))
         .x_axis(x_axis)
         .y_axis(y_axis);
