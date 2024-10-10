@@ -24,6 +24,7 @@ use {defmt_rtt as _, panic_probe as _};
 mod channel;
 mod comms;
 mod error_cache;
+mod reset_on_error_i2c;
 mod sensors;
 mod usb_wrapper;
 use crate::channel::Queues;
@@ -41,11 +42,11 @@ embassy_stm32::bind_interrupts!(struct Irqs {
 // 84 Mhz clock stm32f401
 // 48 Mhz clock for usb
 fn config() -> Config {
-    use embassy_stm32::rcc::{
-        AHBPrescaler, APBPrescaler, Hse, HseMode, Pll, PllMul, PllPDiv, PllQDiv, PllPreDiv, PllSource,
-        Sysclk,
-    };
     use embassy_stm32::rcc::mux;
+    use embassy_stm32::rcc::{
+        AHBPrescaler, APBPrescaler, Hse, HseMode, Pll, PllMul, PllPDiv, PllPreDiv, PllQDiv,
+        PllSource, Sysclk,
+    };
 
     let mut config = Config::default();
     config.rcc.hse = Some(Hse {
@@ -111,6 +112,7 @@ async fn main(_spawner: Spawner) {
         Hertz(150_000),
         i2c::Config::default(),
     );
+    let i2c_1 = reset_on_error_i2c::I2c::new(i2c_1, Hertz(150_000), i2c::Config::default());
     let i2c_1: Mutex<NoopRawMutex, _> = Mutex::new(i2c_1);
 
     let i2c_3 = I2c::new(
@@ -124,6 +126,7 @@ async fn main(_spawner: Spawner) {
         Hertz(150_000),
         i2c::Config::default(),
     );
+    let i2c_3 = reset_on_error_i2c::I2c::new(i2c_3, Hertz(150_000), i2c::Config::default());
     let i2c_3: Mutex<NoopRawMutex, _> = Mutex::new(i2c_3);
 
     let buttons = ButtonInputs {
