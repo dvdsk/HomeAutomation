@@ -19,6 +19,7 @@ use super::{
 
 pub mod chart;
 mod logs;
+mod tree;
 
 pub(crate) fn layout(
     frame: &mut Frame,
@@ -183,14 +184,16 @@ pub(crate) fn readings_and_details(
     readings: &Readings,
     details: Option<Details>,
 ) {
-    let readings = &readings.ground;
+    let tree_old = &readings.ground;
     let [left, right] =
         Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
             .flex(Flex::Legacy)
             .areas(layout);
 
+    let tree = tree::build_ui(readings);
     frame.render_stateful_widget(
-        Tree::new(readings)
+        Tree::new(&tree)
+            // Tree::new(tree_old)
             .expect("all item identifiers should be unique")
             .block(
                 Block::default()
@@ -200,7 +203,8 @@ pub(crate) fn readings_and_details(
             .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
             .highlight_symbol(">>"),
         left,
-        &mut app.tree_state,
+        // &mut app.tree_state,
+        &mut app.tree_state2,
     );
     if let Some(details) = details {
         render_details(frame, right, details);

@@ -30,6 +30,7 @@ pub struct UiState {
     history_length: HistoryLen,
     input_mode: InputMode,
     tree_state: TreeState<TreeKey>,
+    tree_state2: TreeState<u16>,
     logs_table_state: TableState,
 }
 
