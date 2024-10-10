@@ -62,6 +62,7 @@ impl FmtScale {
             return "now".to_string();
         }
 
+        let t = t.to_zoned(jiff::tz::TimeZone::system());
         match self {
             FmtScale::RelativeDuration => duration(elapsed.as_secs_f64()) + duration_postfix,
             FmtScale::HourMinute => t.strftime("%H:%M").to_string(),
