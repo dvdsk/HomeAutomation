@@ -2966,6 +2966,7 @@ dependencies = [
  "crossterm",
  "data-server",
  "data-store",
+ "derivative",
  "gethostname",
  "hdrhistogram",
  "indextree",
