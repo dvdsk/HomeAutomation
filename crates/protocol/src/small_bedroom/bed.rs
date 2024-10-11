@@ -253,7 +253,7 @@ impl Reading {
             | (Self::GassResistance(_), Self::GassResistance(_))
             | (Self::Pressure(_), Self::Pressure(_))
             | (Self::Co2(_), Self::Co2(_))
-            | (Self::Weight(_), Self::Weight(0))
+            | (Self::Weight(_), Self::Weight(_))
             | (Self::MassPm1_0(_), Self::MassPm1_0(_))
             | (Self::MassPm2_5(_), Self::MassPm2_5(_))
             | (Self::MassPm4_0(_), Self::MassPm4_0(_))
