@@ -7,6 +7,7 @@ use crate::tui::readings::sensor_info::ChartParts;
 /// split data into separate lines if
 /// - the gap between point groups is larger then what is expected for
 ///   the given sensor with 20% margin
+///
 /// and
 /// - the gap is larger then the medium in the data
 ///

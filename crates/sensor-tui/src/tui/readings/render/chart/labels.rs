@@ -24,7 +24,7 @@ pub fn labels(
     // Characters are about twice as high as wide
     let x = evenly_spaced_labels(layout.width / y_label_spacing / 2, info, x_bounds)
         .rev()
-        .map(|x| fmt(x, &scale))
+        .map(|x| fmt(x, scale))
         .map(Into::into)
         .collect();
     let y = evenly_spaced_labels(layout.height / y_label_spacing, info, y_bounds)

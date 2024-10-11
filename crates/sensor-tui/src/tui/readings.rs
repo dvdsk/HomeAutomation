@@ -12,7 +12,7 @@ pub mod sensor_info;
 use history_len::HistoryLen;
 
 use crate::{fetch::Fetch, Update};
-use sensor_info::{Readings, TreeKey};
+use sensor_info::Readings;
 
 use super::Theme;
 
@@ -29,8 +29,7 @@ pub struct UiState {
     show_logs: bool,
     history_length: HistoryLen,
     input_mode: InputMode,
-    tree_state: TreeState<TreeKey>,
-    tree_state2: TreeState<u16>,
+    tree_state: TreeState<u16>,
     logs_table_state: TableState,
 }
 
@@ -63,7 +62,7 @@ impl Tab {
                 .tree_state
                 .selected()
                 .last() // Unique leaf id
-                .and_then(|key| readings.data.get_mut(key));
+                .and_then(|key| readings.get_by_ui_id(*key));
 
             if let Some(data) = data {
                 (
@@ -78,14 +77,8 @@ impl Tab {
             }
         };
 
-        let [top, bottom, footer] = render::layout(
-            frame,
-            layout,
-            ui_state,
-            readings,
-            chart.is_some(),
-            logs.is_some(),
-        );
+        let [top, bottom, footer] =
+            render::layout(frame, layout, readings, chart.is_some(), logs.is_some());
 
         let have_details = details.is_some();
         render::readings_and_details(frame, top, ui_state, readings, details);
@@ -111,7 +104,7 @@ impl Tab {
             .tree_state
             .selected()
             .last() // Unique leaf id
-            .and_then(|key| self.readings.data.get_mut(key));
+            .and_then(|key| self.readings.get_by_ui_id(*key));
 
         match update {
             Update::SensorReading(reading) => {
@@ -151,7 +144,7 @@ impl Tab {
             .tree_state
             .selected()
             .last() // Unique leaf id
-            .and_then(|key| self.readings.data.get_mut(key))
+            .and_then(|key| self.readings.get_by_ui_id(*key))
         else {
             return; // Nothing selected
         };

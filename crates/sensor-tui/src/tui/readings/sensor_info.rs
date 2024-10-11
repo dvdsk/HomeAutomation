@@ -8,10 +8,8 @@ use protocol::reading::tree::{Item, Tree};
 use protocol::Reading;
 use protocol::{Device, Error};
 
-use std::collections::HashMap;
 use std::ops::RangeInclusive;
 use std::time::Duration;
-use tui_tree_widget::TreeItem;
 
 use crate::Fetchable;
 
@@ -19,6 +17,11 @@ mod logs;
 pub(crate) use logs::List as LogList;
 pub(crate) use logs::LogSource;
 
+#[expect(
+    clippy::large_enum_variant,
+    reason = "Stored on the heap through Vec, mem waste of Branches is \
+    worth the perf of not boxing SensorInfo"
+)]
 #[derive(Debug)]
 pub enum Node {
     Sensor(SensorInfo),
@@ -26,21 +29,89 @@ pub enum Node {
     Root,
 }
 
-#[derive(Debug)]
+#[derive(derivative::Derivative)]
+#[derivative(Debug)]
 pub struct SensorInfo {
-    pub id: u16,
+    /// unique id used by the rendered tree to refer back to
+    /// this specific item.
+    pub ui_id: u16,
+    #[derivative(Debug = "ignore")]
     pub info: reading::Info,
     /// This value is not up to date, only use for requesting
     /// data use the last element of recent_history for printing
     pub reading: Reading,
+    #[derivative(Debug = "ignore")]
     timing: Histogram<u64>,
+    #[derivative(Debug = "ignore")]
     pub percentiles_from_store: Vec<Percentile>,
+    #[derivative(Debug = "ignore")]
     recent_history: Vec<(jiff::Timestamp, f32)>,
     pub histogram_range: Option<RangeInclusive<jiff::Timestamp>>,
+    #[derivative(Debug = "ignore")]
     pub history_from_store: Vec<(jiff::Timestamp, f32)>,
     condition: Result<(), Box<Error>>,
+    #[derivative(Debug = "ignore")]
     pub(crate) logs: logs::Logs,
-    pub placeholder: bool,
+    pub is_placeholder: bool,
+}
+
+impl SensorInfo {
+    fn new(reading: &Reading, is_placeholder: bool, ui_id: u16) -> Self {
+        let time = jiff::Timestamp::now();
+        let recent_history = if is_placeholder {
+            Vec::new()
+        } else {
+            vec![(time, reading.leaf().val)]
+        };
+
+        Self {
+            info: reading.leaf(),
+            reading: reading.clone(),
+            timing: Histogram::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap(),
+            percentiles_from_store: Vec::new(),
+            histogram_range: None,
+
+            recent_history,
+            history_from_store: Vec::new(),
+
+            condition: Ok(()),
+            logs: logs::Logs::new_empty(),
+            is_placeholder,
+            ui_id,
+        }
+    }
+
+    fn new_err(error: &Error, broken: &Reading, ui_id: u16) -> Self {
+        let logs = logs::Logs::new_from(error);
+        SensorInfo {
+            info: broken.leaf(),
+            reading: broken.clone(),
+            timing: Histogram::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap(),
+            percentiles_from_store: Vec::new(),
+            histogram_range: None,
+
+            recent_history: Vec::new(),
+            history_from_store: Vec::new(),
+
+            condition: Err(Box::new(error.clone())),
+            logs,
+            is_placeholder: true,
+            ui_id,
+        }
+    }
+
+    fn update(&mut self, reading: &Reading) {
+        let time = jiff::Timestamp::now();
+        self.info = reading.leaf();
+        if let Some(last_reading) = self.last_at() {
+            self.timing += (time - last_reading)
+                .total(Unit::Millisecond)
+                .expect("no calander units involved") as u64
+        }
+        self.recent_history.push((time, reading.leaf().val));
+        self.is_placeholder = false;
+        self.condition = Ok(());
+    }
 }
 
 pub struct ErrorDensity {
@@ -210,322 +281,82 @@ impl IdGen {
 /// encoded with the last byte byte being the leaf's id
 pub type TreeKey = [u8; 6];
 pub struct Readings {
-    // new tree, we are porting to this
-    pub lookup: Vec<(Reading, indextree::NodeId)>,
+    pub lookup_by_reading: Vec<(Reading, indextree::NodeId)>,
+    pub lookup_by_ui_id: Vec<(u16, indextree::NodeId)>,
     pub arena: indextree::Arena<Node>,
     pub root: NodeId,
     pub idgen: IdGen,
-    // In the ground there are multiple trees
-    pub ground: Vec<TreeItem<'static, TreeKey>>,
-    pub data: HashMap<TreeKey, SensorInfo>,
-}
-
-fn add_leaf(text: String, tree: &mut TreeItem<'static, TreeKey>, key: TreeKey) {
-    let new_item = TreeItem::new_leaf(key, text.clone());
-    // Todo is exists its fine handle that
-    let _ignore_existing = tree.add_child(new_item); // Errors when identifier already exists
-
-    let new_child = tree
-        .children()
-        .iter()
-        .position(|item| *item.identifier() == key)
-        .expect("just added it");
-    let existing = tree.child_mut(new_child).expect("just added it");
-    existing.update_text(text);
-}
-
-fn add_root<'a>(
-    tomato: &dyn Tree,
-    ground: &'a mut Vec<TreeItem<'static, TreeKey>>,
-) -> &'a mut TreeItem<'static, TreeKey> {
-    let key = [tomato.branch_id(); 6];
-    let exists = ground.iter().any(|item| *item.identifier() == key);
-    if !exists {
-        let new_root = TreeItem::new(key, tomato.name(), vec![]).unwrap();
-        ground.push(new_root);
-    }
-
-    ground
-        .iter_mut()
-        .find(|item| *item.identifier() == key)
-        .expect("checked and added if missing")
-}
-
-fn add_node<'a>(
-    tomato: &dyn Tree,
-    tree: &'a mut TreeItem<'static, TreeKey>,
-) -> &'a mut TreeItem<'static, TreeKey> {
-    let key = [tomato.branch_id(); 6];
-    let new_item = TreeItem::new(key, tomato.name(), Vec::new()).unwrap();
-    // Add just in case it was not there yet
-    let _ignore_existing = tree.add_child(new_item);
-    let new_child = tree
-        .children()
-        .iter()
-        .position(|item| *item.identifier() == key)
-        .expect("just added it");
-    tree.child_mut(new_child).expect("just added it")
-}
-
-pub(crate) fn tree_key(reading: &Reading) -> TreeKey {
-    let mut key = [0u8; 6];
-    key[0] = reading.branch_id();
-
-    let mut reading = reading as &dyn Tree;
-    for byte in &mut key[1..] {
-        reading = match reading.inner() {
-            Item::Node(inner) => {
-                *byte = inner.branch_id();
-                inner
-            }
-            Item::Leaf(reading::Info { .. }) => {
-                return key;
-            }
-        };
-    }
-    unreachable!("reading should not be deeper then key size")
-}
-
-#[derive(Debug, PartialEq, Eq)]
-enum IsPlaceholder {
-    Yes,
-    No,
 }
 
 impl Readings {
+    pub fn get_by_ui_id(&mut self, id: u16) -> Option<&mut SensorInfo> {
+        self.lookup_by_ui_id
+            .iter_mut()
+            .find(|(ui_id, _)| id == *ui_id)
+            .map(|(_, node_id)| node_id)
+            .and_then(|id| self.arena.get_mut(*id))
+            .map(indextree::Node::get_mut)
+            .map(|node| match node {
+                Node::Sensor(info) => info,
+                Node::Branch(_) | Node::Root => {
+                    unreachable!("Only Sensor nodes are put in the lookup table")
+                }
+            })
+    }
+
     pub fn update(&mut self, reading: Reading) {
-        self.update_tree(&reading, IsPlaceholder::No);
-        self.update_tree2(&reading, IsPlaceholder::No);
-        self.record_data(reading);
+        self.update_tree(&reading, false);
     }
 
     pub(crate) fn populate_from_reading_list(&mut self, list: Vec<Reading>) {
         for reading in list {
-            self.update_tree(&reading, IsPlaceholder::Yes);
-            self.record_missing_data(reading);
+            self.update_tree(&reading, true);
         }
     }
 
     pub(crate) fn populate_from_device_list(&mut self, list: Vec<Device>) {
         for reading in list.iter().flat_map(|d| d.info().affects_readings) {
-            self.update_tree(reading, IsPlaceholder::Yes);
-            self.record_missing_data(reading.clone());
+            self.update_tree(reading, true);
         }
     }
 
     pub fn add_error(&mut self, error: Box<Error>) {
         self.update_tree_err(&error);
-        self.update_tree_err2(&error);
-        self.record_error(error);
     }
 
-    fn record_error(&mut self, error: Box<Error>) {
-        for broken in error.device().info().affects_readings {
-            let key = tree_key(broken);
-
-            if let Some(info) = self.data.get_mut(&key) {
-                info.condition = Err(error.clone());
-                info.logs.add(&error);
-            } else {
-                let logs = logs::Logs::new_from(&error);
-                self.data.insert(
-                    key,
-                    SensorInfo {
-                        info: broken.leaf(),
-                        reading: broken.clone(),
-                        timing: Histogram::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap(),
-                        percentiles_from_store: Vec::new(),
-                        histogram_range: None,
-
-                        recent_history: Vec::new(),
-                        history_from_store: Vec::new(),
-
-                        condition: Err(error.clone()),
-                        logs,
-                        placeholder: true,
-                        id: self.idgen.next(),
-                    },
-                );
-            }
-        }
-    }
-
-    fn record_data(&mut self, reading: Reading) {
-        let key = tree_key(&reading);
-        let time = jiff::Timestamp::now();
-
-        if let Some(info) = self.data.get_mut(&key) {
-            if let Some(last_reading) = info.last_at() {
-                info.timing += (time - last_reading)
-                    .total(Unit::Millisecond)
-                    .expect("no calander units involved") as u64
-            }
-            info.recent_history.push((time, reading.leaf().val));
-            info.condition = Ok(());
-        } else {
-            let history = vec![(time, reading.leaf().val)];
-            self.data.insert(
-                key,
-                SensorInfo {
-                    info: reading.leaf(),
-                    reading,
-                    timing: Histogram::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap(),
-                    percentiles_from_store: Vec::new(),
-                    histogram_range: None,
-
-                    recent_history: history,
-                    history_from_store: Vec::new(),
-
-                    condition: Ok(()),
-                    logs: logs::Logs::new_empty(),
-                    placeholder: true,
-                    id: self.idgen.next(),
-                },
-            );
-        }
-    }
-
-    fn record_missing_data(&mut self, reading: Reading) {
-        let key = tree_key(&reading);
-        if self.data.contains_key(&key) {
-            return;
-        }
-
-        self.data.insert(
-            key,
-            SensorInfo {
-                info: reading.leaf(),
-                reading,
-                timing: Histogram::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap(),
-                percentiles_from_store: Vec::new(),
-                histogram_range: None,
-
-                recent_history: Vec::new(),
-                history_from_store: Vec::new(),
-
-                condition: Ok(()),
-                logs: logs::Logs::new_empty(),
-                placeholder: true,
-                id: self.idgen.next(),
-            },
-        );
-    }
-
-    fn update_tree2(&mut self, reading: &Reading, placeholder: IsPlaceholder) {
+    fn update_tree(&mut self, reading: &Reading, is_placeholder: bool) {
         let existing = self
-            .lookup
+            .lookup_by_reading
             .iter()
             .find(|(r, _)| r.is_same_as(reading))
             .map(|(_, id)| id)
             .and_then(|id| self.arena.get_mut(*id))
             .map(indextree::Node::get_mut);
 
-        let time = jiff::Timestamp::now();
         if let Some(node) = existing {
             let Node::Sensor(ref mut info) = node else {
                 panic!("got other node then Sensor for reading");
             };
-            assert_eq!(
-                IsPlaceholder::No,
-                placeholder,
-                "cant be a placeholder if there is already a valid node"
-            );
-            info.reading = reading.clone();
-            if let Some(last_reading) = info.last_at() {
-                info.timing += (time - last_reading)
-                    .total(Unit::Millisecond)
-                    .expect("no calander units involved") as u64
+
+            if is_placeholder {
+                return; // can receive sensor update before populating from list
             }
-            info.recent_history.push((time, reading.leaf().val));
-            info.condition = Ok(());
+            info.update(reading);
         } else {
-            let history = vec![(time, reading.leaf().val)];
-            let info = SensorInfo {
-                info: reading.leaf(),
-                reading: reading.clone(),
-                timing: Histogram::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap(),
-                percentiles_from_store: Vec::new(),
-                histogram_range: None,
-
-                recent_history: history,
-                history_from_store: Vec::new(),
-
-                condition: Ok(()),
-                logs: logs::Logs::new_empty(),
-                placeholder: true,
-                id: self.idgen.next(),
-            };
-
+            let ui_id = self.idgen.next();
+            let info = SensorInfo::new(reading, is_placeholder, ui_id);
             let node_id = self.arena.new_node(Node::Sensor(info));
-            let parent = build_parents(&mut self.arena, self.root, &reading);
+            let parent = build_parents(&mut self.arena, self.root, reading);
             parent.append(node_id, &mut self.arena);
-            self.lookup.push((reading.clone(), node_id));
-        }
-    }
-
-    fn update_tree(&mut self, reading: &Reading, placeholder: IsPlaceholder) {
-        let key = tree_key(reading);
-        tracing::trace!("reading: {reading:?}");
-
-        let mut tree = add_root(reading as &dyn Tree, &mut self.ground);
-        let mut node = match reading.inner() {
-            Item::Leaf(_) => unreachable!("no values at level 0"),
-            Item::Node(inner) => inner,
-        };
-        loop {
-            match node.inner() {
-                Item::Leaf(info) => {
-                    let text = if let IsPlaceholder::Yes = placeholder {
-                        node.name()
-                    } else {
-                        format!(
-                            "{0}: {1:.2$} {3}",
-                            node.name(),
-                            info.val,
-                            info.precision(),
-                            info.unit
-                        )
-                    };
-                    add_leaf(text, tree, key);
-                    return;
-                }
-                Item::Node(inner) => {
-                    tree = add_node(node, tree);
-                    node = inner;
-                }
-            };
+            self.lookup_by_reading.push((reading.clone(), node_id));
+            self.lookup_by_ui_id.push((ui_id, node_id));
         }
     }
 
     fn update_tree_err(&mut self, error: &Error) {
         for broken in error.device().info().affects_readings {
-            let key = tree_key(broken);
-
-            let mut tree = add_root(broken as &dyn Tree, &mut self.ground);
-            let mut tomato = match broken.inner() {
-                Item::Leaf(_) => unreachable!("no values at level 0"),
-                Item::Node(inner) => inner,
-            };
-            loop {
-                match tomato.inner() {
-                    Item::Leaf(_) => {
-                        let text = format!("{}: {}", tomato.name(), error);
-                        add_leaf(text, tree, key);
-                        break;
-                    }
-                    Item::Node(inner) => {
-                        tree = add_node(tomato, tree);
-                        tomato = inner;
-                    }
-                };
-            }
-        }
-    }
-
-    fn update_tree_err2(&mut self, error: &Error) {
-        for broken in error.device().info().affects_readings {
             let existing = self
-                .lookup
+                .lookup_by_reading
                 .iter()
                 .find(|(r, _)| r.is_same_as(broken))
                 .map(|(_, id)| id)
@@ -537,48 +368,43 @@ impl Readings {
                     panic!("got other node then Sensor for Error");
                 };
                 info.condition = Err(Box::new(error.clone()));
-                info.logs.add(&error);
+                info.logs.add(error);
             } else {
-                let logs = logs::Logs::new_from(&error);
-                let info = SensorInfo {
-                    info: broken.leaf(),
-                    reading: broken.clone(),
-                    timing: Histogram::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap(),
-                    percentiles_from_store: Vec::new(),
-                    histogram_range: None,
-
-                    recent_history: Vec::new(),
-                    history_from_store: Vec::new(),
-
-                    condition: Err(Box::new(error.clone())),
-                    logs,
-                    placeholder: true,
-                    id: self.idgen.next(),
-                };
+                let ui_id = self.idgen.next();
+                let info = SensorInfo::new_err(error, broken, ui_id);
                 let node_id = self.arena.new_node(Node::Sensor(info));
-                self.lookup.push((broken.clone(), node_id));
+                self.lookup_by_reading.push((broken.clone(), node_id));
+                self.lookup_by_ui_id.push((ui_id, node_id));
             }
         }
     }
 
     pub(crate) fn add_fetched(&mut self, reading: Reading, fetched: Fetchable) {
-        let sensorinfo = self
-            .data
-            .get_mut(&tree_key(&reading))
-            .expect("data is never removed");
+        let Node::Sensor(info) = self
+            .lookup_by_reading
+            .iter()
+            .find(|(r, _)| r.is_same_as(&reading))
+            .map(|(_, id)| id)
+            .and_then(|id| self.arena.get_mut(*id))
+            .map(indextree::Node::get_mut)
+            .expect("Data can only be fetched if it exists in the tree")
+        else {
+            panic!("Node for a reading should always be a sensornode");
+        };
+
         match fetched {
             Fetchable::Data { timestamps, data } => {
-                sensorinfo.history_from_store = timestamps.into_iter().zip(data).collect();
+                info.history_from_store = timestamps.into_iter().zip(data).collect();
             }
             Fetchable::Logs { logs, start_at } => {
-                sensorinfo.logs.from_store = Some(logs::FromStore {
+                info.logs.from_store = Some(logs::FromStore {
                     list: logs,
                     since: start_at,
                 })
             }
             Fetchable::Hist { percentiles, range } => {
-                sensorinfo.percentiles_from_store = percentiles;
-                sensorinfo.histogram_range = Some(range);
+                info.percentiles_from_store = percentiles;
+                info.histogram_range = Some(range);
             }
         }
     }
@@ -587,30 +413,23 @@ impl Readings {
         let mut arena = Arena::new();
         let root = arena.new_node(Node::Root);
         Self {
-            lookup: Vec::new(),
+            lookup_by_reading: Vec::new(),
+            lookup_by_ui_id: Vec::new(),
             arena,
             root,
-            ground: Vec::new(),
-            data: HashMap::new(),
             idgen: IdGen::new(),
         }
     }
 }
 
 fn build_parents(arena: &mut Arena<Node>, root: NodeId, reading: &Reading) -> NodeId {
-    let mut curr = match reading.inner() {
-        Item::Leaf(_) => unreachable!("no leafs without parents"),
-        Item::Node(inner) => inner,
-    };
-
-    let mut parent = get_branch_by_name(arena, root, curr.name())
-        .unwrap_or_else(|| arena.new_node(Node::Branch(curr.name())));
-
+    let mut curr = reading as &dyn Tree;
+    let mut parent = root;
     loop {
         match curr.inner() {
             Item::Leaf(_) => return parent,
             Item::Node(inner) => {
-                parent = get_branch_by_name(arena, root, inner.name()).unwrap_or_else(|| {
+                parent = get_child_by_name(arena, parent, curr.name()).unwrap_or_else(|| {
                     let new = arena.new_node(Node::Branch(curr.name()));
                     parent.append(new, arena);
                     new
@@ -621,7 +440,7 @@ fn build_parents(arena: &mut Arena<Node>, root: NodeId, reading: &Reading) -> No
     }
 }
 
-fn get_branch_by_name(
+fn get_child_by_name(
     arena: &mut Arena<Node>,
     root: NodeId,
     name_to_find: String,

@@ -24,13 +24,16 @@ mod tree;
 pub(crate) fn layout(
     frame: &mut Frame,
     layout: Rect,
-    ui_state: &mut UiState,
     readings: &Readings,
     chart: bool,
     logs: bool,
 ) -> [Rect; 3] {
     let [list_constraint, graph_constraint] = if chart {
-        let tree_height = 2 + ui_state.tree_state.flatten(&readings.ground).len();
+        let tree_height = 2 + readings
+            .arena
+            .iter()
+            .filter(|node| node.is_removed())
+            .count();
         let details_height = 9;
         if (frame.area().height as f32) / 3. > tree_height as f32 {
             [
@@ -184,7 +187,6 @@ pub(crate) fn readings_and_details(
     readings: &Readings,
     details: Option<Details>,
 ) {
-    let tree_old = &readings.ground;
     let [left, right] =
         Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
             .flex(Flex::Legacy)
@@ -193,7 +195,6 @@ pub(crate) fn readings_and_details(
     let tree = tree::build_ui(readings);
     frame.render_stateful_widget(
         Tree::new(&tree)
-            // Tree::new(tree_old)
             .expect("all item identifiers should be unique")
             .block(
                 Block::default()
@@ -203,8 +204,7 @@ pub(crate) fn readings_and_details(
             .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
             .highlight_symbol(">>"),
         left,
-        // &mut app.tree_state,
-        &mut app.tree_state2,
+        &mut app.tree_state,
     );
     if let Some(details) = details {
         render_details(frame, right, details);
