@@ -114,6 +114,7 @@ impl Tab {
                 .chain(ui_state.comparing.iter())
                 .copied()
                 .collect();
+            to_display.sort();
             to_display.dedup();
             fill_data(to_display, readings, plot_bufs, ui_state.history_length.dur)
         };

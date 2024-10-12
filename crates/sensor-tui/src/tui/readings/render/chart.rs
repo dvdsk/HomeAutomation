@@ -1,7 +1,7 @@
 use protocol::reading;
 use ratatui::{
     layout::{Alignment, Rect},
-    style::Style,
+    style::{Color, Style},
     symbols,
     widgets::{Axis, Block, Chart, Dataset, GraphType},
     Frame,
@@ -32,15 +32,54 @@ impl Scaling {
     }
 }
 
+// excludes:
+// - light colors: same as the normal colors on some terminals
+// - gray: to light to see
+// - magenta: looks the same as red
+const ALL_COLORS: &[Color] = &[
+    Color::Black,
+    Color::Red,
+    Color::Green,
+    Color::Yellow,
+    Color::Blue,
+    Color::Cyan,
+    Color::DarkGray,
+];
+
+fn plot_colors(unit: protocol::Unit) -> impl Iterator<Item = Color> {
+    use protocol::Unit as U;
+    use Color::*;
+
+    let preferred = match unit {
+        U::Pa => &[Black, Cyan, Blue] as &'static [Color],
+        U::C => &[Red] as &'static [Color],
+        U::RH => &[Blue, Cyan] as &'static [Color],
+        U::Lux => &[Yellow] as &'static [Color],
+        U::Ohm => &[DarkGray] as &'static [Color],
+        U::Ppm | U::MicrogramPerM3 | U::NumberPerCm3 | U::NanoMeter => {
+            &[Green, Cyan] as &'static [Color]
+        }
+        U::None => &[] as &'static [Color],
+    };
+    preferred.iter().chain(ALL_COLORS.iter()).copied()
+}
+
 pub fn render(frame: &mut Frame, layout: Rect, tab: &mut UiState, charts: &mut [ChartParts]) {
+    let mut colors: Vec<Color> = Vec::new(); // same order as charts
     let mut merged_y_bounds: Vec<(reading::Info, [f64; 2])> = Vec::new();
-    for chart in charts.iter() {
+    'outer: for chart in charts.iter() {
+        let color = plot_colors(chart.reading.unit)
+            .find(|color| !colors.contains(&color))
+            .clone()
+            .unwrap_or(Color::Black);
+        colors.push(color);
         let y_bounds = ybounds(chart, layout);
+
         for (info, existing) in merged_y_bounds.iter_mut() {
             if info.unit == chart.reading.unit {
                 existing[0] = existing[0].min(y_bounds[0]);
-                existing[1] = existing[1].min(y_bounds[1]);
-                continue;
+                existing[1] = existing[1].max(y_bounds[1]);
+                continue 'outer;
             }
         }
         merged_y_bounds.push((chart.reading.clone(), y_bounds));
@@ -63,9 +102,10 @@ pub fn render(frame: &mut Frame, layout: Rect, tab: &mut UiState, charts: &mut [
 
     let datasets = charts
         .iter_mut()
-        .flat_map(|chart| {
-            let (_info, y_bounds) = merged_y_bounds
-                .iter()
+        .zip(colors.into_iter())
+        .flat_map(|(chart, color)| {
+            let (_, y_bounds) = merged_y_bounds
+                .iter_mut()
                 .find(|(info, _)| info.unit == chart.reading.unit)
                 .expect("made bound for every chart");
             let scaling = Scaling::to_normalize(*y_bounds);
@@ -74,11 +114,12 @@ pub fn render(frame: &mut Frame, layout: Rect, tab: &mut UiState, charts: &mut [
                 *y = scaling.normalized(*y)
             }
 
-            split::split(chart, layout.width).map(|line| {
+            let color = color.clone();
+            split::split(chart, layout.width).map(move |line| {
                 Dataset::default()
                     .marker(symbols::Marker::Braille)
                     .graph_type(GraphType::Line)
-                    .style(Style::default())
+                    .style(Style::default().fg(color))
                     .data(line)
             })
         })
