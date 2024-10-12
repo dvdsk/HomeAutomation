@@ -28,7 +28,7 @@ fn data_with_gap(buffer: &mut Vec<(f64, f64)>) -> ChartParts<'_> {
     };
 
     ChartParts {
-        reading: info,
+        info,
         data: buffer.as_mut_slice(),
     }
 }

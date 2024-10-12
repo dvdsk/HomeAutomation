@@ -21,7 +21,7 @@ pub(crate) fn split<'a>(
     chart_width: u16,
 ) -> impl Iterator<Item = &'a [(f64, f64)]> {
     let min_dist = chart
-        .reading
+        .info
         .device
         .info()
         .max_sample_interval
@@ -76,7 +76,7 @@ mod test {
     fn test_split() {
         let mut test_data = test_data();
         let test_chart = ChartParts {
-            reading: protocol::reading::Info {
+            info: protocol::reading::Info {
                 val: 0.0,
                 device: Device::LargeBedroom(large_bedroom::Device::Bed(
                     large_bedroom::bed::Device::Bme680,

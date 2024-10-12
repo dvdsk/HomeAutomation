@@ -240,7 +240,8 @@ impl SensorInfo {
         );
 
         ChartParts {
-            reading: self.info.clone(),
+            info: self.info.clone(),
+            reading: self.reading.clone(),
             data: plot_buf,
         }
     }
@@ -459,7 +460,8 @@ fn get_child_by_name(
 }
 
 pub struct ChartParts<'a> {
-    pub reading: reading::Info,
+    pub info: reading::Info,
+    pub reading: Reading,
     /// array of time, y
     pub data: &'a mut [(f64, f64)],
 }
