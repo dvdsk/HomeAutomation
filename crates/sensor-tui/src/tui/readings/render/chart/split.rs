@@ -49,7 +49,7 @@ pub(crate) fn split<'a>(
         .filter(move |((_, b), (_, a))| **b - **a > min_dist)
         .map(|((ib, _), _)| ib);
 
-    let mut data = chart.data;
+    let mut data = &*chart.data;
     splits.chain(iter::once(0)).map(move |mid| {
         let (left, line) = data.split_at(mid);
         data = left;
@@ -74,7 +74,7 @@ mod test {
 
     #[test]
     fn test_split() {
-        let test_data = test_data();
+        let mut test_data = test_data();
         let test_chart = ChartParts {
             reading: protocol::reading::Info {
                 val: 0.0,
@@ -87,7 +87,7 @@ mod test {
                 description: "test",
                 branch_id: 1,
             },
-            data: &test_data,
+            data: &mut test_data,
         };
         assert_eq!(split(&test_chart, 500).count(), 5);
         assert_eq!(

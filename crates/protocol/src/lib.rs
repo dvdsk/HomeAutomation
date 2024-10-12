@@ -24,7 +24,7 @@ pub use msg::sensor::SensorMessage;
 pub use msg::{DecodeMsgError, Msg};
 pub use reading::Reading;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Unit {
     Pa,
     C,

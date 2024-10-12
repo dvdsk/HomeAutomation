@@ -1,6 +1,8 @@
+use std::collections::HashSet;
 use std::time::Instant;
 
 use crossterm::event::{KeyCode, KeyEvent};
+use log_store::api::Percentile;
 use ratatui::layout::Rect;
 use ratatui::widgets::TableState;
 use ratatui::Frame;
@@ -12,7 +14,7 @@ pub mod sensor_info;
 use history_len::HistoryLen;
 
 use crate::{fetch::Fetch, Update};
-use sensor_info::Readings;
+use sensor_info::{ChartParts, Readings};
 
 use super::Theme;
 
@@ -27,16 +29,19 @@ enum InputMode {
 pub struct UiState {
     show_histogram: bool,
     show_logs: bool,
+    show_complete_help: bool,
     history_length: HistoryLen,
     input_mode: InputMode,
     tree_state: TreeState<u16>,
     logs_table_state: TableState,
+    reading_selected: bool,
+    comparing: HashSet<u16>,
 }
 
 pub struct Tab {
     ui_state: UiState,
     readings: Readings,
-    plot_buf: Vec<(f64, f64)>,
+    plot_bufs: Vec<Vec<(f64, f64)>>,
 }
 
 impl Default for Tab {
@@ -44,9 +49,47 @@ impl Default for Tab {
         Self {
             ui_state: UiState::default(),
             readings: Readings::new(),
-            plot_buf: Vec::new(),
+            plot_bufs: Vec::new(),
         }
     }
+}
+
+#[derive(Default)]
+struct DataToDisplay<'a> {
+    chart_parts: Vec<ChartParts<'a>>,
+    precentiles: Vec<Percentile>,
+    details: Option<sensor_info::Details>,
+    logs: Option<sensor_info::LogList>,
+}
+
+fn fill_data<'a>(
+    to_display: Vec<u16>,
+    readings: &mut Readings,
+    plot_bufs: &'a mut Vec<Vec<(f64, f64)>>,
+    history_len: std::time::Duration,
+) -> DataToDisplay<'a> {
+    for buf in plot_bufs.iter_mut() {
+        buf.clear();
+    }
+    plot_bufs.resize_with(to_display.len().max(plot_bufs.len()), Vec::new);
+    let mut res = DataToDisplay::default();
+    for (i, (ui_id, buf)) in to_display.into_iter().zip(plot_bufs).enumerate() {
+        let Some(info) = readings.get_by_ui_id(ui_id) else {
+            continue;
+        };
+
+        if i == 0 {
+            // TODO merge? if possible;
+            res.precentiles = info.percentiles();
+            // TODO merge to show details from all plots
+            res.details = Some(info.details());
+            // TODO merge to show logs interleaved
+            res.logs = Some(info.logs());
+        }
+
+        res.chart_parts.push(info.chart(buf, history_len));
+    }
+    res
 }
 
 impl Tab {
@@ -54,36 +97,48 @@ impl Tab {
         let Self {
             ui_state,
             readings,
-            plot_buf,
+            plot_bufs,
         } = self;
 
-        let (chart, percentiles, details, logs) = {
-            let data = ui_state
-                .tree_state
-                .selected()
-                .last() // Unique leaf id
-                .and_then(|key| readings.get_by_ui_id(*key));
+        let DataToDisplay {
+            chart_parts,
+            precentiles,
+            details,
+            logs,
+        } = {
+            let selected = ui_state.tree_state.selected().last();
+            ui_state.reading_selected = selected.is_some();
 
-            if let Some(data) = data {
-                (
-                    data.chart(plot_buf, ui_state.history_length.dur),
-                    data.percentiles(),
-                    Some(data.details()),
-                    Some(data.logs()),
-                )
-            } else {
-                plot_buf.clear();
-                (None, Vec::new(), None, None)
-            }
+            let mut to_display: Vec<_> = selected
+                .into_iter()
+                .chain(ui_state.comparing.iter())
+                .copied()
+                .collect();
+            to_display.dedup();
+            fill_data(to_display, readings, plot_bufs, ui_state.history_length.dur)
         };
 
-        let [top, bottom, footer] =
-            render::layout(frame, layout, readings, chart.is_some(), logs.is_some());
+        let [top, bottom, footer] = render::layout(
+            frame,
+            layout,
+            readings,
+            !chart_parts.is_empty(),
+            logs.is_some(),
+            ui_state,
+        );
 
         let have_details = details.is_some();
         render::readings_and_details(frame, top, ui_state, readings, details);
         if have_details {
-            render::graph_hist_logs(frame, bottom, ui_state, &percentiles, logs, chart, theme);
+            render::graph_hist_logs(
+                frame,
+                bottom,
+                ui_state,
+                &precentiles,
+                logs,
+                chart_parts,
+                theme,
+            );
         }
         render::footer(frame, footer, ui_state, theme);
     }
@@ -165,15 +220,28 @@ impl Tab {
 impl UiState {
     fn handle_key_normal_mode(&mut self, key: KeyEvent) -> Option<KeyEvent> {
         match key.code {
-            KeyCode::Char('b') => {
+            KeyCode::Char('b') if self.reading_selected => {
                 self.history_length.start_editing();
                 self.input_mode = InputMode::EditingBounds;
             }
-            KeyCode::Char('h') => {
+            KeyCode::Char('h') if self.reading_selected => {
                 self.show_histogram = !self.show_histogram;
             }
-            KeyCode::Char('l') => {
+            KeyCode::Char('l') if self.reading_selected => {
                 self.show_logs = !self.show_logs;
+            }
+            KeyCode::Char('c') if self.reading_selected => {
+                let id = *self
+                    .tree_state
+                    .selected()
+                    .last()
+                    .expect("reading_selected is true");
+                if !self.comparing.remove(&id) {
+                    self.comparing.insert(id);
+                }
+            }
+            KeyCode::Char('?') => {
+                self.show_complete_help = !self.show_complete_help;
             }
             _ => return Some(key),
         }

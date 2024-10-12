@@ -29,7 +29,7 @@ fn data_with_gap(buffer: &mut Vec<(f64, f64)>) -> ChartParts<'_> {
 
     ChartParts {
         reading: info,
-        data: buffer.as_slice(),
+        data: buffer.as_mut_slice(),
     }
 }
 
@@ -37,7 +37,7 @@ fn chart(frame: &mut Frame) {
     let layout = frame.area();
     let mut tab = UiState::default();
     let mut buffer = Vec::new();
-    chart::render(frame, layout, &mut tab, data_with_gap(&mut buffer));
+    chart::render(frame, layout, &mut tab, &mut [data_with_gap(&mut buffer)]);
 }
 
 fn main() {

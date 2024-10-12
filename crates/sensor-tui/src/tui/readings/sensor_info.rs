@@ -201,7 +201,7 @@ impl SensorInfo {
         &mut self,
         plot_buf: &'a mut Vec<(f64, f64)>,
         history_len: Duration,
-    ) -> Option<ChartParts<'a>> {
+    ) -> ChartParts<'a> {
         let reference = jiff::Timestamp::now() - history_len;
 
         let first_recent = self
@@ -239,10 +239,10 @@ impl SensorInfo {
             \reference: {reference}"
         );
 
-        Some(ChartParts {
+        ChartParts {
             reading: self.info.clone(),
             data: plot_buf,
-        })
+        }
     }
 
     pub(crate) fn logs(&self) -> logs::List {
@@ -461,5 +461,5 @@ fn get_child_by_name(
 pub struct ChartParts<'a> {
     pub reading: reading::Info,
     /// array of time, y
-    pub data: &'a [(f64, f64)],
+    pub data: &'a mut [(f64, f64)],
 }

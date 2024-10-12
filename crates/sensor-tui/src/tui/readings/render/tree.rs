@@ -1,4 +1,8 @@
+use std::collections::HashSet;
+
 use indextree::Arena;
+use ratatui::style::{Style, Stylize};
+use ratatui::text::Text;
 use tui_tree_widget::TreeItem;
 
 use crate::tui::readings::sensor_info::{Node, Readings, SensorInfo};
@@ -14,7 +18,10 @@ impl IdGen {
     }
 }
 
-pub(crate) fn build_ui(readings: &Readings) -> Vec<TreeItem<u16>> {
+pub(crate) fn build_ui<'a>(
+    readings: &'a Readings,
+    comparing: &HashSet<u16>,
+) -> Vec<TreeItem<'a, u16>> {
     let mut id_gen = IdGen::default();
 
     readings
@@ -22,11 +29,11 @@ pub(crate) fn build_ui(readings: &Readings) -> Vec<TreeItem<u16>> {
         .children(&readings.arena)
         .map(
             |subroot| match readings.arena.get(subroot).expect("child exists").get() {
-                Node::Sensor(info) => new_leaf(info),
+                Node::Sensor(info) => new_leaf(info, comparing),
                 Node::Branch(name) => TreeItem::new(
                     id_gen.next(),
                     name.as_str(),
-                    recusive_call(subroot, &readings.arena, &mut id_gen),
+                    recusive_call(subroot, &readings.arena, &mut id_gen, comparing),
                 )
                 .expect("no duplicate ids"),
                 Node::Root => unreachable!("Root is not a descendant"),
@@ -39,16 +46,17 @@ fn recusive_call<'a>(
     root: indextree::NodeId,
     arena: &'a Arena<Node>,
     id_gen: &mut IdGen,
+    comparing: &HashSet<u16>,
 ) -> Vec<TreeItem<'a, u16>> {
     root.children(arena)
         .map(|child_id| {
             let child_node = arena.get(child_id).expect("child exists").get();
             match child_node {
-                Node::Sensor(info) => new_leaf(info),
+                Node::Sensor(info) => new_leaf(info, comparing),
                 Node::Branch(name) => TreeItem::new(
                     id_gen.next(),
                     name.as_str(),
-                    recusive_call(child_id, arena, id_gen),
+                    recusive_call(child_id, arena, id_gen, comparing),
                 )
                 .expect("no duplicate ids"),
                 Node::Root => unreachable!("Root is not a descendant"),
@@ -57,7 +65,7 @@ fn recusive_call<'a>(
         .collect()
 }
 
-fn new_leaf(info: &SensorInfo) -> TreeItem<u16> {
+fn new_leaf<'a>(info: &'a SensorInfo, comparing: &HashSet<u16>) -> TreeItem<'a, u16> {
     use protocol::reading::tree::{Item, Tree};
 
     let mut node = &info.reading as &dyn Tree;
@@ -65,16 +73,23 @@ fn new_leaf(info: &SensorInfo) -> TreeItem<u16> {
         node = inner;
     }
 
-    if info.is_placeholder {
-        TreeItem::new_leaf(info.ui_id, node.name())
+    let style = if comparing.contains(&info.ui_id) {
+        Style::new().italic().blue()
     } else {
-        let text = format!(
+        Style::new()
+    };
+
+    let text = if info.is_placeholder {
+        node.name()
+    } else {
+        format!(
             "{0}: {1:.2$} {3}",
             node.name(),
             info.info.val,
             info.info.precision(),
             info.info.unit
-        );
-        TreeItem::new_leaf(info.ui_id, text)
-    }
+        )
+    };
+
+    TreeItem::new_leaf(info.ui_id, Text::styled(text, style))
 }

@@ -5,33 +5,39 @@ use ratatui::layout::Rect;
 use ratatui::text::Span;
 
 use crate::time::format::progressively_more_specified;
-use crate::tui::readings::sensor_info::ChartParts;
 
 use super::Bounds;
 
-type Labels = Vec<Span<'static>>;
+const Y_LABEL_SPACING: u16 = 10;
 
-pub fn labels(
-    chart: &ChartParts,
+pub fn y_labels(info: &reading::Info, layout: Rect, y_bounds: Bounds) -> Vec<String> {
+    // Characters are about twice as high as wide
+    evenly_spaced_ylabels(
+        layout.height / Y_LABEL_SPACING,
+        info.resolution as f64,
+        y_bounds,
+    )
+    .map(|y| format!("{0:.1$}", y, info.precision()))
+    .collect()
+}
+
+type Labels = Vec<Span<'static>>;
+pub fn x_labels(
     layout: Rect,
     x_bounds: Bounds,
-    y_bounds: Bounds,
     scale: &progressively_more_specified::FmtScale,
-) -> (Labels, Labels) {
-    let y_label_spacing = 10;
-    let info = &chart.reading;
-
+) -> Labels {
     // Characters are about twice as high as wide
-    let x = evenly_spaced_labels(layout.width / y_label_spacing / 2, info, x_bounds)
+    let max_labels = layout.width / Y_LABEL_SPACING / 2;
+    let n_labels = max_labels.max(2);
+    let x_spacing = (x_bounds[1] - x_bounds[0]) / n_labels as f64;
+
+    (0..=n_labels)
+        .map(move |i| x_bounds[0] + x_spacing * i as f64)
         .rev()
         .map(|x| fmt(x, scale))
         .map(Into::into)
-        .collect();
-    let y = evenly_spaced_labels(layout.height / y_label_spacing, info, y_bounds)
-        .map(|y| format!("{0:.1$}", y, info.precision()).into())
-        .collect();
-
-    (x, y)
+        .collect()
 }
 
 fn fmt(x: f64, scale: &progressively_more_specified::FmtScale) -> String {
@@ -50,12 +56,11 @@ pub fn scale(secs: f64) -> progressively_more_specified::FmtScale {
     progressively_more_specified::FmtScale::optimal_for(time, elapsed)
 }
 
-fn evenly_spaced_labels(
+fn evenly_spaced_ylabels(
     max_labels: u16,
-    reading: &reading::Info,
+    resolution: f64,
     bounds: Bounds,
 ) -> impl DoubleEndedIterator<Item = f64> {
-    let resolution = reading.resolution as f64;
     let steps_in_data = (bounds[1] - bounds[0]) / resolution;
 
     let n_labels = max_labels.min(steps_in_data as u16).max(2);

@@ -27,6 +27,7 @@ pub(crate) fn layout(
     readings: &Readings,
     chart: bool,
     logs: bool,
+    ui_state: &UiState,
 ) -> [Rect; 3] {
     let [list_constraint, graph_constraint] = if chart {
         let tree_height = 2 + readings
@@ -49,9 +50,14 @@ pub(crate) fn layout(
         [Constraint::Percentage(100), Constraint::Percentage(0)]
     };
 
-    Layout::vertical([list_constraint, graph_constraint, Constraint::Min(1)])
-        .flex(Flex::Legacy)
-        .areas(layout)
+    let help_size = 1 + ui_state.show_complete_help as u16;
+    Layout::vertical([
+        list_constraint,
+        graph_constraint,
+        Constraint::Min(help_size),
+    ])
+    .flex(Flex::Legacy)
+    .areas(layout)
 }
 
 pub(crate) fn footer(frame: &mut Frame, layout: Rect, app: &mut UiState, theme: &Theme) {
@@ -61,20 +67,45 @@ pub(crate) fn footer(frame: &mut Frame, layout: Rect, app: &mut UiState, theme: 
         footer.push("ESC or q: stop bound editing");
     } else {
         footer.push("ESC or q: quit");
-        footer.push("b: edit graph start");
     }
 
-    if app.show_histogram {
-        footer.push("h: hide histogram");
-    } else {
-        footer.push("h: show histogram");
+    if app.reading_selected {
+        if !app.history_length.editing {
+            footer.push("b: edit graph start");
+        }
+
+        if app.show_histogram {
+            footer.push("h: hide histogram");
+        } else {
+            footer.push("h: show histogram");
+        }
+
+        if app.show_logs {
+            footer.push("l: hide logs");
+        } else {
+            footer.push("l: show logs");
+        }
+
+        if app.show_complete_help {
+            footer.push("?: show more help");
+        } else {
+            footer.push("?: hide more help");
+        }
     }
 
-    if app.show_logs {
-        footer.push("l: hide logs");
+    let layout = if app.show_complete_help {
+        let [top, bottom] = Layout::vertical([Constraint::Min(1), Constraint::Min(1)])
+            .flex(Flex::Legacy)
+            .areas(layout);
+
+        let footer = Text::raw("c: toggle compare")
+            .alignment(Alignment::Center)
+            .style(theme.bars);
+        frame.render_widget(footer, bottom);
+        top
     } else {
-        footer.push("l: show logs");
-    }
+        layout
+    };
 
     let footer = footer.join("  ");
     let footer = Text::raw(footer)
@@ -89,13 +120,13 @@ pub(crate) fn graph_hist_logs(
     app: &mut UiState,
     percentiles: &[Percentile],
     logs: Option<LogList>,
-    chart: Option<ChartParts>,
+    mut chart: Vec<ChartParts>,
     theme: &Theme,
 ) {
     let num_elems = 1usize + app.show_histogram as usize + app.show_logs as usize;
 
     let mut constraints = [Constraint::Max(2); 3];
-    if chart.is_some() {
+    if !chart.is_empty() {
         constraints[0] = Constraint::Fill(10);
     }
     if logs
@@ -118,15 +149,15 @@ pub(crate) fn graph_hist_logs(
 
     let mut layout = layout.iter().cloned();
 
-    if let Some(chart) = chart {
-        chart::render(frame, layout.next().unwrap(), app, chart);
-    } else {
+    if chart.is_empty() {
         centered_text(
             "No chart as there is no data",
             frame,
             layout.next().unwrap(),
             theme,
         )
+    } else {
+        chart::render(frame, layout.next().unwrap(), app, &mut chart);
     }
 
     if app.show_logs {
@@ -192,7 +223,7 @@ pub(crate) fn readings_and_details(
             .flex(Flex::Legacy)
             .areas(layout);
 
-    let tree = tree::build_ui(readings);
+    let tree = tree::build_ui(readings, &app.comparing);
     frame.render_stateful_widget(
         Tree::new(&tree)
             .expect("all item identifiers should be unique")
