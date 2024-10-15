@@ -61,35 +61,35 @@ pub(crate) fn layout(
 }
 
 pub(crate) fn footer(frame: &mut Frame, layout: Rect, app: &mut UiState, theme: &Theme) {
-    let mut footer = Vec::new();
+    let mut main = Vec::new();
 
     if app.history_length.editing {
-        footer.push("ESC or q: stop bound editing");
+        main.push("ESC or q: stop bound editing");
     } else {
-        footer.push("ESC or q: quit");
+        main.push("ESC or q: quit");
     }
 
     if app.reading_selected {
         if !app.history_length.editing {
-            footer.push("b: edit graph start");
+            main.push("b: edit graph start");
         }
 
         if app.show_histogram {
-            footer.push("h: hide histogram");
+            main.push("h: hide histogram");
         } else {
-            footer.push("h: show histogram");
+            main.push("h: show histogram");
         }
 
         if app.show_logs {
-            footer.push("l: hide logs");
+            main.push("l: hide logs");
         } else {
-            footer.push("l: show logs");
+            main.push("l: show logs");
         }
 
         if app.show_complete_help {
-            footer.push("?: show more help");
+            main.push("?: hide more help");
         } else {
-            footer.push("?: hide more help");
+            main.push("?: show more help");
         }
     }
 
@@ -98,7 +98,17 @@ pub(crate) fn footer(frame: &mut Frame, layout: Rect, app: &mut UiState, theme: 
             .flex(Flex::Legacy)
             .areas(layout);
 
-        let footer = Text::raw("c: toggle compare")
+        let mut extra = Vec::new();
+        if app.reading_selected {
+            extra.push("c: toggle compare");
+            if app.show_cursor {
+                extra.push("x: hide cursor");
+            } else {
+                extra.push("x: show cursor");
+            }
+        }
+        let footer = extra.join("  ");
+        let footer = Text::raw(footer)
             .alignment(Alignment::Center)
             .style(theme.bars);
         frame.render_widget(footer, bottom);
@@ -107,7 +117,7 @@ pub(crate) fn footer(frame: &mut Frame, layout: Rect, app: &mut UiState, theme: 
         layout
     };
 
-    let footer = footer.join("  ");
+    let footer = main.join("  ");
     let footer = Text::raw(footer)
         .alignment(Alignment::Center)
         .style(theme.bars);

@@ -277,6 +277,10 @@ impl IdGen {
     }
 }
 
+pub fn is_leaf_id(id: u16) -> bool {
+    id > 10_000
+}
+
 /// Guaranteed to be unique for a leaf,
 /// the path to the leaf (through branch-id's) is
 /// encoded with the last byte byte being the leaf's id

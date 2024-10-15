@@ -14,7 +14,7 @@ pub mod sensor_info;
 use history_len::HistoryLen;
 
 use crate::{fetch::Fetch, Update};
-use sensor_info::{ChartParts, Readings};
+use sensor_info::{is_leaf_id, ChartParts, Readings};
 
 use super::Theme;
 
@@ -30,6 +30,7 @@ pub struct UiState {
     show_histogram: bool,
     show_logs: bool,
     show_complete_help: bool,
+    show_cursor: bool,
     history_length: HistoryLen,
     input_mode: InputMode,
     tree_state: TreeState<u16>,
@@ -107,7 +108,7 @@ impl Tab {
             logs,
         } = {
             let selected = ui_state.tree_state.selected().last();
-            ui_state.reading_selected = selected.is_some();
+            ui_state.reading_selected = selected.copied().is_some_and(is_leaf_id);
 
             let mut to_display: Vec<_> = selected
                 .into_iter()
@@ -230,6 +231,9 @@ impl UiState {
             }
             KeyCode::Char('l') if self.reading_selected => {
                 self.show_logs = !self.show_logs;
+            }
+            KeyCode::Char('x') if self.reading_selected => {
+                self.show_cursor = !self.show_cursor;
             }
             KeyCode::Char('c') if self.reading_selected => {
                 let id = *self
