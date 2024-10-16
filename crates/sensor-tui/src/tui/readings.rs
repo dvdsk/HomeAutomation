@@ -1,13 +1,14 @@
 use std::collections::HashSet;
 use std::time::Instant;
 
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyEvent;
 use log_store::api::Percentile;
 use ratatui::layout::Rect;
 use ratatui::widgets::TableState;
 use ratatui::Frame;
 use tui_tree_widget::TreeState;
 
+mod handle_key;
 pub(crate) mod history_len;
 pub mod render;
 pub mod sensor_info;
@@ -19,10 +20,64 @@ use sensor_info::{is_leaf_id, ChartParts, Readings};
 use super::Theme;
 
 #[derive(Debug, Default, Clone, Copy)]
-enum InputMode {
-    #[default]
-    Normal,
-    EditingBounds,
+struct InputMode {
+    editing_bounds: bool,
+    chart_cursor: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ChartCursor {
+    Disabled {
+        // steps (characters) from the left where the cursor
+        // will be shown again if its re-enabled
+        steps: i32,
+    },
+    Enabled {
+        // steps (characters) from the left
+        steps: i32,
+    },
+}
+
+impl Default for ChartCursor {
+    fn default() -> Self {
+        Self::Disabled { steps: 0 }
+    }
+}
+
+impl ChartCursor {
+    fn is_enabled(&self) -> bool {
+        matches!(self, Self::Enabled { .. })
+    }
+    fn toggle(&mut self) {
+        *self = match *self {
+            ChartCursor::Disabled { steps } => ChartCursor::Enabled { steps },
+            ChartCursor::Enabled { steps } => ChartCursor::Disabled { steps },
+        }
+    }
+    fn shift(&mut self, offset: i32) {
+        let ChartCursor::Enabled { ref mut steps } = self else {
+            return;
+        };
+
+        *steps += offset;
+    }
+
+    fn get(&mut self, chart_width: u16) -> Option<u16> {
+        let steps = match self {
+            ChartCursor::Disabled { .. } => return None,
+            ChartCursor::Enabled { steps } => steps,
+        };
+
+        *steps = if *steps >= chart_width as i32 {
+            0
+        } else if *steps < 0 {
+            chart_width as i32 - 1
+        } else {
+            *steps
+        };
+
+        Some(*steps as u16)
+    }
 }
 
 #[derive(Default)]
@@ -30,7 +85,7 @@ pub struct UiState {
     show_histogram: bool,
     show_logs: bool,
     show_complete_help: bool,
-    show_cursor: bool,
+    chart_cursor: ChartCursor,
     history_length: HistoryLen,
     input_mode: InputMode,
     tree_state: TreeState<u16>,
@@ -146,11 +201,15 @@ impl Tab {
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> Option<KeyEvent> {
-        self.ui_state.handle_key_all_modes(key)?;
-        match self.ui_state.input_mode {
-            InputMode::Normal => self.ui_state.handle_key_normal_mode(key)?,
-            InputMode::EditingBounds => self.ui_state.handle_key_bounds_mode(key)?,
+        self.ui_state.handle_key_all(key)?;
+        if self.ui_state.input_mode.editing_bounds {
+            self.ui_state.handle_key_bounds(key)?;
+        } else {
+            self.ui_state.handle_key_normal_mode(key)?;
         };
+        if self.ui_state.input_mode.chart_cursor {
+            self.ui_state.handle_key_cursor(key)?;
+        }
 
         Some(key)
     }
@@ -216,68 +275,5 @@ impl Tab {
             data.logs.covers_from(),
             data.histogram_range.clone(),
         );
-    }
-}
-
-impl UiState {
-    fn handle_key_normal_mode(&mut self, key: KeyEvent) -> Option<KeyEvent> {
-        match key.code {
-            KeyCode::Char('b') if self.reading_selected => {
-                self.history_length.start_editing();
-                self.input_mode = InputMode::EditingBounds;
-            }
-            KeyCode::Char('h') if self.reading_selected => {
-                self.show_histogram = !self.show_histogram;
-            }
-            KeyCode::Char('l') if self.reading_selected => {
-                self.show_logs = !self.show_logs;
-            }
-            KeyCode::Char('x') if self.reading_selected => {
-                self.show_cursor = !self.show_cursor;
-            }
-            KeyCode::Char('c') if self.reading_selected => {
-                let id = *self
-                    .tree_state
-                    .selected()
-                    .last()
-                    .expect("reading_selected is true");
-                if !self.comparing.remove(&id) {
-                    self.comparing.insert(id);
-                }
-            }
-            KeyCode::Char('?') => {
-                self.show_complete_help = !self.show_complete_help;
-            }
-            _ => return Some(key),
-        }
-
-        None
-    }
-
-    fn handle_key_bounds_mode(&mut self, key: KeyEvent) -> Option<KeyEvent> {
-        match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => {
-                self.history_length.exit_editing();
-                self.input_mode = InputMode::Normal;
-                None
-            }
-            _ => self.history_length.process(key),
-        }
-    }
-
-    fn handle_key_all_modes(&mut self, key: KeyEvent) -> Option<KeyEvent> {
-        match key.code {
-            KeyCode::Down => {
-                self.tree_state.key_down();
-            }
-            KeyCode::Up => {
-                self.tree_state.key_up();
-            }
-            KeyCode::Enter => {
-                self.tree_state.toggle_selected();
-            }
-            _ => return Some(key),
-        }
-        None
     }
 }

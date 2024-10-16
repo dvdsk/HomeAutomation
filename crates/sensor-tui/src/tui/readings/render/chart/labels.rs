@@ -4,7 +4,7 @@ use protocol::reading;
 use ratatui::layout::Rect;
 use ratatui::text::Span;
 
-use crate::time::format::progressively_more_specified;
+use crate::time::format::progressively_more_specified::{self, FmtScale};
 use crate::tui::readings::history_len::HistoryLen;
 
 use super::Bounds;
@@ -50,7 +50,7 @@ pub fn x_and_title(
     layout: Rect,
     x_bounds: Bounds,
     history_len: &HistoryLen,
-) -> (Labels, String) {
+) -> (Labels, String, FmtScale) {
     // Characters are about twice as high as wide
     let max_labels = layout.width / Y_LABEL_SPACING / 2;
     let n_labels = max_labels.max(2);
@@ -69,10 +69,10 @@ pub fn x_and_title(
     labels[0] = history_len.style_left_x_label(owned);
 
     let title = format!("Time ({scale})");
-    (labels, title)
+    (labels, title, scale)
 }
 
-fn fmt(x: f64, scale: &progressively_more_specified::FmtScale) -> String {
+pub fn fmt(x: f64, scale: &progressively_more_specified::FmtScale) -> String {
     let now = jiff::Timestamp::now();
     let elapsed = Duration::from_secs_f64(x);
     let time = now - elapsed;

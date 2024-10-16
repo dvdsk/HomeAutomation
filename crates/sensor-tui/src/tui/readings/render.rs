@@ -101,10 +101,10 @@ pub(crate) fn footer(frame: &mut Frame, layout: Rect, app: &mut UiState, theme: 
         let mut extra = Vec::new();
         if app.reading_selected {
             extra.push("c: toggle compare");
-            if app.show_cursor {
-                extra.push("x: hide cursor");
+            if app.chart_cursor.is_enabled() {
+                extra.push("x: enable cursor");
             } else {
-                extra.push("x: show cursor");
+                extra.push("x: disable cursor");
             }
         }
         let footer = extra.join("  ");

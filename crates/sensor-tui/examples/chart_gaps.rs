@@ -30,6 +30,9 @@ fn data_with_gap(buffer: &mut Vec<(f64, f64)>) -> ChartParts<'_> {
     ChartParts {
         info,
         data: buffer.as_mut_slice(),
+        reading: protocol::Reading::SmallBedroom(protocol::small_bedroom::Reading::Bed(
+            protocol::small_bedroom::bed::Reading::Temperature(0.0),
+        )),
     }
 }
 

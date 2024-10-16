@@ -1,3 +1,6 @@
+use std::iter;
+
+use cursor::{CursorData, TooInaccurate};
 use protocol::reading;
 use ratatui::{
     layout::{Alignment, Rect},
@@ -8,8 +11,12 @@ use ratatui::{
     Frame,
 };
 
-use crate::tui::readings::{sensor_info::ChartParts, UiState};
+use crate::{
+    time::format::progressively_more_specified::FmtScale,
+    tui::readings::{sensor_info::ChartParts, ChartCursor, UiState},
+};
 
+mod cursor;
 mod labels;
 mod split;
 
@@ -64,12 +71,12 @@ fn plot_colors(unit: protocol::Unit) -> impl Iterator<Item = Color> {
     preferred.iter().chain(ALL_COLORS.iter()).copied()
 }
 
-pub fn render(frame: &mut Frame, layout: Rect, tab: &mut UiState, charts: &mut [ChartParts]) {
+pub fn render(frame: &mut Frame, layout: Rect, ui: &mut UiState, charts: &mut [ChartParts]) {
     let (colors, merged_y_bounds) = bounds_and_colors(charts, layout);
     let (y_labels, y_title) = labels::y_and_title(&merged_y_bounds, layout);
 
-    let x_bounds = [0f64, tab.history_length.dur.as_secs_f64()];
-    let (x_labels, x_title) = labels::x_and_title(layout, x_bounds, &tab.history_length);
+    let x_bounds = [0f64, ui.history_length.dur.as_secs_f64()];
+    let (x_labels, x_title, scale) = labels::x_and_title(layout, x_bounds, &ui.history_length);
 
     let x_axis = Axis::default()
         .title(x_title)
@@ -78,11 +85,19 @@ pub fn render(frame: &mut Frame, layout: Rect, tab: &mut UiState, charts: &mut [
         .labels(x_labels)
         .labels_alignment(Alignment::Center);
 
+    let y_axis_width = y_labels.iter().map(|l| l.len()).max().unwrap_or(0) as u16;
     let y_axis = Axis::default()
         .title(y_title)
         .style(Style::default())
         .bounds([0.0, 1.0])
         .labels(y_labels);
+
+    let chart_width = layout.width - y_axis_width - 3;
+    let cursor = if let Some(steps) = ui.chart_cursor.get(chart_width) {
+        Some(CursorData::new(steps, x_bounds, charts, chart_width))
+    } else {
+        None
+    };
 
     let datasets = datasets(charts, &colors, merged_y_bounds, layout);
     let linechart = Chart::new(datasets)
@@ -91,8 +106,11 @@ pub fn render(frame: &mut Frame, layout: Rect, tab: &mut UiState, charts: &mut [
         .y_axis(y_axis);
     frame.render_widget(linechart, layout);
 
-    if charts.len() > 1 {
-        render_legend(layout, frame, charts, colors);
+    if charts.len() > 1 || cursor.is_some() {
+        render_legend(layout, frame, charts, colors, cursor, scale);
+    }
+    if let Some(steps) = ui.chart_cursor.get(chart_width) {
+        cursor::render(layout, frame, steps, y_axis_width);
     }
 }
 
@@ -156,12 +174,30 @@ fn bounds_and_colors(
     (colors, merged_y_bounds)
 }
 
-fn render_legend(layout: Rect, frame: &mut Frame, charts: &mut [ChartParts], colors: Vec<Color>) {
+fn render_legend(
+    layout: Rect,
+    frame: &mut Frame,
+    charts: &mut [ChartParts],
+    colors: Vec<Color>,
+    cursor: Option<CursorData>,
+    scale: FmtScale,
+) {
+    let (values, cursor_label) = if let Some(CursorData { pos, values }) = cursor {
+        let renderd = labels::fmt(pos, &scale);
+        let label = format!("cursor: {} {}", renderd, scale);
+        (values, Some(Line::raw(label)))
+    } else {
+        (Vec::new(), None)
+    };
+    let values = values.into_iter().map(Some).chain(iter::repeat(None));
+
     let text: Text = charts
         .iter()
+        .map(|ChartParts { reading, .. }| reading)
         .zip(colors)
-        .map(|(ChartParts { reading, .. }, color)| (reading, color))
+        .zip(values)
         .map(fmt_reading)
+        .chain(cursor_label)
         .collect();
 
     let area = legend_area(&text, layout);
@@ -185,7 +221,12 @@ fn legend_area(text: &Text, chart: Rect) -> Rect {
     }
 }
 
-fn fmt_reading((reading, color): (&protocol::Reading, Color)) -> Line {
+fn fmt_reading(
+    ((reading, color), cursor_value): (
+        (&protocol::Reading, Color),
+        Option<Result<f64, cursor::TooInaccurate>>,
+    ),
+) -> Line {
     use protocol::reading::tree::{Item, Tree};
     let mut node = reading as &dyn Tree;
     let mut text = node.name();
@@ -197,6 +238,11 @@ fn fmt_reading((reading, color): (&protocol::Reading, Color)) -> Line {
         }
         text.push('/');
         text.push_str(&node.name());
+    }
+    match cursor_value {
+        Some(Ok(v)) => text.push_str(&format!(": {0:.1$}", v, reading.leaf().precision())),
+        Some(Err(TooInaccurate)) => text.push_str(" x"),
+        None => (),
     }
     Line::styled(text, Style::default().fg(color).bg(Color::Gray))
 }

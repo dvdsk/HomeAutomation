@@ -20,13 +20,7 @@ pub(crate) fn split<'a>(
     chart: &'a ChartParts,
     chart_width: u16,
 ) -> impl Iterator<Item = &'a [(f64, f64)]> {
-    let min_dist = chart
-        .info
-        .device
-        .info()
-        .max_sample_interval
-        .as_secs_f64()
-        * 1.2; // 20% margin
+    let min_dist = chart.info.device.info().max_sample_interval.as_secs_f64() * 1.2; // 20% margin
 
     let chart_resolution = chart
         .data
@@ -88,6 +82,9 @@ mod test {
                 branch_id: 1,
             },
             data: &mut test_data,
+            reading: protocol::Reading::LargeBedroom(large_bedroom::Reading::Bed(
+                large_bedroom::bed::Reading::GassResistance(0.0),
+            )),
         };
         assert_eq!(split(&test_chart, 500).count(), 5);
         assert_eq!(
