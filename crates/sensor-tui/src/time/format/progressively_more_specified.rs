@@ -18,8 +18,8 @@ impl Display for FmtScale {
             FmtScale::RelativeDuration => f.write_str("elapsed"),
             FmtScale::HourMinute => f.write_str("<hour>:<minute>"),
             FmtScale::DayHour => f.write_str("<day (date)> <hour>"),
-            FmtScale::MonthDay => f.write_str("<month>/<day>"),
-            FmtScale::YearMonth => f.write_str("<year>/<month>"),
+            FmtScale::MonthDay => f.write_str("<day> <month>"),
+            FmtScale::YearMonth => f.write_str("<month> <year>"),
         }
     }
 }
@@ -67,8 +67,8 @@ impl FmtScale {
             FmtScale::RelativeDuration => duration(elapsed.as_secs_f64()) + duration_postfix,
             FmtScale::HourMinute => t.strftime("%H:%M").to_string(),
             FmtScale::DayHour => t.strftime("%dth %Hh").to_string(),
-            FmtScale::MonthDay => t.strftime("%M/%d").to_string(),
-            FmtScale::YearMonth => t.strftime("%Y/%m").to_string(),
+            FmtScale::MonthDay => t.strftime("%d %b").to_string(),
+            FmtScale::YearMonth => t.strftime("%b %Y").to_string(),
         }
     }
 }
