@@ -255,25 +255,27 @@ impl Tab {
     }
 
     pub(crate) fn fetch_if_needed(&mut self, fetcher: &mut Fetch) {
-        let Some(data) = self
-            .ui_state
-            .tree_state
-            .selected()
-            .last() // Unique leaf id
-            .and_then(|key| self.readings.get_by_ui_id(*key))
-        else {
-            return; // Nothing selected
-        };
+        let selected = self.ui_state.tree_state.selected().last();
+        let needed = selected
+            .into_iter()
+            .chain(self.ui_state.comparing.iter())
+            .copied();
 
         let dur = self.ui_state.history_length.dur;
         let history_len = &mut self.ui_state.history_length.state;
-        fetcher.assure_up_to_date(
-            dur,
-            || *history_len = history_len::State::Fetching(Instant::now()),
-            data.reading.clone(),
-            data.oldest_in_history(),
-            data.logs.covers_from(),
-            data.histogram_range.clone(),
-        );
+        for data in needed {
+            let Some(data) = self.readings.get_by_ui_id(data) else {
+                continue;
+            };
+
+            fetcher.assure_up_to_date(
+                dur,
+                || *history_len = history_len::State::Fetching(Instant::now()),
+                data.reading.clone(),
+                data.oldest_in_history(),
+                data.logs.covers_from(),
+                data.histogram_range.clone(),
+            );
+        }
     }
 }

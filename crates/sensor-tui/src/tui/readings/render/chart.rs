@@ -13,7 +13,7 @@ use ratatui::{
 
 use crate::{
     time::format::progressively_more_specified::FmtScale,
-    tui::readings::{sensor_info::ChartParts, ChartCursor, UiState},
+    tui::readings::{sensor_info::ChartParts, UiState},
 };
 
 mod cursor;
@@ -185,7 +185,8 @@ fn render_legend(
     let (values, cursor_label) = if let Some(CursorData { pos, values }) = cursor {
         let renderd = labels::fmt(pos, &scale);
         let label = format!("cursor: {} {}", renderd, scale);
-        (values, Some(Line::raw(label)))
+        let label = Line::styled(label, Style::default().bg(Color::Gray));
+        (values, Some(label))
     } else {
         (Vec::new(), None)
     };

@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use ratatui::prelude::Rect;
 use ratatui::text::Span;
 use ratatui::widgets::Clear;
