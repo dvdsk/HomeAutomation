@@ -1,4 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
+use jiff::Timestamp;
 use ratatui::{
     style::{Color, Modifier, Style},
     text::Span,
@@ -17,14 +18,28 @@ pub enum State {
     Fetched,
 }
 
-pub struct HistoryLen {
+#[derive(Debug)]
+pub enum Range {
+    Elapsed(Duration),
+    Window([jiff::Timestamp; 2]),
+}
+
+impl Range {
+    pub(crate) fn unwrap_duration(&self) -> &Duration {
+        let Self::Elapsed(dur) = self else { todo!() };
+
+        dur
+    }
+}
+
+pub struct PlotRange {
     pub text_input: String,
     pub editing: bool,
     pub state: State,
-    pub dur: Duration,
+    pub range: Range,
 }
 
-impl Default for HistoryLen {
+impl Default for PlotRange {
     fn default() -> Self {
         let dur = Duration::from_secs(15 * 60);
         let text_input = duration(dur.as_secs_f64());
@@ -32,12 +47,12 @@ impl Default for HistoryLen {
             text_input,
             editing: false,
             state: State::Empty,
-            dur,
+            range: Range::Elapsed(dur),
         }
     }
 }
 
-impl HistoryLen {
+impl PlotRange {
     pub(crate) fn process(&mut self, key: KeyEvent) -> Option<KeyEvent> {
         match key.code {
             KeyCode::Char(c) => {
@@ -51,7 +66,7 @@ impl HistoryLen {
 
         if let Ok(dur) = parse_duration(&self.text_input) {
             self.state = State::Valid;
-            self.dur = dur;
+            self.range = Range::Elapsed(dur);
         } else if self.text_input.is_empty() {
             self.state = State::Empty;
         } else {
@@ -109,5 +124,49 @@ impl HistoryLen {
     pub(crate) fn start_editing(&mut self) {
         self.editing = true;
         self.text_input.clear();
+    }
+
+    pub(crate) fn x_bounds(&self) -> [f64; 2] {
+        match self.range {
+            Range::Elapsed(dur) => [0f64, dur.as_secs_f64()],
+            Range::Window([start, end]) => {
+                let now = Timestamp::now();
+                [
+                    start
+                        .until(now)
+                        .expect("now should be in the future")
+                        .round(jiff::Unit::Second)
+                        .expect("Timestamp.until(Timestamp) < Timestamp::Max")
+                        .get_seconds() as f64,
+                    end.until(now)
+                        .expect("now should be in the future")
+                        .round(jiff::Unit::Second)
+                        .expect("Timestamp.until(Timestamp) < Timestamp::Max")
+                        .get_seconds() as f64,
+                ]
+            }
+        }
+    }
+
+    pub(crate) fn change(&mut self, [mul_start, mul_end]: [f64; 2]) {
+        let (dur, start) = match self.range {
+            Range::Elapsed(dur) => {
+                let start = Timestamp::now() - dur;
+                (dur.as_secs_f64(), start)
+            }
+            Range::Window([start, end]) => {
+                let dur = start
+                    .until(end)
+                    .expect("timestamps can be subtraced")
+                    .round(jiff::Unit::Second)
+                    .expect("Timestamp.until(Timestamp) < Timestamp::Max")
+                    .get_seconds() as f64;
+                (dur, start)
+            }
+        };
+        let start = start + Duration::from_secs_f64(dur * mul_start);
+        let end = start + Duration::from_secs_f64(dur * mul_end);
+        self.range = Range::Window([start, end]);
+        self.state = State::Valid;
     }
 }

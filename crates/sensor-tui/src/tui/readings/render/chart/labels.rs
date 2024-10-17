@@ -5,7 +5,7 @@ use ratatui::layout::Rect;
 use ratatui::text::Span;
 
 use crate::time::format::progressively_more_specified::{self, FmtScale};
-use crate::tui::readings::history_len::HistoryLen;
+use crate::tui::readings::history_len::PlotRange;
 
 use super::Bounds;
 
@@ -49,7 +49,7 @@ type Labels = Vec<Span<'static>>;
 pub fn x_and_title(
     layout: Rect,
     x_bounds: Bounds,
-    history_len: &HistoryLen,
+    history_len: &PlotRange,
 ) -> (Labels, String, FmtScale) {
     // Characters are about twice as high as wide
     let max_labels = layout.width / Y_LABEL_SPACING / 2;

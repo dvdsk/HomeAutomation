@@ -63,14 +63,14 @@ pub(crate) fn layout(
 pub(crate) fn footer(frame: &mut Frame, layout: Rect, app: &mut UiState, theme: &Theme) {
     let mut main = Vec::new();
 
-    if app.history_length.editing {
+    if app.plot_range.editing {
         main.push("ESC or q: stop bound editing");
     } else {
         main.push("ESC or q: quit");
     }
 
     if app.reading_selected {
-        if !app.history_length.editing {
+        if !app.plot_range.editing {
             main.push("b: edit graph start");
         }
 

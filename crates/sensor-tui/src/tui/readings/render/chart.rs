@@ -75,8 +75,8 @@ pub fn render(frame: &mut Frame, layout: Rect, ui: &mut UiState, charts: &mut [C
     let (colors, merged_y_bounds) = bounds_and_colors(charts, layout);
     let (y_labels, y_title) = labels::y_and_title(&merged_y_bounds, layout);
 
-    let x_bounds = [0f64, ui.history_length.dur.as_secs_f64()];
-    let (x_labels, x_title, scale) = labels::x_and_title(layout, x_bounds, &ui.history_length);
+    let x_bounds = ui.plot_range.x_bounds();
+    let (x_labels, x_title, scale) = labels::x_and_title(layout, x_bounds, &ui.plot_range);
 
     let x_axis = Axis::default()
         .title(x_title)

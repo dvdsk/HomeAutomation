@@ -12,7 +12,7 @@ mod handle_key;
 pub(crate) mod history_len;
 pub mod render;
 pub mod sensor_info;
-use history_len::HistoryLen;
+use history_len::PlotRange;
 
 use crate::{fetch::Fetch, Update};
 use sensor_info::{is_leaf_id, ChartParts, Readings};
@@ -26,57 +26,66 @@ struct InputMode {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum ChartCursor {
-    Disabled {
-        // steps (characters) from the left where the cursor
-        // will be shown again if its re-enabled
-        steps: i32,
-    },
-    Enabled {
-        // steps (characters) from the left
-        steps: i32,
-    },
+pub struct ChartCursor {
+    enabled: bool,
+    steps: i32,
+    chart_width: Option<u16>,
 }
 
 impl Default for ChartCursor {
     fn default() -> Self {
-        Self::Disabled { steps: 0 }
+        Self {
+            enabled: false,
+            steps: 0,
+            chart_width: None,
+        }
     }
 }
 
 impl ChartCursor {
     fn is_enabled(&self) -> bool {
-        matches!(self, Self::Enabled { .. })
+        self.enabled
     }
     fn toggle(&mut self) {
-        *self = match *self {
-            ChartCursor::Disabled { steps } => ChartCursor::Enabled { steps },
-            ChartCursor::Enabled { steps } => ChartCursor::Disabled { steps },
-        }
+        self.enabled = !self.enabled;
     }
     fn shift(&mut self, offset: i32) {
-        let ChartCursor::Enabled { ref mut steps } = self else {
-            return;
-        };
-
-        *steps += offset;
+        self.steps += offset;
     }
 
     fn get(&mut self, chart_width: u16) -> Option<u16> {
-        let steps = match self {
-            ChartCursor::Disabled { .. } => return None,
-            ChartCursor::Enabled { steps } => steps,
-        };
+        self.chart_width = Some(chart_width);
+        if !self.enabled {
+            return None;
+        }
 
-        *steps = if *steps >= chart_width as i32 {
+        self.steps = if self.steps >= chart_width as i32 {
             0
-        } else if *steps < 0 {
+        } else if self.steps < 0 {
             chart_width as i32 - 1
         } else {
-            *steps
+            self.steps
         };
 
-        Some(*steps as u16)
+        Some(self.steps as u16)
+    }
+
+    fn zoom_in(&self) -> [f64; 2] {
+        let Some(chart_width) = self.chart_width else {
+            return [1.0, 1.0];
+        };
+
+        let pos = chart_width as f64 / self.steps as f64;
+        [pos - 0.1, pos + 0.1]
+    }
+
+    fn zoom_out(&self) -> [f64; 2] {
+        let Some(chart_width) = self.chart_width else {
+            return [1.0, 1.0];
+        };
+
+        let pos = chart_width as f64 / self.steps as f64;
+        [pos - 10.0, pos + 10.0]
     }
 }
 
@@ -86,7 +95,7 @@ pub struct UiState {
     show_logs: bool,
     show_complete_help: bool,
     chart_cursor: ChartCursor,
-    history_length: HistoryLen,
+    plot_range: PlotRange,
     input_mode: InputMode,
     tree_state: TreeState<u16>,
     logs_table_state: TableState,
@@ -122,7 +131,7 @@ fn fill_data<'a>(
     to_display: Vec<u16>,
     readings: &mut Readings,
     plot_bufs: &'a mut Vec<Vec<(f64, f64)>>,
-    history_len: std::time::Duration,
+    history_len: &history_len::Range,
 ) -> DataToDisplay<'a> {
     for buf in plot_bufs.iter_mut() {
         buf.clear();
@@ -143,7 +152,7 @@ fn fill_data<'a>(
             res.logs = Some(info.logs());
         }
 
-        res.chart_parts.push(info.chart(buf, history_len));
+        res.chart_parts.push(info.chart(buf, &history_len));
     }
     res
 }
@@ -172,7 +181,7 @@ impl Tab {
                 .collect();
             to_display.sort();
             to_display.dedup();
-            fill_data(to_display, readings, plot_bufs, ui_state.history_length.dur)
+            fill_data(to_display, readings, plot_bufs, &ui_state.plot_range.range)
         };
 
         let [top, bottom, footer] = render::layout(
@@ -241,7 +250,7 @@ impl Tab {
                     .as_ref()
                     .is_some_and(|i| i.reading.is_same_as(&reading))
                 {
-                    self.ui_state.history_length.state = history_len::State::Fetched;
+                    self.ui_state.plot_range.state = history_len::State::Fetched;
                 }
                 self.readings.add_fetched(reading, fetched);
             }
@@ -261,8 +270,8 @@ impl Tab {
             .chain(self.ui_state.comparing.iter())
             .copied();
 
-        let dur = self.ui_state.history_length.dur;
-        let history_len = &mut self.ui_state.history_length.state;
+        let dur = self.ui_state.plot_range.range.unwrap_duration().clone();
+        let history_len = &mut self.ui_state.plot_range.state;
         for data in needed {
             let Some(data) = self.readings.get_by_ui_id(data) else {
                 continue;

@@ -9,13 +9,14 @@ use protocol::Reading;
 use protocol::{Device, Error};
 
 use std::ops::RangeInclusive;
-use std::time::Duration;
 
 use crate::Fetchable;
 
 mod logs;
 pub(crate) use logs::List as LogList;
 pub(crate) use logs::LogSource;
+
+use super::history_len;
 
 #[expect(
     clippy::large_enum_variant,
@@ -200,9 +201,9 @@ impl SensorInfo {
     pub fn chart<'a>(
         &mut self,
         plot_buf: &'a mut Vec<(f64, f64)>,
-        history_len: Duration,
+        history_len: &history_len::Range,
     ) -> ChartParts<'a> {
-        let reference = jiff::Timestamp::now() - history_len;
+        let reference = jiff::Timestamp::now() - history_len.unwrap_duration().clone();
 
         let first_recent = self
             .recent_history
@@ -226,7 +227,7 @@ impl SensorInfo {
                     *y as f64,
                 )
             })
-            .skip_while(|(x, _)| *x > history_len.as_secs_f64())
+            .skip_while(|(x, _)| *x > history_len.unwrap_duration().as_secs_f64())
         {
             plot_buf.push(xy);
         }
