@@ -79,13 +79,13 @@ async fn update(system: &mut RestrictedSystem) {
     system.all_lamps_ct(new_ct, new_bri).await;
 }
 
-fn optimal_ct_bri() -> (u16, u8) {
+pub(crate) fn optimal_ct_bri() -> (u16, u8) {
     let now = local_now();
     match now.hour() {
-        0..=8 | 21.. => (500, 100),
-        9..=16 => (270, u8::MAX),
-        17..=18 => (300, u8::MAX),
-        19..=20 => (460, 220),
+        9..17 => (270, u8::MAX),
+        17..20 => (300, u8::MAX),
+        20..22 => (400, 220),
+        22.. | 0..9 => (500, 100),
     }
 }
 

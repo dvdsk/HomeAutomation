@@ -5,6 +5,7 @@ use futures_util::FutureExt;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
 
+use crate::controller::rooms::small_bedroom;
 use crate::controller::{local_now, Event, RestrictedSystem};
 
 enum State {
@@ -75,12 +76,12 @@ pub async fn run(
 }
 
 async fn update(system: &mut RestrictedSystem) {
-    let (new_ct, new_bri) = optimal_ct_bri();
+    let (new_ct, new_bri) = small_bedroom::optimal_ct_bri();
     system.all_lamps_ct(new_ct, new_bri).await;
     tracing::info!("updated lamps");
 }
 
-fn optimal_ct_bri() -> (u16, u8) {
+fn _optimal_ct_bri() -> (u16, u8) {
     let now = local_now();
     match now.hour() {
         0..=8 | 22.. => (500, 180),
