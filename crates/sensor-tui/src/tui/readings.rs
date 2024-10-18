@@ -9,10 +9,10 @@ use ratatui::Frame;
 use tui_tree_widget::TreeState;
 
 mod handle_key;
-pub(crate) mod history_len;
+pub(crate) mod plot_range;
 pub mod render;
 pub mod sensor_info;
-use history_len::PlotRange;
+use plot_range::PlotRange;
 
 use crate::{fetch::Fetch, Update};
 use sensor_info::{is_leaf_id, ChartParts, Readings};
@@ -131,7 +131,7 @@ fn fill_data<'a>(
     to_display: Vec<u16>,
     readings: &mut Readings,
     plot_bufs: &'a mut Vec<Vec<(f64, f64)>>,
-    history_len: &history_len::Range,
+    history_len: &plot_range::Range,
 ) -> DataToDisplay<'a> {
     for buf in plot_bufs.iter_mut() {
         buf.clear();
@@ -250,7 +250,7 @@ impl Tab {
                     .as_ref()
                     .is_some_and(|i| i.reading.is_same_as(&reading))
                 {
-                    self.ui_state.plot_range.state = history_len::State::Fetched;
+                    self.ui_state.plot_range.state = plot_range::State::Fetched;
                 }
                 self.readings.add_fetched(reading, fetched);
             }
@@ -270,7 +270,6 @@ impl Tab {
             .chain(self.ui_state.comparing.iter())
             .copied();
 
-        let dur = self.ui_state.plot_range.range.unwrap_duration().clone();
         let history_len = &mut self.ui_state.plot_range.state;
         for data in needed {
             let Some(data) = self.readings.get_by_ui_id(data) else {
@@ -278,11 +277,11 @@ impl Tab {
             };
 
             fetcher.assure_up_to_date(
-                dur,
-                || *history_len = history_len::State::Fetching(Instant::now()),
+                self.ui_state.plot_range.range,
+                || *history_len = plot_range::State::Fetching(Instant::now()),
                 data.reading.clone(),
-                data.oldest_in_history(),
-                data.logs.covers_from(),
+                data.covers(),
+                data.logs.covers(),
                 data.histogram_range.clone(),
             );
         }

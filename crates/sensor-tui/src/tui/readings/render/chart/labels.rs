@@ -5,7 +5,7 @@ use ratatui::layout::Rect;
 use ratatui::text::Span;
 
 use crate::time::format::progressively_more_specified::{self, FmtScale};
-use crate::tui::readings::history_len::PlotRange;
+use crate::tui::readings::plot_range::PlotRange;
 
 use super::Bounds;
 

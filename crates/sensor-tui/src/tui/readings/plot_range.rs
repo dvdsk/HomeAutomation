@@ -4,7 +4,10 @@ use ratatui::{
     style::{Color, Modifier, Style},
     text::Span,
 };
-use std::time::{Duration, Instant};
+use std::{
+    ops::RangeInclusive,
+    time::{Duration, Instant},
+};
 
 use crate::time::format::duration;
 use crate::time::parse::parse_duration;
@@ -18,17 +21,32 @@ pub enum State {
     Fetched,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Range {
-    Elapsed(Duration),
+    Relative(Duration),
     Window([jiff::Timestamp; 2]),
 }
 
 impl Range {
-    pub(crate) fn unwrap_duration(&self) -> &Duration {
-        let Self::Elapsed(dur) = self else { todo!() };
+    pub(crate) fn is_relative(&self) -> bool {
+        matches!(self, Range::Relative(_))
+    }
 
-        dur
+    pub(crate) fn range_inclusive(&self) -> RangeInclusive<jiff::Timestamp> {
+        match self {
+            Range::Relative(dur) => {
+                let dur = jiff::Span::try_from(dur.clone()).unwrap();
+                let now = jiff::Timestamp::now();
+                (now - dur)..=now
+            }
+            Range::Window([start, end]) => *start..=*end,
+        }
+    }
+    pub(crate) fn duration(&self) -> Duration {
+        match self {
+            Range::Relative(dur) => dur.clone(),
+            Range::Window([start, end]) => start.duration_until(*end).unsigned_abs(),
+        }
     }
 }
 
@@ -47,7 +65,7 @@ impl Default for PlotRange {
             text_input,
             editing: false,
             state: State::Empty,
-            range: Range::Elapsed(dur),
+            range: Range::Relative(dur),
         }
     }
 }
@@ -66,7 +84,7 @@ impl PlotRange {
 
         if let Ok(dur) = parse_duration(&self.text_input) {
             self.state = State::Valid;
-            self.range = Range::Elapsed(dur);
+            self.range = Range::Relative(dur);
         } else if self.text_input.is_empty() {
             self.state = State::Empty;
         } else {
@@ -128,7 +146,7 @@ impl PlotRange {
 
     pub(crate) fn x_bounds(&self) -> [f64; 2] {
         match self.range {
-            Range::Elapsed(dur) => [0f64, dur.as_secs_f64()],
+            Range::Relative(dur) => [0f64, dur.as_secs_f64()],
             Range::Window([start, end]) => {
                 let now = Timestamp::now();
                 [
@@ -150,7 +168,7 @@ impl PlotRange {
 
     pub(crate) fn change(&mut self, [mul_start, mul_end]: [f64; 2]) {
         let (dur, start) = match self.range {
-            Range::Elapsed(dur) => {
+            Range::Relative(dur) => {
                 let start = Timestamp::now() - dur;
                 (dur.as_secs_f64(), start)
             }

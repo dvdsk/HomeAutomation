@@ -16,7 +16,22 @@ mod logs;
 pub(crate) use logs::List as LogList;
 pub(crate) use logs::LogSource;
 
-use super::history_len;
+use super::plot_range;
+
+#[derive(Debug)]
+pub(crate) enum Cover {
+    Overlapping {
+        store: RangeInclusive<jiff::Timestamp>,
+        local: RangeInclusive<jiff::Timestamp>,
+    },
+    OnlyLocal(RangeInclusive<jiff::Timestamp>),
+    OnlyStore(RangeInclusive<jiff::Timestamp>),
+    Distinct {
+        store: RangeInclusive<jiff::Timestamp>,
+        local: RangeInclusive<jiff::Timestamp>,
+    },
+    None,
+}
 
 #[expect(
     clippy::large_enum_variant,
@@ -201,44 +216,48 @@ impl SensorInfo {
     pub fn chart<'a>(
         &mut self,
         plot_buf: &'a mut Vec<(f64, f64)>,
-        history_len: &history_len::Range,
+        range: &plot_range::Range,
     ) -> ChartParts<'a> {
-        let reference = jiff::Timestamp::now() - history_len.unwrap_duration().clone();
+        let start = *range.range_inclusive().start();
+        let before_start = |t: &jiff::Timestamp| t < &start;
 
-        let first_recent = self
-            .recent_history
-            .first()
-            .map(|(t, _)| t)
-            .cloned()
-            .unwrap_or(jiff::Timestamp::MAX);
+        let first_recent = self.recent_history.first().map(|(t, _)| t).cloned();
+        let not_recent = |t: &jiff::Timestamp| !first_recent.is_some_and(|recent| t > &recent);
+
+        let end = *range.range_inclusive().end();
+        let after_end = |t: &jiff::Timestamp| t > &end;
 
         plot_buf.clear();
         for xy in self
             .history_from_store
             .iter()
-            .skip_while(|(t, _)| *t < reference)
-            .take_while(|(t, _)| *t < first_recent)
+            .take_while(|(t, _)| not_recent(t))
             .chain(self.recent_history.iter())
+            .skip_while(|(t, _)| before_start(t))
+            .skip_while(|(t, _)| after_end(t))
             .map(|(x, y)| {
                 (
-                    (*x - reference)
+                    (*x - start)
                         .total(jiff::Unit::Second)
                         .expect("unit is not a calander unit"),
                     *y as f64,
                 )
             })
-            .skip_while(|(x, _)| *x > history_len.unwrap_duration().as_secs_f64())
         {
             plot_buf.push(xy);
         }
 
-        assert!(
-            plot_buf.iter().all(|(x, _)| *x > 0.0),
-            "negative x is not allowed. Arguments: 
-            \thistory_len: {history_len:?}
-            \tfirst_recent: {first_recent}
-            \reference: {reference}"
-        );
+        for (i, (x, _)) in plot_buf.iter().enumerate() {
+            assert!(
+                *x >= 0.0,
+                "negative x is not allowed. Info:
+            \t x: {x},
+            \t index: {i},
+            \t range: {range:?}
+            \t first_recent: {first_recent:?}
+            \t start: {start}"
+            );
+        }
 
         ChartParts {
             info: self.info.clone(),
@@ -251,19 +270,31 @@ impl SensorInfo {
         self.logs.list()
     }
 
-    pub(crate) fn oldest_in_history(&self) -> jiff::Timestamp {
-        jiff::Timestamp::min(
+    pub(crate) fn covers(&self) -> Cover {
+        use jiff::Timestamp as Ts;
+        let are_overlapping =
+            |store: &RangeInclusive<Ts>, local: &RangeInclusive<Ts>| local.start() <= store.end();
+
+        match (
             self.history_from_store
                 .first()
                 .map(|(ts, _)| ts)
-                .copied()
-                .unwrap_or(jiff::Timestamp::MAX),
+                .zip(self.history_from_store.last().map(|(ts, _)| ts))
+                .map(|(a, b)| *a..=*b),
             self.recent_history
                 .first()
                 .map(|(ts, _)| ts)
-                .copied()
-                .unwrap_or(jiff::Timestamp::MAX),
-        )
+                .zip(self.recent_history.last().map(|(ts, _)| ts))
+                .map(|(a, b)| *a..=*b),
+        ) {
+            (None, None) => Cover::None,
+            (None, Some(local)) => Cover::OnlyLocal(local),
+            (Some(store), None) => Cover::OnlyStore(store),
+            (Some(store), Some(local)) if are_overlapping(&store, &local) => {
+                Cover::Overlapping { store, local }
+            }
+            (Some(store), Some(local)) => Cover::Distinct { store, local },
+        }
     }
 }
 
