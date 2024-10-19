@@ -75,13 +75,13 @@ pub fn render(frame: &mut Frame, layout: Rect, ui: &mut UiState, charts: &mut [C
     let (colors, merged_y_bounds) = bounds_and_colors(charts, layout);
     let (y_labels, y_title) = labels::y_and_title(&merged_y_bounds, layout);
 
-    let x_bounds = ui.plot_range.x_bounds();
-    let (x_labels, x_title, scale) = labels::x_and_title(layout, x_bounds, &ui.plot_range);
+    let (x_labels, x_title, scale) = labels::x_and_title(layout, &ui.plot_range);
+    let data_bounds = ui.plot_range.data_bounds();
 
     let x_axis = Axis::default()
         .title(x_title)
         .style(Style::default())
-        .bounds(x_bounds)
+        .bounds(data_bounds)
         .labels(x_labels)
         .labels_alignment(Alignment::Center);
 
@@ -94,7 +94,7 @@ pub fn render(frame: &mut Frame, layout: Rect, ui: &mut UiState, charts: &mut [C
 
     let chart_width = layout.width - y_axis_width - 3;
     let cursor = if let Some(steps) = ui.chart_cursor.get(chart_width) {
-        Some(CursorData::new(steps, x_bounds, charts, chart_width))
+        Some(CursorData::new(steps, data_bounds, charts, chart_width))
     } else {
         None
     };

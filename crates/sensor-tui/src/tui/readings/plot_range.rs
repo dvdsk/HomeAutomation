@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use jiff::Timestamp;
+use jiff::{SignedDuration, Timestamp};
 use ratatui::{
     style::{Color, Modifier, Style},
     text::Span,
@@ -144,26 +144,41 @@ impl PlotRange {
         self.text_input.clear();
     }
 
-    pub(crate) fn x_bounds(&self) -> [f64; 2] {
-        match self.range {
+    pub(crate) fn label_bounds(&self) -> [f64; 2] {
+        let bounds = match self.range {
             Range::Relative(dur) => [0f64, dur.as_secs_f64()],
             Range::Window([start, end]) => {
                 let now = Timestamp::now();
                 [
+                    end.until(now)
+                        .expect("now should be in the future")
+                        .round(jiff::Unit::Second)
+                        .expect("Timestamp.until(Timestamp) < Timestamp::Max")
+                        .get_seconds() as f64,
                     start
                         .until(now)
                         .expect("now should be in the future")
                         .round(jiff::Unit::Second)
                         .expect("Timestamp.until(Timestamp) < Timestamp::Max")
                         .get_seconds() as f64,
-                    end.until(now)
-                        .expect("now should be in the future")
-                        .round(jiff::Unit::Second)
-                        .expect("Timestamp.until(Timestamp) < Timestamp::Max")
-                        .get_seconds() as f64,
                 ]
             }
-        }
+        };
+        assert!(bounds[0] >= 0.0, "bounds must be >= zero: {bounds:?}");
+        assert!(bounds[1] >= 0.0, "bounds must be >= zero: {bounds:?}");
+        bounds
+    }
+
+    pub(crate) fn data_bounds(&self) -> [f64; 2] {
+        let dur = match self.range {
+            Range::Relative(dur) => dur.as_secs_f64(),
+            Range::Window([start, end]) => start
+                .until(end)
+                .expect("end should be in the future")
+                .total(jiff::Unit::Second)
+                .expect("Timestamp.until(Timestamp) < Timestamp::Max"),
+        };
+        [0f64, dur]
     }
 
     pub(crate) fn change(&mut self, [mul_start, mul_end]: [f64; 2]) {
@@ -182,8 +197,9 @@ impl PlotRange {
                 (dur, start)
             }
         };
-        let start = start + Duration::from_secs_f64(dur * mul_start);
-        let end = start + Duration::from_secs_f64(dur * mul_end);
+        let start = start + SignedDuration::from_secs_f64(dur * mul_start);
+        let end = start + SignedDuration::from_secs_f64(dur * mul_end);
+        let end = end.min(Timestamp::now());
         self.range = Range::Window([start, end]);
         self.state = State::Valid;
     }

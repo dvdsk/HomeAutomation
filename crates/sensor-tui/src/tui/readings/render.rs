@@ -102,9 +102,9 @@ pub(crate) fn footer(frame: &mut Frame, layout: Rect, app: &mut UiState, theme: 
         if app.reading_selected {
             extra.push("c: toggle compare");
             if app.chart_cursor.is_enabled() {
-                extra.push("x: enable cursor");
-            } else {
                 extra.push("x: disable cursor");
+            } else {
+                extra.push("x: enable cursor");
             }
         }
         let footer = extra.join("  ");

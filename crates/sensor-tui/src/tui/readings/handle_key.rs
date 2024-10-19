@@ -59,9 +59,12 @@ impl UiState {
     }
 
     pub(crate) fn handle_key_cursor(&mut self, key: KeyEvent) -> Option<KeyEvent> {
+        let mod_on = key.modifiers.contains(KeyModifiers::SHIFT)
+            | key.modifiers.contains(KeyModifiers::CONTROL);
+
         let offset = match key.code {
-            KeyCode::Left if key.modifiers.contains(KeyModifiers::SHIFT) => -5,
-            KeyCode::Right if key.modifiers.contains(KeyModifiers::SHIFT) => 5,
+            KeyCode::Left if mod_on => -10,
+            KeyCode::Right if mod_on => 10,
             KeyCode::Left => -1,
             KeyCode::Right => 1,
             _ => return Some(key),

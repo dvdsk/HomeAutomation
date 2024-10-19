@@ -75,7 +75,7 @@ impl ChartCursor {
             return [1.0, 1.0];
         };
 
-        let pos = chart_width as f64 / self.steps as f64;
+        let pos = self.steps as f64 / chart_width as f64;
         [pos - 0.1, pos + 0.1]
     }
 
@@ -84,7 +84,7 @@ impl ChartCursor {
             return [1.0, 1.0];
         };
 
-        let pos = chart_width as f64 / self.steps as f64;
+        let pos = self.steps as f64 / chart_width as f64;
         [pos - 10.0, pos + 10.0]
     }
 }

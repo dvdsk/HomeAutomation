@@ -225,26 +225,25 @@ impl SensorInfo {
         let not_recent = |t: &jiff::Timestamp| !first_recent.is_some_and(|recent| t > &recent);
 
         let end = *range.range_inclusive().end();
-        let after_end = |t: &jiff::Timestamp| t > &end;
+        let before_end = |t: &jiff::Timestamp| t < &end;
 
         plot_buf.clear();
-        for xy in self
+        let plot = self
             .history_from_store
             .iter()
             .take_while(|(t, _)| not_recent(t))
             .chain(self.recent_history.iter())
             .skip_while(|(t, _)| before_start(t))
-            .skip_while(|(t, _)| after_end(t))
-            .map(|(x, y)| {
-                (
-                    (*x - start)
-                        .total(jiff::Unit::Second)
-                        .expect("unit is not a calander unit"),
-                    *y as f64,
-                )
-            })
-        {
-            plot_buf.push(xy);
+            .take_while(|(t, _)| before_end(t))
+            .collect_vec();
+
+        for (x, y) in plot {
+            plot_buf.push((
+                (*x - start)
+                    .total(jiff::Unit::Second)
+                    .expect("unit is not a calander unit"),
+                *y as f64,
+            ))
         }
 
         for (i, (x, _)) in plot_buf.iter().enumerate() {

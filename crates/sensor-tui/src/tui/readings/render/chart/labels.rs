@@ -46,19 +46,17 @@ fn y_labels(info: &reading::Info, layout: Rect, y_bounds: Bounds) -> Vec<String>
 }
 
 type Labels = Vec<Span<'static>>;
-pub fn x_and_title(
-    layout: Rect,
-    x_bounds: Bounds,
-    history_len: &PlotRange,
-) -> (Labels, String, FmtScale) {
+pub fn x_and_title(layout: Rect, plot_range: &PlotRange) -> (Labels, String, FmtScale) {
     // Characters are about twice as high as wide
     let max_labels = layout.width / Y_LABEL_SPACING / 2;
     let n_labels = max_labels.max(2);
-    let x_spacing = (x_bounds[1] - x_bounds[0]) / n_labels as f64;
 
-    let scale = scale(x_bounds[1]);
+    let bounds = plot_range.label_bounds();
+    let spacing = (bounds[1] - bounds[0]) / n_labels as f64;
+
+    let scale = scale(bounds[1]);
     let mut labels: Labels = (0..=n_labels)
-        .map(move |i| x_bounds[0] + x_spacing * i as f64)
+        .map(move |i| bounds[0] + spacing * i as f64)
         .rev()
         .map(|x| fmt(x, &scale))
         .map(Into::into)
@@ -66,7 +64,7 @@ pub fn x_and_title(
 
     let borrowed = labels.first_mut().expect("min labels is 2");
     let owned = std::mem::take(borrowed);
-    labels[0] = history_len.style_left_x_label(owned);
+    labels[0] = plot_range.style_left_x_label(owned);
 
     let title = format!("Time ({scale})");
     (labels, title, scale)
