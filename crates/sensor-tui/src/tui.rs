@@ -114,14 +114,6 @@ impl App {
                     tracing::trace!("key pressed: {key:?}");
                     if key.kind == KeyEventKind::Press {
                         let res = match key.code {
-                            KeyCode::Left => {
-                                self.active_tab = self.active_tab.swap();
-                                None
-                            }
-                            KeyCode::Right => {
-                                self.active_tab = self.active_tab.swap();
-                                None
-                            }
                             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                                 break Ok(());
                             }
@@ -137,6 +129,12 @@ impl App {
 
                         if let Some(unhandled_key) = res {
                             match unhandled_key.code {
+                                KeyCode::Left => {
+                                    self.active_tab = self.active_tab.swap();
+                                }
+                                KeyCode::Right => {
+                                    self.active_tab = self.active_tab.swap();
+                                }
                                 KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
                                 _ => (),
                             }

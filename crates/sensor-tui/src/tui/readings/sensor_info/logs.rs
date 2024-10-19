@@ -3,6 +3,8 @@ use std::ops::{Bound, RangeBounds};
 use jiff::Unit;
 use log_store::api::{self, ErrorEvent};
 
+use super::Cover;
+
 #[derive(Debug)]
 pub(crate) struct FromStore {
     pub(crate) list: Vec<api::ErrorEvent>,
@@ -131,12 +133,27 @@ impl Logs {
         }
     }
 
-    pub(crate) fn covers_from(&self) -> jiff::Timestamp {
-        *self
-            .from_store
-            .as_ref()
-            .map(|FromStore { since, .. }| since)
-            .unwrap_or(&self.local.since)
+    pub(crate) fn covers(&self) -> Cover {
+        let store = self.from_store.as_ref().map(|FromStore { since, list }| {
+            let until = list
+                .iter()
+                .rev()
+                .filter_map(|ErrorEvent { end, .. }| *end)
+                .next()
+                .unwrap_or(*since);
+            *since..=until
+        });
+        let local = self.local.since..=jiff::Timestamp::now();
+        if let Some(store) = store {
+            let gap = store.end().duration_until(*local.start());
+            if gap.is_negative() {
+                Cover::Overlapping { store, local }
+            } else {
+                Cover::Distinct { store, local }
+            }
+        } else {
+            Cover::OnlyLocal(local)
+        }
     }
 }
 

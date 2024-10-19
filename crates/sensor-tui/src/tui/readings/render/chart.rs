@@ -1,3 +1,6 @@
+use std::iter;
+
+use cursor::{CursorData, TooInaccurate};
 use protocol::reading;
 use ratatui::{
     layout::{Alignment, Rect},
@@ -8,11 +11,14 @@ use ratatui::{
     Frame,
 };
 
-use crate::tui::readings::{sensor_info::ChartParts, UiState};
+use crate::{
+    time::format::progressively_more_specified::FmtScale,
+    tui::readings::{sensor_info::ChartParts, UiState},
+};
 
+mod cursor;
 mod labels;
 mod split;
-use labels::{x_labels, y_labels};
 
 /// mul then add to get original from points between 0 and 1
 #[derive(Debug)]
@@ -65,65 +71,55 @@ fn plot_colors(unit: protocol::Unit) -> impl Iterator<Item = Color> {
     preferred.iter().chain(ALL_COLORS.iter()).copied()
 }
 
-pub fn render(frame: &mut Frame, layout: Rect, tab: &mut UiState, charts: &mut [ChartParts]) {
-    let mut colors: Vec<Color> = Vec::new(); // same order as charts
-    let mut merged_y_bounds: Vec<(reading::Info, [f64; 2])> = Vec::new();
-    'outer: for chart in charts.iter() {
-        let color = plot_colors(chart.info.unit)
-            .find(|color| !colors.contains(&color))
-            .clone()
-            .unwrap_or(Color::Black);
-        colors.push(color);
-        let y_bounds = ybounds(chart, layout);
+pub fn render(frame: &mut Frame, layout: Rect, ui: &mut UiState, charts: &mut [ChartParts]) {
+    let (colors, merged_y_bounds) = bounds_and_colors(charts, layout);
+    let (y_labels, y_title) = labels::y_and_title(&merged_y_bounds, layout);
 
-        for (info, existing) in merged_y_bounds.iter_mut() {
-            if info.unit == chart.info.unit {
-                existing[0] = existing[0].min(y_bounds[0]);
-                existing[1] = existing[1].max(y_bounds[1]);
-                continue 'outer;
-            }
-        }
-        merged_y_bounds.push((chart.info.clone(), y_bounds));
-    }
-
-    let mut y_axis_title = String::new();
-    let mut labels_y = Vec::new();
-    for (info, y_bounds) in merged_y_bounds.iter() {
-        y_axis_title.push_str(&info.unit.to_string());
-        y_axis_title.push(' ');
-
-        let new = y_labels(info, layout, *y_bounds);
-        if labels_y.is_empty() {
-            labels_y = new;
-        } else {
-            for (existing, new) in labels_y.iter_mut().zip(new) {
-                existing.push(' ');
-                existing.push_str(new.as_str());
-            }
-        }
-    }
-
-    let x_bounds = [0f64, tab.history_length.dur.as_secs_f64()];
-    let scale = labels::scale(x_bounds[1]);
-
-    let mut labels_x = x_labels(layout, x_bounds, &scale);
-    let borrowed = labels_x.first_mut().expect("min labels is 2");
-    let owned = std::mem::take(borrowed);
-    labels_x[0] = tab.history_length.style_left_x_label(owned);
+    let (x_labels, x_title, scale) = labels::x_and_title(layout, &ui.plot_range);
+    let data_bounds = ui.plot_range.data_bounds();
 
     let x_axis = Axis::default()
-        .title(format!("Time ({scale})",))
+        .title(x_title)
         .style(Style::default())
-        .bounds(x_bounds)
-        .labels(labels_x)
+        .bounds(data_bounds)
+        .labels(x_labels)
         .labels_alignment(Alignment::Center);
 
+    let y_axis_width = y_labels.iter().map(|l| l.len()).max().unwrap_or(0) as u16;
     let y_axis = Axis::default()
-        .title(y_axis_title)
+        .title(y_title)
         .style(Style::default())
         .bounds([0.0, 1.0])
-        .labels(labels_y);
+        .labels(y_labels);
 
+    let chart_width = layout.width - y_axis_width - 3;
+    let cursor = if let Some(steps) = ui.chart_cursor.get(chart_width) {
+        Some(CursorData::new(steps, data_bounds, charts, chart_width))
+    } else {
+        None
+    };
+
+    let datasets = datasets(charts, &colors, merged_y_bounds, layout);
+    let linechart = Chart::new(datasets)
+        .block(Block::bordered().title("History"))
+        .x_axis(x_axis)
+        .y_axis(y_axis);
+    frame.render_widget(linechart, layout);
+
+    if charts.len() > 1 || cursor.is_some() {
+        render_legend(layout, frame, charts, colors, cursor, scale);
+    }
+    if let Some(steps) = ui.chart_cursor.get(chart_width) {
+        cursor::render(layout, frame, steps, y_axis_width);
+    }
+}
+
+fn datasets<'a>(
+    charts: &'a mut [ChartParts],
+    colors: &Vec<Color>,
+    mut merged_y_bounds: Vec<(reading::Info, [f64; 2])>,
+    layout: Rect,
+) -> Vec<Dataset<'a>> {
     let datasets = charts
         .iter_mut()
         .zip(colors.iter())
@@ -148,24 +144,61 @@ pub fn render(frame: &mut Frame, layout: Rect, tab: &mut UiState, charts: &mut [
             })
         })
         .collect();
-
-    let linechart = Chart::new(datasets)
-        .block(Block::bordered().title("History"))
-        .x_axis(x_axis)
-        .y_axis(y_axis);
-    frame.render_widget(linechart, layout);
-
-    if charts.len() > 1 {
-        render_legend(layout, frame, charts, colors);
-    }
+    datasets
 }
 
-fn render_legend(layout: Rect, frame: &mut Frame, charts: &mut [ChartParts], colors: Vec<Color>) {
+fn bounds_and_colors(
+    charts: &mut [ChartParts],
+    layout: Rect,
+) -> (Vec<Color>, Vec<(reading::Info, [f64; 2])>) {
+    let mut colors: Vec<Color> = Vec::new();
+    // same order as charts
+    let mut merged_y_bounds: Vec<(reading::Info, [f64; 2])> = Vec::new();
+    'outer: for chart in charts.iter() {
+        let color = plot_colors(chart.info.unit)
+            .find(|color| !colors.contains(&color))
+            .clone()
+            .unwrap_or(Color::Black);
+        colors.push(color);
+        let y_bounds = ybounds(chart, layout);
+
+        for (info, existing) in merged_y_bounds.iter_mut() {
+            if info.unit == chart.info.unit {
+                existing[0] = existing[0].min(y_bounds[0]);
+                existing[1] = existing[1].max(y_bounds[1]);
+                continue 'outer;
+            }
+        }
+        merged_y_bounds.push((chart.info.clone(), y_bounds));
+    }
+    (colors, merged_y_bounds)
+}
+
+fn render_legend(
+    layout: Rect,
+    frame: &mut Frame,
+    charts: &mut [ChartParts],
+    colors: Vec<Color>,
+    cursor: Option<CursorData>,
+    scale: FmtScale,
+) {
+    let (values, cursor_label) = if let Some(CursorData { pos, values }) = cursor {
+        let renderd = labels::fmt(pos, &scale);
+        let label = format!("cursor: {} {}", renderd, scale);
+        let label = Line::styled(label, Style::default().bg(Color::Gray));
+        (values, Some(label))
+    } else {
+        (Vec::new(), None)
+    };
+    let values = values.into_iter().map(Some).chain(iter::repeat(None));
+
     let text: Text = charts
         .iter()
+        .map(|ChartParts { reading, .. }| reading)
         .zip(colors)
-        .map(|(ChartParts { reading, .. }, color)| (reading, color))
+        .zip(values)
         .map(fmt_reading)
+        .chain(cursor_label)
         .collect();
 
     let area = legend_area(&text, layout);
@@ -189,7 +222,12 @@ fn legend_area(text: &Text, chart: Rect) -> Rect {
     }
 }
 
-fn fmt_reading((reading, color): (&protocol::Reading, Color)) -> Line {
+fn fmt_reading(
+    ((reading, color), cursor_value): (
+        (&protocol::Reading, Color),
+        Option<Result<f64, cursor::TooInaccurate>>,
+    ),
+) -> Line {
     use protocol::reading::tree::{Item, Tree};
     let mut node = reading as &dyn Tree;
     let mut text = node.name();
@@ -201,6 +239,11 @@ fn fmt_reading((reading, color): (&protocol::Reading, Color)) -> Line {
         }
         text.push('/');
         text.push_str(&node.name());
+    }
+    match cursor_value {
+        Some(Ok(v)) => text.push_str(&format!(": {0:.1$}", v, reading.leaf().precision())),
+        Some(Err(TooInaccurate)) => text.push_str(" x"),
+        None => (),
     }
     Line::styled(text, Style::default().fg(color).bg(Color::Gray))
 }

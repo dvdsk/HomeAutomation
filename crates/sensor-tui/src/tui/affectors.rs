@@ -81,8 +81,9 @@ impl Tab {
             }
             _ => {
                 if let Some(state) = data {
-                    return handle_key::handle(key, state, control);
+                    handle_key::handle(key, state, control)?;
                 }
+                return Some(key);
             }
         }
         None

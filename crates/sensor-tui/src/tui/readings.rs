@@ -1,28 +1,92 @@
 use std::collections::HashSet;
 use std::time::Instant;
 
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyEvent;
 use log_store::api::Percentile;
 use ratatui::layout::Rect;
 use ratatui::widgets::TableState;
 use ratatui::Frame;
 use tui_tree_widget::TreeState;
 
-pub(crate) mod history_len;
+mod handle_key;
+pub(crate) mod plot_range;
 pub mod render;
 pub mod sensor_info;
-use history_len::HistoryLen;
+use plot_range::PlotRange;
 
 use crate::{fetch::Fetch, Update};
-use sensor_info::{ChartParts, Readings};
+use sensor_info::{is_leaf_id, ChartParts, Readings};
 
 use super::Theme;
 
 #[derive(Debug, Default, Clone, Copy)]
-enum InputMode {
-    #[default]
-    Normal,
-    EditingBounds,
+struct InputMode {
+    editing_bounds: bool,
+    chart_cursor: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ChartCursor {
+    enabled: bool,
+    steps: i32,
+    chart_width: Option<u16>,
+}
+
+impl Default for ChartCursor {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            steps: 0,
+            chart_width: None,
+        }
+    }
+}
+
+impl ChartCursor {
+    fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+    fn toggle(&mut self) {
+        self.enabled = !self.enabled;
+    }
+    fn shift(&mut self, offset: i32) {
+        self.steps += offset;
+    }
+
+    fn get(&mut self, chart_width: u16) -> Option<u16> {
+        self.chart_width = Some(chart_width);
+        if !self.enabled {
+            return None;
+        }
+
+        self.steps = if self.steps >= chart_width as i32 {
+            0
+        } else if self.steps < 0 {
+            chart_width as i32 - 1
+        } else {
+            self.steps
+        };
+
+        Some(self.steps as u16)
+    }
+
+    fn zoom_in(&self) -> [f64; 2] {
+        let Some(chart_width) = self.chart_width else {
+            return [1.0, 1.0];
+        };
+
+        let pos = self.steps as f64 / chart_width as f64;
+        [pos - 0.1, pos + 0.1]
+    }
+
+    fn zoom_out(&self) -> [f64; 2] {
+        let Some(chart_width) = self.chart_width else {
+            return [1.0, 1.0];
+        };
+
+        let pos = self.steps as f64 / chart_width as f64;
+        [pos - 10.0, pos + 10.0]
+    }
 }
 
 #[derive(Default)]
@@ -30,7 +94,8 @@ pub struct UiState {
     show_histogram: bool,
     show_logs: bool,
     show_complete_help: bool,
-    history_length: HistoryLen,
+    chart_cursor: ChartCursor,
+    plot_range: PlotRange,
     input_mode: InputMode,
     tree_state: TreeState<u16>,
     logs_table_state: TableState,
@@ -66,7 +131,7 @@ fn fill_data<'a>(
     to_display: Vec<u16>,
     readings: &mut Readings,
     plot_bufs: &'a mut Vec<Vec<(f64, f64)>>,
-    history_len: std::time::Duration,
+    history_len: &plot_range::Range,
 ) -> DataToDisplay<'a> {
     for buf in plot_bufs.iter_mut() {
         buf.clear();
@@ -87,7 +152,7 @@ fn fill_data<'a>(
             res.logs = Some(info.logs());
         }
 
-        res.chart_parts.push(info.chart(buf, history_len));
+        res.chart_parts.push(info.chart(buf, &history_len));
     }
     res
 }
@@ -107,7 +172,7 @@ impl Tab {
             logs,
         } = {
             let selected = ui_state.tree_state.selected().last();
-            ui_state.reading_selected = selected.is_some();
+            ui_state.reading_selected = selected.copied().is_some_and(is_leaf_id);
 
             let mut to_display: Vec<_> = selected
                 .into_iter()
@@ -116,7 +181,7 @@ impl Tab {
                 .collect();
             to_display.sort();
             to_display.dedup();
-            fill_data(to_display, readings, plot_bufs, ui_state.history_length.dur)
+            fill_data(to_display, readings, plot_bufs, &ui_state.plot_range.range)
         };
 
         let [top, bottom, footer] = render::layout(
@@ -145,11 +210,15 @@ impl Tab {
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) -> Option<KeyEvent> {
-        self.ui_state.handle_key_all_modes(key)?;
-        match self.ui_state.input_mode {
-            InputMode::Normal => self.ui_state.handle_key_normal_mode(key)?,
-            InputMode::EditingBounds => self.ui_state.handle_key_bounds_mode(key)?,
+        self.ui_state.handle_key_all(key)?;
+        if self.ui_state.input_mode.editing_bounds {
+            self.ui_state.handle_key_bounds(key)?;
+        } else {
+            self.ui_state.handle_key_normal_mode(key)?;
         };
+        if self.ui_state.input_mode.chart_cursor {
+            self.ui_state.handle_key_cursor(key)?;
+        }
 
         Some(key)
     }
@@ -181,7 +250,7 @@ impl Tab {
                     .as_ref()
                     .is_some_and(|i| i.reading.is_same_as(&reading))
                 {
-                    self.ui_state.history_length.state = history_len::State::Fetched;
+                    self.ui_state.plot_range.state = plot_range::State::Fetched;
                 }
                 self.readings.add_fetched(reading, fetched);
             }
@@ -195,85 +264,26 @@ impl Tab {
     }
 
     pub(crate) fn fetch_if_needed(&mut self, fetcher: &mut Fetch) {
-        let Some(data) = self
-            .ui_state
-            .tree_state
-            .selected()
-            .last() // Unique leaf id
-            .and_then(|key| self.readings.get_by_ui_id(*key))
-        else {
-            return; // Nothing selected
-        };
+        let selected = self.ui_state.tree_state.selected().last();
+        let needed = selected
+            .into_iter()
+            .chain(self.ui_state.comparing.iter())
+            .copied();
 
-        let dur = self.ui_state.history_length.dur;
-        let history_len = &mut self.ui_state.history_length.state;
-        fetcher.assure_up_to_date(
-            dur,
-            || *history_len = history_len::State::Fetching(Instant::now()),
-            data.reading.clone(),
-            data.oldest_in_history(),
-            data.logs.covers_from(),
-            data.histogram_range.clone(),
-        );
-    }
-}
+        let history_len = &mut self.ui_state.plot_range.state;
+        for data in needed {
+            let Some(data) = self.readings.get_by_ui_id(data) else {
+                continue;
+            };
 
-impl UiState {
-    fn handle_key_normal_mode(&mut self, key: KeyEvent) -> Option<KeyEvent> {
-        match key.code {
-            KeyCode::Char('b') if self.reading_selected => {
-                self.history_length.start_editing();
-                self.input_mode = InputMode::EditingBounds;
-            }
-            KeyCode::Char('h') if self.reading_selected => {
-                self.show_histogram = !self.show_histogram;
-            }
-            KeyCode::Char('l') if self.reading_selected => {
-                self.show_logs = !self.show_logs;
-            }
-            KeyCode::Char('c') if self.reading_selected => {
-                let id = *self
-                    .tree_state
-                    .selected()
-                    .last()
-                    .expect("reading_selected is true");
-                if !self.comparing.remove(&id) {
-                    self.comparing.insert(id);
-                }
-            }
-            KeyCode::Char('?') => {
-                self.show_complete_help = !self.show_complete_help;
-            }
-            _ => return Some(key),
+            fetcher.assure_up_to_date(
+                self.ui_state.plot_range.range,
+                || *history_len = plot_range::State::Fetching(Instant::now()),
+                data.reading.clone(),
+                data.covers(),
+                data.logs.covers(),
+                data.histogram_range.clone(),
+            );
         }
-
-        None
-    }
-
-    fn handle_key_bounds_mode(&mut self, key: KeyEvent) -> Option<KeyEvent> {
-        match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => {
-                self.history_length.exit_editing();
-                self.input_mode = InputMode::Normal;
-                None
-            }
-            _ => self.history_length.process(key),
-        }
-    }
-
-    fn handle_key_all_modes(&mut self, key: KeyEvent) -> Option<KeyEvent> {
-        match key.code {
-            KeyCode::Down => {
-                self.tree_state.key_down();
-            }
-            KeyCode::Up => {
-                self.tree_state.key_up();
-            }
-            KeyCode::Enter => {
-                self.tree_state.toggle_selected();
-            }
-            _ => return Some(key),
-        }
-        None
     }
 }

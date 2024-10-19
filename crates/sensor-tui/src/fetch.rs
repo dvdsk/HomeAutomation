@@ -7,13 +7,15 @@ use std::time::Duration;
 
 use color_eyre::eyre::{self, Context, Report};
 use color_eyre::Result;
-use jiff::{Span, Timestamp, Unit};
+use jiff::Timestamp;
 use log_store::api::{ErrorEvent, Percentile};
 use protocol::Reading;
 use std::sync::Mutex;
 use tokio::time::Instant;
 use tracing::{debug, instrument};
 
+use crate::tui::readings::plot_range;
+use crate::tui::readings::sensor_info::Cover;
 use crate::{client_name, Fetchable, Update};
 
 const MAX_IN_FLIGHT_REQUESTS: usize = 6;
@@ -44,21 +46,9 @@ pub enum Request {
 }
 
 impl Request {
-    fn unwrap_logs(&self) -> Option<&Logs> {
-        match self {
-            Request::Logs(d) => Some(d),
-            _ => None,
-        }
-    }
     fn data(&self) -> Option<&Data> {
         match self {
             Request::Data(d) => Some(d),
-            _ => None,
-        }
-    }
-    fn unwrap_hist(&self) -> Option<&Hist> {
-        match self {
-            Request::Hist(d) => Some(d),
             _ => None,
         }
     }
@@ -87,113 +77,159 @@ impl Fetch {
     #[instrument(skip(self, on_fetch_start))]
     pub fn assure_up_to_date(
         &mut self,
-        history_len: Duration,
+        plot_range: plot_range::Range,
         on_fetch_start: impl FnOnce(),
         reading: Reading,
-        oldest_in_data: Timestamp,
-        logs_cover_from: Timestamp,
-        hist_cover: Option<RangeInclusive<Timestamp>>,
+        data_covers: Cover,
+        logs_covers: Cover,
+        hist_covers: Option<RangeInclusive<Timestamp>>,
     ) {
-        let history_spans = Span::try_from(history_len).unwrap();
-        let start_needed = Timestamp::now() - history_spans;
-        if self.history_outdated_not_updating(&reading, start_needed, oldest_in_data) {
+        if !self.current_or_requested_data_suffice(&reading, plot_range, data_covers) {
             debug!("Requesting history for {reading:?}");
             self.request(Request::Data(Data {
                 reading: reading.clone(),
-                range: start_needed..=Timestamp::now(),
+                range: plot_range.range_inclusive(),
             }));
             (on_fetch_start)();
         }
-        if self.logs_outdated_not_updating(&reading, start_needed, logs_cover_from) {
+        if !self.current_or_requested_logs_suffice(&reading, plot_range, logs_covers) {
             debug!("Requesting logs for {reading:?}");
             self.request(Request::Logs(Logs {
                 reading: reading.clone(),
-                range: start_needed..=Timestamp::now(),
+                range: plot_range.range_inclusive(),
             }))
         }
-        if self.hist_outdated_not_updating(&reading, start_needed, hist_cover) {
+        if !self.current_or_requested_hist_suffices(&reading, plot_range, hist_covers) {
             debug!("Requesting percentiles for {reading:?}");
             self.request(Request::Hist(Hist {
                 reading: reading.clone(),
-                range: start_needed..=Timestamp::now(),
+                range: plot_range.range_inclusive(),
             }))
         }
     }
 
     #[instrument(skip(self))]
-    fn history_outdated_not_updating(
+    fn current_or_requested_data_suffice(
         &mut self,
         reading: &Reading,
-        oldest_needed: Timestamp,
-        oldest_in_history: Timestamp,
+        needed: plot_range::Range,
+        current_data: Cover,
     ) -> bool {
-        let target_span = Timestamp::now() - oldest_needed;
-        let target_span = target_span.total(Unit::Millisecond).expect("fits f64");
-        let max_span = (target_span * 1.2) as i64;
-
-        let oldest_allowed = Timestamp::now().as_millisecond() - max_span;
-        let up_to_date = |start: &i64| *start >= oldest_allowed;
-
-        let curr_up_to_date = up_to_date(&oldest_in_history.as_millisecond());
-        let curr_range_correct = oldest_in_history <= oldest_needed;
-
-        if curr_up_to_date && curr_range_correct {
-            return false; // No need for update
+        match current_data {
+            Cover::Overlapping { store, local } => {
+                if local.start() < needed.range_inclusive().start() {
+                    return true;
+                }
+                let start = store.start().min(local.start()).clone();
+                let end = store.end().max(local.end()).clone();
+                if range_is_acceptable(&needed, start..=end) && resolution_ok(needed, store, local)
+                {
+                    return true;
+                }
+            }
+            Cover::OnlyLocal(r) | Cover::OnlyStore(r) => {
+                if range_is_acceptable(&needed, r) {
+                    return true;
+                }
+            }
+            Cover::Distinct { store, local } => {
+                if local.start() < needed.range_inclusive().start() {
+                    return true;
+                }
+                if range_is_acceptable(&needed, store) {
+                    return true;
+                }
+            }
+            Cover::None => (),
         }
 
-        // Is there an ongoing request that will fix this?
+        self.recently_issued
+            .iter()
+            .filter_map(Request::data)
+            .filter(|req| req.reading.is_same_as(reading))
+            .map(|fetch| fetch.range.clone())
+            .any(|range| range_is_acceptable(&needed, range))
+    }
+
+    fn current_or_requested_logs_suffice(
+        &mut self,
+        reading: &Reading,
+        needed: plot_range::Range,
+        logs_cover: Cover,
+    ) -> bool {
+        let needed_range = needed.range_inclusive();
+        match logs_cover {
+            Cover::Overlapping { store, local } => {
+                if local.start() < needed_range.start() {
+                    return true;
+                }
+                if store
+                    .start()
+                    .duration_until(*needed_range.start())
+                    .is_positive()
+                    && needed_range
+                        .end()
+                        .duration_until(*store.end())
+                        .is_positive()
+                {
+                    return true;
+                }
+            }
+            Cover::OnlyLocal(r) | Cover::OnlyStore(r) => {
+                if r.start()
+                    .duration_until(*needed_range.start())
+                    .is_positive()
+                    && needed_range.end().duration_until(*r.end()).is_positive()
+                {
+                    return true;
+                }
+            }
+            Cover::Distinct { store, local } => {
+                if local.start() < needed_range.start() {
+                    return true;
+                }
+                if store
+                    .start()
+                    .duration_until(*needed_range.start())
+                    .is_positive()
+                    && needed_range
+                        .end()
+                        .duration_until(*store.end())
+                        .is_positive()
+                {
+                    return true;
+                }
+            }
+            Cover::None => (),
+        }
+
         !self
             .recently_issued
             .iter()
             .filter_map(Request::data)
             .filter(|req| req.reading.is_same_as(reading))
-            .map(|req| req.range.start().as_millisecond())
-            .filter(up_to_date)
-            .any(|start| start <= oldest_needed.as_millisecond())
+            .map(|fetch| fetch.range.clone())
+            .any(|range| range_is_acceptable(&needed, range))
     }
 
-    fn logs_outdated_not_updating(
+    fn current_or_requested_hist_suffices(
         &mut self,
         reading: &Reading,
-        oldest_needed: Timestamp,
-        logs_cover_from: Timestamp,
-    ) -> bool {
-        if logs_cover_from <= oldest_needed {
-            return false;
-        }
-
-        !self
-            .recently_issued
-            .iter()
-            .filter_map(Request::unwrap_logs)
-            .filter(|req| &req.reading == reading)
-            .map(|req| req.range.start().as_millisecond())
-            .any(|start| start <= oldest_needed.as_millisecond())
-    }
-
-    fn hist_outdated_not_updating(
-        &mut self,
-        reading: &Reading,
-        oldest_needed: Timestamp,
+        needed: plot_range::Range,
         hist_range: Option<RangeInclusive<Timestamp>>,
     ) -> bool {
-        fn covers_recently(end: Timestamp) -> bool {
-            Timestamp::now().since(end).unwrap().get_seconds() < 5
-        }
-
-        if hist_range.is_some_and(|r| r.contains(&oldest_needed) && covers_recently(*r.end())) {
-            return false;
-        }
+        let Some(hist_range) = hist_range else {
+            return true;
+        };
 
         !self
             .recently_issued
             .iter()
-            .filter_map(Request::unwrap_hist)
-            .filter(|req| &req.reading == reading)
-            .map(|req| req.range.clone())
-            .filter(|range| covers_recently(*range.end()))
-            .map(|range| range.start().as_millisecond())
-            .any(|start| start <= oldest_needed.as_millisecond())
+            .filter_map(Request::data)
+            .filter(|req| req.reading.is_same_as(reading))
+            .map(|fetch| fetch.range.clone())
+            .chain(Some(hist_range)) // or does the current data satisfy?
+            .any(|range| range_is_acceptable(&needed, range))
     }
 
     fn request(&mut self, req: Request) {
@@ -206,6 +242,51 @@ impl Fetch {
             self.recently_issued.pop_back();
         }
     }
+}
+
+/// store might be resampled low resolution. If we use n% of all
+/// stored data for less then n% of the needed range the resolution
+/// will be high enough.
+fn resolution_ok(
+    needed: plot_range::Range,
+    store: RangeInclusive<jiff::Timestamp>,
+    local: RangeInclusive<jiff::Timestamp>,
+) -> bool {
+    let part_of_needed_coverd = needed
+        .range_inclusive()
+        .start()
+        .duration_until(*local.start().min(needed.range_inclusive().end()))
+        .unsigned_abs();
+    let part_coverd_by_store = part_of_needed_coverd.div_duration_f32(needed.duration());
+    let stored_duration = store.start().duration_until(*store.end()).unsigned_abs();
+    let part_of_store_used = part_of_needed_coverd.div_duration_f32(stored_duration);
+
+    part_coverd_by_store < part_of_store_used
+}
+
+fn range_is_acceptable(needed: &plot_range::Range, range: RangeInclusive<jiff::Timestamp>) -> bool {
+    let needed_range = needed.range_inclusive();
+    let max_deviation = needed_range
+        .start()
+        .duration_until(*needed_range.end())
+        .mul_f64(0.1);
+    assert!(
+        !max_deviation.is_negative(),
+        "needed_range: {needed_range:?}"
+    );
+
+    let data_start_is_ok =
+        range.start().duration_until(*needed_range.start()).abs() < max_deviation;
+    let data_end_is_ok = if needed.is_relative() {
+        range // allow range to end early
+            .end()
+            .duration_since(*needed_range.end())
+            .abs()
+            < max_deviation
+    } else {
+        range.end().duration_since(*needed_range.end()) < max_deviation
+    };
+    data_start_is_ok && data_end_is_ok
 }
 
 pub(crate) async fn handle_requests(
