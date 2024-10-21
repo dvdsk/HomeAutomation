@@ -140,8 +140,12 @@ impl Series {
             let new_ts = scaled_time;
 
             if self.last_timestamp_pushed.is_some_and(|ts| ts == new_ts) {
-                tracing::warn!("Skipping datapoint with same timestamp");
+                tracing::trace!("Skipping datapoint with same timestamp");
+                return Ok(());
+            } else {
+                self.last_timestamp_pushed = Some(new_ts);
             }
+
             self.byteseries
                 .push_line(new_ts, &self.line)
                 .wrap_err("Could not write to timeseries on disk")?;
