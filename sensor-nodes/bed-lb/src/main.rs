@@ -190,13 +190,13 @@ async fn main(spawner: Spawner) {
 
     // Init network stack
     let mut dns_servers: Vec<_, 3> = Vec::new();
-    unwrap!(dns_servers.push(Ipv4Address([192, 168, 1, 1])));
-    unwrap!(dns_servers.push(Ipv4Address([192, 168, 1, 1])));
-    unwrap!(dns_servers.push(Ipv4Address([192, 168, 1, 1])));
+    unwrap!(dns_servers.push(Ipv4Address::new(192, 168, 1, 1)));
+    unwrap!(dns_servers.push(Ipv4Address::new(192, 168, 1, 1)));
+    unwrap!(dns_servers.push(Ipv4Address::new(192, 168, 1, 1)));
     static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
     let config = embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
-        address: Ipv4Cidr::new(Ipv4Address([192, 168, 1, 7]), 24),
-        gateway: Some(Ipv4Address([192, 168, 1, 1])),
+        address: Ipv4Cidr::new(Ipv4Address::new(192, 168, 1, 7), 24),
+        gateway: Some(Ipv4Address::new(192, 168, 1, 1)),
         dns_servers,
     });
     let (stack, runner) =
