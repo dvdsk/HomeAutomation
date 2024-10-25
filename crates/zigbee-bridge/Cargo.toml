@@ -1,0 +1,12 @@
+[package]
+name = "zigbee-bridge"
+version = "0.1.0"
+rust-version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+rumqttc = "0.24.0"
+serde_json = "1.0.132"
+tokio.workspace = true
