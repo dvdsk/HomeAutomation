@@ -1,3 +1,4 @@
+#![allow(unused)]
 #[derive(Debug, PartialEq)]
 pub(crate) struct State {
     pub(crate) brightness: f64,
