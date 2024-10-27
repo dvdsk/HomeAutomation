@@ -5,7 +5,7 @@ mod state;
 
 #[derive(Clone)]
 pub struct Controller {
-    pub(crate) change_sender: mpsc::UnboundedSender<state::Change>,
+    change_sender: mpsc::UnboundedSender<state::Change>,
 }
 
 impl Controller {

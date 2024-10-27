@@ -29,4 +29,3 @@ pub(crate) struct Change {
     pub(crate) color_temp: Option<usize>,
     pub(crate) color_xy: Option<(f64, f64)>,
 }
-
