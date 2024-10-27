@@ -12,7 +12,7 @@ impl Controller {
     pub fn start_bridge() -> Self {
         let (change_sender, change_receiver) = mpsc::unbounded_channel();
 
-        let run_bridge = cached_bridge::CachedBridge::run(change_receiver);
+        let run_bridge = cached_bridge::run(change_receiver);
         tokio::task::spawn(run_bridge);
 
         Self { change_sender }

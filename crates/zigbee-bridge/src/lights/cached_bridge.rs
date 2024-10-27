@@ -1,81 +1,70 @@
+use rumqttc::MqttOptions;
 use rumqttc::{AsyncClient, ClientError, EventLoop};
 use rumqttc::{ConnectionError, Event};
-use rumqttc::MqttOptions;
 use serde_json::json;
 use tokio::sync::{mpsc, RwLock};
 
-use crate::{MQTT_IP, MQTT_PORT, QOS};
 use crate::lights::state::{Change, State};
+use crate::{MQTT_IP, MQTT_PORT, QOS};
 
-pub struct CachedBridge {}
+pub async fn set_on(
+    mqtt_client: AsyncClient,
+    friendly_name: &str,
+) -> Result<(), ClientError> {
+    set(mqtt_client, friendly_name, r#"{"state": "ON"}"#).await
+}
 
-impl CachedBridge {
-    pub async fn set_on(
-        mqtt_client: AsyncClient,
-        friendly_name: &str,
-    ) -> Result<(), ClientError> {
-        CachedBridge::set(mqtt_client, friendly_name, r#"{"state": "ON"}"#)
-            .await
-    }
+/// Brightness: 0 to 1
+/// Color temperature: 2200-4000K
+pub async fn set_bri_temp(
+    mqtt_client: AsyncClient,
+    friendly_name: &str,
+    brightness: f64,
+    color_temp: usize,
+) -> Result<(), ClientError> {
+    let brightness = (brightness * 254.) as usize;
+    let payload = json!({
+        "brightness": brightness,
+        "color_temp": kelvin_to_mired(color_temp)
+    })
+    .to_string();
 
-    /// Brightness: 0 to 1
-    /// Color temperature: 2200-4000K
-    pub async fn set_bri_temp(
-        mqtt_client: AsyncClient,
-        friendly_name: &str,
-        brightness: f64,
-        color_temp: usize,
-    ) -> Result<(), ClientError> {
-        let brightness = (brightness * 254.) as usize;
-        let payload = json!({
-            "brightness": brightness,
-            "color_temp": kelvin_to_mired(color_temp)
-        })
-        .to_string();
+    set(mqtt_client, friendly_name, &payload).await
+}
 
-        CachedBridge::set(mqtt_client, friendly_name, &payload).await
-    }
+pub(crate) async fn set(
+    mqtt_client: AsyncClient,
+    friendly_name: &str,
+    payload: &str,
+) -> Result<(), ClientError> {
+    let topic = format!("zigbee2mqtt/{friendly_name}/set");
 
-    pub(crate) async fn set(
-        mqtt_client: AsyncClient,
-        friendly_name: &str,
-        payload: &str,
-    ) -> Result<(), ClientError> {
-        let topic = format!("zigbee2mqtt/{friendly_name}/set");
+    mqtt_client.publish(topic, QOS, false, payload).await?;
+    Ok(())
+}
 
-        mqtt_client.publish(topic, QOS, false, payload).await?;
-        Ok(())
-    }
+pub(crate) async fn run(mut change_receiver: mpsc::UnboundedReceiver<Change>) {
+    let options = MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
+    // TODO: init through mqtt get
+    let known_state = RwLock::new(State::new());
+    let mut needed_state = State::new();
 
-    pub(crate) async fn run(
-        mut change_receiver: mpsc::UnboundedReceiver<Change>,
-    ) {
-        let options =
-            MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
-        // TODO: init through mqtt get
-        let known_state = RwLock::new(State::new());
-        let mut needed_state = State::new();
+    loop {
+        let (mqtt_client, eventloop) = AsyncClient::new(options.clone(), 128);
+        let poll_mqtt = poll_mqtt(eventloop, &known_state);
 
-        loop {
-            let (mqtt_client, eventloop) =
-                AsyncClient::new(options.clone(), 128);
-            let poll_mqtt = poll_mqtt(eventloop, &known_state);
+        let handle_changes = handle_changes(
+            &mut change_receiver,
+            mqtt_client,
+            &known_state,
+            &mut needed_state,
+        );
 
-            let handle_changes = handle_changes(
-                &mut change_receiver,
-                mqtt_client,
-                &known_state,
-                &mut needed_state,
-            );
-
-            tokio::select! {
-                _ = handle_changes => (),
-                _ = poll_mqtt => (),
-            }
-            println!(
-                "Something went wrong with the mqtt connection, reconnecting"
-            );
+        tokio::select! {
+            _ = handle_changes => (),
+            _ = poll_mqtt => (),
         }
+        println!("Something went wrong with the mqtt connection, reconnecting");
     }
 }
 
