@@ -7,6 +7,49 @@ use tokio::sync::{mpsc, RwLock};
 use crate::lights::state::{Change, State};
 use crate::{MQTT_IP, MQTT_PORT, QOS};
 
+struct Mqtt {
+    client: AsyncClient,
+}
+
+impl Mqtt {
+    fn send_new_state(&self, needed_state: &State) {
+        todo!()
+    }
+
+    async fn set_on(&self, friendly_name: &str) -> Result<(), ClientError> {
+        self.set(friendly_name, r#"{"state": "ON"}"#).await
+    }
+
+    /// Brightness: 0 to 1
+    /// Color temperature: 2200-4000K
+    async fn set_bri_temp(
+        &self,
+        friendly_name: &str,
+        brightness: f64,
+        color_temp: usize,
+    ) -> Result<(), ClientError> {
+        let brightness = (brightness * 254.) as usize;
+        let payload = json!({
+            "brightness": brightness,
+            "color_temp": kelvin_to_mired(color_temp)
+        })
+        .to_string();
+
+        self.set(friendly_name, &payload).await
+    }
+
+    async fn set(
+        &self,
+        friendly_name: &str,
+        payload: &str,
+    ) -> Result<(), ClientError> {
+        let topic = format!("zigbee2mqtt/{friendly_name}/set");
+
+        self.client.publish(topic, QOS, false, payload).await?;
+        Ok(())
+    }
+}
+
 pub(crate) async fn run(mut change_receiver: mpsc::UnboundedReceiver<Change>) {
     let options = MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
     // TODO: init through mqtt get
@@ -14,12 +57,13 @@ pub(crate) async fn run(mut change_receiver: mpsc::UnboundedReceiver<Change>) {
     let mut needed_state = State::new();
 
     loop {
-        let (mqtt_client, eventloop) = AsyncClient::new(options.clone(), 128);
+        let (client, eventloop) = AsyncClient::new(options.clone(), 128);
+        let mqtt = Mqtt { client };
 
         let poll_mqtt = poll_mqtt(eventloop, &known_state);
         let handle_changes = handle_changes(
             &mut change_receiver,
-            mqtt_client,
+            &mqtt,
             &known_state,
             &mut needed_state,
         );
@@ -47,7 +91,7 @@ async fn poll_mqtt(
 
 async fn handle_changes(
     change_receiver: &mut mpsc::UnboundedReceiver<Change>,
-    mut mqtt_client: AsyncClient,
+    mqtt: &Mqtt,
     known_state: &RwLock<State>,
     needed_state: &mut State,
 ) -> Result<(), ClientError> {
@@ -57,7 +101,7 @@ async fn handle_changes(
         let known_state = known_state.read().await;
 
         if *needed_state != *known_state {
-            send_new_state(&mut mqtt_client, needed_state);
+            mqtt.send_new_state(needed_state);
         }
     }
 }
@@ -65,46 +109,6 @@ async fn handle_changes(
 // Should return complete new state, otherwise change poll_mqtt
 fn extract_state_update(message: Event) -> State {
     todo!()
-}
-
-fn send_new_state(mqtt_client: &mut AsyncClient, needed_state: &State) {
-    todo!()
-}
-
-async fn set_on(
-    mqtt_client: AsyncClient,
-    friendly_name: &str,
-) -> Result<(), ClientError> {
-    set(mqtt_client, friendly_name, r#"{"state": "ON"}"#).await
-}
-
-/// Brightness: 0 to 1
-/// Color temperature: 2200-4000K
-async fn set_bri_temp(
-    mqtt_client: AsyncClient,
-    friendly_name: &str,
-    brightness: f64,
-    color_temp: usize,
-) -> Result<(), ClientError> {
-    let brightness = (brightness * 254.) as usize;
-    let payload = json!({
-        "brightness": brightness,
-        "color_temp": kelvin_to_mired(color_temp)
-    })
-    .to_string();
-
-    set(mqtt_client, friendly_name, &payload).await
-}
-
-async fn set(
-    mqtt_client: AsyncClient,
-    friendly_name: &str,
-    payload: &str,
-) -> Result<(), ClientError> {
-    let topic = format!("zigbee2mqtt/{friendly_name}/set");
-
-    mqtt_client.publish(topic, QOS, false, payload).await?;
-    Ok(())
 }
 
 fn mired_to_kelvin(mired: usize) -> usize {
