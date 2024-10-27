@@ -1,13 +1,9 @@
-use std::error::Error;
-use std::fmt::Display;
-
 use rumqttc::{AsyncClient, ClientError, EventLoop, MqttOptions};
 use rumqttc::{ConnectionError, Event};
 use serde_json::json;
 use thiserror::Error;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::{mpsc, RwLock};
-use tokio::task;
 
 use super::MQTT_IP;
 use super::MQTT_PORT;
@@ -30,7 +26,7 @@ impl State {
         }
     }
 
-    fn apply(&self, change: Option<StateChange>) -> State {
+    fn apply(&mut self, change: Option<StateChange>) -> State {
         todo!()
     }
 }
@@ -52,21 +48,18 @@ pub struct Controller {
 pub struct CachedBridge {}
 
 impl CachedBridge {
-    pub async fn set_on(&self, friendly_name: &str) -> Result<(), ClientError> {
-        self.set(friendly_name, r#"{"state": "ON"}"#).await
-    }
-
-    pub async fn set_off(
-        &self,
+    pub async fn set_on(
+        mqtt_client: AsyncClient,
         friendly_name: &str,
     ) -> Result<(), ClientError> {
-        self.set(friendly_name, r#"{"state": "OFF"}"#).await
+        CachedBridge::set(mqtt_client, friendly_name, r#"{"state": "ON"}"#)
+            .await
     }
 
     /// Brightness: 0 to 1
     /// Color temperature: 2200-4000K
     pub async fn set_bri_temp(
-        &self,
+        mqtt_client: AsyncClient,
         friendly_name: &str,
         brightness: f64,
         color_temp: usize,
@@ -78,17 +71,17 @@ impl CachedBridge {
         })
         .to_string();
 
-        self.set(friendly_name, &payload).await
+        CachedBridge::set(mqtt_client, friendly_name, &payload).await
     }
 
     pub(crate) async fn set(
-        &self,
+        mqtt_client: AsyncClient,
         friendly_name: &str,
         payload: &str,
     ) -> Result<(), ClientError> {
         let topic = format!("zigbee2mqtt/{friendly_name}/set");
 
-        self.mqtt_client.publish(topic, QOS, false, payload).await?;
+        mqtt_client.publish(topic, QOS, false, payload).await?;
         Ok(())
     }
 
@@ -97,20 +90,18 @@ impl CachedBridge {
             MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
         // TODO: init through mqtt get
         let known_state = RwLock::new(State::new());
-        let needed_state = State::new();
+        let mut needed_state = State::new();
 
         loop {
             let (mqtt_client, eventloop) =
                 AsyncClient::new(options.clone(), 128);
             let poll_mqtt = poll_mqtt(eventloop, &known_state);
 
-            // TODO: these are dropped from the task when it ends, but ownership is
-            // not transferred back...
             let handle_changes = handle_changes(
-                change_receiver,
+                &mut change_receiver,
                 mqtt_client,
                 &known_state,
-                needed_state,
+                &mut needed_state,
             );
 
             tokio::select! {
@@ -125,24 +116,23 @@ impl CachedBridge {
 }
 
 async fn handle_changes(
-    mut change_receiver: mpsc::UnboundedReceiver<StateChange>,
+    change_receiver: &mut mpsc::UnboundedReceiver<StateChange>,
     mut mqtt_client: AsyncClient,
     known_state: &RwLock<State>,
-    mut needed_state: State,
+    needed_state: &mut State,
 ) -> Result<(), ClientError> {
     loop {
         let change = change_receiver.recv().await;
-        needed_state = needed_state.apply(change);
+        *needed_state = needed_state.apply(change);
         let known_state = known_state.read().await;
 
-        if needed_state != *known_state {
-            // Actually publish using mqtt_client
+        if *needed_state != *known_state {
             send_new_state(&mut mqtt_client, needed_state);
         }
     }
 }
 
-fn send_new_state(mqtt_client: &mut AsyncClient, needed_state: State) -> _ {
+fn send_new_state(mqtt_client: &mut AsyncClient, needed_state: &State) {
     todo!()
 }
 
