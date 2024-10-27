@@ -9,4 +9,5 @@ authors.workspace = true
 [dependencies]
 rumqttc = "0.24.0"
 serde_json = "1.0.132"
-tokio.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["sync"] }
