@@ -1,4 +1,8 @@
-#[derive(Debug, PartialEq)]
+#![allow(unused)]
+
+use crate::lights::conversion::temp_to_xy;
+
+#[derive(Debug, PartialEq, Clone)]
 pub(crate) struct State {
     pub(crate) brightness: f64,
     pub(crate) color_temp: usize,
@@ -6,22 +10,25 @@ pub(crate) struct State {
     pub(crate) on: bool,
 }
 
-impl State {
-    pub(crate) fn new() -> Self {
+impl Default for State {
+    fn default() -> Self {
         Self {
-            on: todo!(),
-            brightness: todo!(),
-            color_temp: todo!(),
-            color_xy: todo!(),
+            brightness: 1.0,
+            color_temp: 2700,
+            color_xy: temp_to_xy(2700),
+            on: false,
         }
     }
+}
 
-    pub(crate) fn apply(&mut self, change: Option<Change>) -> State {
+impl State {
+    pub(crate) fn apply(&mut self, change: Change) -> State {
         todo!()
     }
 }
 
 #[derive(Debug)]
+// TODO: make enum
 pub(crate) struct Change {
     pub(crate) friendly_name: String,
     pub(crate) on: Option<bool>,

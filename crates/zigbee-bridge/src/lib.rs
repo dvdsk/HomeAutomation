@@ -16,3 +16,5 @@ mod lights;
 const QOS: QoS = QoS::AtLeastOnce;
 const MQTT_IP: &str = "192.168.1.43";
 const MQTT_PORT: u16 = 1883;
+// TODO: get from bridge
+const LIGHTS: [&str; 2] = ["keuken tafellamp", "gangkast tafellamp"];

@@ -1,18 +1,22 @@
+#![allow(unused)]
+use std::collections::HashMap;
+
 use rumqttc::MqttOptions;
 use rumqttc::{AsyncClient, ClientError, EventLoop};
 use rumqttc::{ConnectionError, Event};
 use serde_json::json;
 use tokio::sync::{mpsc, RwLock};
 
+use crate::lights::conversion::kelvin_to_mired;
 use crate::lights::state::{Change, State};
-use crate::{MQTT_IP, MQTT_PORT, QOS};
+use crate::{LIGHTS, MQTT_IP, MQTT_PORT, QOS};
 
 struct Mqtt {
     client: AsyncClient,
 }
 
 impl Mqtt {
-    fn send_new_state(&self, needed_state: &State) {
+    fn send_new_state(&self, light_name: &str, needed_state: &State) {
         todo!()
     }
 
@@ -45,27 +49,60 @@ impl Mqtt {
     ) -> Result<(), ClientError> {
         let topic = format!("zigbee2mqtt/{friendly_name}/set");
 
-        self.client.publish(topic, QOS, false, payload).await?;
+        self.publish(&topic, payload).await?;
         Ok(())
+    }
+
+    async fn get(
+        &self,
+        friendly_name: &str,
+        payload: &str,
+    ) -> Result<(), ClientError> {
+        let topic = format!("zigbee2mqtt/{friendly_name}/get");
+
+        self.publish(&topic, payload).await?;
+        Ok(())
+    }
+
+    async fn publish(
+        &self,
+        topic: &str,
+        payload: &str,
+    ) -> Result<(), ClientError> {
+        self.client.publish(topic, QOS, false, payload).await
+    }
+
+    fn request_state(&self, name: &str) {
+        let payload = json!({
+            "state": "",
+            "brightness": "",
+            "color_temp": "",
+            "color_xy": "",
+        })
+        .to_string();
+        self.get(name, &payload);
     }
 }
 
-pub(crate) async fn run(mut change_receiver: mpsc::UnboundedReceiver<Change>) {
+pub(crate) async fn run(
+    mut change_receiver: mpsc::UnboundedReceiver<(String, Change)>,
+) {
     let options = MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
     // TODO: init through mqtt get
-    let known_state = RwLock::new(State::new());
-    let mut needed_state = State::new();
+    let known_states = RwLock::new(HashMap::new());
+    let mut needed_states = HashMap::new();
 
     loop {
         let (client, eventloop) = AsyncClient::new(options.clone(), 128);
         let mqtt = Mqtt { client };
+        LIGHTS.into_iter().map(|name| mqtt.request_state(name));
 
-        let poll_mqtt = poll_mqtt(eventloop, &known_state);
+        let poll_mqtt = poll_mqtt(eventloop, &known_states);
         let handle_changes = handle_changes(
             &mut change_receiver,
             &mqtt,
-            &known_state,
-            &mut needed_state,
+            &known_states,
+            &mut needed_states,
         );
 
         tokio::select! {
@@ -78,43 +115,48 @@ pub(crate) async fn run(mut change_receiver: mpsc::UnboundedReceiver<Change>) {
 
 async fn poll_mqtt(
     mut eventloop: EventLoop,
-    known_state: &RwLock<State>,
+    known_states: &RwLock<HashMap<String, State>>,
 ) -> Result<(), ConnectionError> {
     loop {
         let message = eventloop.poll().await?;
-        let new_known_state = extract_state_update(message);
-
-        let mut known_state = known_state.write().await;
-        *known_state = new_known_state;
+        if let Some((light_name, new_known_state)) =
+            extract_state_update(message)
+        {
+            let mut known_states = known_states.write().await;
+            known_states.insert(light_name, new_known_state);
+        }
     }
 }
 
 async fn handle_changes(
-    change_receiver: &mut mpsc::UnboundedReceiver<Change>,
+    change_receiver: &mut mpsc::UnboundedReceiver<(String, Change)>,
     mqtt: &Mqtt,
-    known_state: &RwLock<State>,
-    needed_state: &mut State,
+    known_states: &RwLock<HashMap<String, State>>,
+    needed_states: &mut HashMap<String, State>,
 ) -> Result<(), ClientError> {
     loop {
-        let change = change_receiver.recv().await;
-        *needed_state = needed_state.apply(change);
-        let known_state = known_state.read().await;
+        // TODO: add timeout
+        let (light_name, change) = change_receiver
+            .recv()
+            .await
+            .expect("Channel should never close");
+        let known_states = known_states.read().await;
 
-        if *needed_state != *known_state {
-            mqtt.send_new_state(needed_state);
+        let previous_needed_state = match known_states.get(&light_name) {
+            Some(known_state) => needed_states
+                .entry(light_name.clone())
+                .or_insert(known_state.clone()),
+            None => &mut State::default(),
+        };
+        let new_needed_state = previous_needed_state.apply(change);
+
+        if Some(&new_needed_state) != known_states.get(&light_name) {
+            mqtt.send_new_state(&light_name, &new_needed_state);
         }
     }
 }
 
 // Should return complete new state, otherwise change poll_mqtt
-fn extract_state_update(message: Event) -> State {
+fn extract_state_update(message: Event) -> Option<(String, State)> {
     todo!()
-}
-
-fn mired_to_kelvin(mired: usize) -> usize {
-    1_000_000 / mired
-}
-
-fn kelvin_to_mired(kelvin: usize) -> usize {
-    1_000_000 / kelvin
 }

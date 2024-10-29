@@ -1,11 +1,13 @@
+#![allow(unused)]
 use tokio::sync::mpsc;
 
 mod cached_bridge;
+mod conversion;
 mod state;
 
 #[derive(Clone)]
 pub struct Controller {
-    change_sender: mpsc::UnboundedSender<state::Change>,
+    change_sender: mpsc::UnboundedSender<(String, state::Change)>,
 }
 
 impl Controller {
