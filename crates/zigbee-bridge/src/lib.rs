@@ -18,3 +18,15 @@ const MQTT_IP: &str = "192.168.1.43";
 const MQTT_PORT: u16 = 1883;
 // TODO: get from bridge
 const LIGHTS: [&str; 2] = ["keuken tafellamp", "gangkast tafellamp"];
+
+#[cfg(test)]
+mod tests {
+    use super::Controller;
+
+    #[tokio::test]
+    async fn start_bridge() {
+        let _controller = Controller::start_bridge();
+
+        loop {}
+    }
+}

@@ -73,6 +73,7 @@ impl Mqtt {
     }
 
     fn request_state(&self, name: &str) {
+        println!("Requesting state for light {name}");
         let payload = json!({
             "state": "",
             "brightness": "",
@@ -87,6 +88,7 @@ impl Mqtt {
 pub(crate) async fn run(
     mut change_receiver: mpsc::UnboundedReceiver<(String, Change)>,
 ) {
+    println!("Running bridge");
     let options = MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
     // TODO: init through mqtt get
     let known_states = RwLock::new(HashMap::new());
@@ -119,6 +121,7 @@ async fn poll_mqtt(
 ) -> Result<(), ConnectionError> {
     loop {
         let message = eventloop.poll().await?;
+        dbg!(&message);
         if let Some((light_name, new_known_state)) =
             extract_state_update(message)
         {
