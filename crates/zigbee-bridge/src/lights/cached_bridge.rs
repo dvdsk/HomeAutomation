@@ -1,9 +1,9 @@
 #![allow(unused)]
 use std::collections::HashMap;
 
-use rumqttc::MqttOptions;
 use rumqttc::{AsyncClient, ClientError, EventLoop};
 use rumqttc::{ConnectionError, Event};
+use rumqttc::{Incoming, MqttOptions};
 use serde_json::json;
 use tokio::sync::{mpsc, RwLock};
 
@@ -72,47 +72,59 @@ impl Mqtt {
         self.client.publish(topic, QOS, false, payload).await
     }
 
-    fn request_state(&self, name: &str) {
+    async fn request_state(&self, name: &str) {
         println!("Requesting state for light {name}");
-        let payload = json!({
-            "state": "",
-            "brightness": "",
-            "color_temp": "",
-            "color_xy": "",
-        })
-        .to_string();
-        self.get(name, &payload);
+        let payload = json!({"state": ""});
+
+        self.get(name, &payload.to_string()).await;
+    }
+
+    async fn subscribe(&self, topic: &str) -> Result<(), ClientError> {
+        self.client.subscribe(topic, QOS).await
     }
 }
 
 pub(crate) async fn run(
     mut change_receiver: mpsc::UnboundedReceiver<(String, Change)>,
 ) {
-    println!("Running bridge");
-    let options = MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
-    // TODO: init through mqtt get
+    let mut options =
+        MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
+    // Set incoming to max mqtt packet size, outgoing to rumqtt default
+    options.set_max_packet_size(2_usize.pow(28), 10240);
+
     let known_states = RwLock::new(HashMap::new());
     let mut needed_states = HashMap::new();
 
-    loop {
-        let (client, eventloop) = AsyncClient::new(options.clone(), 128);
-        let mqtt = Mqtt { client };
-        LIGHTS.into_iter().map(|name| mqtt.request_state(name));
+    // Reconnecting to broker is handled by Eventloop::poll
+    let (client, eventloop) = AsyncClient::new(options.clone(), 128);
+    let mqtt = Mqtt { client };
 
-        let poll_mqtt = poll_mqtt(eventloop, &known_states);
-        let handle_changes = handle_changes(
-            &mut change_receiver,
-            &mqtt,
-            &known_states,
-            &mut needed_states,
-        );
-
-        tokio::select! {
-            _ = handle_changes => (),
-            _ = poll_mqtt => (),
-        }
-        println!("Something went wrong with the mqtt connection, reconnecting");
+    for light in LIGHTS {
+        mqtt.subscribe(&format!("zigbee2mqtt/{light}"))
+            .await
+            .unwrap();
+        mqtt.request_state(light).await;
     }
+
+    let poll_mqtt = poll_mqtt(eventloop, &known_states);
+    let handle_changes = handle_changes(
+        &mut change_receiver,
+        &mqtt,
+        &known_states,
+        &mut needed_states,
+    );
+
+    let err = tokio::select! {
+        err = handle_changes => Error::Changes(err.unwrap_err()),
+        err = poll_mqtt => Error::Poll(err.unwrap_err()),
+    };
+    println!("Something went wrong with the mqtt connection: {err:?}");
+}
+
+#[derive(Debug)]
+enum Error {
+    Changes(ClientError),
+    Poll(ConnectionError),
 }
 
 async fn poll_mqtt(
@@ -121,12 +133,12 @@ async fn poll_mqtt(
 ) -> Result<(), ConnectionError> {
     loop {
         let message = eventloop.poll().await?;
-        dbg!(&message);
         if let Some((light_name, new_known_state)) =
             extract_state_update(message)
         {
             let mut known_states = known_states.write().await;
             known_states.insert(light_name, new_known_state);
+            dbg!(known_states);
         }
     }
 }
@@ -161,5 +173,24 @@ async fn handle_changes(
 
 // Should return complete new state, otherwise change poll_mqtt
 fn extract_state_update(message: Event) -> Option<(String, State)> {
-    todo!()
+    match message {
+        Event::Incoming(incoming) => match incoming {
+            Incoming::ConnAck(_)
+            | Incoming::PubAck(_)
+            | Incoming::PingResp
+            | Incoming::SubAck(_) => None,
+            Incoming::Publish(message) => {
+                let topic: Vec<_> = message.topic.split('/').collect();
+                let name = topic[1].to_string();
+                let data = &(*message.payload);
+
+                Some((name, data.try_into().unwrap()))
+            }
+            other => {
+                dbg!(other);
+                None
+            }
+        },
+        _ => None,
+    }
 }

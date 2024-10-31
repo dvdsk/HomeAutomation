@@ -25,8 +25,9 @@ mod tests {
 
     #[tokio::test]
     async fn start_bridge() {
-        let _controller = Controller::start_bridge();
+        let _controller = Controller::start_bridge().await;
 
-        loop {}
+        let () = std::future::pending().await;
+        unreachable!();
     }
 }
