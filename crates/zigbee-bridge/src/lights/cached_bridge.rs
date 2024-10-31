@@ -114,17 +114,11 @@ pub(crate) async fn run(
         &mut needed_states,
     );
 
-    let err = tokio::select! {
-        err = handle_changes => Error::Changes(err.unwrap_err()),
-        err = poll_mqtt => Error::Poll(err.unwrap_err()),
+    tokio::select! {
+        _ = handle_changes => (),
+        err = poll_mqtt =>
+            println!("Something went wrong with the mqtt connection: {err:?}"),
     };
-    println!("Something went wrong with the mqtt connection: {err:?}");
-}
-
-#[derive(Debug)]
-enum Error {
-    Changes(ClientError),
-    Poll(ConnectionError),
 }
 
 async fn poll_mqtt(
@@ -132,7 +126,14 @@ async fn poll_mqtt(
     known_states: &RwLock<HashMap<String, State>>,
 ) -> Result<(), ConnectionError> {
     loop {
-        let message = eventloop.poll().await?;
+        let message = match eventloop.poll().await {
+            Ok(message) => message,
+            Err(err) => {
+                println!("Error while polling: {err}");
+                continue;
+            }
+        };
+
         if let Some((light_name, new_known_state)) =
             extract_state_update(message)
         {
@@ -148,7 +149,7 @@ async fn handle_changes(
     mqtt: &Mqtt,
     known_states: &RwLock<HashMap<String, State>>,
     needed_states: &mut HashMap<String, State>,
-) -> Result<(), ClientError> {
+) -> ! {
     loop {
         // TODO: add timeout
         let (light_name, change) = change_receiver
@@ -171,7 +172,6 @@ async fn handle_changes(
     }
 }
 
-// Should return complete new state, otherwise change poll_mqtt
 fn extract_state_update(message: Event) -> Option<(String, State)> {
     match message {
         Event::Incoming(incoming) => match incoming {
