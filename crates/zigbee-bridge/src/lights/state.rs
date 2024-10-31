@@ -1,10 +1,8 @@
-#![allow(unused)]
-
 use std::io;
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
-use crate::lights::conversion::{mired_to_kelvin, temp_to_xy};
+use crate::lights::conversion::{kelvin_to_mired, mired_to_kelvin, temp_to_xy};
 
 #[derive(Debug, PartialEq, Clone)]
 pub(crate) struct State {
@@ -84,7 +82,7 @@ impl TryInto<State> for &[u8] {
         let on = match state.to_lowercase().as_str() {
             "on" => true,
             "off" => false,
-            other => return Err(invalid_err("on/off bool")),
+            other => return Err(invalid_err(&format!("on/off bool: {other}"))),
         };
 
         Ok(State {
@@ -97,17 +95,42 @@ impl TryInto<State> for &[u8] {
 }
 
 impl State {
-    pub(crate) fn apply(&mut self, change: Change) -> State {
-        todo!()
+    pub(crate) fn apply(&self, change: Change) -> State {
+        let mut new_state = self.clone();
+        match change {
+            Change::On(on) => new_state.on = on,
+            Change::Brightness(bri) => new_state.brightness = bri,
+            Change::ColorTemp(temp) => new_state.color_temp_kelvin = temp,
+            Change::ColorXy(xy) => new_state.color_xy = xy,
+        }
+        new_state
+    }
+
+    pub(crate) fn to_payloads(&self) -> Vec<String> {
+        let state = match self.on {
+            true => "ON",
+            false => "OFF",
+        };
+        let brightness: usize = (self.brightness * 254.).round() as usize;
+        let color_temp_mired = kelvin_to_mired(self.color_temp_kelvin);
+
+        [
+            json!({ "state": state }),
+            json!({ "brightness": brightness }),
+            json!({ "color_temp": color_temp_mired }),
+            // TODO: make sure this doesn't override temp / always use this
+            // json!({ "color_xy": self.color_xy }),
+        ]
+        .into_iter()
+        .map(|x| x.to_string())
+        .collect()
     }
 }
 
 #[derive(Debug)]
-// TODO: make enum
-pub(crate) struct Change {
-    pub(crate) friendly_name: String,
-    pub(crate) on: Option<bool>,
-    pub(crate) brightness: Option<f64>,
-    pub(crate) color_temp: Option<usize>,
-    pub(crate) color_xy: Option<(f64, f64)>,
+pub(crate) enum Change {
+    On(bool),
+    Brightness(f64),
+    ColorTemp(usize),
+    ColorXy((f64, f64)),
 }

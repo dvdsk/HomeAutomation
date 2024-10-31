@@ -7,6 +7,6 @@ pub(crate) fn kelvin_to_mired(kelvin: usize) -> usize {
 }
 
 pub(crate) fn temp_to_xy(color_temp: usize) -> (f64, f64) {
-    todo!()
+    (1.0, 1.0)
 }
 

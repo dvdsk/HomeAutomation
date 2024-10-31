@@ -1,5 +1,5 @@
-#![allow(unused)]
 use std::collections::HashMap;
+use std::time::Duration;
 
 use rumqttc::{AsyncClient, ClientError, EventLoop};
 use rumqttc::{ConnectionError, Event};
@@ -7,7 +7,6 @@ use rumqttc::{Incoming, MqttOptions};
 use serde_json::json;
 use tokio::sync::{mpsc, RwLock};
 
-use crate::lights::conversion::kelvin_to_mired;
 use crate::lights::state::{Change, State};
 use crate::{LIGHTS, MQTT_IP, MQTT_PORT, QOS};
 
@@ -16,30 +15,15 @@ struct Mqtt {
 }
 
 impl Mqtt {
-    fn send_new_state(&self, light_name: &str, needed_state: &State) {
-        todo!()
-    }
-
-    async fn set_on(&self, friendly_name: &str) -> Result<(), ClientError> {
-        self.set(friendly_name, r#"{"state": "ON"}"#).await
-    }
-
-    /// Brightness: 0 to 1
-    /// Color temperature: 2200-4000K
-    async fn set_bri_temp(
+    async fn send_new_state(
         &self,
-        friendly_name: &str,
-        brightness: f64,
-        color_temp: usize,
+        light_name: &str,
+        needed_state: &State,
     ) -> Result<(), ClientError> {
-        let brightness = (brightness * 254.) as usize;
-        let payload = json!({
-            "brightness": brightness,
-            "color_temp": kelvin_to_mired(color_temp)
-        })
-        .to_string();
-
-        self.set(friendly_name, &payload).await
+        for payload in needed_state.to_payloads() {
+            self.set(light_name, &payload).await?;
+        }
+        Ok(())
     }
 
     async fn set(
@@ -76,7 +60,7 @@ impl Mqtt {
         println!("Requesting state for light {name}");
         let payload = json!({"state": ""});
 
-        self.get(name, &payload.to_string()).await;
+        self.get(name, &payload.to_string()).await.unwrap();
     }
 
     async fn subscribe(&self, topic: &str) -> Result<(), ClientError> {
@@ -139,7 +123,6 @@ async fn poll_mqtt(
         {
             let mut known_states = known_states.write().await;
             known_states.insert(light_name, new_known_state);
-            dbg!(known_states);
         }
     }
 }
@@ -150,6 +133,8 @@ async fn handle_changes(
     known_states: &RwLock<HashMap<String, State>>,
     needed_states: &mut HashMap<String, State>,
 ) -> ! {
+    // Give the initial known states a chance to be fetched
+    tokio::time::sleep(Duration::from_millis(500)).await;
     loop {
         // TODO: add timeout
         let (light_name, change) = change_receiver
@@ -158,6 +143,7 @@ async fn handle_changes(
             .expect("Channel should never close");
         let known_states = known_states.read().await;
 
+        dbg!(&known_states);
         let previous_needed_state = match known_states.get(&light_name) {
             Some(known_state) => needed_states
                 .entry(light_name.clone())
@@ -167,7 +153,8 @@ async fn handle_changes(
         let new_needed_state = previous_needed_state.apply(change);
 
         if Some(&new_needed_state) != known_states.get(&light_name) {
-            mqtt.send_new_state(&light_name, &new_needed_state);
+            // Ignore errors because we will retry if the state hasn't changed
+            let _ = mqtt.send_new_state(&light_name, &new_needed_state).await;
         }
     }
 }

@@ -25,7 +25,9 @@ mod tests {
 
     #[tokio::test]
     async fn start_bridge() {
-        let _controller = Controller::start_bridge().await;
+        let controller = Controller::start_bridge().await;
+
+        controller.set_brightness("gangkast tafellamp", 1.0);
 
         let () = std::future::pending().await;
         unreachable!();
