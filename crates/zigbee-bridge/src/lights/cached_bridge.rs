@@ -141,53 +141,54 @@ async fn handle_changes(
         match tokio::time::timeout(CHANGE_TIMEOUT, change_receiver.recv()).await
         {
             Ok(change) => {
-                let (light_name, change) =
-                    change.expect("Channel should never close");
-                let known_states = known_states.read().await;
+                apply_change(change, known_states, needed_states).await;
+            }
+            Err(_) => (),
+        }
+        send_all_changes(known_states, needed_states, mqtt).await;
+    }
+}
 
-                let previous_needed_state = match needed_states.get(&light_name)
-                {
-                    Some(needed_state) => needed_state,
-                    None => match known_states.get(&light_name) {
-                        Some(known_state) => needed_states
-                            .entry(light_name.clone())
-                            .or_insert(known_state.clone()),
-                        None => &mut State::default(),
-                    },
-                };
-
-                let new_needed_state = previous_needed_state.apply(change);
-                if Some(&new_needed_state) != known_states.get(&light_name) {
+async fn send_all_changes(
+    known_states: &RwLock<HashMap<String, State>>,
+    needed_states: &mut HashMap<String, State>,
+    mqtt: &Mqtt,
+) {
+    let known_states = known_states.read().await;
+    for light_name in LIGHTS {
+        match needed_states.get(light_name) {
+            Some(needed_state) => {
+                if Some(needed_state) != known_states.get(light_name) {
                     // Ignore errors because we will retry if the state hasn't changed
-                    let _ = mqtt
-                        .send_new_state(&light_name, &new_needed_state)
-                        .await;
-                }
-                needed_states.insert(light_name, new_needed_state);
-            }
-            // Timeout
-            Err(_) => {
-                let known_states = known_states.read().await;
-                for light_name in LIGHTS {
-                    match needed_states.get(light_name) {
-                        Some(needed_state) => {
-                            if Some(needed_state)
-                                != known_states.get(light_name)
-                            {
-                                let _ = mqtt
-                                    .send_new_state(
-                                        &light_name,
-                                        &needed_state,
-                                    )
-                                    .await;
-                            }
-                        },
-                        None => (),
-                    }
+                    let _ =
+                        mqtt.send_new_state(&light_name, &needed_state).await;
                 }
             }
+            None => (),
         }
     }
+}
+async fn apply_change(
+    change: Option<(String, Change)>,
+    known_states: &RwLock<HashMap<String, State>>,
+    needed_states: &mut HashMap<String, State>,
+) {
+    let (light_name, change) = change.expect("Channel should never close");
+    let known_states = known_states.read().await;
+
+    let previous_needed_state = match needed_states.get(&light_name) {
+        Some(needed_state) => needed_state,
+        None => match known_states.get(&light_name) {
+            Some(known_state) => needed_states
+                .entry(light_name.clone())
+                .or_insert(known_state.clone()),
+            None => &mut State::default(),
+        },
+    };
+
+    let new_needed_state = previous_needed_state.apply(change);
+
+    needed_states.insert(light_name, new_needed_state);
 }
 
 fn extract_state_update(message: Event) -> Option<(String, State)> {
