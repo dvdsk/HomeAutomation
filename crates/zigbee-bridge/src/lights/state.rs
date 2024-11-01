@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 
 use crate::lights::conversion::{kelvin_to_mired, mired_to_kelvin, temp_to_xy};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub(crate) struct State {
     pub(crate) brightness: f64,
     pub(crate) color_temp_kelvin: usize,
@@ -22,6 +22,23 @@ impl Default for State {
         }
     }
 }
+
+impl PartialEq for State {
+    fn eq(&self, other: &Self) -> bool {
+        let d_bright = (self.brightness - other.brightness).abs();
+        let d_color_temp = self.color_temp_kelvin - other.color_temp_kelvin;
+        let d_color_x = (self.color_xy.0 - other.color_xy.0).abs();
+        let d_color_y = (self.color_xy.1 - other.color_xy.1).abs();
+
+        self.on == other.on
+            && d_bright < 1. / 250.
+            && d_color_temp < 20
+            && d_color_x < 0.01
+            && d_color_y < 0.01
+    }
+}
+
+impl Eq for State {}
 
 impl TryInto<State> for &[u8] {
     type Error = io::Error;
