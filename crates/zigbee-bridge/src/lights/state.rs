@@ -45,7 +45,7 @@ impl TryInto<State> for &[u8] {
             )
         }
 
-        let json: Value = serde_json::from_slice(&self)?;
+        let json: Value = serde_json::from_slice(self)?;
         let map = json.as_object().ok_or(invalid_err("Object"))?;
 
         let color = get_key(map, "color")?
@@ -86,6 +86,7 @@ impl TryInto<State> for &[u8] {
         };
 
         Ok(State {
+            #[allow(clippy::cast_precision_loss)]
             brightness: brightness as f64 / 254.,
             color_temp_kelvin: mired_to_kelvin(color_temp_mired),
             color_xy: (color_x, color_y),
@@ -107,10 +108,8 @@ impl State {
     }
 
     pub(crate) fn to_payloads(&self) -> Vec<String> {
-        let state = match self.on {
-            true => "ON",
-            false => "OFF",
-        };
+        let state = if self.on { "ON" } else { "OFF" };
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let brightness: usize = (self.brightness * 254.).round() as usize;
         let color_temp_mired = kelvin_to_mired(self.color_temp_kelvin);
 
@@ -127,7 +126,7 @@ impl State {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) enum Change {
     On(bool),
     Brightness(f64),

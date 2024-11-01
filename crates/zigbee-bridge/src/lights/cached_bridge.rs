@@ -101,7 +101,7 @@ pub(crate) async fn run(
     );
 
     tokio::select! {
-        _ = handle_changes => (),
+        () = handle_changes => (),
         err = poll_mqtt =>
             println!("Something went wrong with the mqtt connection: {err:?}"),
     };
@@ -138,12 +138,10 @@ async fn handle_changes(
     // Give the initial known states a chance to be fetched
     tokio::time::sleep(Duration::from_millis(500)).await;
     loop {
-        match tokio::time::timeout(CHANGE_TIMEOUT, change_receiver.recv()).await
+        if let Ok(change) =
+            tokio::time::timeout(CHANGE_TIMEOUT, change_receiver.recv()).await
         {
-            Ok(change) => {
-                apply_change(change, known_states, needed_states).await;
-            }
-            Err(_) => (),
+            apply_change(change, known_states, needed_states).await;
         }
         send_all_changes(known_states, needed_states, mqtt).await;
     }
@@ -156,15 +154,11 @@ async fn send_all_changes(
 ) {
     let known_states = known_states.read().await;
     for light_name in LIGHTS {
-        match needed_states.get(light_name) {
-            Some(needed_state) => {
-                if Some(needed_state) != known_states.get(light_name) {
-                    // Ignore errors because we will retry if the state hasn't changed
-                    let _ =
-                        mqtt.send_new_state(&light_name, &needed_state).await;
-                }
+        if let Some(needed_state) = needed_states.get(light_name) {
+            if Some(needed_state) != known_states.get(light_name) {
+                // Ignore errors because we will retry if the state hasn't changed
+                let _ = mqtt.send_new_state(light_name, needed_state).await;
             }
-            None => (),
         }
     }
 }
@@ -210,6 +204,6 @@ fn extract_state_update(message: Event) -> Option<(String, State)> {
                 None
             }
         },
-        _ => None,
+        Event::Outgoing(_) => None,
     }
 }

@@ -1,3 +1,4 @@
+#![allow(clippy::missing_panics_doc)]
 use tokio::sync::mpsc;
 
 use self::state::Change;
@@ -12,7 +13,8 @@ pub struct Controller {
 }
 
 impl Controller {
-    pub async fn start_bridge() -> Self {
+    #[must_use]
+    pub fn start_bridge() -> Self {
         let (change_sender, change_receiver) = mpsc::unbounded_channel();
 
         let run_bridge = cached_bridge::run(change_receiver);

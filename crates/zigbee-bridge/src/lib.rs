@@ -25,7 +25,7 @@ mod tests {
 
     #[tokio::test]
     async fn start_bridge() {
-        let controller = Controller::start_bridge().await;
+        let controller = Controller::start_bridge();
 
         controller.set_brightness("gangkast tafellamp", 1.0);
 
