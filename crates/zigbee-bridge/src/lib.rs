@@ -21,13 +21,37 @@ const LIGHTS: [&str; 2] = ["keuken tafellamp", "gangkast tafellamp"];
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use super::Controller;
 
     #[tokio::test]
     async fn start_bridge() {
         let controller = Controller::start_bridge();
 
+        controller.set_brightness("gangkast tafellamp", 0.5);
+        controller.set_brightness("keuken tafellamp", 0.5);
+
+        controller.set_color_temp("gangkast tafellamp", 2200);
+        controller.set_color_temp("keuken tafellamp", 2200);
+
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
+        controller.set_off("gangkast tafellamp");
+        controller.set_off("keuken tafellamp");
+
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
+        controller.set_on("gangkast tafellamp");
+        controller.set_on("keuken tafellamp");
+
+        controller.set_color_temp("gangkast tafellamp", 4000);
+        controller.set_color_temp("keuken tafellamp", 4000);
+
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
         controller.set_brightness("gangkast tafellamp", 1.0);
+        controller.set_brightness("keuken tafellamp", 1.0);
 
         let () = std::future::pending().await;
         unreachable!();
