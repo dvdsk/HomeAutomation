@@ -10,6 +10,8 @@ use tokio::sync::{mpsc, RwLock};
 use crate::lights::state::{Change, State};
 use crate::{LIGHTS, MQTT_IP, MQTT_PORT, QOS};
 
+const CHANGE_TIMEOUT: Duration = Duration::from_secs(5);
+
 struct Mqtt {
     client: AsyncClient,
 }
@@ -136,25 +138,54 @@ async fn handle_changes(
     // Give the initial known states a chance to be fetched
     tokio::time::sleep(Duration::from_millis(500)).await;
     loop {
-        // TODO: add timeout
-        let (light_name, change) = change_receiver
-            .recv()
-            .await
-            .expect("Channel should never close");
-        let known_states = known_states.read().await;
+        match tokio::time::timeout(CHANGE_TIMEOUT, change_receiver.recv()).await
+        {
+            Ok(change) => {
+                let (light_name, change) =
+                    change.expect("Channel should never close");
+                let known_states = known_states.read().await;
 
-        dbg!(&known_states);
-        let previous_needed_state = match known_states.get(&light_name) {
-            Some(known_state) => needed_states
-                .entry(light_name.clone())
-                .or_insert(known_state.clone()),
-            None => &mut State::default(),
-        };
-        let new_needed_state = previous_needed_state.apply(change);
+                let previous_needed_state = match needed_states.get(&light_name)
+                {
+                    Some(needed_state) => needed_state,
+                    None => match known_states.get(&light_name) {
+                        Some(known_state) => needed_states
+                            .entry(light_name.clone())
+                            .or_insert(known_state.clone()),
+                        None => &mut State::default(),
+                    },
+                };
 
-        if Some(&new_needed_state) != known_states.get(&light_name) {
-            // Ignore errors because we will retry if the state hasn't changed
-            let _ = mqtt.send_new_state(&light_name, &new_needed_state).await;
+                let new_needed_state = previous_needed_state.apply(change);
+                if Some(&new_needed_state) != known_states.get(&light_name) {
+                    // Ignore errors because we will retry if the state hasn't changed
+                    let _ = mqtt
+                        .send_new_state(&light_name, &new_needed_state)
+                        .await;
+                }
+                needed_states.insert(light_name, new_needed_state);
+            }
+            // Timeout
+            Err(_) => {
+                let known_states = known_states.read().await;
+                for light_name in LIGHTS {
+                    match needed_states.get(light_name) {
+                        Some(needed_state) => {
+                            if Some(needed_state)
+                                != known_states.get(light_name)
+                            {
+                                let _ = mqtt
+                                    .send_new_state(
+                                        &light_name,
+                                        &needed_state,
+                                    )
+                                    .await;
+                            }
+                        },
+                        None => (),
+                    }
+                }
+            }
         }
     }
 }
