@@ -7,7 +7,9 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-rumqttc = "0.24.0"
+# default-features enable rustls which we do not need and drags in 
+# C dependencies making deployment a chore
+rumqttc = { version = "0.24.0", default-features = false }
 serde_json = "1.0.132"
 thiserror.workspace = true
 tokio = { workspace = true, features = ["sync"] }
