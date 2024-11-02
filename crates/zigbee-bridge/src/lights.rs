@@ -3,11 +3,14 @@ use tokio::sync::mpsc;
 
 use self::state::Change;
 
+// TODO: make private once system is ported
+pub use conversion::{kelvin_to_mired, mired_to_kelvin, normalize, denormalize};
+
 mod cached_bridge;
 mod conversion;
 mod state;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Controller {
     change_sender: mpsc::UnboundedSender<(String, state::Change)>,
 }

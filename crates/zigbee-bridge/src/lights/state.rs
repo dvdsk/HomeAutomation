@@ -2,7 +2,9 @@ use std::io;
 
 use serde_json::{json, Value};
 
-use crate::lights::conversion::{kelvin_to_mired, mired_to_kelvin, temp_to_xy};
+use crate::lights::{conversion::{
+    kelvin_to_mired, mired_to_kelvin, normalize, temp_to_xy,
+}, denormalize};
 
 #[derive(Debug, Clone)]
 pub(crate) struct State {
@@ -79,11 +81,13 @@ impl TryInto<State> for &[u8] {
             .as_f64()
             .expect("Should return Some if not using arbitrary precision");
 
-        let brightness = get_key(map, "brightness")?
+        let brightness: u8 = get_key(map, "brightness")?
             .as_number()
             .ok_or(invalid_err("Number"))?
             .as_u64()
-            .ok_or(invalid_err("u64"))?;
+            .ok_or(invalid_err("u64"))?
+            .try_into()
+            .map_err(|_| invalid_err("u8"))?;
 
         let color_temp_mired = get_key(map, "color_temp")?
             .as_number()
@@ -104,7 +108,7 @@ impl TryInto<State> for &[u8] {
 
         Ok(State {
             #[allow(clippy::cast_precision_loss)]
-            brightness: brightness as f64 / 254.,
+            brightness: normalize(brightness),
             color_temp_kelvin: mired_to_kelvin(color_temp_mired),
             color_xy: (color_x, color_y),
             on,
@@ -127,12 +131,11 @@ impl State {
     pub(crate) fn to_payloads(&self) -> Vec<String> {
         let state = if self.on { "ON" } else { "OFF" };
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        let brightness: usize = (self.brightness * 254.).round() as usize;
         let color_temp_mired = kelvin_to_mired(self.color_temp_kelvin);
 
         [
             json!({ "state": state }),
-            json!({ "brightness": brightness }),
+            json!({ "brightness": denormalize(self.brightness) }),
             json!({ "color_temp": color_temp_mired }),
             // TODO: make sure this doesn't override temp / always use this
             // json!({ "color_xy": self.color_xy }),
