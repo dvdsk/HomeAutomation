@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use rumqttc::{AsyncClient, ClientError, EventLoop};
-use rumqttc::{ConnectionError, Event};
-use rumqttc::{Incoming, MqttOptions};
+use rumqttc::{AsyncClient, ClientError, MqttOptions};
 use serde_json::json;
 use tokio::sync::{mpsc, RwLock};
 
@@ -11,6 +9,7 @@ use crate::lights::state::{Change, State};
 use crate::{LIGHTS, MQTT_IP, MQTT_PORT, QOS};
 
 mod changes;
+mod poll;
 
 const CHANGE_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -94,7 +93,7 @@ pub(crate) async fn run(
         mqtt.request_state(light).await;
     }
 
-    let poll_mqtt = poll_mqtt(eventloop, &known_states);
+    let poll_mqtt = poll::poll_mqtt(eventloop, &known_states);
     let handle_changes = changes::handle(
         &mut change_receiver,
         &mqtt,
@@ -107,49 +106,4 @@ pub(crate) async fn run(
         err = poll_mqtt =>
             println!("Something went wrong with the mqtt connection: {err:?}"),
     };
-}
-
-async fn poll_mqtt(
-    mut eventloop: EventLoop,
-    known_states: &RwLock<HashMap<String, State>>,
-) -> Result<(), ConnectionError> {
-    loop {
-        let message = match eventloop.poll().await {
-            Ok(message) => message,
-            Err(err) => {
-                println!("Error while polling: {err}");
-                continue;
-            }
-        };
-
-        if let Some((light_name, new_known_state)) =
-            extract_state_update(message)
-        {
-            let mut known_states = known_states.write().await;
-            known_states.insert(light_name, new_known_state);
-        }
-    }
-}
-
-fn extract_state_update(message: Event) -> Option<(String, State)> {
-    match message {
-        Event::Incoming(incoming) => match incoming {
-            Incoming::ConnAck(_)
-            | Incoming::PubAck(_)
-            | Incoming::PingResp
-            | Incoming::SubAck(_) => None,
-            Incoming::Publish(message) => {
-                let topic: Vec<_> = message.topic.split('/').collect();
-                let name = topic[1].to_string();
-                let data = &(*message.payload);
-
-                Some((name, data.try_into().unwrap()))
-            }
-            other => {
-                dbg!(other);
-                None
-            }
-        },
-        Event::Outgoing(_) => None,
-    }
 }
