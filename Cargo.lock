@@ -502,6 +502,7 @@ dependencies = [
  "tracing-journald",
  "tracing-subscriber",
  "tz-rs",
+ "zigbee-bridge",
 ]
 
 [[package]]

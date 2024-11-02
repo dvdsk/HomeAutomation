@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use time::{OffsetDateTime, UtcOffset};
 use tokio::sync::broadcast;
 use tokio::task::JoinSet;
+use zigbee_bridge::lights::{mired_to_kelvin, normalize};
 
 // now_local works some of the time only... this replaces it with.......
 // horrible hard coded time stuff. Chrono does provide reliable now_local
@@ -30,6 +31,7 @@ pub enum Event {
 
 struct RestrictedSystem {
     allowed_lights: Vec<&'static str>,
+    allowed_lights_new: Vec<&'static str>,
     system: System,
 }
 
@@ -38,17 +40,34 @@ impl RestrictedSystem {
         for name in &self.allowed_lights {
             self.system.lights.set_ct(name, bri, ct).await.unwrap();
         }
+
+        for name in &self.allowed_lights_new {
+            self.system
+                .lights_new
+                .set_color_temp(name, mired_to_kelvin(ct.into()));
+            self.system
+                .lights_new
+                .set_brightness(name, normalize(bri));
+        }
     }
 
     async fn all_lamps_off(&mut self) {
         for name in &self.allowed_lights {
             self.system.lights.single_off(name).await.unwrap();
         }
+
+        for name in &self.allowed_lights_new {
+            self.system.lights_new.set_off(name);
+        }
     }
 
     async fn all_lamps_on(&mut self) {
         for name in &self.allowed_lights {
             self.system.lights.single_on(name).await.unwrap();
+        }
+
+        for name in &self.allowed_lights_new {
+            self.system.lights_new.set_on(name);
         }
     }
 }
@@ -71,6 +90,7 @@ pub fn start(
             "large_bedroom:wardrobe",
             "large_bedroom:bed",
         ],
+        allowed_lights_new: vec![],
     };
     tasks.spawn(rooms::large_bedroom::run(rx1, sender.clone(), restricted));
 
@@ -81,12 +101,18 @@ pub fn start(
             "small_bedroom:bureau",
             "small_bedroom:piano",
         ],
+        allowed_lights_new: vec![],
     };
     tasks.spawn(rooms::small_bedroom::run(rx2, sender.clone(), restricted));
 
     let restricted = RestrictedSystem {
         system: system.clone(),
-        allowed_lights: vec!["kitchen:ceiling", "kitchen:hood_left", "kitchen:hood_right"],
+        allowed_lights: vec![
+            "kitchen:ceiling",
+            "kitchen:hood_left",
+            "kitchen:hood_right",
+        ],
+        allowed_lights_new: vec!["kitchen:fridge", "kitchen:hallway"],
     };
     tasks.spawn(rooms::kitchen::run(rx3, sender, restricted));
 

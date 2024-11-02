@@ -9,6 +9,7 @@ authors.workspace = true
 [dependencies]
 protocol = { workspace = true, features = ["alloc"] }
 data-server = { workspace = true }
+zigbee-bridge = { workspace = true }
 
 futures = "0.3"
 tokio = { workspace = true, features = ["full"] }
