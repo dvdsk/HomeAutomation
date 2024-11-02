@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use tokio::sync::{mpsc, RwLock};
 
-use super::{Mqtt, CHANGE_TIMEOUT};
+use super::{mqtt::Mqtt, CHANGE_TIMEOUT};
 use crate::lights::state::{Change, State};
 use crate::LIGHTS;
 
