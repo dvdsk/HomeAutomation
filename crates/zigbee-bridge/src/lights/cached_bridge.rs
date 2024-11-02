@@ -4,15 +4,16 @@ use std::time::Duration;
 use rumqttc::{AsyncClient, MqttOptions};
 use tokio::sync::{mpsc, RwLock};
 
+use self::mqtt::Mqtt;
 use crate::lights::state::Change;
 use crate::{LIGHTS, MQTT_IP, MQTT_PORT};
-use self::mqtt::Mqtt;
 
 mod changes;
 mod mqtt;
 mod poll;
 
 const CHANGE_TIMEOUT: Duration = Duration::from_secs(5);
+const WAIT_FOR_INIT_STATES: Duration = Duration::from_millis(500);
 
 pub(crate) async fn run(
     mut change_receiver: mpsc::UnboundedReceiver<(String, Change)>,

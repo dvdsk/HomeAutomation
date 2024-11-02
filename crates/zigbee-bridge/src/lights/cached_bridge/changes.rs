@@ -1,9 +1,8 @@
 use std::collections::HashMap;
-use std::time::Duration;
 
 use tokio::sync::{mpsc, RwLock};
 
-use super::{mqtt::Mqtt, CHANGE_TIMEOUT};
+use super::{mqtt::Mqtt, CHANGE_TIMEOUT, WAIT_FOR_INIT_STATES};
 use crate::lights::state::{Change, State};
 use crate::LIGHTS;
 
@@ -14,7 +13,7 @@ pub(super) async fn handle(
     needed_states: &mut HashMap<String, State>,
 ) -> ! {
     // Give the initial known states a chance to be fetched
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    tokio::time::sleep(WAIT_FOR_INIT_STATES).await;
     loop {
         if let Ok(change) =
             tokio::time::timeout(CHANGE_TIMEOUT, change_receiver.recv()).await
