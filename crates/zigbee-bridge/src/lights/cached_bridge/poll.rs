@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
-use rumqttc::{ConnectionError, Event, EventLoop, Incoming};
+use rumqttc::{Event, EventLoop, Incoming};
 use tokio::sync::RwLock;
 
-use crate::lights::state::State;
+use crate::lights::state::Lamp;
 
 pub(super) async fn poll_mqtt(
     mut eventloop: EventLoop,
-    known_states: &RwLock<HashMap<String, State>>,
-) -> Result<(), ConnectionError> {
+    known_states: &RwLock<HashMap<String, Lamp>>,
+) -> ! {
     loop {
         let message = match eventloop.poll().await {
             Ok(message) => message,
@@ -18,16 +18,14 @@ pub(super) async fn poll_mqtt(
             }
         };
 
-        if let Some((light_name, new_known_state)) =
-            extract_state_update(message)
-        {
+        if let Some((light_name, new_known_state)) = extract_state_update(message) {
             let mut known_states = known_states.write().await;
             known_states.insert(light_name, new_known_state);
         }
     }
 }
 
-fn extract_state_update(message: Event) -> Option<(String, State)> {
+fn extract_state_update(message: Event) -> Option<(String, Lamp)> {
     match message {
         Event::Incoming(incoming) => match incoming {
             Incoming::ConnAck(_)

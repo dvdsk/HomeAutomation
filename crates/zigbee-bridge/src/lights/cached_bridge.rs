@@ -15,11 +15,8 @@ mod poll;
 const CHANGE_TIMEOUT: Duration = Duration::from_secs(5);
 const WAIT_FOR_INIT_STATES: Duration = Duration::from_millis(500);
 
-pub(crate) async fn run(
-    mut change_receiver: mpsc::UnboundedReceiver<(String, Change)>,
-) {
-    let mut options =
-        MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
+pub(crate) async fn run(mut change_receiver: mpsc::UnboundedReceiver<(String, Change)>) -> ! {
+    let mut options = MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
     // Set incoming to max mqtt packet size, outgoing to rumqtt default
     options.set_max_packet_size(2_usize.pow(28), 10240);
 
@@ -46,8 +43,7 @@ pub(crate) async fn run(
     );
 
     tokio::select! {
-        () = handle_changes => (),
-        err = poll_mqtt =>
-            println!("Something went wrong with the mqtt connection: {err:?}"),
-    };
+        () = handle_changes => unreachable!("should not panic"),
+        () = poll_mqtt => unreachable!("should not panic")
+    }
 }

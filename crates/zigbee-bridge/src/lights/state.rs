@@ -7,14 +7,14 @@ use crate::lights::{conversion::{
 }, denormalize};
 
 #[derive(Debug, Clone)]
-pub(crate) struct State {
+pub(crate) struct Lamp {
     pub(crate) brightness: f64,
     pub(crate) color_temp_kelvin: usize,
     pub(crate) color_xy: (f64, f64),
     pub(crate) on: bool,
 }
 
-impl Default for State {
+impl Default for Lamp {
     fn default() -> Self {
         Self {
             brightness: 1.0,
@@ -25,7 +25,7 @@ impl Default for State {
     }
 }
 
-impl PartialEq for State {
+impl PartialEq for Lamp {
     fn eq(&self, other: &Self) -> bool {
         let d_bright = (self.brightness - other.brightness).abs();
         let d_color_temp = self.color_temp_kelvin - other.color_temp_kelvin;
@@ -40,12 +40,12 @@ impl PartialEq for State {
     }
 }
 
-impl Eq for State {}
+impl Eq for Lamp {}
 
-impl TryInto<State> for &[u8] {
+impl TryInto<Lamp> for &[u8] {
     type Error = io::Error;
 
-    fn try_into(self) -> Result<State, Self::Error> {
+    fn try_into(self) -> Result<Lamp, Self::Error> {
         fn get_key<'a>(
             map: &'a serde_json::Map<String, Value>,
             key: &str,
@@ -106,7 +106,7 @@ impl TryInto<State> for &[u8] {
             other => return Err(invalid_err(&format!("on/off bool: {other}"))),
         };
 
-        Ok(State {
+        Ok(Lamp {
             #[allow(clippy::cast_precision_loss)]
             brightness: normalize(brightness),
             color_temp_kelvin: mired_to_kelvin(color_temp_mired),
@@ -116,8 +116,8 @@ impl TryInto<State> for &[u8] {
     }
 }
 
-impl State {
-    pub(crate) fn apply(&self, change: Change) -> State {
+impl Lamp {
+    pub(crate) fn apply(&self, change: Change) -> Lamp {
         let mut new_state = self.clone();
         match change {
             Change::On(on) => new_state.on = on,
