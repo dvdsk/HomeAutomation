@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bed-sb", "bed-lb", "sensors"]
+members = ["bed-sb", "bed-lb"]
 
 [workspace.dependencies]
 protocol = { path = "../crates/protocol" }
@@ -17,31 +17,18 @@ embassy-time = { version = "0.3.2", features = ["defmt",
 "defmt-timestamp-uptime-ms", "tick-hz-32_768"] }
 embassy-futures = { version = "0.1.0"}
 
-# [patch.crates-io]
-# embassy-stm32 = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
-# embassy-net = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
-# embassy-net-wiznet = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
-# embassy-sync = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
-# embassy-executor = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
-# embassy-embedded-hal = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
-# embassy-futures = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
-# embassy-time = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
-# embassy-time-driver = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
-# embassy-time-queue-driver = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
-# embassy-usb = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
-
 [patch.crates-io]
-embassy-stm32 = {path = "/home/david/Documents/embassy/embassy-stm32" }
-embassy-net = {path = "/home/david/Documents/embassy/embassy-net" }
-embassy-net-wiznet = {path = "/home/david/Documents/embassy/embassy-net-wiznet" }
-embassy-sync = {path = "/home/david/Documents/embassy/embassy-sync" }
-embassy-executor = {path = "/home/david/Documents/embassy/embassy-executor" }
-embassy-embedded-hal = {path = "/home/david/Documents/embassy/embassy-embedded-hal" }
-embassy-futures = {path = "/home/david/Documents/embassy/embassy-futures" }
-embassy-time = {path = "/home/david/Documents/embassy/embassy-time" }
-embassy-time-driver = {path = "/home/david/Documents/embassy/embassy-time-driver" }
-embassy-time-queue-driver = {path = "/home/david/Documents/embassy/embassy-time-queue-driver" }
-embassy-usb = {path = "/home/david/Documents/embassy/embassy-usb" }
+embassy-stm32 = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-net = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-net-wiznet = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-sync = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-executor = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-embedded-hal = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-futures = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-time = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-time-driver = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-time-queue-driver = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
+embassy-usb = {git = "https://github.com/embassy-rs/embassy", rev = "af6fbb0" }
 
 [workspace.package]
 rust-version = "1.78"
@@ -57,5 +44,5 @@ lto = "fat"
 opt-level = "s"
 incremental = false
 codegen-units = 1
-# note: debug = true is okay - debug-info isn't flashed to the device!
+# note: debug = true is okay - debuginfo isn't flashed to the device!
 debug = true

@@ -1,5 +1,7 @@
 use bosch_bme680::Bme680;
 use embassy_embedded_hal::shared_bus;
+use embassy_stm32::i2c::I2c;
+use embassy_stm32::mode::Async;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Delay, Timer};
@@ -10,7 +12,6 @@ use sht31::SHT31;
 
 use super::concrete_types::ConcreteSharedI2c;
 use crate::error_cache::SensorError;
-use crate::reset_on_error_i2c::I2c;
 
 mod reinit_on_error;
 pub use reinit_on_error::{
@@ -21,7 +22,7 @@ mod retry_init;
 pub use retry_init::Sps30Driver;
 
 impl<'a> ReInitableDriver for SHT31<SingleShot, ConcreteSharedI2c<'a>> {
-    type Parts = &'a Mutex<NoopRawMutex, I2c<'static>>;
+    type Parts = &'a Mutex<NoopRawMutex, I2c<'static, Async>>;
     type Measurement = sht31::Reading;
 
     async fn init(parts: Self::Parts) -> Result<Self, SensorError> {
@@ -45,7 +46,7 @@ impl<'a> ReInitableDriver for SHT31<SingleShot, ConcreteSharedI2c<'a>> {
 }
 
 impl<'a> ReInitableDriver for Bme680<ConcreteSharedI2c<'a>, Delay> {
-    type Parts = &'a Mutex<NoopRawMutex, I2c<'static>>;
+    type Parts = &'a Mutex<NoopRawMutex, I2c<'static, Async>>;
     type Measurement = bosch_bme680::MeasurementData;
 
     async fn init(parts: Self::Parts) -> Result<Self, SensorError> {
@@ -67,7 +68,7 @@ impl<'a> ReInitableDriver for Bme680<ConcreteSharedI2c<'a>, Delay> {
 }
 
 impl<'a> ReInitableDriver for Max44009<ConcreteSharedI2c<'a>> {
-    type Parts = &'a Mutex<NoopRawMutex, I2c<'static>>;
+    type Parts = &'a Mutex<NoopRawMutex, I2c<'static, Async>>;
     type Measurement = f32;
 
     async fn init(parts: Self::Parts) -> Result<Self, SensorError> {
@@ -87,7 +88,7 @@ impl<'a> ReInitableDriver for Max44009<ConcreteSharedI2c<'a>> {
 }
 
 impl<'a> ReInitableDriver for Nau7802<ConcreteSharedI2c<'a>, Delay> {
-    type Parts = &'a Mutex<NoopRawMutex, I2c<'static>>;
+    type Parts = &'a Mutex<NoopRawMutex, I2c<'static, Async>>;
     type Measurement = u32;
 
     async fn init(parts: Self::Parts) -> Result<Self, SensorError> {

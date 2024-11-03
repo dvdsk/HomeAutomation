@@ -1,6 +1,7 @@
 use defmt::info;
 use embassy_embedded_hal::shared_bus::I2cDeviceError;
 use embassy_futures::join;
+use embassy_stm32::i2c::I2c;
 use embassy_stm32::mode::Async;
 use embassy_stm32::usart::Uart;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
@@ -13,7 +14,6 @@ use sps30_async::Sps30;
 
 use crate::channel::Queues;
 use crate::error_cache::{Error, SensorError};
-use crate::reset_on_error_i2c::I2c;
 pub mod fast;
 pub mod retry;
 pub mod slow;
@@ -25,14 +25,13 @@ pub type UartError = embassy_stm32::usart::Error;
 
 pub mod concrete_types {
     use embassy_embedded_hal::shared_bus;
+    use embassy_stm32::i2c::I2c;
     use embassy_stm32::mode::Async;
     use embassy_stm32::usart::{RingBufferedUartRx, UartTx};
     use embassy_sync::blocking_mutex::raw::NoopRawMutex;
     use shared_bus::asynch::i2c::I2cDevice;
 
-    use crate::reset_on_error_i2c::I2c;
-
-    pub type ConcreteSharedI2c<'a> = I2cDevice<'a, NoopRawMutex, I2c<'static>>;
+    pub type ConcreteSharedI2c<'a> = I2cDevice<'a, NoopRawMutex, I2c<'static, Async>>;
     pub type ConcreteTx<'a> = UartTx<'a, Async>;
     pub type ConcreteRx<'a> = RingBufferedUartRx<'a>;
 }
@@ -43,8 +42,8 @@ const SPS30_DRIVER_BUF_SIZE: usize = 2 * SPS30_UART_BUF_SIZE;
 pub async fn init_then_measure(
     publish: &Queues,
     orderers: &slow::DriverOrderers,
-    i2c_1: Mutex<NoopRawMutex, I2c<'static>>,
-    i2c_3: Mutex<NoopRawMutex, I2c<'static>>,
+    i2c_1: Mutex<NoopRawMutex, I2c<'static, Async>>,
+    i2c_3: Mutex<NoopRawMutex, I2c<'static, Async>>,
     usart_mhz: Uart<'static, Async>,
     usart_sps: Uart<'static, Async>,
     buttons: ButtonInputs,
