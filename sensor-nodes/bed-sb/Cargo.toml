@@ -29,7 +29,7 @@ embedded-hal-bus = { version = "0.2", features = ["async", "defmt-03"] }
 embedded-io-async = { version = "0.6.1", features = ["defmt-03"] }
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 futures = { version = "0.3.17", default-features = false, features = ["async-await"] }
-heapless = { version = "0.8", default-features = false }
+heapless = { git = "https://github.com/rust-embedded/heapless", version = "0.8", rev = "0ebca23", default-features = false }
 nb = "1.0.0"
 rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
 static_cell = "2.0.0"

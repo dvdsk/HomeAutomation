@@ -333,7 +333,7 @@ dependencies = [
  "embassy-time",
  "embedded-io-async",
  "embedded-nal-async",
- "heapless 0.8.0",
+ "heapless 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "managed",
  "smoltcp",
 ]
@@ -425,7 +425,7 @@ dependencies = [
  "defmt",
  "embedded-io-async",
  "futures-util",
- "heapless 0.8.0",
+ "heapless 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -443,7 +443,7 @@ dependencies = [
  "embedded-hal 1.0.0",
  "embedded-hal-async",
  "futures-util",
- "heapless 0.8.0",
+ "heapless 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -469,7 +469,7 @@ dependencies = [
  "embassy-net-driver-channel",
  "embassy-sync",
  "embassy-usb-driver",
- "heapless 0.8.0",
+ "heapless 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ssmarshal",
  "usbd-hid",
 ]
@@ -747,6 +747,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "heapless"
+version = "0.8.0"
+source = "git+https://github.com/rust-embedded/heapless?rev=0ebca23#0ebca2320970b8a1aa3e58ceba924f8c65385946"
+dependencies = [
+ "hash32 0.3.1",
+ "stable_deref_trait",
+]
+
+[[package]]
 name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -780,7 +789,7 @@ dependencies = [
  "embedded-hal-bus",
  "embedded-io-async",
  "futures",
- "heapless 0.8.0",
+ "heapless 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "max44009",
  "mhzx",
  "nau7802-async",
@@ -836,7 +845,7 @@ version = "0.3.0"
 dependencies = [
  "defmt",
  "embedded-io-async",
- "heapless 0.8.0",
+ "heapless 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "postcard",
  "serde",
 ]
@@ -978,7 +987,7 @@ name = "protocol"
 version = "0.1.0"
 dependencies = [
  "defmt",
- "heapless 0.8.0",
+ "heapless 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "postcard",
  "serde",
  "strum",
@@ -1117,7 +1126,7 @@ dependencies = [
  "embedded-hal-bus",
  "embedded-io-async",
  "futures",
- "heapless 0.8.0",
+ "heapless 0.8.0 (git+https://github.com/rust-embedded/heapless?rev=0ebca23)",
  "max44009",
  "mhzx",
  "nau7802-async",
@@ -1139,7 +1148,7 @@ dependencies = [
  "byteorder",
  "cfg-if",
  "defmt",
- "heapless 0.8.0",
+ "heapless 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "managed",
 ]
 
@@ -1160,7 +1169,7 @@ dependencies = [
  "embedded-hal-async",
  "embedded-io-async",
  "futures",
- "heapless 0.8.0",
+ "heapless 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "postcard",
  "serde",
 ]
@@ -1296,7 +1305,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98816b1accafbb09085168b90f27e93d790b4bfa19d883466b5e53315b5f06a6"
 dependencies = [
- "heapless 0.8.0",
+ "heapless 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "portable-atomic",
 ]
 

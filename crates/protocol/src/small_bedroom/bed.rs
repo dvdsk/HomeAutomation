@@ -480,6 +480,7 @@ pub enum Affector {
     Sps30FanClean,
     MhzZeroPointCalib,
     Nau7802Calib,
+    ResetNode,
 }
 
 impl Affector {
@@ -509,6 +510,10 @@ impl Affector {
                 name: "things with ac power noise or something",
                 value: ControlValue::Trigger,
             }],
+            Affector::ResetNode => vec![Control {
+                name: "reset the node",
+                value: ControlValue::Trigger,
+            }],
         }
     }
 }
@@ -520,6 +525,7 @@ impl affector::tree::Tree for Affector {
             Affector::Sps30FanClean => "Accelerate the fan to maximum speed for 10 seconds in order to blow out the dust accumulated in the fan",
             Affector::MhzZeroPointCalib => "Set the current co2 value as 400ppm",
             Affector::Nau7802Calib =>  "Detect and correct power supply and temperature variations to ADC",
+            Affector::ResetNode => "Reset the node, this might fix errors such as I2c getting stuck after Arbitration Error",
         };
 
         affector::tree::Item::Leaf(affector::Info { description })

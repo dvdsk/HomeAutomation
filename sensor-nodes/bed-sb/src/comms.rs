@@ -1,6 +1,7 @@
 use defmt::{unwrap, warn};
 use embassy_futures::select::{self, select};
 use embassy_time::{with_timeout, Duration, Instant};
+use heapless::HistoryBuffer;
 use protocol::small_bedroom::{self, bed};
 use protocol::{affector, Affector, ErrorReport, SensorMessage};
 
@@ -65,7 +66,7 @@ pub async fn handle(
     driver_orderers: &slow::DriverOrderers,
 ) -> ! {
     const MIN_BETWEEN_COMM_ERRS: Duration = Duration::from_secs(30);
-    let mut last_error_at = None;
+    let mut last_errors_at: HistoryBuffer<_, 5> = HistoryBuffer::new();
 
     loop {
         publish.clear().await;
@@ -81,29 +82,55 @@ pub async fn handle(
             select::Either::Second(e) => warn!("Error receiving orders: {}", e),
         };
 
-        if last_error_at.is_some_and(|at| at.elapsed() < MIN_BETWEEN_COMM_ERRS) {
-            error!(
+        let mut error_after = Instant::now();
+        if last_errors_at
+            .oldest_ordered()
+            .rev()
+            .copied()
+            .all(|error: Instant| {
+                let is_recent = error_after.duration_since(error) < MIN_BETWEEN_COMM_ERRS;
+                error_after = error;
+                is_recent
+            })
+        {
+            defmt::error!(
                 "Something is terribly wrong with the connection, \
-                resetting entire node"
+                5 errors occured each within 30 seconds of the previous. \
+                Resetting entire node"
             );
             cortex_m::peripheral::SCB::sys_reset();
         } else {
-            last_error_at = Some(Instant::now());
+            last_errors_at.write(Instant::now());
         }
     }
 }
 
 fn affector_list() -> affector::ListMessage<5> {
     let mut list = affector::ListMessage::<5>::empty();
-    unwrap!(list.values.push(Affector::SmallBedroom(
-        protocol::small_bedroom::Affector::Bed(bed::Affector::Sps30FanClean),
-    )));
-    unwrap!(list.values.push(Affector::SmallBedroom(
-        protocol::small_bedroom::Affector::Bed(bed::Affector::MhzZeroPointCalib),
-    )));
-    unwrap!(list.values.push(Affector::SmallBedroom(
-        protocol::small_bedroom::Affector::Bed(bed::Affector::Nau7802Calib),
-    )));
+    unwrap!(
+        list.values.push(Affector::SmallBedroom(
+            protocol::small_bedroom::Affector::Bed(bed::Affector::Sps30FanClean),
+        )),
+        "list is long enough"
+    );
+    unwrap!(
+        list.values.push(Affector::SmallBedroom(
+            protocol::small_bedroom::Affector::Bed(bed::Affector::MhzZeroPointCalib),
+        )),
+        "list is long enough"
+    );
+    unwrap!(
+        list.values.push(Affector::SmallBedroom(
+            protocol::small_bedroom::Affector::Bed(bed::Affector::Nau7802Calib),
+        )),
+        "list is long enough"
+    );
+    unwrap!(
+        list.values.push(Affector::SmallBedroom(
+            protocol::small_bedroom::Affector::Bed(bed::Affector::ResetNode),
+        )),
+        "list is long enough"
+    );
 
     list
 }
@@ -147,6 +174,10 @@ async fn receive_orders(usb: UsbReceiver<'_>, driver_orderers: &slow::DriverOrde
             }
             bed::Affector::Sps30FanClean => {
                 driver_orderers.sps.send(()).await;
+            }
+            bed::Affector::ResetNode => {
+                defmt::info!("resetting node as orderd via affector");
+                cortex_m::peripheral::SCB::sys_reset();
             }
         }
     }

@@ -1631,24 +1631,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fbf6a919d6cf397374f7dfeeea91d974c7c0a7221d0d0f4f20d859d329e53fcc"
 
 [[package]]
-name = "host"
-version = "0.1.0"
-dependencies = [
- "clap",
- "color-eyre",
- "data-server",
- "heapless 0.8.0",
- "nusb",
- "protocol",
- "ratelimited-logger",
- "tokio",
- "tracing",
- "tracing-error",
- "tracing-subscriber",
- "users",
-]
-
-[[package]]
 name = "http"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1831,7 +1813,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "strum",
- "syn 2.0.79",
+ "syn 2.0.77",
  "thiserror",
 ]
 
@@ -3707,6 +3689,24 @@ dependencies = [
  "form_urlencoded",
  "idna",
  "percent-encoding",
+]
+
+[[package]]
+name = "usb-bridge"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "color-eyre",
+ "data-server",
+ "heapless 0.8.0",
+ "nusb",
+ "protocol",
+ "ratelimited-logger",
+ "tokio",
+ "tracing",
+ "tracing-error",
+ "tracing-subscriber",
+ "users",
 ]
 
 [[package]]
