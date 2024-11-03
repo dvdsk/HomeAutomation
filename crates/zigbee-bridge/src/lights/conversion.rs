@@ -1,3 +1,8 @@
+use colorimetry::{cct::CCT, xyz::XYZ};
+
+// Deviation from black body, must be between -0.05 and 0.05
+const DUV_IKEA: f64 = -0.002;
+
 #[must_use]
 pub fn mired_to_kelvin(mired: usize) -> usize {
     1_000_000 / mired
@@ -19,6 +24,29 @@ pub fn denormalize(brightness: f64) -> u8 {
     (brightness * 254.).round() as u8
 }
 
-pub(crate) fn temp_to_xy(color_temp: usize) -> (f64, f64) {
-    (1.0, 1.0)
+/// 1000K < color_temp < 1_000_000K
+pub fn temp_to_xy(color_temp: usize) -> (f64, f64) {
+    // TODO: use table from black body deviation measurements
+    let cct = CCT::try_new(color_temp as f64, DUV_IKEA).unwrap();
+    let xyz: XYZ = cct.try_into().unwrap();
+
+    xyz_to_xy(xyz)
+}
+
+fn xyz_to_xy(xyz: XYZ) -> (f64, f64) {
+    let [x, y, z] = xyz.values();
+    (x / (x + y + z), y / (x + y + z))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn temp_to_xy_works() {
+        dbg!(temp_to_xy(2200));
+        dbg!(temp_to_xy(2500));
+        dbg!(temp_to_xy(3000));
+        dbg!(temp_to_xy(4000));
+    }
 }

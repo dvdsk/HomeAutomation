@@ -7,6 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+colorimetry = { git = "https://github.com/harbik/colorimetry", features = ["cct"] }
 # default-features enable rustls which we do not need and drags in 
 # C dependencies making deployment a chore
 rumqttc = { version = "0.24.0", default-features = false }

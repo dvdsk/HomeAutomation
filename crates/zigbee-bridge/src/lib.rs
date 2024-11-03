@@ -19,6 +19,7 @@ mod tests {
     use crate::lights::Controller;
     use std::time::Duration;
 
+    #[ignore]
     #[tokio::test]
     async fn change_all_lights() {
         let controller = Controller::start_bridge();
