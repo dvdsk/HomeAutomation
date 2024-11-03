@@ -1,8 +1,10 @@
 #![no_std]
 #![no_main]
 
+use core::time::Duration;
+
 use embassy_executor::Spawner;
-use embassy_futures::select::{self, Either3};
+use embassy_futures::select::{self, Either4};
 use embassy_stm32::exti::ExtiInput;
 use embassy_stm32::gpio::Pull;
 use embassy_stm32::i2c::{self, I2c};
@@ -41,11 +43,11 @@ embassy_stm32::bind_interrupts!(struct Irqs {
 // 84 Mhz clock stm32f401
 // 48 Mhz clock for usb
 fn config() -> Config {
-    use embassy_stm32::rcc::{
-        AHBPrescaler, APBPrescaler, Hse, HseMode, Pll, PllMul, PllPDiv, PllQDiv, PllPreDiv, PllSource,
-        Sysclk,
-    };
     use embassy_stm32::rcc::mux;
+    use embassy_stm32::rcc::{
+        AHBPrescaler, APBPrescaler, Hse, HseMode, Pll, PllMul, PllPDiv, PllPreDiv, PllQDiv,
+        PllSource, Sysclk,
+    };
 
     let mut config = Config::default();
     config.rcc.hse = Some(Hse {
@@ -71,6 +73,7 @@ fn config() -> Config {
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
     let p = embassy_stm32::init(config());
+    let dog = IndependentWatchdog::new(p.IWDG, Duration::from_secs(5).as_micros() as u32);
 
     let mut usart_config = usart::Config::default();
     usart_config.baudrate = 9600;
@@ -169,10 +172,19 @@ async fn main(_spawner: Spawner) {
         buttons,
     );
 
-    let res = select::select3(&mut handle_network, init_then_measure, usb_bus.run()).await;
+    let res = select::select4(
+        &mut handle_network,
+        init_then_measure,
+        usb_bus.run(),
+        keep_dog_happy(dog),
+    )
+    .await;
+
     let unrecoverable_err = match res {
-        Either3::First(()) | Either3::Third(()) | Either3::Second(Ok(())) => defmt::unreachable!(),
-        Either3::Second(Err(err)) => err,
+        Either4::First(_) | Either4::Second(Ok(())) | Either4::Third(()) | Either4::Fourth(_) => {
+            defmt::unreachable!()
+        }
+        Either4::Second(Err(err)) => err,
     };
 
     // at this point no other errors have occurred
@@ -198,10 +210,9 @@ pub fn usb_config() -> embassy_usb::Config<'static> {
     config
 }
 
-async fn keep_dog_happy(mut dog: IndependentWatchdog<'_, IWDG>) {
+async fn keep_dog_happy(mut dog: IndependentWatchdog<'_, IWDG>) -> ! {
     loop {
-        dog.unleash();
-        Timer::after_secs(8).await;
+        Timer::after_secs(1).await;
         trace!("petting dog");
         dog.pet();
     }

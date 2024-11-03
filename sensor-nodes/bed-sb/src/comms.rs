@@ -59,9 +59,14 @@ async fn get_messages<'a>(publish: &Queues, buf: &'a mut [u8]) -> &'a [u8] {
     }
 }
 
+pub async fn handle(
+    usb: UsbHandle<'_>,
+    publish: &Queues,
+    driver_orderers: &slow::DriverOrderers,
+) -> ! {
+    const MIN_BETWEEN_COMM_ERRS: Duration = Duration::from_secs(30);
+    let mut last_error_at = None;
 
-
-pub async fn handle(usb: UsbHandle<'_>, publish: &Queues, driver_orderers: &slow::DriverOrderers) {
     loop {
         publish.clear().await;
 
@@ -75,6 +80,16 @@ pub async fn handle(usb: UsbHandle<'_>, publish: &Queues, driver_orderers: &slow
             select::Either::First(e) => warn!("Error while sending messages: {}", e),
             select::Either::Second(e) => warn!("Error receiving orders: {}", e),
         };
+
+        if last_error_at.is_some_and(|at| at.elapsed() < MIN_BETWEEN_COMM_ERRS) {
+            error!(
+                "Something is terribly wrong with the connection, \
+                resetting entire node"
+            );
+            cortex_m::peripheral::SCB::sys_reset();
+        } else {
+            last_error_at = Some(Instant::now());
+        }
     }
 }
 
