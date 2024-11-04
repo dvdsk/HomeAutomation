@@ -6,6 +6,7 @@ use protocol::reading::tree::Tree;
 use protocol::{large_bedroom, small_bedroom, Affector, Reading};
 use tokio::sync::mpsc;
 use tokio::time::{timeout_at, Instant};
+use tracing::warn;
 
 const CHECK_INTERVAL: Duration = Duration::from_secs(5);
 const MIN_RESET_INTERVAL: Duration = Duration::from_secs(600);
@@ -71,6 +72,7 @@ impl LastSeen {
             .collect();
         reset_commands.dedup_by(|a, b| a.is_same_as(b));
         for cmd in reset_commands {
+            warn!("resetting node with problematic reading, using: {cmd:?}");
             if registar.activate(cmd).is_ok() {
                 self.mark_reset(cmd);
             }
