@@ -82,8 +82,8 @@ async fn update(system: &mut RestrictedSystem) {
 pub(crate) fn optimal_ct_bri() -> (u16, u8) {
     let now = local_now();
     match now.hour() {
-        9..17 => (270, u8::MAX),
-        17..20 => (300, u8::MAX),
+        9..17 => (280, u8::MAX),
+        17..20 => (330, u8::MAX),
         20..22 => (400, 220),
         22.. | 0..9 => (500, 100),
     }
