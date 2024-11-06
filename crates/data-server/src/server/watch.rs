@@ -45,34 +45,39 @@ impl LastSeen {
         });
 
         let mut reset_commands: Vec<_> = to_reset
-            .filter_map(|(reading, _)| match reading {
-                Reading::LargeBedroom(large_bedroom::Reading::Bed(_)) => {
-                    Some(Affector::LargeBedroom(large_bedroom::Affector::Bed(
-                        large_bedroom::bed::Affector::ResetNode,
-                    )))
+            .filter_map(|(reading, _)| {
+                match reading {
+                    Reading::LargeBedroom(large_bedroom::Reading::Bed(_)) => {
+                        Some(Affector::LargeBedroom(large_bedroom::Affector::Bed(
+                            large_bedroom::bed::Affector::ResetNode,
+                        )))
+                    }
+                    Reading::LargeBedroom(large_bedroom::Reading::Desk(_)) => None,
+                    Reading::SmallBedroom(small_bedroom::Reading::Bed(_)) => {
+                        Some(Affector::SmallBedroom(small_bedroom::Affector::Bed(
+                            small_bedroom::bed::Affector::ResetNode,
+                        )))
+                    }
+                    Reading::SmallBedroom(small_bedroom::Reading::Desk(_)) => None,
+                    Reading::SmallBedroom(small_bedroom::Reading::ButtonPanel(_)) => None,
                 }
-                Reading::LargeBedroom(large_bedroom::Reading::Desk(_)) => None,
-                Reading::SmallBedroom(small_bedroom::Reading::Bed(_)) => {
-                    Some(Affector::SmallBedroom(small_bedroom::Affector::Bed(
-                        small_bedroom::bed::Affector::ResetNode,
-                    )))
-                }
-                Reading::SmallBedroom(small_bedroom::Reading::Desk(_)) => None,
-                Reading::SmallBedroom(small_bedroom::Reading::ButtonPanel(_)) => None,
+                .map(|reset_cmd| (reading, reset_cmd))
             })
-            .filter(|affector| {
+            .filter(|(_, reset_cmd)| {
                 let last_reset = self
                     .last_reset
                     .iter()
-                    .find(|(a, _)| a == affector)
+                    .find(|(a, _)| a == reset_cmd)
                     .map(|(_, at)| at)
                     .copied();
                 !last_reset.is_some_and(|last_reset| last_reset.elapsed() < MIN_RESET_INTERVAL)
             })
+            .map(|(reading, reset_cmd)| (reading.clone(), reset_cmd))
             .collect();
-        reset_commands.dedup_by(|a, b| a.is_same_as(b));
-        for cmd in reset_commands {
-            warn!("resetting node with problematic reading, using: {cmd:?}");
+        reset_commands.dedup_by(|(_, a), (_, b)| a.is_same_as(b));
+
+        for (reading, cmd) in reset_commands {
+            warn!("resetting node with problematic reading: {reading:?}, using: {cmd:?}");
             if registar.activate(cmd).is_ok() {
                 self.mark_reset(cmd);
             }
