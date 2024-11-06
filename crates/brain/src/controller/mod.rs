@@ -107,11 +107,11 @@ pub fn start(
         system: system.clone(),
         allowed_lights: vec![],
         allowed_lights_new: vec![
-            "kitchen:fridge",
-            "kitchen:hallway",
             "kitchen:ceiling",
             "kitchen:hood_left",
             "kitchen:hood_right",
+            "kitchen:fridge",
+            "kitchen:hallway",
         ],
     };
     tasks.spawn(rooms::kitchen::run(rx3, sender, restricted));

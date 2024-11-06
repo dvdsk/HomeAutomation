@@ -11,7 +11,13 @@ pub mod lights;
 const QOS: QoS = QoS::AtLeastOnce;
 const MQTT_IP: &str = "192.168.1.43";
 const MQTT_PORT: u16 = 1883;
-const LIGHTS: [&str; 2] = ["kitchen:fridge", "kitchen:hallway"];
+const LIGHTS: [&str; 5] = [
+    "kitchen:fridge",
+    "kitchen:hallway",
+    "kitchen:hood_left",
+    "kitchen:hood_right",
+    "kitchen:ceiling",
+];
 
 #[cfg(test)]
 mod tests {
