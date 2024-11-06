@@ -45,9 +45,7 @@ impl RestrictedSystem {
             self.system
                 .lights_new
                 .set_color_temp(name, mired_to_kelvin(ct.into()));
-            self.system
-                .lights_new
-                .set_brightness(name, normalize(bri));
+            self.system.lights_new.set_brightness(name, normalize(bri));
         }
     }
 
@@ -107,12 +105,14 @@ pub fn start(
 
     let restricted = RestrictedSystem {
         system: system.clone(),
-        allowed_lights: vec![
+        allowed_lights: vec![],
+        allowed_lights_new: vec![
+            "kitchen:fridge",
+            "kitchen:hallway",
             "kitchen:ceiling",
             "kitchen:hood_left",
             "kitchen:hood_right",
         ],
-        allowed_lights_new: vec!["kitchen:fridge", "kitchen:hallway"],
     };
     tasks.spawn(rooms::kitchen::run(rx3, sender, restricted));
 

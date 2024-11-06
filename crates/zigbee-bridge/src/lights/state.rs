@@ -2,15 +2,15 @@ use std::io;
 
 use serde_json::{json, Value};
 
-use crate::lights::{conversion::{
-    kelvin_to_mired, mired_to_kelvin, normalize, temp_to_xy,
-}, denormalize};
+use crate::lights::{
+    conversion::{normalize, temp_to_xy},
+    denormalize,
+};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Lamp {
     pub(crate) brightness: f64,
-    pub(crate) color_temp_kelvin: usize,
-    pub(crate) color_xy: (f64, f64),
+    pub(crate) color_xy: Option<(f64, f64)>,
     pub(crate) on: bool,
 }
 
@@ -18,8 +18,7 @@ impl Default for Lamp {
     fn default() -> Self {
         Self {
             brightness: 1.0,
-            color_temp_kelvin: 2700,
-            color_xy: temp_to_xy(2700),
+            color_xy: Some(temp_to_xy(2700)),
             on: false,
         }
     }
@@ -28,13 +27,17 @@ impl Default for Lamp {
 impl PartialEq for Lamp {
     fn eq(&self, other: &Self) -> bool {
         let d_bright = (self.brightness - other.brightness).abs();
-        let d_color_temp = self.color_temp_kelvin - other.color_temp_kelvin;
-        let d_color_x = (self.color_xy.0 - other.color_xy.0).abs();
-        let d_color_y = (self.color_xy.1 - other.color_xy.1).abs();
+        let (d_color_x, d_color_y) = match (self.color_xy, other.color_xy) {
+            (Some(self_xy), Some(other_xy)) => (
+                (self_xy.0 - other_xy.0).abs(),
+                (self_xy.1 - other_xy.1).abs(),
+            ),
+            // If either Lamp has no xy set, they are different
+            _ => return false,
+        };
 
         self.on == other.on
             && d_bright < 1. / 250.
-            && d_color_temp < 20
             && d_color_x < 0.01
             && d_color_y < 0.01
     }
@@ -67,19 +70,23 @@ impl TryInto<Lamp> for &[u8] {
         let json: Value = serde_json::from_slice(self)?;
         let map = json.as_object().ok_or(invalid_err("Object"))?;
 
-        let color = get_key(map, "color")?
-            .as_object()
-            .ok_or(invalid_err("Object"))?;
-        let color_x = get_key(color, "x")?
-            .as_number()
-            .ok_or(invalid_err("Number"))?
-            .as_f64()
-            .expect("Should return Some if not using arbitrary precision");
-        let color_y = get_key(color, "y")?
-            .as_number()
-            .ok_or(invalid_err("Number"))?
-            .as_f64()
-            .expect("Should return Some if not using arbitrary precision");
+        let color_xy = match get_key(map, "color") {
+            Ok(color) => {
+                let color = color.as_object().ok_or(invalid_err("Object"))?;
+                let color_x = get_key(color, "x")?
+                    .as_number()
+                    .ok_or(invalid_err("Number"))?
+                    .as_f64()
+                    .expect("Should be Some if not using arbitrary precision");
+                let color_y = get_key(color, "y")?
+                    .as_number()
+                    .ok_or(invalid_err("Number"))?
+                    .as_f64()
+                    .expect("Should be Some if not using arbitrary precision");
+                Some((color_x, color_y))
+            }
+            Err(_) => None,
+        };
 
         let brightness: u8 = get_key(map, "brightness")?
             .as_number()
@@ -88,14 +95,6 @@ impl TryInto<Lamp> for &[u8] {
             .ok_or(invalid_err("u64"))?
             .try_into()
             .map_err(|_| invalid_err("u8"))?;
-
-        let color_temp_mired = get_key(map, "color_temp")?
-            .as_number()
-            .ok_or(invalid_err("Number"))?
-            .as_u64()
-            .ok_or(invalid_err("u64"))?
-            .try_into()
-            .expect("usize should be u64");
 
         let state = get_key(map, "state")?
             .as_str()
@@ -109,8 +108,7 @@ impl TryInto<Lamp> for &[u8] {
         Ok(Lamp {
             #[allow(clippy::cast_precision_loss)]
             brightness: normalize(brightness),
-            color_temp_kelvin: mired_to_kelvin(color_temp_mired),
-            color_xy: (color_x, color_y),
+            color_xy,
             on,
         })
     }
@@ -122,8 +120,10 @@ impl Lamp {
         match change {
             Change::On(on) => new_state.on = on,
             Change::Brightness(bri) => new_state.brightness = bri,
-            Change::ColorTemp(temp) => new_state.color_temp_kelvin = temp,
-            Change::ColorXy(xy) => new_state.color_xy = xy,
+            Change::ColorTemp(temp) => {
+                new_state.color_xy = Some(temp_to_xy(temp));
+            }
+            Change::ColorXy(xy) => new_state.color_xy = Some(xy),
         }
         new_state
     }
@@ -131,18 +131,16 @@ impl Lamp {
     pub(crate) fn to_payloads(&self) -> Vec<String> {
         let state = if self.on { "ON" } else { "OFF" };
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        let color_temp_mired = kelvin_to_mired(self.color_temp_kelvin);
-
-        [
+        let mut payloads = vec![
             json!({ "state": state }),
             json!({ "brightness": denormalize(self.brightness) }),
-            json!({ "color_temp": color_temp_mired }),
-            // TODO: make sure this doesn't override temp / always use this
-            // json!({ "color_xy": self.color_xy }),
-        ]
-        .into_iter()
-        .map(|x| x.to_string())
-        .collect()
+        ];
+
+        if let Some(color_xy) = self.color_xy {
+            payloads.push(json!({ "color_xy": color_xy }));
+        }
+
+        payloads.into_iter().map(|x| x.to_string()).collect()
     }
 }
 
