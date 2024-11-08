@@ -8,14 +8,14 @@ use crate::lights::{
 };
 
 #[derive(Debug, Clone, Default)]
-pub(crate) struct Lamp {
+pub(crate) struct LampState {
     pub(crate) brightness: Option<f64>,
     pub(crate) color_temp_k: Option<usize>,
     pub(crate) color_xy: Option<(f64, f64)>,
     pub(crate) on: Option<bool>,
 }
 
-impl PartialEq for Lamp {
+impl PartialEq for LampState {
     fn eq(&self, other: &Self) -> bool {
         let d_bright = match (self.brightness, other.brightness) {
             (Some(self_bri), Some(other_bri)) => (self_bri - other_bri).abs(),
@@ -43,12 +43,12 @@ impl PartialEq for Lamp {
     }
 }
 
-impl Eq for Lamp {}
+impl Eq for LampState {}
 
-impl TryInto<Lamp> for &[u8] {
+impl TryInto<LampState> for &[u8] {
     type Error = io::Error;
 
-    fn try_into(self) -> Result<Lamp, Self::Error> {
+    fn try_into(self) -> Result<LampState, Self::Error> {
         fn get_key<'a>(
             map: &'a serde_json::Map<String, Value>,
             key: &str,
@@ -133,7 +133,7 @@ impl TryInto<Lamp> for &[u8] {
             Err(_) => None,
         };
 
-        Ok(Lamp {
+        Ok(LampState {
             #[allow(clippy::cast_precision_loss)]
             brightness: brightness.map(normalize),
             color_temp_k: color_temp_mired.map(mired_to_kelvin),
@@ -143,8 +143,8 @@ impl TryInto<Lamp> for &[u8] {
     }
 }
 
-impl Lamp {
-    pub(crate) fn apply(&self, change: Change) -> Lamp {
+impl LampState {
+    pub(crate) fn apply(&self, change: Change) -> LampState {
         let mut new_state = self.clone();
         match change {
             Change::On(on) => new_state.on = Some(on),

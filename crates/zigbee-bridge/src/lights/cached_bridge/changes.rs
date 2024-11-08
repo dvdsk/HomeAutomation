@@ -4,14 +4,14 @@ use tokio::sync::{mpsc, RwLock};
 use tokio::time::{sleep, timeout};
 
 use super::{mqtt::Mqtt, CHANGE_TIMEOUT, WAIT_FOR_INIT_STATES};
-use crate::lights::state::{Change, Lamp, Model};
+use crate::lights::lamp::{Change, LampState, Model};
 use crate::LIGHTS;
 
 pub(super) async fn handle(
     change_receiver: &mut mpsc::UnboundedReceiver<(String, Change)>,
     mqtt: &Mqtt,
-    known_states: &RwLock<HashMap<String, Lamp>>,
-    needed_states: &mut HashMap<String, Lamp>,
+    known_states: &RwLock<HashMap<String, LampState>>,
+    needed_states: &mut HashMap<String, LampState>,
     devices: &RwLock<HashMap<String, Model>>,
 ) -> ! {
     // Give the initial known states a chance to be fetched
@@ -25,8 +25,8 @@ pub(super) async fn handle(
 }
 
 async fn send_all(
-    known_states: &RwLock<HashMap<String, Lamp>>,
-    needed_states: &mut HashMap<String, Lamp>,
+    known_states: &RwLock<HashMap<String, LampState>>,
+    needed_states: &mut HashMap<String, LampState>,
     devices: &RwLock<HashMap<String, Model>>,
     mqtt: &Mqtt,
 ) {
@@ -48,8 +48,8 @@ async fn send_all(
 
 async fn apply_change(
     change: Option<(String, Change)>,
-    known_states: &RwLock<HashMap<String, Lamp>>,
-    needed_states: &mut HashMap<String, Lamp>,
+    known_states: &RwLock<HashMap<String, LampState>>,
+    needed_states: &mut HashMap<String, LampState>,
 ) {
     let (light_name, change) = change.expect("Channel should never close");
     let known_states = known_states.read().await;
@@ -60,7 +60,7 @@ async fn apply_change(
             Some(known_state) => needed_states
                 .entry(light_name.clone())
                 .or_insert(known_state.clone()),
-            None => &mut Lamp::default(),
+            None => &mut LampState::default(),
         },
     };
 

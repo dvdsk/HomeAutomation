@@ -1,18 +1,18 @@
 #![allow(clippy::missing_panics_doc)]
 use tokio::sync::mpsc;
 
-use self::state::Change;
+use self::lamp::Change;
 
 // TODO: make private once system is ported
 pub use conversion::{kelvin_to_mired, mired_to_kelvin, normalize, denormalize};
 
 mod cached_bridge;
 mod conversion;
-mod state;
+mod lamp;
 
 #[derive(Debug, Clone)]
 pub struct Controller {
-    change_sender: mpsc::UnboundedSender<(String, state::Change)>,
+    change_sender: mpsc::UnboundedSender<(String, lamp::Change)>,
 }
 
 impl Controller {

@@ -5,7 +5,7 @@ use rumqttc::{AsyncClient, MqttOptions};
 use tokio::sync::{mpsc, RwLock};
 
 use self::mqtt::Mqtt;
-use crate::lights::state::Change;
+use crate::lights::lamp::Change;
 use crate::{LIGHTS, MQTT_IP, MQTT_PORT};
 
 mod changes;

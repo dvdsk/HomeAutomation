@@ -1,7 +1,7 @@
 use rumqttc::{AsyncClient, ClientError};
 use serde_json::json;
 
-use crate::lights::state::{Lamp, Model};
+use crate::lights::lamp::{LampState, Model};
 use crate::QOS;
 
 pub(super) struct Mqtt {
@@ -30,7 +30,7 @@ impl Mqtt {
     pub(super) async fn send_new_state(
         &self,
         light_name: &str,
-        needed_state: &Lamp,
+        needed_state: &LampState,
         model: &Model,
     ) -> Result<(), ClientError> {
         for payload in needed_state.to_payloads(model) {

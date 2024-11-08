@@ -4,11 +4,11 @@ use rumqttc::{Event, EventLoop, Incoming};
 use serde_json::Value;
 use tokio::{sync::RwLock, time::sleep};
 
-use crate::lights::state::{Lamp, Model};
+use crate::lights::lamp::{LampState, Model};
 
 pub(super) async fn poll_mqtt(
     mut eventloop: EventLoop,
-    known_states: &RwLock<HashMap<String, Lamp>>,
+    known_states: &RwLock<HashMap<String, LampState>>,
     devices: &RwLock<HashMap<String, Model>>,
 ) -> ! {
     loop {
@@ -77,7 +77,7 @@ fn parse_message(message: Event) -> Message {
 
 #[derive(Debug)]
 enum Message {
-    StateUpdate((String, Lamp)),
+    StateUpdate((String, LampState)),
     Devices(HashMap<String, Model>),
     Other,
 }
