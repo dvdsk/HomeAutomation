@@ -13,13 +13,8 @@ impl TryInto<LampState> for &[u8] {
 
         let color_temp_mired = match get_key(map, "color_temp") {
             Ok(temp) => {
-                let color_temp: usize = temp
-                    .as_number()
-                    .ok_or(invalid_err("Number"))?
-                    .as_u64()
-                    .ok_or(invalid_err("u64"))?
-                    .try_into()
-                    .expect("usize should be u64");
+                let color_temp: usize =
+                    json_to_u64(temp)?.try_into().expect("usize should be u64");
                 Some(color_temp)
             }
             Err(_) => None,
@@ -28,16 +23,8 @@ impl TryInto<LampState> for &[u8] {
         let color_xy = match get_key(map, "color") {
             Ok(color) => {
                 let color = color.as_object().ok_or(invalid_err("Object"))?;
-                let color_x = get_key(color, "x")?
-                    .as_number()
-                    .ok_or(invalid_err("Number"))?
-                    .as_f64()
-                    .expect("Should be Some if not using arbitrary precision");
-                let color_y = get_key(color, "y")?
-                    .as_number()
-                    .ok_or(invalid_err("Number"))?
-                    .as_f64()
-                    .expect("Should be Some if not using arbitrary precision");
+                let color_x = json_to_f64(get_key(color, "x")?)?;
+                let color_y = json_to_f64(get_key(color, "y")?)?;
                 Some((color_x, color_y))
             }
             Err(_) => None,
@@ -45,11 +32,7 @@ impl TryInto<LampState> for &[u8] {
 
         let brightness = match get_key(map, "brightness") {
             Ok(bri) => {
-                let bri: u8 = bri
-                    .as_number()
-                    .ok_or(invalid_err("Number"))?
-                    .as_u64()
-                    .ok_or(invalid_err("u64"))?
+                let bri: u8 = json_to_u64(bri)?
                     .try_into()
                     .map_err(|_| invalid_err("u8"))?;
                 Some(bri)
@@ -82,6 +65,22 @@ impl TryInto<LampState> for &[u8] {
             on,
         })
     }
+}
+
+fn json_to_u64(json: &Value) -> Result<u64, io::Error> {
+    Ok(json
+        .as_number()
+        .ok_or(invalid_err("Number"))?
+        .as_u64()
+        .ok_or(invalid_err("u64"))?)
+}
+
+fn json_to_f64(json: &Value) -> Result<f64, io::Error> {
+    Ok(json
+        .as_number()
+        .ok_or(invalid_err("Number"))?
+        .as_f64()
+        .expect("Should be Some if not using arbitrary precision"))
 }
 
 fn get_key<'a>(
