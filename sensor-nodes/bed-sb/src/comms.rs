@@ -148,13 +148,13 @@ async fn send_messages(usb: UsbSender<'_>, publish: &Queues) {
     buf[0] = protocol::Msg::<5>::AFFECTOR_LIST;
     let to_send = &buf[..=encoded_len];
     defmt::unwrap!(
-        usb.send(to_send).await,
+        usb.send(to_send, false).await,
         "first message, queue should still be empty & large enough"
     );
 
     loop {
         let (is_low_prio, to_send) = get_messages(publish, &mut buf).await;
-        while let Err(NoSpaceInQueue) = usb.send(to_send).await {
+        while let Err(NoSpaceInQueue) = usb.send(to_send, is_low_prio).await {
             if is_low_prio {
                 defmt::trace!("dropping low priority package because queue is full");
                 break;

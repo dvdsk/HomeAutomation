@@ -140,10 +140,21 @@ pub struct UsbSender<'a> {
 pub struct NoSpaceInQueue;
 
 impl UsbSender<'_> {
-    pub(crate) async fn send(&self, to_send: &[u8]) -> Result<(), NoSpaceInQueue> {
+    pub(crate) async fn send(
+        &self,
+        to_send: &[u8],
+        is_low_prio: bool,
+    ) -> Result<(), NoSpaceInQueue> {
+        const RESERVED_FOR_HIGH_PRIO: usize = 32;
+
         let mut queue = self.send_queue.lock().await;
         let free = queue.capacity() - queue.len();
         if free < 1 + to_send.len() {
+            return Err(NoSpaceInQueue);
+        }
+
+        let left_over = free - 1 - to_send.len();
+        if left_over < RESERVED_FOR_HIGH_PRIO && is_low_prio {
             return Err(NoSpaceInQueue);
         }
 
