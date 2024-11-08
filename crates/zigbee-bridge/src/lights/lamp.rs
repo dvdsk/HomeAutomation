@@ -8,6 +8,14 @@ pub(crate) struct Lamp {
     pub(crate) state: LampState,
 }
 
+#[derive(Debug, Clone, Default)]
+pub(crate) struct LampState {
+    pub(crate) brightness: Option<f64>,
+    pub(crate) color_temp_k: Option<usize>,
+    pub(crate) color_xy: Option<(f64, f64)>,
+    pub(crate) on: Option<bool>,
+}
+
 impl Lamp {
     pub(crate) fn store_model(&self, model: Model) -> Self {
         Self {
@@ -34,44 +42,6 @@ impl Lamp {
         self.state.to_payloads(&self.model)
     }
 }
-
-#[derive(Debug, Clone, Default)]
-pub(crate) struct LampState {
-    pub(crate) brightness: Option<f64>,
-    pub(crate) color_temp_k: Option<usize>,
-    pub(crate) color_xy: Option<(f64, f64)>,
-    pub(crate) on: Option<bool>,
-}
-
-impl PartialEq for LampState {
-    fn eq(&self, other: &Self) -> bool {
-        let d_bright = match (self.brightness, other.brightness) {
-            (Some(self_bri), Some(other_bri)) => (self_bri - other_bri).abs(),
-            _ => 1.0,
-        };
-        let (d_color_x, d_color_y) = match (self.color_xy, other.color_xy) {
-            (Some(self_xy), Some(other_xy)) => (
-                (self_xy.0 - other_xy.0).abs(),
-                (self_xy.1 - other_xy.1).abs(),
-            ),
-            // If either Lamp has no xy set, xy is "different" (so we use temp)
-            // so this needs to be over threshold
-            _ => (1.0, 1.0),
-        };
-        let d_color_temp = match (self.color_temp_k, other.color_temp_k) {
-            (Some(self_temp), Some(other_temp)) => {
-                self_temp.abs_diff(other_temp)
-            }
-            _ => 5000,
-        };
-
-        let color_equal =
-            (d_color_x < 0.01 && d_color_y < 0.01) || d_color_temp < 50;
-        self.on == other.on && d_bright < 1. / 250. && color_equal
-    }
-}
-
-impl Eq for LampState {}
 
 impl LampState {
     pub(crate) fn apply(&self, change: Change) -> LampState {
@@ -116,6 +86,36 @@ impl LampState {
         payloads.into_iter().map(|x| x.to_string()).collect()
     }
 }
+
+impl PartialEq for LampState {
+    fn eq(&self, other: &Self) -> bool {
+        let d_bright = match (self.brightness, other.brightness) {
+            (Some(self_bri), Some(other_bri)) => (self_bri - other_bri).abs(),
+            _ => 1.0,
+        };
+        let (d_color_x, d_color_y) = match (self.color_xy, other.color_xy) {
+            (Some(self_xy), Some(other_xy)) => (
+                (self_xy.0 - other_xy.0).abs(),
+                (self_xy.1 - other_xy.1).abs(),
+            ),
+            // If either State has no xy set, xy is "different" (so we use temp)
+            // so this needs to be over threshold
+            _ => (1.0, 1.0),
+        };
+        let d_color_temp = match (self.color_temp_k, other.color_temp_k) {
+            (Some(self_temp), Some(other_temp)) => {
+                self_temp.abs_diff(other_temp)
+            }
+            _ => 5000,
+        };
+
+        let color_equal =
+            (d_color_x < 0.01 && d_color_y < 0.01) || d_color_temp < 50;
+        self.on == other.on && d_bright < 1. / 250. && color_equal
+    }
+}
+
+impl Eq for LampState {}
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Change {
