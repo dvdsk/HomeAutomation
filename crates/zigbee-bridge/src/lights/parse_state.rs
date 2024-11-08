@@ -68,11 +68,11 @@ impl TryInto<LampState> for &[u8] {
 }
 
 fn json_to_u64(json: &Value) -> Result<u64, io::Error> {
-    Ok(json
+    json
         .as_number()
         .ok_or(invalid_err("Number"))?
         .as_u64()
-        .ok_or(invalid_err("u64"))?)
+        .ok_or(invalid_err("u64"))
 }
 
 fn json_to_f64(json: &Value) -> Result<f64, io::Error> {

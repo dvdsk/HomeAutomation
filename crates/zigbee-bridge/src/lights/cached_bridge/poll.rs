@@ -58,7 +58,7 @@ fn parse_message(message: Event) -> Message {
                     serde_json::from_slice(&message.payload).unwrap();
                 let list = json.as_array().unwrap();
                 let devices: HashMap<String, Model> = list
-                    .into_iter()
+                    .iter()
                     .map(parse_device)
                     .filter(|d| d.0 != "Coordinator")
                     .collect();
@@ -111,7 +111,7 @@ fn parse_device(device: &Value) -> (String, Model) {
             Model::TradfriOther(id.to_owned())
         }
         Some(id) => Model::Other(id.to_owned()),
-        None => Model::Other("".to_owned()),
+        None => Model::Other(String::new()),
     };
 
     (friendly_name, model)

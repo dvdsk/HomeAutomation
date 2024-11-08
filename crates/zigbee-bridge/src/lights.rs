@@ -53,9 +53,9 @@ impl Controller {
             .expect("Sender should never be dropped");
     }
 
-    // pub fn set_color_xy(&self, friendly_name: &str, xy: (f64, f64)) {
-    //     self.change_sender
-    //         .send((friendly_name.to_string(), Change::ColorXy(xy)))
-    //         .expect("Sender should never be dropped");
-    // }
+    pub fn set_color_xy(&self, friendly_name: &str, xy: (f64, f64)) {
+        self.change_sender
+            .send((friendly_name.to_string(), Change::ColorXy(xy)))
+            .expect("Sender should never be dropped");
+    }
 }

@@ -96,11 +96,8 @@ impl LampState {
             None => (),
         };
 
-        match self.brightness {
-            Some(bri) => {
-                payloads.push(json!({ "brightness": denormalize(bri) }))
-            }
-            None => (),
+        if let Some(bri) = self.brightness {
+            payloads.push(json!({ "brightness": denormalize(bri) }));
         }
 
         if let Some(model) = model {
@@ -110,12 +107,9 @@ impl LampState {
                         json!({ "color": {"x": color_xy.0, "y": color_xy.1} }),
                     );
                 }
-            } else {
-                if let Some(color_temp) = self.color_temp_k {
-                    payloads.push(
-                        json!({ "color_temp": kelvin_to_mired(color_temp) }),
-                    );
-                }
+            } else if let Some(color_temp) = self.color_temp_k {
+                payloads
+                    .push(json!({ "color_temp": kelvin_to_mired(color_temp) }));
             }
         }
 
@@ -144,6 +138,7 @@ pub(crate) enum Model {
 impl Model {
     pub(crate) fn is_color_lamp(&self) -> bool {
         use Model as M;
+        #[allow(clippy::match_same_arms)] // clearer comment
         match self {
             M::TradfriE27 | M::TradfriE14 | M::HueGen4 => true,
             M::TradfriCandle => false,
