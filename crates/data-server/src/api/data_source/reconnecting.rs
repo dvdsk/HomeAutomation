@@ -31,8 +31,7 @@ impl Client {
             let mut conn = if let Some(conn) = self.connection.take() {
                 conn
             } else {
-                get_connection_or_reconnect(self.addr, &self.affectors, &mut self.retry_period)
-                    .await
+                get_conn_or_reconnect(self.addr, &self.affectors, &mut self.retry_period).await
             };
 
             match conn.send_bytes(bytes).await {
@@ -83,7 +82,7 @@ impl Client {
     }
 }
 
-async fn get_connection_or_reconnect(
+async fn get_conn_or_reconnect(
     addr: SocketAddr,
     affectors: &[protocol::Affector],
     retry_period: &mut Duration,

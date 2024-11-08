@@ -5,8 +5,9 @@ use clap::Parser;
 
 use color_eyre::eyre::{bail, eyre, Context};
 use color_eyre::Section;
-use data_server::api::data_source;
+use data_server::api::data_source::reconnecting;
 use nusb::transfer;
+use protocol::Affector;
 use tokio::time::{sleep, sleep_until, Instant};
 
 use ratelimited_logger as rl;
@@ -55,6 +56,22 @@ impl ReconnectingUsbSub {
             bytes: Vec::new().into_iter(),
             logger: ratelimited_logger::RateLimitedLogger::default(),
         }
+    }
+
+    async fn wait_for_affectors(&mut self) -> color_eyre::Result<Vec<Affector>> {
+        let msg = self.recv().await;
+        let msg = protocol::Msg::<50>::decode(msg.to_vec()).wrap_err(
+            "Could not decode protocol::Msg, maybe the protocol library \
+            has changed since this was compiled",
+        )?;
+        let protocol::Msg::AffectorList(list) = msg else {
+            bail!(
+                "Every usb node should send an affector list on connect,\
+                this node did not"
+            );
+        };
+
+        Ok(list.values.to_vec())
     }
 
     async fn recv(&mut self) -> Vec<u8> {
@@ -140,7 +157,8 @@ async fn main() -> Result<(), color_eyre::Report> {
     let args = Cli::parse();
 
     let mut usb = ReconnectingUsbSub::new(args.serial_number);
-    let mut server_client = data_source::reconnecting::Client::new(args.data_server, Vec::new());
+    let affectors = usb.wait_for_affectors().await?;
+    let mut server_client = reconnecting::Client::new(args.data_server, affectors);
 
     loop {
         let encoded_msg = usb.recv().await;
