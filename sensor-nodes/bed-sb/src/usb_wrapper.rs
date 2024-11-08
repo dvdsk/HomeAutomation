@@ -1,6 +1,7 @@
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_sync::mutex::Mutex;
+use embassy_sync::signal::Signal;
 use embassy_usb::control::{InResponse, OutResponse, Recipient, RequestType};
 use embassy_usb::types::InterfaceNumber;
 use embassy_usb::UsbDevice;
@@ -15,6 +16,7 @@ pub(crate) type RecvItem = heapless::Vec<u8, MAX_RECV_ITEM_SIZE>;
 pub struct UsbControlHandler<'a> {
     pub if_num: Option<InterfaceNumber>,
     send_queue: &'a Mutex<NoopRawMutex, heapless::Deque<u8, SEND_BUFFER_SIZE>>,
+    ready_to_send: &'a Signal<NoopRawMutex, ()>,
     receive_queue: &'a Channel<NoopRawMutex, RecvItem, 2>,
 }
 
@@ -94,13 +96,25 @@ impl embassy_usb::Handler for UsbControlHandler<'_> {
                 *byte = 0; // end of encoded data
             }
         }
+        self.ready_to_send.signal(());
 
         Some(InResponse::Accepted(buf))
     }
 }
 
+// struct SendQueue{
+//     free: Channel<NoopRawMutex, (), 2>,
+//     bytes: heapless::Deque<u8, SEND_BUFFER_SIZE>
+// }
+//
+// impl SendQueue {
+//     fn send(&self, to_send) {
+//     }
+// }
+
 pub struct UsbHandle<'a> {
     send_queue: &'a Mutex<NoopRawMutex, heapless::Deque<u8, SEND_BUFFER_SIZE>>,
+    ready_to_send: &'a Signal<NoopRawMutex, ()>,
     receive_queue: &'a Channel<NoopRawMutex, heapless::Vec<u8, MAX_RECV_ITEM_SIZE>, 2>,
 }
 
@@ -109,6 +123,7 @@ impl<'a> UsbHandle<'a> {
         (
             UsbSender {
                 send_queue: self.send_queue,
+                ready_to_send: self.ready_to_send,
             },
             UsbReceiver {
                 receive_queue: self.receive_queue,
@@ -119,27 +134,40 @@ impl<'a> UsbHandle<'a> {
 
 pub struct UsbSender<'a> {
     send_queue: &'a Mutex<NoopRawMutex, heapless::Deque<u8, SEND_BUFFER_SIZE>>,
+    ready_to_send: &'a Signal<NoopRawMutex, ()>,
 }
 
+pub struct NoSpaceInQueue;
+
 impl UsbSender<'_> {
-    pub(crate) async fn send(&self, to_send: &[u8]) {
+    pub(crate) async fn send(&self, to_send: &[u8]) -> Result<(), NoSpaceInQueue> {
         let mut queue = self.send_queue.lock().await;
         let free = queue.capacity() - queue.len();
         if free < 1 + to_send.len() {
-            defmt::trace!("dropping package because queue is full");
-            return; // drop the package
+            return Err(NoSpaceInQueue);
         }
 
-        defmt::unwrap!(queue.push_back(
-            to_send
-                .len()
-                .try_into()
-                .expect("send only supports buffers up to and including u8::MAX long"),
-        ));
+        defmt::unwrap!(
+            queue.push_back(defmt::unwrap!(
+                to_send.len().try_into(),
+                "send only supports buffers up to and including u8::MAX long"
+            ),),
+            "just checked that queue has capacity"
+        );
 
         for byte in to_send {
             defmt::unwrap!(queue.push_back(*byte))
         }
+        Ok(())
+    }
+
+    pub(crate) async fn wait_till_queue_free(&self) {
+        let wait_for_ready = self.ready_to_send.wait();
+        if !self.send_queue.lock().await.is_full() {
+            return;
+        }
+
+        wait_for_ready.await
     }
 }
 
@@ -170,6 +198,7 @@ pub fn config() -> embassy_usb::Config<'static> {
 
 pub struct StackA {
     send_queue: Mutex<NoopRawMutex, heapless::Deque<u8, SEND_BUFFER_SIZE>>,
+    ready_to_send: Signal<NoopRawMutex, ()>,
     receive_queue: Channel<NoopRawMutex, heapless::Vec<u8, MAX_RECV_ITEM_SIZE>, 2>,
 }
 
@@ -178,6 +207,7 @@ impl StackA {
         Self {
             send_queue: Mutex::new(heapless::Deque::new()),
             receive_queue: Channel::new(),
+            ready_to_send: Signal::new(),
         }
     }
 }
@@ -202,6 +232,7 @@ impl<'a> StackB<'a> {
                 if_num: None,
                 send_queue: &stack_a.send_queue,
                 receive_queue: &stack_a.receive_queue,
+                ready_to_send: &stack_a.ready_to_send,
             },
         }
     }
@@ -270,6 +301,7 @@ pub(crate) fn new<'a, D: embassy_usb::driver::Driver<'a>>(
         UsbHandle {
             send_queue: &stack_a.send_queue,
             receive_queue: &stack_a.receive_queue,
+            ready_to_send: &stack_a.ready_to_send,
         },
     )
 }

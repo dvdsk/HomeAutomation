@@ -7,15 +7,21 @@ use protocol::{affector, Affector, ErrorReport, SensorMessage};
 
 use crate::channel::{PriorityValue, QueueItem, Queues};
 use crate::sensors::slow;
-use crate::usb_wrapper::{UsbHandle, UsbReceiver, UsbSender};
+use crate::usb_wrapper::{NoSpaceInQueue, UsbHandle, UsbReceiver, UsbSender};
 
 pub(crate) type SensMsg = SensorMessage<10>;
-async fn collect_pending(publish: &Queues, reading: PriorityValue) -> SensorMessage<10> {
+type IsLowPrio = bool;
+
+/// send as soon as we find a high priority message
+async fn collect_pending(
+    publish: &Queues,
+    reading: PriorityValue,
+) -> (IsLowPrio, SensorMessage<10>) {
     let mut msg = SensMsg::default();
-    let low_priority = reading.low_priority();
+    let mut is_low_priority = reading.low_priority();
     unwrap!(msg.values.push(reading.value));
 
-    if low_priority {
+    if is_low_priority {
         let deadline = Instant::now() + Duration::from_millis(200);
         while msg.space_left() {
             let until = deadline.saturating_duration_since(Instant::now());
@@ -24,6 +30,7 @@ async fn collect_pending(publish: &Queues, reading: PriorityValue) -> SensorMess
                     unwrap!(msg.values.push(new.value));
                 }
                 Ok(new) => {
+                    is_low_priority = false;
                     unwrap!(msg.values.push(new.value));
                     break;
                 }
@@ -38,24 +45,24 @@ async fn collect_pending(publish: &Queues, reading: PriorityValue) -> SensorMess
             unwrap!(msg.values.push(next.value));
         }
     }
-    msg
+    (is_low_priority, msg)
 }
 
-async fn get_messages<'a>(publish: &Queues, buf: &'a mut [u8]) -> &'a [u8] {
+async fn get_messages<'a>(publish: &Queues, buf: &'a mut [u8]) -> (IsLowPrio, &'a [u8]) {
     let next = publish.receive().await;
     match next {
         QueueItem::Reading(reading) => {
-            let msg = collect_pending(publish, reading).await;
+            let (is_low_prio, msg) = collect_pending(publish, reading).await;
             let encoded_len = msg.encode_slice(&mut buf[1..]).len();
             buf[0] = protocol::Msg::<0>::READINGS;
-            &buf[..=encoded_len]
+            (is_low_prio, &buf[..=encoded_len])
         }
         QueueItem::Error(error) => {
             let error = protocol::small_bedroom::Error::Bed(error.into());
             let error = protocol::Error::SmallBedroom(error);
             let encoded_len = ErrorReport::new(error).encode_slice(&mut buf[1..]).len();
             buf[0] = protocol::Msg::<0>::ERROR_REPORT;
-            &buf[..=encoded_len]
+            (true, &buf[..=encoded_len])
         }
     }
 }
@@ -140,11 +147,21 @@ async fn send_messages(usb: UsbSender<'_>, publish: &Queues) {
     let encoded_len = affector_list().encode_slice(&mut buf[1..]).len();
     buf[0] = protocol::Msg::<5>::AFFECTOR_LIST;
     let to_send = &buf[..=encoded_len];
-    usb.send(to_send).await;
+    defmt::unwrap!(
+        usb.send(to_send).await,
+        "first message, queue should still be empty & large enough"
+    );
 
     loop {
-        let to_send = get_messages(publish, &mut buf).await;
-        usb.send(to_send).await;
+        let (is_low_prio, to_send) = get_messages(publish, &mut buf).await;
+        while let Err(NoSpaceInQueue) = usb.send(to_send).await {
+            if is_low_prio {
+                defmt::trace!("dropping low priority package because queue is full");
+                break;
+            } else {
+                usb.wait_till_queue_free().await;
+            }
+        }
     }
 }
 
