@@ -78,7 +78,7 @@ pub async fn run(
 async fn update(system: &mut RestrictedSystem) {
     let (new_ct, new_bri) = small_bedroom::optimal_ct_bri();
     system.all_lamps_ct(new_ct, new_bri).await;
-    tracing::info!("updated lamps");
+    tracing::trace!("updated lamps");
 }
 
 fn _optimal_ct_bri() -> (u16, u8) {

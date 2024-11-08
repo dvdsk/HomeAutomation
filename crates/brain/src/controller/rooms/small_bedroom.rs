@@ -17,11 +17,17 @@ enum State {
 const INTERVAL: Duration = Duration::from_secs(5);
 
 trait RecvFiltered {
-    async fn recv_filter_mapped<T>(&mut self, filter_map: impl Fn(Event) -> Option<T>) -> T;
+    async fn recv_filter_mapped<T>(
+        &mut self,
+        filter_map: impl Fn(Event) -> Option<T>,
+    ) -> T;
 }
 
 impl RecvFiltered for broadcast::Receiver<Event> {
-    async fn recv_filter_mapped<T>(&mut self, filter_map: impl Fn(Event) -> Option<T>) -> T {
+    async fn recv_filter_mapped<T>(
+        &mut self,
+        filter_map: impl Fn(Event) -> Option<T>,
+    ) -> T {
         loop {
             let event = self.recv().await.unwrap();
             if let Some(relevant) = filter_map(event) {
