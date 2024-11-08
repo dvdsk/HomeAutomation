@@ -4,7 +4,7 @@ use tokio::sync::{mpsc, RwLock};
 use tokio::time::{sleep, timeout};
 
 use super::{mqtt::Mqtt, CHANGE_TIMEOUT, WAIT_FOR_INIT_STATES};
-use crate::lights::state::{Change, Lamp};
+use crate::lights::state::{Change, Lamp, Model};
 use crate::LIGHTS;
 
 pub(super) async fn handle(
@@ -12,6 +12,7 @@ pub(super) async fn handle(
     mqtt: &Mqtt,
     known_states: &RwLock<HashMap<String, Lamp>>,
     needed_states: &mut HashMap<String, Lamp>,
+    devices: &RwLock<HashMap<String, Model>>,
 ) -> ! {
     // Give the initial known states a chance to be fetched
     sleep(WAIT_FOR_INIT_STATES).await;
@@ -19,13 +20,14 @@ pub(super) async fn handle(
         if let Ok(change) = timeout(CHANGE_TIMEOUT, change_receiver.recv()).await {
             apply_change(change, known_states, needed_states).await;
         }
-        send_all(known_states, needed_states, mqtt).await;
+        send_all(known_states, needed_states, devices, mqtt).await;
     }
 }
 
 async fn send_all(
     known_states: &RwLock<HashMap<String, Lamp>>,
     needed_states: &mut HashMap<String, Lamp>,
+    devices: &RwLock<HashMap<String, Model>>,
     mqtt: &Mqtt,
 ) {
     let known_states = known_states.read().await;
@@ -36,8 +38,10 @@ async fn send_all(
 
         let known = known_states.get(light_name);
         if Some(needed) != known {
+            let devices = devices.read().await;
+            let model = devices.get(light_name).expect("Should be registered");
             // Ignore errors because we will retry if the state hasn't changed
-            let _ = mqtt.send_new_state(light_name, needed).await;
+            let _ = mqtt.send_new_state(light_name, needed, model).await;
         }
     }
 }

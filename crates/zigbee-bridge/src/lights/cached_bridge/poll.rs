@@ -4,7 +4,7 @@ use rumqttc::{Event, EventLoop, Incoming};
 use serde_json::Value;
 use tokio::{sync::RwLock, time::sleep};
 
-use crate::lights::state::Lamp;
+use crate::lights::state::{Lamp, Model};
 
 pub(super) async fn poll_mqtt(
     mut eventloop: EventLoop,
@@ -80,16 +80,6 @@ enum Message {
     StateUpdate((String, Lamp)),
     Devices(HashMap<String, Model>),
     Other,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub(super) enum Model {
-    TradfriCandle,
-    TradfriE27,
-    TradfriE14,
-    HueGen4,
-    TradfriOther(String),
-    Other(String),
 }
 
 fn parse_device(device: &Value) -> (String, Model) {

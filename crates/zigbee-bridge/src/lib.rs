@@ -8,7 +8,7 @@ use rumqttc::QoS;
 
 pub mod lights;
 
-const QOS: QoS = QoS::AtLeastOnce;
+const QOS: QoS = QoS::AtMostOnce;
 const MQTT_IP: &str = "192.168.1.43";
 const MQTT_PORT: u16 = 1883;
 const LIGHTS: [&str; 5] = [

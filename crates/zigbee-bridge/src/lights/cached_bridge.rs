@@ -42,6 +42,7 @@ pub(crate) async fn run(mut change_receiver: mpsc::UnboundedReceiver<(String, Ch
         &mqtt,
         &known_states,
         &mut needed_states,
+        &devices,
     );
 
     tokio::select! {
