@@ -21,7 +21,6 @@ pub(crate) async fn run(mut change_receiver: mpsc::UnboundedReceiver<(String, Ch
     options.set_max_packet_size(2_usize.pow(28), 10240);
 
     let known_states = RwLock::new(HashMap::new());
-    let devices = RwLock::new(HashMap::new());
     let mut needed_states = HashMap::new();
 
     // Reconnecting to broker is handled by Eventloop::poll
@@ -36,13 +35,12 @@ pub(crate) async fn run(mut change_receiver: mpsc::UnboundedReceiver<(String, Ch
         mqtt.request_state(light).await;
     }
 
-    let poll_mqtt = poll::poll_mqtt(eventloop, &known_states, &devices);
+    let poll_mqtt = poll::poll_mqtt(eventloop, &known_states);
     let handle_changes = changes::handle(
         &mut change_receiver,
         &mqtt,
         &known_states,
         &mut needed_states,
-        &devices,
     );
 
     tokio::select! {

@@ -4,12 +4,11 @@ use rumqttc::{Event, EventLoop, Incoming};
 use serde_json::Value;
 use tokio::{sync::RwLock, time::sleep};
 
-use crate::lights::lamp::{LampState, Model};
+use crate::lights::lamp::{Lamp, LampState, Model};
 
 pub(super) async fn poll_mqtt(
     mut eventloop: EventLoop,
-    known_states: &RwLock<HashMap<String, LampState>>,
-    devices: &RwLock<HashMap<String, Model>>,
+    known_states: &RwLock<HashMap<String, Lamp>>,
 ) -> ! {
     loop {
         let message = match eventloop.poll().await {
@@ -21,17 +20,24 @@ pub(super) async fn poll_mqtt(
             }
         };
 
+        let mut known_states = known_states.write().await;
+
         match parse_message(message) {
-            Message::StateUpdate((light_name, new_known_state)) => {
-                let mut known_states = known_states.write().await;
+            Message::StateUpdate((light_name, updated_state)) => {
+                let new_known_state = match known_states.get(&light_name) {
+                    Some(lamp) => lamp.store_state(updated_state),
+                    None => Lamp::default().store_state(updated_state),
+                };
                 known_states.insert(light_name, new_known_state);
             }
             Message::Devices(new_devices) => {
-                let mut devices = devices.write().await;
-                if *devices != new_devices {
-                    dbg!(&new_devices);
+                for (light_name, model) in new_devices {
+                    let new_known_state = match known_states.get(&light_name) {
+                        Some(lamp) => lamp.store_model(model),
+                        None => Lamp::default().store_model(model),
+                    };
+                    known_states.insert(light_name, new_known_state);
                 }
-                *devices = new_devices
             }
             Message::Other => (),
         }

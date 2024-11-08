@@ -7,6 +7,39 @@ use crate::lights::{
     denormalize, kelvin_to_mired, mired_to_kelvin,
 };
 
+#[derive(PartialEq, Eq, Default, Clone)]
+pub(crate) struct Lamp {
+    pub(crate) model: Option<Model>,
+    pub(crate) state: LampState,
+}
+
+impl Lamp {
+    pub(crate) fn store_model(&self, model: Model) -> Self {
+        Self {
+            model: Some(model),
+            state: self.state.clone(),
+        }
+    }
+
+    pub(crate) fn store_state(&self, state: LampState) -> Self {
+        Self {
+            model: self.model.clone(),
+            state,
+        }
+    }
+
+    pub(crate) fn apply(&self, change: Change) -> Self {
+        Self {
+            model: self.model.clone(),
+            state: self.state.apply(change),
+        }
+    }
+
+    pub(crate) fn to_payloads(&self) -> Vec<String> {
+        self.state.to_payloads(&self.model)
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub(crate) struct LampState {
     pub(crate) brightness: Option<f64>,
@@ -158,7 +191,7 @@ impl LampState {
         new_state
     }
 
-    pub(crate) fn to_payloads(&self, model: &Model) -> Vec<String> {
+    pub(crate) fn to_payloads(&self, model: &Option<Model>) -> Vec<String> {
         let mut payloads = vec![];
         match self.on {
             Some(true) => payloads.push(json!({ "state": "ON" })),
@@ -173,16 +206,19 @@ impl LampState {
             None => (),
         }
 
-        if model.is_color_lamp() {
-            if let Some(color_xy) = self.color_xy {
-                payloads.push(
-                    json!({ "color": {"x": color_xy.0, "y": color_xy.1} }),
-                );
-            }
-        } else {
-            if let Some(color_temp) = self.color_temp_k {
-                payloads
-                    .push(json!({ "color_temp": kelvin_to_mired(color_temp) }));
+        if let Some(model) = model {
+            if model.is_color_lamp() {
+                if let Some(color_xy) = self.color_xy {
+                    payloads.push(
+                        json!({ "color": {"x": color_xy.0, "y": color_xy.1} }),
+                    );
+                }
+            } else {
+                if let Some(color_temp) = self.color_temp_k {
+                    payloads.push(
+                        json!({ "color_temp": kelvin_to_mired(color_temp) }),
+                    );
+                }
             }
         }
 
@@ -198,7 +234,7 @@ pub(crate) enum Change {
     ColorXy((f64, f64)),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Model {
     TradfriCandle,
     TradfriE27,
