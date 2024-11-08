@@ -4,11 +4,14 @@ use tokio::sync::mpsc;
 use self::lamp::Change;
 
 // TODO: make private once system is ported
-pub use conversion::{kelvin_to_mired, mired_to_kelvin, normalize, denormalize};
+pub use conversion::{
+    denormalize, kelvin_to_mired, mired_to_kelvin, normalize,
+};
 
 mod cached_bridge;
 mod conversion;
 mod lamp;
+mod parse_state;
 
 #[derive(Debug, Clone)]
 pub struct Controller {

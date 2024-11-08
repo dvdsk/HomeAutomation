@@ -1,11 +1,6 @@
-use std::io;
+use serde_json::json;
 
-use serde_json::{json, Value};
-
-use crate::lights::{
-    conversion::{normalize, temp_to_xy},
-    denormalize, kelvin_to_mired, mired_to_kelvin,
-};
+use crate::lights::{conversion::temp_to_xy, denormalize, kelvin_to_mired};
 
 #[derive(PartialEq, Eq, Default, Clone)]
 pub(crate) struct Lamp {
@@ -77,104 +72,6 @@ impl PartialEq for LampState {
 }
 
 impl Eq for LampState {}
-
-impl TryInto<LampState> for &[u8] {
-    type Error = io::Error;
-
-    fn try_into(self) -> Result<LampState, Self::Error> {
-        fn get_key<'a>(
-            map: &'a serde_json::Map<String, Value>,
-            key: &str,
-        ) -> Result<&'a Value, io::Error> {
-            let key_err = io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Missing key from map: {key}",
-            );
-            map.get(key).ok_or(key_err)
-        }
-
-        fn invalid_err(value_type: &str) -> io::Error {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("Could not parse json into {value_type}"),
-            )
-        }
-
-        let json: Value = serde_json::from_slice(self)?;
-        let map = json.as_object().ok_or(invalid_err("Object"))?;
-
-        let color_temp_mired = match get_key(map, "color_temp") {
-            Ok(temp) => {
-                let color_temp: usize = temp
-                    .as_number()
-                    .ok_or(invalid_err("Number"))?
-                    .as_u64()
-                    .ok_or(invalid_err("u64"))?
-                    .try_into()
-                    .expect("usize should be u64");
-                Some(color_temp)
-            }
-            Err(_) => None,
-        };
-
-        let color_xy = match get_key(map, "color") {
-            Ok(color) => {
-                let color = color.as_object().ok_or(invalid_err("Object"))?;
-                let color_x = get_key(color, "x")?
-                    .as_number()
-                    .ok_or(invalid_err("Number"))?
-                    .as_f64()
-                    .expect("Should be Some if not using arbitrary precision");
-                let color_y = get_key(color, "y")?
-                    .as_number()
-                    .ok_or(invalid_err("Number"))?
-                    .as_f64()
-                    .expect("Should be Some if not using arbitrary precision");
-                Some((color_x, color_y))
-            }
-            Err(_) => None,
-        };
-
-        let brightness = match get_key(map, "brightness") {
-            Ok(bri) => {
-                let bri: u8 = bri
-                    .as_number()
-                    .ok_or(invalid_err("Number"))?
-                    .as_u64()
-                    .ok_or(invalid_err("u64"))?
-                    .try_into()
-                    .map_err(|_| invalid_err("u8"))?;
-                Some(bri)
-            }
-            Err(_) => None,
-        };
-
-        let on = match get_key(map, "state") {
-            Ok(on) => {
-                let state = on.as_str().ok_or(invalid_err("String"))?;
-                let on = match state.to_lowercase().as_str() {
-                    "on" => true,
-                    "off" => false,
-                    other => {
-                        return Err(invalid_err(&format!(
-                            "on/off bool: {other}"
-                        )))
-                    }
-                };
-                Some(on)
-            }
-            Err(_) => None,
-        };
-
-        Ok(LampState {
-            #[allow(clippy::cast_precision_loss)]
-            brightness: brightness.map(normalize),
-            color_temp_k: color_temp_mired.map(mired_to_kelvin),
-            color_xy,
-            on,
-        })
-    }
-}
 
 impl LampState {
     pub(crate) fn apply(&self, change: Change) -> LampState {
