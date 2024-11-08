@@ -112,7 +112,8 @@ pub async fn handle(
     }
 }
 
-fn affector_list() -> affector::ListMessage<5> {
+const AFFECTOR_LIST_MAX_SIZE: usize = protocol::Msg::<5>::max_size();
+pub fn affector_list() -> heapless::Vec<u8, AFFECTOR_LIST_MAX_SIZE> {
     let mut list = affector::ListMessage::<5>::empty();
     unwrap!(
         list.values.push(Affector::SmallBedroom(
@@ -139,19 +140,15 @@ fn affector_list() -> affector::ListMessage<5> {
         "list is long enough"
     );
 
-    list
+    let mut buf = heapless::Vec::new();
+    defmt::unwrap!(buf.resize_default(AFFECTOR_LIST_MAX_SIZE));
+    let encoded_len = list.encode_slice(&mut buf).len();
+    buf.truncate(encoded_len);
+    buf
 }
 
 async fn send_messages(usb: UsbSender<'_>, publish: &Queues) {
     let mut buf = [0; protocol::Msg::<5>::max_size()];
-    let encoded_len = affector_list().encode_slice(&mut buf[1..]).len();
-    buf[0] = protocol::Msg::<5>::AFFECTOR_LIST;
-    let to_send = &buf[..=encoded_len];
-    defmt::unwrap!(
-        usb.send(to_send, false).await,
-        "first message, queue should still be empty & large enough"
-    );
-
     loop {
         let (is_low_prio, to_send) = get_messages(publish, &mut buf).await;
         while let Err(NoSpaceInQueue) = usb.send(to_send, is_low_prio).await {

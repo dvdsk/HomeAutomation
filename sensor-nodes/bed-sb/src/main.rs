@@ -153,8 +153,9 @@ async fn main(_spawner: Spawner) {
         usb_driver_config,
     );
 
+    let affector_list = comms::affector_list();
     let stack_a = usb_wrapper::StackA::new();
-    let mut stack_b = usb_wrapper::StackB::new(&stack_a);
+    let mut stack_b = usb_wrapper::StackB::new(&stack_a, &affector_list);
     let (mut usb_bus, usb_handle) = usb_wrapper::new(&stack_a, &mut stack_b, usb_driver);
 
     let driver_orderers = slow::DriverOrderers::new();
