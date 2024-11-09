@@ -20,6 +20,9 @@ use tracing::{error, info, instrument, warn};
 
 use super::affector::{control_affectors, Registar};
 
+/// spawns tasks for all nodes that connect. Those tasks push the readings
+/// their nodes report into share and send relevant affector orders to the
+/// node if they get them via the registar.
 pub async fn handle_nodes(
     addr: SocketAddr,
     share: &Sender<Event>,

@@ -1,5 +1,8 @@
+use protocol::Affector;
 use std::net::SocketAddr;
 use std::time::Duration;
+use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 use tokio::time::{sleep, timeout};
 use tracing::{info, warn};
 
@@ -7,9 +10,17 @@ use super::SendPreEncodedError;
 
 pub struct Client {
     retry_period: Duration,
-    connection: Option<super::Client>,
+    conn: Option<(super::Sender, Option<AbortOnDrop>)>,
     addr: SocketAddr,
     affectors: Vec<protocol::Affector>,
+    affector_tx: Option<mpsc::Sender<Affector>>,
+}
+
+struct AbortOnDrop(JoinHandle<()>);
+impl Drop for AbortOnDrop {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
 }
 
 impl Client {
@@ -17,29 +28,43 @@ impl Client {
     /// node as an argument. If your node provides not controllable affectors
     /// pass in an empty Vec.
     #[must_use]
-    pub fn new(addr: SocketAddr, affectors: Vec<protocol::Affector>) -> Self {
+    pub fn new(
+        addr: SocketAddr,
+        affectors: Vec<protocol::Affector>,
+        affector_tx: Option<mpsc::Sender<Affector>>,
+    ) -> Self {
         Self {
             retry_period: Duration::from_millis(200),
-            connection: None,
+            conn: None,
             addr,
             affectors,
+            affector_tx,
         }
     }
 
     async fn send_bytes(&mut self, bytes: &[u8]) {
         loop {
-            let mut conn = if let Some(conn) = self.connection.take() {
-                conn
+            let (mut sender, handle) = if let Some((sender, handle)) = self.conn.take() {
+                dbg!();
+                (sender, handle)
             } else {
-                get_conn_or_reconnect(self.addr, &self.affectors, &mut self.retry_period).await
+                dbg!();
+                let conn = reconnect(self.addr, &self.affectors, &mut self.retry_period).await;
+                let (sender, receiver) = conn.split();
+                let handle = self.affector_tx.clone().map(|tx| {
+                    let task = forward_received(receiver, tx);
+                    let handle = tokio::spawn(task);
+                    AbortOnDrop(handle)
+                });
+                (sender, handle)
             };
 
-            match conn.send_bytes(bytes).await {
-                Ok(msg) => {
+            dbg!();
+            match sender.send_bytes(bytes).await {
+                Ok(_) => {
                     self.retry_period /= 2;
                     self.retry_period = self.retry_period.max(Duration::from_millis(200));
-                    self.connection = Some(conn);
-                    return msg;
+                    self.conn = Some((sender, handle));
                 }
                 Err(issue) => {
                     warn!("Conn issue while sending new reading: {issue}, reconnecting");
@@ -82,7 +107,19 @@ impl Client {
     }
 }
 
-async fn get_conn_or_reconnect(
+async fn forward_received(mut receiver: super::Receiver, tx: mpsc::Sender<Affector>) {
+    loop {
+        let Ok(order) = receiver.receive().await else {
+            return;
+        };
+
+        let Ok(_) = tx.send(order).await else {
+            return;
+        };
+    }
+}
+
+async fn reconnect(
     addr: SocketAddr,
     affectors: &[protocol::Affector],
     retry_period: &mut Duration,

@@ -1,8 +1,10 @@
-use serde::{Deserialize, Serialize};
 pub use client::reconnecting::Client as ReconnectingClient;
 pub use client::reconnecting::SubscribedClient as ReconnectingSubscribedClient;
 pub use client::Client;
 pub use client::Subscribed as SubscribedClient;
+use serde::{Deserialize, Serialize};
+
+pub use crate::server::affector::AffectorError;
 pub mod client;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,12 +36,6 @@ pub enum SubMessage {
 }
 
 #[derive(Clone, Debug, thiserror::Error, Serialize, Deserialize)]
-pub enum AffectorError {
-    #[error("We do not have a connection to the actuator's node")]
-    Offline,
-}
-
-#[derive(Clone, Debug, thiserror::Error, Serialize, Deserialize)]
 #[error("placeholder")]
 pub struct SubscribeError;
 
@@ -48,4 +44,3 @@ pub enum ServerError {
     #[error("Could not activate affector")]
     FailedToSpread,
 }
-

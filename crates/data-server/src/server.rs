@@ -5,7 +5,7 @@ use tokio::sync::mpsc;
 use tokio_serde::formats::Bincode;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
-mod affector;
+pub mod affector;
 pub mod client;
 mod data_source;
 mod subscribe;

@@ -34,7 +34,7 @@ async fn main() {
     sensors::start_monitoring(tx.clone(), cli.bedroom);
 
     info!("connecting to dataserver on: {}", cli.data_server);
-    let mut client = data_source::reconnecting::Client::new(cli.data_server, Vec::new());
+    let mut client = data_source::reconnecting::Client::new(cli.data_server, Vec::new(), None);
 
     loop {
         match rx.recv().await.expect("sensor monitoring never stops") {

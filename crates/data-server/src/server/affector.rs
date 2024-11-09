@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use color_eyre::Result;
 use governor::Quota;
 use protocol::Affector;
+use serde::{Deserialize, Serialize};
 use slotmap::{DefaultKey, SlotMap};
 use tokio::io::AsyncWriteExt;
 use tokio::net::tcp::OwnedWriteHalf;

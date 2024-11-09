@@ -8,6 +8,7 @@ use color_eyre::Section;
 use data_server::api::data_source::reconnecting;
 use nusb::transfer;
 use protocol::{usb, Affector};
+use tokio::sync::mpsc;
 use tokio::time::{sleep, sleep_until, Instant};
 
 use ratelimited_logger as rl;
@@ -25,7 +26,7 @@ struct Cli {
     serial_number: String,
 }
 
-struct ReconnectingUsbSub {
+struct ReconnectingUsb {
     serial_number: String,
     /// when we are allowed to poll the usb
     /// device for more data again
@@ -33,9 +34,10 @@ struct ReconnectingUsbSub {
     conn: Option<nusb::Device>,
     bytes: vec::IntoIter<u8>,
     logger: ratelimited_logger::RateLimitedLogger,
+    to_send: mpsc::Receiver<Affector>,
 }
 
-fn usb_request(request: u8) -> transfer::ControlIn {
+fn usb_get(request: u8) -> transfer::ControlIn {
     transfer::ControlIn {
         control_type: transfer::ControlType::Vendor,
         recipient: transfer::Recipient::Interface,
@@ -46,21 +48,39 @@ fn usb_request(request: u8) -> transfer::ControlIn {
     }
 }
 
-impl ReconnectingUsbSub {
-    fn new(serial_number: String) -> Self {
-        ReconnectingUsbSub {
+fn usb_send(request: u8, data: &[u8]) -> transfer::ControlOut {
+    transfer::ControlOut {
+        control_type: transfer::ControlType::Vendor,
+        recipient: transfer::Recipient::Interface,
+        request,
+        value: 0,
+        index: 0,
+        data,
+    }
+}
+
+enum Status {
+    Done,
+    CallAgain,
+}
+
+impl ReconnectingUsb {
+    fn new(serial_number: String, to_send: mpsc::Receiver<Affector>) -> Self {
+        ReconnectingUsb {
             serial_number,
             next_poll: Instant::now(),
             conn: None,
             bytes: Vec::new().into_iter(),
             logger: ratelimited_logger::RateLimitedLogger::default(),
+            to_send,
         }
     }
 
     async fn get_affectors(&mut self) -> color_eyre::Result<Vec<Affector>> {
         let msg = loop {
+            dbg!();
             if let Some(msg) = self
-                .try_request_data(usb_request(usb::GET_AFFECTOR_LIST))
+                .try_request_data(usb_get(usb::GET_AFFECTOR_LIST))
                 .await?
             {
                 break msg;
@@ -78,9 +98,10 @@ impl ReconnectingUsbSub {
         Ok(list.values.to_vec())
     }
 
-    async fn recv_msgs(&mut self) -> Vec<u8> {
+    async fn handle_usb(&mut self) -> Vec<u8> {
         let mut retry_period = Duration::from_millis(100);
         loop {
+            dbg!();
             if let Some(len) = self.bytes.next() {
                 if len == 0 {
                     self.bytes = Vec::new().into_iter();
@@ -89,22 +110,57 @@ impl ReconnectingUsbSub {
                 return self.bytes.by_ref().take(len as usize).collect();
             }
 
-            self.bytes = loop {
-                match self
-                    .try_request_data(usb_request(usb::GET_QUEUED_MESSAGES))
-                    .await
-                {
-                    Ok(Some(bytes)) => break bytes.into_iter(),
-                    Ok(None) => continue,
-                    Err(e) => {
-                        let logger = &mut self.logger;
-                        rl::warn!(logger; "{e:?}");
-                        retry_period *= 2;
-                        let retry_period = retry_period.min(Duration::from_secs(30));
-                        sleep(retry_period).await;
-                    }
-                };
+            if let Ok(order) = self.to_send.try_recv() {
+                dbg!(&order);
+                self.send_order(&mut retry_period, order).await;
+            }
+            tokio::time::sleep(retry_period).await;
+
+            dbg!();
+            self.receive_bytes(&mut retry_period).await;
+        }
+    }
+
+    async fn receive_bytes(&mut self, retry_period: &mut Duration) {
+        self.bytes = loop {
+            dbg!();
+            sleep_until(self.next_poll).await;
+            self.next_poll = Instant::now() + Duration::from_millis(100);
+
+            match self
+                .try_request_data(usb_get(usb::GET_QUEUED_MESSAGES))
+                .await
+            {
+                Ok(Some(bytes)) => break bytes.into_iter(),
+                Ok(None) => continue,
+                Err(e) => {
+                    let logger = &mut self.logger;
+                    rl::warn!(logger; "could not receive sensor message: {e:?}");
+                    *retry_period *= 2;
+                    *retry_period = (*retry_period).min(Duration::from_secs(30));
+                    sleep(*retry_period).await;
+                }
             };
+        };
+    }
+
+    async fn send_order(&mut self, retry_period: &mut Duration, order: Affector) {
+        let data = order.encode();
+        for _ in 0..2 {
+            match self
+                .try_send_data(usb_send(usb::AFFECTOR_ORDER, &data))
+                .await
+            {
+                Ok(Status::Done) => break,
+                Ok(Status::CallAgain) => continue,
+                Err(e) => {
+                    let logger = &mut self.logger;
+                    rl::warn!(logger; "could not send affector order: {e:?}");
+                    *retry_period *= 2;
+                    *retry_period = (*retry_period).min(Duration::from_secs(30));
+                    sleep(*retry_period).await;
+                }
+            }
         }
     }
 
@@ -113,8 +169,6 @@ impl ReconnectingUsbSub {
         request: transfer::ControlIn,
     ) -> color_eyre::Result<Option<Vec<u8>>> {
         if let Some(device) = self.conn.take() {
-            sleep_until(self.next_poll).await;
-            self.next_poll = Instant::now() + Duration::from_millis(100);
             let msg = device
                 .control_in(request)
                 .await
@@ -129,6 +183,27 @@ impl ReconnectingUsbSub {
         self.conn = Some(get_usb_device(list, &self.serial_number)?);
 
         Ok(None) // no errors but not done yet, call us again
+    }
+
+    async fn try_send_data(
+        &mut self,
+        request: transfer::ControlOut<'_>,
+    ) -> color_eyre::Result<Status> {
+        if let Some(device) = self.conn.take() {
+            device
+                .control_out(request)
+                .await
+                .into_result()
+                .wrap_err("Something went wrong with control_out request")?;
+
+            self.conn = Some(device);
+            return Ok(Status::Done);
+        }
+
+        let list = list_usb_devices(&self.serial_number)?;
+        self.conn = Some(get_usb_device(list, &self.serial_number)?);
+
+        Ok(Status::CallAgain) // no errors but not done yet, call us again
     }
 }
 
@@ -183,15 +258,17 @@ async fn main() -> Result<(), color_eyre::Report> {
     setup_tracing();
     let args = Cli::parse();
 
-    let mut usb = ReconnectingUsbSub::new(args.serial_number);
+    let (order_tx, order_rx) = tokio::sync::mpsc::channel(10);
+    let mut usb = ReconnectingUsb::new(args.serial_number, order_rx);
     let affectors = usb
         .get_affectors()
         .await
         .wrap_err("Could not get affector list")?;
-    let mut server_client = reconnecting::Client::new(args.data_server, affectors);
+    let mut server_client = reconnecting::Client::new(args.data_server, affectors, Some(order_tx));
 
     loop {
-        let encoded_msg = usb.recv_msgs().await;
+        dbg!();
+        let encoded_msg = usb.handle_usb().await;
         server_client
             .check_send_encoded(&encoded_msg)
             .await

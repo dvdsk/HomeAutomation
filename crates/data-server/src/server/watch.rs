@@ -1,4 +1,4 @@
-use crate::api::subscriber::SubMessage;
+use crate::api::subscriber::{AffectorError, SubMessage};
 use std::time::Duration;
 
 use super::{AffectorRegistar, Event};
@@ -67,7 +67,7 @@ impl LastSeen {
                 let last_reset = self
                     .last_reset
                     .iter()
-                    .find(|(a, _)| a == reset_cmd)
+                    .find(|(a, _)| a.is_same_as(reset_cmd))
                     .map(|(_, at)| at)
                     .copied();
                 !last_reset.is_some_and(|last_reset| last_reset.elapsed() < MIN_RESET_INTERVAL)
