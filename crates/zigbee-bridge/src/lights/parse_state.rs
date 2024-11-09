@@ -63,13 +63,13 @@ impl TryInto<LampState> for &[u8] {
             color_temp_k: color_temp_mired.map(mired_to_kelvin),
             color_xy,
             on,
+            ..Default::default()
         })
     }
 }
 
 fn json_to_u64(json: &Value) -> Result<u64, io::Error> {
-    json
-        .as_number()
+    json.as_number()
         .ok_or(invalid_err("Number"))?
         .as_u64()
         .ok_or(invalid_err("u64"))

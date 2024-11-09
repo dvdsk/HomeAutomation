@@ -8,12 +8,29 @@ pub(super) struct Lamp {
     pub(super) state: LampState,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub(super) struct LampState {
     pub(super) brightness: Option<f64>,
     pub(super) color_temp_k: Option<usize>,
     pub(super) color_xy: Option<(f64, f64)>,
     pub(super) on: Option<bool>,
+    pub(super) color_temp_startup: String,
+    pub(super) color_sync: bool,
+}
+
+impl Default for LampState {
+    fn default() -> Self {
+        Self {
+            brightness: None,
+            color_temp_k: None,
+            color_xy: None,
+            on: None,
+            // Settings, will not be updated from MQTT state message
+            // and will never trigger a publish
+            color_temp_startup: String::from("previous"),
+            color_sync: true,
+        }
+    }
 }
 
 impl Lamp {
@@ -82,6 +99,9 @@ impl LampState {
                     .push(json!({ "color_temp": kelvin_to_mired(color_temp) }));
             }
         }
+
+        payloads.push(json!({ "color_temp_startup": self.color_temp_startup }));
+        payloads.push(json!({ "color_sync": self.color_sync }));
 
         payloads.into_iter().map(|x| x.to_string()).collect()
     }
