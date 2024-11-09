@@ -26,7 +26,7 @@ pub fn denormalize(brightness: f64) -> u8 {
 
 #[allow(clippy::doc_markdown)]
 /// 1000K < `color_temp` < 1_000_000K
-pub fn temp_to_xy(color_temp: usize) -> (f64, f64) {
+pub(super) fn temp_to_xy(color_temp: usize) -> (f64, f64) {
     // TODO: use table from black body deviation measurements
     #[allow(clippy::cast_precision_loss)]
     let cct = CCT::try_new(color_temp as f64, DUV_IKEA).unwrap();

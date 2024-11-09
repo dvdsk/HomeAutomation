@@ -3,48 +3,48 @@ use serde_json::json;
 use crate::lights::{conversion::temp_to_xy, denormalize, kelvin_to_mired};
 
 #[derive(PartialEq, Eq, Default, Clone)]
-pub(crate) struct Lamp {
-    pub(crate) model: Option<Model>,
-    pub(crate) state: LampState,
+pub(super) struct Lamp {
+    pub(super) model: Option<Model>,
+    pub(super) state: LampState,
 }
 
 #[derive(Debug, Clone, Default)]
-pub(crate) struct LampState {
-    pub(crate) brightness: Option<f64>,
-    pub(crate) color_temp_k: Option<usize>,
-    pub(crate) color_xy: Option<(f64, f64)>,
-    pub(crate) on: Option<bool>,
+pub(super) struct LampState {
+    pub(super) brightness: Option<f64>,
+    pub(super) color_temp_k: Option<usize>,
+    pub(super) color_xy: Option<(f64, f64)>,
+    pub(super) on: Option<bool>,
 }
 
 impl Lamp {
-    pub(crate) fn store_model(&self, model: Model) -> Self {
+    pub(super) fn store_model(&self, model: Model) -> Self {
         Self {
             model: Some(model),
             state: self.state.clone(),
         }
     }
 
-    pub(crate) fn store_state(&self, state: LampState) -> Self {
+    pub(super) fn store_state(&self, state: LampState) -> Self {
         Self {
             model: self.model.clone(),
             state,
         }
     }
 
-    pub(crate) fn apply(&self, change: Change) -> Self {
+    pub(super) fn apply(&self, change: Change) -> Self {
         Self {
             model: self.model.clone(),
             state: self.state.apply(change),
         }
     }
 
-    pub(crate) fn to_payloads(&self) -> Vec<String> {
+    pub(super) fn to_payloads(&self) -> Vec<String> {
         self.state.to_payloads(&self.model)
     }
 }
 
 impl LampState {
-    pub(crate) fn apply(&self, change: Change) -> LampState {
+    fn apply(&self, change: Change) -> LampState {
         let mut new_state = self.clone();
         match change {
             Change::On(on) => new_state.on = Some(on),
@@ -58,7 +58,7 @@ impl LampState {
         new_state
     }
 
-    pub(crate) fn to_payloads(&self, model: &Option<Model>) -> Vec<String> {
+    fn to_payloads(&self, model: &Option<Model>) -> Vec<String> {
         let mut payloads = vec![];
         match self.on {
             Some(true) => payloads.push(json!({ "state": "ON" })),
@@ -118,7 +118,7 @@ impl PartialEq for LampState {
 impl Eq for LampState {}
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum Change {
+pub(super) enum Change {
     On(bool),
     Brightness(f64),
     ColorTemp(usize),
@@ -126,7 +126,7 @@ pub(crate) enum Change {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum Model {
+pub(super) enum Model {
     TradfriCandle,
     TradfriE27,
     TradfriE14,
@@ -136,7 +136,7 @@ pub(crate) enum Model {
 }
 
 impl Model {
-    pub(crate) fn is_color_lamp(&self) -> bool {
+    fn is_color_lamp(&self) -> bool {
         use Model as M;
         #[allow(clippy::match_same_arms)] // clearer comment
         match self {

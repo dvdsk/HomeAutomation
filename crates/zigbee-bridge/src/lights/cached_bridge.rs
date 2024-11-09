@@ -15,8 +15,11 @@ mod poll;
 const CHANGE_TIMEOUT: Duration = Duration::from_secs(5);
 const WAIT_FOR_INIT_STATES: Duration = Duration::from_millis(500);
 
-pub(crate) async fn run(mut change_receiver: mpsc::UnboundedReceiver<(String, Change)>) -> ! {
-    let mut options = MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
+pub(super) async fn run(
+    mut change_receiver: mpsc::UnboundedReceiver<(String, Change)>,
+) -> ! {
+    let mut options =
+        MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
     // Set incoming to max mqtt packet size, outgoing to rumqtt default
     options.set_max_packet_size(2_usize.pow(28), 10240);
 
