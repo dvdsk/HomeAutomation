@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::{sleep, timeout};
+use tracing::trace;
 
 use super::{mqtt::Mqtt, CHANGE_TIMEOUT, WAIT_FOR_INIT_STATES};
 use crate::lights::lamp::{Change, Lamp};
@@ -16,7 +17,10 @@ pub(super) async fn handle(
     // Give the initial known states a chance to be fetched
     sleep(WAIT_FOR_INIT_STATES).await;
     loop {
-        if let Ok(change) = timeout(CHANGE_TIMEOUT, change_receiver.recv()).await {
+        if let Ok(change) =
+            timeout(CHANGE_TIMEOUT, change_receiver.recv()).await
+        {
+            trace!("Received change: {change:?}");
             apply_change(change, known_states, needed_states).await;
         }
         send_all(known_states, needed_states, mqtt).await;
@@ -36,6 +40,7 @@ async fn send_all(
 
         let known = known_states.get(light_name);
         if Some(needed) != known {
+            trace!("Sending needed state {needed:?} to replace known {known:?}");
             // Ignore errors because we will retry if the state hasn't changed
             let _ = mqtt.send_new_state(light_name, needed).await;
         }

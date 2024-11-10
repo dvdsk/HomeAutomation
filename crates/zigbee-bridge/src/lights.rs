@@ -1,5 +1,6 @@
 #![allow(clippy::missing_panics_doc)]
 use tokio::sync::mpsc;
+use tracing::trace;
 
 use self::lamp::Change;
 
@@ -24,6 +25,7 @@ impl Controller {
         let (change_sender, change_receiver) = mpsc::unbounded_channel();
 
         let run_bridge = cached_bridge::run(change_receiver);
+        trace!("Spawning zigbee bridge task");
         tokio::task::spawn(run_bridge);
 
         Self { change_sender }

@@ -3,6 +3,7 @@ use std::{collections::HashMap, time::Duration};
 use rumqttc::{Event, EventLoop, Incoming};
 use serde_json::Value;
 use tokio::{sync::RwLock, time::sleep};
+use tracing::trace;
 
 use crate::lights::lamp::{Lamp, LampState, Model};
 
@@ -14,7 +15,7 @@ pub(super) async fn poll_mqtt(
         let message = match eventloop.poll().await {
             Ok(message) => message,
             Err(err) => {
-                println!("Error while polling: {err}");
+                trace!("Error while polling: {err}");
                 sleep(Duration::from_millis(100)).await;
                 continue;
             }

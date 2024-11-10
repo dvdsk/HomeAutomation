@@ -4,7 +4,7 @@ use serde_json::json;
 
 use crate::lights::{conversion::temp_to_xy, denormalize, kelvin_to_mired};
 
-#[derive(PartialEq, Eq, Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub(super) struct Lamp {
     pub(super) model: Option<Model>,
     pub(super) state: LampState,
@@ -17,7 +17,6 @@ pub(super) struct LampState {
     pub(super) color_xy: Option<(f64, f64)>,
     pub(super) on: Option<bool>,
     pub(super) color_temp_startup: String,
-    pub(super) color_sync: bool,
 }
 
 impl Default for LampState {
@@ -30,7 +29,6 @@ impl Default for LampState {
             // Settings, will not be updated from MQTT state message
             // and will never trigger a publish
             color_temp_startup: String::from("previous"),
-            color_sync: true,
         }
     }
 }
@@ -103,41 +101,59 @@ impl LampState {
         }
 
         payloads.push(json!({ "color_temp_startup": self.color_temp_startup }));
-        payloads.push(json!({ "color_sync": self.color_sync }));
 
         payloads.into_iter().map(|x| x.to_string()).collect()
     }
 }
 
-impl PartialEq for LampState {
+impl PartialEq for Lamp {
     fn eq(&self, other: &Self) -> bool {
-        let d_bright = match (self.brightness, other.brightness) {
-            (Some(self_bri), Some(other_bri)) => (self_bri - other_bri).abs(),
-            _ => 1.0,
-        };
-        let (d_color_x, d_color_y) = match (self.color_xy, other.color_xy) {
-            (Some(self_xy), Some(other_xy)) => (
-                (self_xy.0 - other_xy.0).abs(),
-                (self_xy.1 - other_xy.1).abs(),
-            ),
-            // If either State has no xy set, xy is "different" (so we use temp)
-            // so this needs to be over threshold
-            _ => (1.0, 1.0),
-        };
-        let d_color_temp = match (self.color_temp_k, other.color_temp_k) {
-            (Some(self_temp), Some(other_temp)) => {
-                self_temp.abs_diff(other_temp)
+        let color_is_equal = if let (Some(self_model), Some(other_model)) =
+            (self.model.clone(), other.model.clone())
+        {
+            // We should only compare states for the same lamp
+            assert_eq!(self_model, other_model);
+
+            // We only ever set xy for color lamps,
+            // so color temp doesn't say anything
+            if self_model.is_color_lamp() {
+                match (self.state.color_xy, other.state.color_xy) {
+                    (Some(self_xy), Some(other_xy)) => {
+                        let d_color_x = (self_xy.0 - other_xy.0).abs();
+                        let d_color_y = (self_xy.1 - other_xy.1).abs();
+                        d_color_x < 0.01 && d_color_y < 0.01
+                    }
+                    // If either State has no xy set, xy is unset -> different
+                    _ => false,
+                }
+            // We only ever set temp, and xy doesn't exist
+            } else {
+                match (self.state.color_temp_k, other.state.color_temp_k) {
+                    (Some(self_temp), Some(other_temp)) => {
+                        self_temp.abs_diff(other_temp) < 50
+                    }
+                    _ => false,
+                }
             }
-            _ => 5000,
+        } else {
+            // We don't know what model this is, thus we don't know how to compare
+            // colors, so we assume unequal and hope that we know a model soon
+            false
         };
 
-        let color_equal =
-            (d_color_x < 0.01 && d_color_y < 0.01) || d_color_temp < 50;
-        self.on == other.on && d_bright < 1. / 250. && color_equal
+        let bri_is_equal = match (self.state.brightness, other.state.brightness)
+        {
+            (Some(self_bri), Some(other_bri)) => {
+                (self_bri - other_bri).abs() < 1. / 250.
+            }
+            _ => false,
+        };
+
+        self.state.on == other.state.on && bri_is_equal && color_is_equal
     }
 }
 
-impl Eq for LampState {}
+impl Eq for Lamp {}
 
 #[derive(Debug, Clone, Copy)]
 pub(super) enum Change {

@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use rumqttc::{AsyncClient, MqttOptions};
 use tokio::sync::{mpsc, RwLock};
+use tracing::trace;
 
 use self::mqtt::Mqtt;
 use crate::lights::lamp::Change;
@@ -38,6 +39,7 @@ pub(super) async fn run(
         mqtt.request_state(light).await;
     }
 
+    trace!("Starting main zigbee management loops");
     let poll_mqtt = poll::poll_mqtt(eventloop, &known_states);
     let handle_changes = changes::handle(
         &mut change_receiver,

@@ -1,5 +1,6 @@
 use rumqttc::{AsyncClient, ClientError};
 use serde_json::json;
+use tracing::trace;
 
 use crate::lights::lamp::Lamp;
 use crate::QOS;
@@ -21,7 +22,7 @@ impl Mqtt {
     }
 
     pub(super) async fn request_state(&self, name: &str) {
-        println!("Requesting state for light {name}");
+        trace!("Requesting state for light {name}");
         let payload = json!({"state": ""});
 
         self.get(name, &payload.to_string()).await.unwrap();
@@ -45,7 +46,7 @@ impl Mqtt {
     ) -> Result<(), ClientError> {
         let topic = format!("zigbee2mqtt/{friendly_name}/set");
 
-        tracing::trace!("Sending payload {payload} to lamp {friendly_name}");
+        trace!("Sending payload {payload} to lamp {friendly_name}");
         self.publish(&topic, payload).await?;
         Ok(())
     }
