@@ -1,25 +1,91 @@
+use futures_concurrency::future::Race;
 use protocol::Affector;
 use std::net::SocketAddr;
 use std::time::Duration;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, timeout};
 use tracing::{info, warn};
 
-use super::SendPreEncodedError;
+use super::{ReceiveError, SendPreEncodedError};
 
 pub struct Client {
-    retry_period: Duration,
-    conn: Option<(super::Sender, Option<AbortOnDrop>)>,
-    addr: SocketAddr,
-    affectors: Vec<protocol::Affector>,
-    affector_tx: Option<mpsc::Sender<Affector>>,
+    conn_handler: AbortOnDrop,
+    to_send_tx: mpsc::Sender<(Vec<u8>, SendFeedback)>,
 }
 
 struct AbortOnDrop(JoinHandle<()>);
 impl Drop for AbortOnDrop {
     fn drop(&mut self) {
         self.0.abort();
+    }
+}
+
+type SendFeedback = oneshot::Sender<Result<(), String>>;
+async fn handle_conn(
+    addr: SocketAddr,
+    affectors: Vec<protocol::Affector>,
+    mut msgs_to_send: mpsc::Receiver<(Vec<u8>, SendFeedback)>,
+    msgs_recieved: Option<mpsc::Sender<Affector>>,
+) {
+    loop {
+        let mut retry_period = Duration::from_millis(200);
+        let conn = reconnect(addr, &affectors, &mut retry_period).await;
+        let (sender, receiver) = conn.split();
+
+        if let Some(ref msgs_recieved) = msgs_recieved {
+            let res = (
+                handle_sending(sender, &mut msgs_to_send),
+                handle_recieving(receiver, msgs_recieved),
+            )
+                .race()
+                .await;
+            match res {
+                SendOrRecvError::Sending(e) => todo!(),
+                SendOrRecvError::Recieving(e) => todo!(),
+            }
+        } else {
+            handle_sending(sender, &mut msgs_to_send).await;
+        }
+    }
+}
+
+enum SendOrRecvError {
+    Sending(std::io::Error),
+    Recieving(ReceiveError),
+}
+
+async fn handle_sending(
+    mut sender: super::Sender,
+    msgs_to_send: &mut mpsc::Receiver<(Vec<u8>, SendFeedback)>,
+) -> SendOrRecvError {
+    loop {
+        let (msg, feedback_channel) = msgs_to_send
+            .recv()
+            .await
+            .expect("this is canceled before the corrosponding sender is dropped");
+        let res = sender.send_bytes(&msg).await;
+        let _ignore_err = feedback_channel.send(res.as_ref().map_err(|e| e.to_string()).copied());
+        if let Err(e) = res {
+            return SendOrRecvError::Sending(e);
+        }
+    }
+}
+
+async fn handle_recieving(
+    mut receiver: super::Receiver,
+    msgs_recieved: &mpsc::Sender<Affector>,
+) -> SendOrRecvError {
+    loop {
+        let msg = match receiver.receive().await {
+            Ok(msg) => msg,
+            Err(err) => return SendOrRecvError::Recieving(err),
+        };
+
+        msgs_recieved
+            .send(msg)
+            .await
+            .expect("Reciever in the 'Client' is never dropped")
     }
 }
 
@@ -33,44 +99,19 @@ impl Client {
         affectors: Vec<protocol::Affector>,
         affector_tx: Option<mpsc::Sender<Affector>>,
     ) -> Self {
+        let (to_send_tx, to_send_rx) = mpsc::channel(100);
+        let task = handle_conn(addr, affectors, to_send_rx, affector_tx);
+        let handle = tokio::spawn(task);
         Self {
-            retry_period: Duration::from_millis(200),
-            conn: None,
-            addr,
-            affectors,
-            affector_tx,
+            conn_handler: AbortOnDrop(handle),
+            to_send_tx,
         }
     }
 
-    async fn send_bytes(&mut self, bytes: &[u8]) {
-        loop {
-            let (mut sender, handle) = if let Some((sender, handle)) = self.conn.take() {
-                dbg!();
-                (sender, handle)
-            } else {
-                dbg!();
-                let conn = reconnect(self.addr, &self.affectors, &mut self.retry_period).await;
-                let (sender, receiver) = conn.split();
-                let handle = self.affector_tx.clone().map(|tx| {
-                    let task = forward_received(receiver, tx);
-                    let handle = tokio::spawn(task);
-                    AbortOnDrop(handle)
-                });
-                (sender, handle)
-            };
-
-            dbg!();
-            match sender.send_bytes(bytes).await {
-                Ok(_) => {
-                    self.retry_period /= 2;
-                    self.retry_period = self.retry_period.max(Duration::from_millis(200));
-                    self.conn = Some((sender, handle));
-                }
-                Err(issue) => {
-                    warn!("Conn issue while sending new reading: {issue}, reconnecting");
-                }
-            };
-        }
+    async fn send_bytes(&mut self, bytes: Vec<u8>) -> Result<(), ()> {
+        let (tx, rx) = oneshot::channel();
+        self.to_send_tx.send((bytes, tx)).await;
+        rx.await
     }
 
     /// # Cancel safety
@@ -104,18 +145,6 @@ impl Client {
         protocol::Msg::<50>::decode(msg.to_vec()).map_err(SendPreEncodedError::EncodingCheck)?;
         self.send_bytes(msg).await;
         Ok(())
-    }
-}
-
-async fn forward_received(mut receiver: super::Receiver, tx: mpsc::Sender<Affector>) {
-    loop {
-        let Ok(order) = receiver.receive().await else {
-            return;
-        };
-
-        let Ok(_) = tx.send(order).await else {
-            return;
-        };
     }
 }
 
