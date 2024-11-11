@@ -1,18 +1,22 @@
 #![allow(clippy::missing_panics_doc)]
 use tokio::sync::mpsc;
+use tracing::trace;
 
-use self::state::Change;
+use self::lamp::Change;
 
 // TODO: make private once system is ported
-pub use conversion::{denormalize, kelvin_to_mired, mired_to_kelvin, normalize};
+pub use conversion::{
+    denormalize, kelvin_to_mired, mired_to_kelvin, normalize,
+};
 
 mod cached_bridge;
 mod conversion;
-mod state;
+mod lamp;
+mod parse_state;
 
 #[derive(Debug, Clone)]
 pub struct Controller {
-    change_sender: mpsc::UnboundedSender<(String, state::Change)>,
+    change_sender: mpsc::UnboundedSender<(String, lamp::Change)>,
 }
 
 impl Controller {
@@ -21,6 +25,7 @@ impl Controller {
         let (change_sender, change_receiver) = mpsc::unbounded_channel();
 
         let run_bridge = cached_bridge::run(change_receiver);
+        trace!("Spawning zigbee bridge task");
         tokio::task::spawn(run_bridge);
 
         Self { change_sender }
@@ -52,9 +57,9 @@ impl Controller {
             .expect("Sender should never be dropped");
     }
 
-    // pub fn set_color_xy(&self, friendly_name: &str, xy: (f64, f64)) {
-    //     self.change_sender
-    //         .send((friendly_name.to_string(), Change::ColorXy(xy)))
-    //         .expect("Sender should never be dropped");
-    // }
+    pub fn set_color_xy(&self, friendly_name: &str, xy: (f64, f64)) {
+        self.change_sender
+            .send((friendly_name.to_string(), Change::ColorXy(xy)))
+            .expect("Sender should never be dropped");
+    }
 }

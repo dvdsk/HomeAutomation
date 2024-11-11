@@ -8,19 +8,16 @@ use rumqttc::QoS;
 
 pub mod lights;
 
-// TODO: could arrive multiple times, causing strange behavior. Maybe try
-// ExactlyOnce. 
-//
-// strackoverflow:
-// QoS 1 allows for message duplicates - it is possible a duplicate will arrive
-// after the first instance of the next message that was published.
-// https://stackoverflow.com/questions/30955110/is-message-order-preserved-in-mqtt-messages
-//
-// <11-11-24, dvdsk noreply@davidsk.dev>
-const QOS: QoS = QoS::AtLeastOnce;
+const QOS: QoS = QoS::AtMostOnce;
 const MQTT_IP: &str = "192.168.1.43";
 const MQTT_PORT: u16 = 1883;
-const LIGHTS: [&str; 2] = ["kitchen:fridge", "kitchen:hallway"];
+const LIGHTS: [&str; 5] = [
+    "kitchen:fridge",
+    "kitchen:hallway",
+    "kitchen:hood_left",
+    "kitchen:hood_right",
+    "kitchen:ceiling",
+];
 
 #[cfg(test)]
 mod tests {
@@ -28,6 +25,7 @@ mod tests {
     use crate::lights::Controller;
     use std::time::Duration;
 
+    #[ignore]
     #[tokio::test]
     async fn change_all_lights() {
         let controller = Controller::start_bridge();

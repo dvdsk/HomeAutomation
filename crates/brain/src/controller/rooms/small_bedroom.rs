@@ -4,6 +4,7 @@ use futures_concurrency::future::Race;
 use futures_util::FutureExt;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
+use zigbee_bridge::lights::{denormalize, kelvin_to_mired};
 
 use crate::controller::{local_now, Event, RestrictedSystem};
 
@@ -17,11 +18,17 @@ enum State {
 const INTERVAL: Duration = Duration::from_secs(5);
 
 trait RecvFiltered {
-    async fn recv_filter_mapped<T>(&mut self, filter_map: impl Fn(Event) -> Option<T>) -> T;
+    async fn recv_filter_mapped<T>(
+        &mut self,
+        filter_map: impl Fn(Event) -> Option<T>,
+    ) -> T;
 }
 
 impl RecvFiltered for broadcast::Receiver<Event> {
-    async fn recv_filter_mapped<T>(&mut self, filter_map: impl Fn(Event) -> Option<T>) -> T {
+    async fn recv_filter_mapped<T>(
+        &mut self,
+        filter_map: impl Fn(Event) -> Option<T>,
+    ) -> T {
         loop {
             let event = self.recv().await.unwrap();
             if let Some(relevant) = filter_map(event) {
@@ -81,12 +88,13 @@ async fn update(system: &mut RestrictedSystem) {
 
 pub(crate) fn optimal_ct_bri() -> (u16, u8) {
     let now = local_now();
-    match now.hour() {
-        9..17 => (270, u8::MAX),
-        17..20 => (300, u8::MAX),
-        20..22 => (400, 220),
-        22.. | 0..9 => (500, 100),
-    }
+    let (temp, bri) = match now.hour() {
+        9..17 => (3500, 1.0),
+        17..20 => (3000, 1.0),
+        20..22 => (2500, 0.85),
+        22.. | 0..9 => (2000, 0.4),
+    };
+    (kelvin_to_mired(temp).try_into().unwrap(), denormalize(bri))
 }
 
 // fn handle_event(e: RelevantEvent) {

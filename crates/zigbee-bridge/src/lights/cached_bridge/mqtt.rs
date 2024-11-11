@@ -1,7 +1,8 @@
 use rumqttc::{AsyncClient, ClientError};
 use serde_json::json;
+use tracing::trace;
 
-use crate::lights::state::Lamp;
+use crate::lights::lamp::Lamp;
 use crate::QOS;
 
 pub(super) struct Mqtt {
@@ -21,7 +22,7 @@ impl Mqtt {
     }
 
     pub(super) async fn request_state(&self, name: &str) {
-        println!("Requesting state for light {name}");
+        trace!("Requesting state for light {name}");
         let payload = json!({"state": ""});
 
         self.get(name, &payload.to_string()).await.unwrap();
@@ -30,13 +31,13 @@ impl Mqtt {
     pub(super) async fn send_new_state(
         &self,
         light_name: &str,
-        needed_state: &Lamp,
+        needed: &Lamp,
     ) -> Result<(), ClientError> {
         // TODO: Can we not send all the json for each lamp in one go? I
         // remember you told me something about this but I forgot what it was.
         // Might be useful to have a line documenting that here. <11-11-24,
         // dvdsk> 
-        for payload in needed_state.to_payloads() {
+        for payload in needed.to_payloads() {
             self.set(light_name, &payload).await?;
         }
         Ok(())
@@ -49,6 +50,7 @@ impl Mqtt {
     ) -> Result<(), ClientError> {
         let topic = format!("zigbee2mqtt/{friendly_name}/set");
 
+        trace!("Sending payload {payload} to lamp {friendly_name}");
         self.publish(&topic, payload).await?;
         Ok(())
     }
