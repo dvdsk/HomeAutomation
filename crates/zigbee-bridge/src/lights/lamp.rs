@@ -93,18 +93,23 @@ impl LampState {
         if let Some(model) = model {
             if model.is_color_lamp() {
                 if let Some(color_xy) = self.color_xy {
-                    payloads.push(
-                        json!({ "color": {"x": color_xy.0, "y": color_xy.1} }),
-                    );
+                    payloads.push(json!({ "color": {"x": color_xy.0, "y": color_xy.1} }));
                 }
             } else if let Some(color_temp) = self.color_temp_k {
-                payloads
-                    .push(json!({ "color_temp": kelvin_to_mired(color_temp) }));
+                payloads.push(json!({ "color_temp": kelvin_to_mired(color_temp) }));
             }
         }
 
         payloads.push(json!({ "color_temp_startup": self.color_temp_startup }));
 
+        // TODO: I might have said this somewhere already however I am too lazy
+        // to look up where:
+        //
+        // I am not sure if this creates json. As far as I know every string of
+        // json starts with { and ends with }. So this will not be one json
+        // string but text consisting of multiple concatenated bits of json.
+        // 
+        // <dvdsk noreply@davidsk.dev>
         payloads.into_iter().map(|x| x.to_string()).collect()
     }
 }
@@ -132,9 +137,7 @@ impl PartialEq for Lamp {
             // We only ever set temp, and xy doesn't exist
             } else {
                 match (self.state.color_temp_k, other.state.color_temp_k) {
-                    (Some(self_temp), Some(other_temp)) => {
-                        self_temp.abs_diff(other_temp) < 50
-                    }
+                    (Some(self_temp), Some(other_temp)) => self_temp.abs_diff(other_temp) < 50,
                     _ => false,
                 }
             }
@@ -144,11 +147,8 @@ impl PartialEq for Lamp {
             false
         };
 
-        let bri_is_equal = match (self.state.brightness, other.state.brightness)
-        {
-            (Some(self_bri), Some(other_bri)) => {
-                (self_bri - other_bri).abs() < 1. / 250.
-            }
+        let bri_is_equal = match (self.state.brightness, other.state.brightness) {
+            (Some(self_bri), Some(other_bri)) => (self_bri - other_bri).abs() < 1. / 250.,
             _ => false,
         };
 
@@ -184,9 +184,7 @@ impl Model {
             Model::TradfriE27 | Model::TradfriE14 | Model::HueGen4 => true,
             Model::TradfriCandle => false,
             // We assume no so that things at least don't break
-            Model::TradfriOther(_) | Model::HueOther(_) | Model::Other(_) => {
-                false
-            }
+            Model::TradfriOther(_) | Model::HueOther(_) | Model::Other(_) => false,
         }
     }
 

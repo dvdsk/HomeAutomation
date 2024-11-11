@@ -21,6 +21,8 @@ impl TryInto<LampState> for &[u8] {
         let json: Value = serde_json::from_slice(self)?;
         let map = json.as_object().ok_or(invalid_err("Object"))?;
 
+        // TODO: disappointed in clippy, match Ok -> Some, Err -> None is
+        // Result::ok() <dvdsk noreply@davidsk.dev>
         let color_temp_mired = match get_key(map, "color_temp") {
             Ok(temp) => {
                 let color_temp: usize = json_to_u64(temp)?.try_into().expect("usize should be u64");
