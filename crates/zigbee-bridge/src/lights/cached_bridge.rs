@@ -18,13 +18,14 @@ const WAIT_FOR_INIT_STATES: Duration = Duration::from_millis(500);
 pub(crate) async fn run(mut change_receiver: mpsc::UnboundedReceiver<(String, Change)>) -> ! {
     let mut options = MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
     // Set incoming to max mqtt packet size, outgoing to rumqtt default
-    options.set_max_packet_size(2_usize.pow(28), 10240);
+    options.set_max_packet_size(2_usize.pow(28), 10240); // incoming: ~ 268 MB
 
     let known_states = RwLock::new(HashMap::new());
     let mut needed_states = HashMap::new();
 
     // Reconnecting to broker is handled by Eventloop::poll
-    let (client, eventloop) = AsyncClient::new(options.clone(), 128);
+    let channel_capacity = 128;
+    let (client, eventloop) = AsyncClient::new(options.clone(), channel_capacity);
     let mqtt = Mqtt::new(client);
 
     for light in LIGHTS {

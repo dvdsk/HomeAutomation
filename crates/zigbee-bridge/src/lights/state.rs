@@ -2,9 +2,10 @@ use std::io;
 
 use serde_json::{json, Value};
 
-use crate::lights::{conversion::{
-    kelvin_to_mired, mired_to_kelvin, normalize, temp_to_xy,
-}, denormalize};
+use crate::lights::{
+    conversion::{kelvin_to_mired, mired_to_kelvin, normalize, temp_to_xy},
+    denormalize,
+};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Lamp {
@@ -43,17 +44,26 @@ impl PartialEq for Lamp {
 impl Eq for Lamp {}
 
 impl TryInto<Lamp> for &[u8] {
-    type Error = io::Error;
+    type Error = io::Error; // TODO: could be a parse error enum, saves having
+                            // to go through the whole ErrorKind stuff.
+                            //
+                            // But this is fine too, kinda like the str for
+                            // invalid_err() stuff
+                            //
+                            // but get_key(map, "color") could be
+                            // map.get("color").ok_or(ParseError("Missing key
+                            // from map: {key}")). Just an idea, do what you
+                            // prefer.
+                            // <11-11-24, dvdsk>
 
     fn try_into(self) -> Result<Lamp, Self::Error> {
         fn get_key<'a>(
             map: &'a serde_json::Map<String, Value>,
             key: &str,
         ) -> Result<&'a Value, io::Error> {
-            let key_err = io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Missing key from map: {key}",
-            );
+            // FIX: this is the literal string {key} (missing a format! call
+            // probably?) <11-11-24, dvdsk>
+            let key_err = io::Error::new(io::ErrorKind::InvalidData, "Missing key from map: {key}");
             map.get(key).ok_or(key_err)
         }
 
@@ -100,6 +110,9 @@ impl TryInto<Lamp> for &[u8] {
         let state = get_key(map, "state")?
             .as_str()
             .ok_or(invalid_err("String"))?;
+        // TODO: why not compare to uppercase ON and OFF? Now this is confusing
+        // because we set the state using uppercase ON and OFF in `to_payloads`
+        // <11-11-24, dvdsk> 
         let on = match state.to_lowercase().as_str() {
             "on" => true,
             "off" => false,
@@ -117,6 +130,9 @@ impl TryInto<Lamp> for &[u8] {
 }
 
 impl Lamp {
+    // TODO: How do you feel about letting this take ownership of self. Then the
+    // clone would move to the caller and the first parameter would take be &self
+    // but self <11-11-24, dvdsk>
     pub(crate) fn apply(&self, change: Change) -> Lamp {
         let mut new_state = self.clone();
         match change {

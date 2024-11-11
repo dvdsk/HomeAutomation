@@ -4,7 +4,7 @@ use tokio::sync::mpsc;
 use self::state::Change;
 
 // TODO: make private once system is ported
-pub use conversion::{kelvin_to_mired, mired_to_kelvin, normalize, denormalize};
+pub use conversion::{denormalize, kelvin_to_mired, mired_to_kelvin, normalize};
 
 mod cached_bridge;
 mod conversion;
@@ -38,6 +38,8 @@ impl Controller {
             .expect("Sender should never be dropped");
     }
 
+    // TODO: document, is this lumen? Maybe use newtype pattern with a new lumen
+    // struct <dvdsk noreply@davidsk.dev>
     pub fn set_brightness(&self, friendly_name: &str, brightness: f64) {
         self.change_sender
             .send((friendly_name.to_string(), Change::Brightness(brightness)))
