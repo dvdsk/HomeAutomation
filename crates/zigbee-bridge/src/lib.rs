@@ -28,28 +28,33 @@ mod tests {
     #[ignore]
     #[tokio::test]
     async fn change_all_lights() {
+        std::env::set_var("RUST_LOG", "brain=trace,zigbee_bridge=trace,info"); 
         let controller = Controller::start_bridge();
 
+        println!("Setting to on, 2200");
         for light in LIGHTS {
-            controller.set_brightness(light, 0.5);
+            controller.set_on(light);
             controller.set_color_temp(light, 2200);
         }
 
-        tokio::time::sleep(Duration::from_secs(2)).await;
+        tokio::time::sleep(Duration::from_secs(1)).await;
 
+        println!("Turning off");
         for light in LIGHTS {
             controller.set_off(light);
         }
 
-        tokio::time::sleep(Duration::from_secs(2)).await;
+        tokio::time::sleep(Duration::from_secs(1)).await;
 
+        println!("Turning on to 4000");
         for light in LIGHTS {
             controller.set_on(light);
             controller.set_color_temp(light, 4000);
         }
 
-        tokio::time::sleep(Duration::from_secs(2)).await;
+        tokio::time::sleep(Duration::from_secs(1)).await;
 
+        println!("Setting bri to 1.0");
         for light in LIGHTS {
             controller.set_brightness(light, 1.0);
         }

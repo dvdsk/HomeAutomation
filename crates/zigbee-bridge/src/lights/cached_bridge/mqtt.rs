@@ -1,6 +1,6 @@
 use rumqttc::{AsyncClient, ClientError};
 use serde_json::json;
-use tracing::trace;
+use tracing::{trace, warn};
 
 use crate::lights::lamp::Lamp;
 use crate::QOS;
@@ -51,6 +51,9 @@ impl Mqtt {
         let topic = format!("zigbee2mqtt/{friendly_name}/set");
 
         trace!("Sending payload {payload} to lamp {friendly_name}");
+        if friendly_name == "kitchen:hallway" && payload.contains("state") {
+            warn!("Sending payload {payload} to {friendly_name}");
+        }
         self.publish(&topic, payload).await?;
         Ok(())
     }
