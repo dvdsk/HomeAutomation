@@ -43,8 +43,7 @@ impl Controller {
             .expect("Sender should never be dropped");
     }
 
-    // TODO: document, is this lumen? Maybe use newtype pattern with a new lumen
-    // struct <dvdsk noreply@davidsk.dev>
+    /// Brightness from 0 to 1
     pub fn set_brightness(&self, friendly_name: &str, brightness: f64) {
         self.change_sender
             .send((friendly_name.to_string(), Change::Brightness(brightness)))

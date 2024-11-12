@@ -33,10 +33,8 @@ impl Mqtt {
         light_name: &str,
         needed: &Lamp,
     ) -> Result<(), ClientError> {
-        // TODO: Can we not send all the json for each lamp in one go? I
-        // remember you told me something about this but I forgot what it was.
-        // Might be useful to have a line documenting that here. <11-11-24,
-        // dvdsk>
+        // The IKEA lamps can only accept one state change command at a time,
+        // so we need to send each parameter in a separate json payload
         for payload in needed.to_payloads() {
             self.set(light_name, &payload).await?;
         }

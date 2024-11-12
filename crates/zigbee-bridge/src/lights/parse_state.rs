@@ -1,28 +1,39 @@
 use std::io;
 
 use serde_json::Value;
+use thiserror::Error;
 
 use crate::lights::{lamp::LampState, mired_to_kelvin, normalize};
 
+#[derive(Error, Debug)]
+pub(super) enum ParseError {
+    #[error("json error: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("io error: {0}")]
+    Io(#[from] io::Error),
+    #[error("invalid value: {0}")]
+    InvalidValue(String),
+}
+
 impl TryInto<LampState> for &[u8] {
-    type Error = io::Error; // TODO: could be a parse error enum, saves having
-                            // to go through the whole ErrorKind stuff.
-                            //
-                            // But this is fine too, kinda like the str for
-                            // invalid_err() stuff
-                            //
-                            // but get_key(map, "color") could be
-                            // map.get("color").ok_or(ParseError("Missing key
-                            // from map: {key}")). Just an idea, do what you
-                            // prefer.
-                            // <11-11-24, dvdsk>
+    type Error = ParseError; // TODO: could be a parse error enum, saves having
+                             // to go through the whole ErrorKind stuff.
+                             //
+                             // But this is fine too, kinda like the str for
+                             // invalid_err() stuff
+                             //
+                             // but get_key(map, "color") could be
+                             // map.get("color").ok_or(ParseError("Missing key
+                             // from map: {key}")). Just an idea, do what you
+                             // prefer.
+                             // <11-11-24, dvdsk>
 
     fn try_into(self) -> Result<LampState, Self::Error> {
         let json: Value = serde_json::from_slice(self)?;
         let map = json.as_object().ok_or(invalid_err("Object"))?;
 
-        // TODO: disappointed in clippy, match Ok -> Some, Err -> None is
-        // Result::ok() <dvdsk noreply@davidsk.dev>
+        // Could be done using .map(|temp| {...}).ok(), except that the question
+        // mark gets in the way
         let color_temp_mired = match get_key(map, "color_temp") {
             Ok(temp) => {
                 let color_temp: usize =
@@ -55,14 +66,11 @@ impl TryInto<LampState> for &[u8] {
         let on = match get_key(map, "state") {
             Ok(on) => {
                 let state = on.as_str().ok_or(invalid_err("String"))?;
-                // TODO: why not compare to uppercase ON and OFF? Now this is
-                // confusing because we set the state using uppercase ON and OFF
-                // in `to_payloads` <11-11-24, dvdsk>
-                let on = match state.to_lowercase().as_str() {
-                    "on" => true,
-                    "off" => false,
+                let on = match state {
+                    "ON" => true,
+                    "OFF" => false,
                     other => {
-                        return Err(invalid_err(&format!(
+                        return Err(ParseError::InvalidValue(format!(
                             "on/off bool: {other}"
                         )))
                     }

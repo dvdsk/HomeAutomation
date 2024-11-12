@@ -67,6 +67,6 @@ async fn apply_change(
         },
     };
 
-    let with_change_applied = needed.apply(change);
+    let with_change_applied = needed.clone().apply(change);
     needed_states.insert(light_name, with_change_applied);
 }

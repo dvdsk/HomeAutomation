@@ -48,9 +48,9 @@ impl Lamp {
         }
     }
 
-    pub(super) fn apply(&self, change: Change) -> Self {
+    pub(super) fn apply(self, change: Change) -> Self {
         Self {
-            model: self.model.clone(),
+            model: self.model,
             state: self.state.apply(change),
         }
     }
@@ -61,10 +61,7 @@ impl Lamp {
 }
 
 impl LampState {
-    // TODO: How do you feel about letting this take ownership of self. Then the
-    // clone would move to the caller and the first parameter would take be &self
-    // but self <11-11-24, dvdsk>
-    fn apply(&self, change: Change) -> LampState {
+    fn apply(self, change: Change) -> LampState {
         let mut new_state = self.clone();
         match change {
             Change::On(on) => new_state.on = Some(on),
@@ -105,14 +102,8 @@ impl LampState {
 
         payloads.push(json!({ "color_temp_startup": self.color_temp_startup }));
 
-        // TODO: I might have said this somewhere already however I am too lazy
-        // to look up where:
-        //
-        // I am not sure if this creates json. As far as I know every string of
-        // json starts with { and ends with }. So this will not be one json
-        // string but text consisting of multiple concatenated bits of json.
-        //
-        // <dvdsk noreply@davidsk.dev>
+        // The IKEA lamps can only accept one state change command at a time,
+        // so we need to send each parameter in a separate json payload
         payloads.into_iter().map(|x| x.to_string()).collect()
     }
 }
