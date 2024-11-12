@@ -25,7 +25,8 @@ impl TryInto<LampState> for &[u8] {
         // Result::ok() <dvdsk noreply@davidsk.dev>
         let color_temp_mired = match get_key(map, "color_temp") {
             Ok(temp) => {
-                let color_temp: usize = json_to_u64(temp)?.try_into().expect("usize should be u64");
+                let color_temp: usize =
+                    json_to_u64(temp)?.try_into().expect("usize should be u64");
                 Some(color_temp)
             }
             Err(_) => None,
@@ -60,7 +61,11 @@ impl TryInto<LampState> for &[u8] {
                 let on = match state.to_lowercase().as_str() {
                     "on" => true,
                     "off" => false,
-                    other => return Err(invalid_err(&format!("on/off bool: {other}"))),
+                    other => {
+                        return Err(invalid_err(&format!(
+                            "on/off bool: {other}"
+                        )))
+                    }
                 };
                 Some(on)
             }
@@ -93,8 +98,14 @@ fn json_to_f64(json: &Value) -> Result<f64, io::Error> {
         .expect("Should be Some if not using arbitrary precision"))
 }
 
-fn get_key<'a>(map: &'a serde_json::Map<String, Value>, key: &str) -> Result<&'a Value, io::Error> {
-    let key_err = io::Error::new(io::ErrorKind::InvalidData, "Missing key from map: {key}");
+fn get_key<'a>(
+    map: &'a serde_json::Map<String, Value>,
+    key: &str,
+) -> Result<&'a Value, io::Error> {
+    let key_err = io::Error::new(
+        io::ErrorKind::InvalidData,
+        "Missing key from map: {key}",
+    );
     map.get(key).ok_or(key_err)
 }
 

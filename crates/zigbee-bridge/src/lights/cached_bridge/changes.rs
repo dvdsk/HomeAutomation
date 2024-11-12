@@ -40,7 +40,9 @@ async fn send_all(
 
         let known = known_states.get(light_name);
         if Some(needed) != known {
-            trace!("Sending needed state {needed:?} to replace known {known:?}");
+            trace!(
+                "Sending needed state {needed:?} to replace known {known:?}"
+            );
             // Ignore errors because we will retry if the state hasn't changed
             let _ = mqtt.send_new_state(light_name, needed).await;
         }

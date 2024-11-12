@@ -29,7 +29,8 @@ pub(super) async fn run(
 
     // Reconnecting to broker is handled by Eventloop::poll
     let channel_capacity = 128;
-    let (client, eventloop) = AsyncClient::new(options.clone(), channel_capacity);
+    let (client, eventloop) =
+        AsyncClient::new(options.clone(), channel_capacity);
     let mqtt = Mqtt::new(client);
 
     mqtt.subscribe("zigbee2mqtt/bridge/devices").await.unwrap();
