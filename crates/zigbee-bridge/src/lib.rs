@@ -4,11 +4,8 @@
 // Set to on, off after 30s
 // on_time: 30, off_wait_time: 30
 
-use rumqttc::v5::mqttbytes::QoS;
-
 pub mod lights;
 
-const QOS: QoS = QoS::AtMostOnce;
 const MQTT_IP: &str = "192.168.1.43";
 const MQTT_PORT: u16 = 1883;
 const LIGHTS: [&str; 5] = [

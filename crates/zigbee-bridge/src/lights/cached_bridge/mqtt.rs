@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+use rumqttc::v5::mqttbytes::QoS;
 use rumqttc::v5::{AsyncClient, ClientError};
 use serde_json::json;
 use tracing::{instrument, trace, warn};
 
 use crate::lights::lamp::{LampProperty, LampPropertyDiscriminants};
-use crate::QOS;
 
 pub(super) struct Mqtt {
     client: AsyncClient,
@@ -22,7 +22,10 @@ impl Mqtt {
     }
 
     pub(super) async fn subscribe(&self, topic: &str) -> Result<(), ClientError> {
-        self.client.subscribe(topic, QOS).await
+        // Its okay for messages to arrive twice or more. MQTT guarantees
+        // ordering and we only do something if the cached bridge indicates we
+        // need to so light states arriving twice is not an issue.
+        self.client.subscribe(topic, QoS::AtLeastOnce).await
     }
 
     pub(super) async fn request_state(&self, name: &str) {
@@ -74,7 +77,11 @@ impl Mqtt {
     }
 }
 
-async fn set(client: &AsyncClient, friendly_name: &str, payload: String) -> Result<(), ClientError> {
+async fn set(
+    client: &AsyncClient,
+    friendly_name: &str,
+    payload: String,
+) -> Result<(), ClientError> {
     let topic = format!("zigbee2mqtt/{friendly_name}/set");
 
     trace!("Sending payload {payload} to lamp {friendly_name}");
@@ -85,7 +92,11 @@ async fn set(client: &AsyncClient, friendly_name: &str, payload: String) -> Resu
     Ok(())
 }
 
-async fn get(client: &AsyncClient, friendly_name: &str, payload: String) -> Result<(), ClientError> {
+async fn get(
+    client: &AsyncClient,
+    friendly_name: &str,
+    payload: String,
+) -> Result<(), ClientError> {
     let topic = format!("zigbee2mqtt/{friendly_name}/get");
 
     publish(client, &topic, payload).await?;
@@ -93,5 +104,10 @@ async fn get(client: &AsyncClient, friendly_name: &str, payload: String) -> Resu
 }
 
 async fn publish(client: &AsyncClient, topic: &str, payload: String) -> Result<(), ClientError> {
-    client.publish(topic, QOS, false, payload).await
+    let mut properties = rumqttc::v5::mqttbytes::v5::PublishProperties::default();
+    properties.message_expiry_interval = Some(5); // seconds
+
+    client
+        .publish_with_properties(topic, QoS::AtLeastOnce, false, payload, properties)
+        .await
 }
