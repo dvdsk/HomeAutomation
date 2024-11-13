@@ -1,4 +1,4 @@
-use crate::api::subscriber::{AffectorError, SubMessage};
+use crate::api::subscriber::SubMessage;
 use std::time::Duration;
 
 use super::{AffectorRegistar, Event};

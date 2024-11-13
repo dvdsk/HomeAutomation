@@ -10,7 +10,7 @@ use tracing::{info, warn};
 use super::{ReceiveError, SendPreEncodedError};
 
 pub struct Client {
-    conn_handler: AbortOnDrop,
+    _conn_handler_task: AbortOnDrop,
     to_send_tx: mpsc::Sender<(Vec<u8>, SendFeedback)>,
 }
 
@@ -31,21 +31,22 @@ async fn handle_conn(
     loop {
         let mut retry_period = Duration::from_millis(200);
         let conn = reconnect(addr, &affectors, &mut retry_period).await;
-        let (sender, receiver) = conn.split();
 
         if let Some(ref msgs_recieved) = msgs_recieved {
             let res = (
-                handle_sending(sender, &mut msgs_to_send),
-                handle_recieving(receiver, msgs_recieved),
+                handle_sending(conn.sender, &mut msgs_to_send),
+                handle_recieving(conn.receiver, msgs_recieved),
             )
                 .race()
                 .await;
             match res {
-                SendOrRecvError::Sending(e) => todo!(),
-                SendOrRecvError::Recieving(e) => todo!(),
+                SendOrRecvError::Sending(e) => tracing::error!("Error sending to data-server: {e}"),
+                SendOrRecvError::Recieving(e) => {
+                    tracing::error!("Error receiving order from data-server: {e}")
+                }
             }
         } else {
-            handle_sending(sender, &mut msgs_to_send).await;
+            handle_sending(conn.sender, &mut msgs_to_send).await;
         }
     }
 }
@@ -70,6 +71,20 @@ async fn handle_sending(
             return SendOrRecvError::Sending(e);
         }
     }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum SendError {
+    #[error("Error while sending data to data-server: {0}")]
+    Sending(String),
+    #[error(
+        "Sending the data was aborted, probably due to \
+        reconnect due to failed recieve"
+    )]
+    Aborted,
+    /// returns the encoded message that you tried to send
+    #[error("Sender queue is full, it has probably been disconnected for a while")]
+    Overloaded { bytes: Vec<u8> },
 }
 
 async fn handle_recieving(
@@ -103,22 +118,32 @@ impl Client {
         let task = handle_conn(addr, affectors, to_send_rx, affector_tx);
         let handle = tokio::spawn(task);
         Self {
-            conn_handler: AbortOnDrop(handle),
+            _conn_handler_task: AbortOnDrop(handle),
             to_send_tx,
         }
     }
 
-    async fn send_bytes(&mut self, bytes: Vec<u8>) -> Result<(), ()> {
+    async fn send_bytes(&mut self, bytes: Vec<u8>) -> Result<(), SendError> {
         let (tx, rx) = oneshot::channel();
-        self.to_send_tx.send((bytes, tx)).await;
-        rx.await
+        match self.to_send_tx.try_send((bytes, tx)) {
+            Ok(()) => (),
+            Err(mpsc::error::TrySendError::Full((bytes, _))) => {
+                return Err(SendError::Overloaded { bytes })
+            }
+            Err(mpsc::error::TrySendError::Closed(_)) => panic!("re-connect loop should never end"),
+        }
+        match rx.await {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(send)) => Err(SendError::Sending(send)),
+            Err(_) => Err(SendError::Aborted),
+        }
     }
 
     /// # Cancel safety
     /// This is cancel safe however the connection will need to be re-established
     /// the next time its called. This will retry forever, you should call this
     /// in a timeout future if that is a problem.
-    pub async fn send_reading(&mut self, reading: protocol::Reading) {
+    pub async fn send_reading(&mut self, reading: protocol::Reading) -> Result<(), SendError> {
         let mut readings = protocol::SensorMessage::<1>::default();
         readings
             .values
@@ -127,24 +152,25 @@ impl Client {
         let msg = protocol::Msg::Readings(readings);
         let bytes = msg.encode();
 
-        self.send_bytes(&bytes).await
+        self.send_bytes(bytes).await
     }
 
     /// # Cancel safety
     /// This is cancel safe however the connection will need to be re-established
     /// the next time its called. This will retry forever, you should call this
     /// in a timeout future if that is a problem.
-    pub async fn send_error(&mut self, report: protocol::Error) {
+    pub async fn send_error(&mut self, report: protocol::Error) -> Result<(), SendError> {
         let msg = protocol::Msg::<1>::ErrorReport(protocol::ErrorReport::new(report));
         let bytes = msg.encode();
 
-        self.send_bytes(&bytes).await
+        self.send_bytes(bytes).await
     }
 
-    pub async fn check_send_encoded(&mut self, msg: &[u8]) -> Result<(), SendPreEncodedError> {
+    pub async fn check_send_encoded(&mut self, msg: Vec<u8>) -> Result<(), SendPreEncodedError> {
         protocol::Msg::<50>::decode(msg.to_vec()).map_err(SendPreEncodedError::EncodingCheck)?;
-        self.send_bytes(msg).await;
-        Ok(())
+        self.send_bytes(msg)
+            .await
+            .map_err(SendPreEncodedError::Sending)
     }
 }
 

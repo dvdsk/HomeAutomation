@@ -33,15 +33,17 @@ async fn main() -> Result<(), color_eyre::Report> {
         .get_affectors()
         .await
         .wrap_err("Could not get affector list")?;
-    let mut server_client = reconnecting::Client::new(args.data_server, affectors, Some(order_tx));
+    // let mut server_client = reconnecting::Client::new(args.data_server, affectors, Some(order_tx));
+    dbg!(affectors);
 
     loop {
         let encoded_msg = usb.handle_usb().await;
-        server_client
-            .check_send_encoded(&encoded_msg)
-            .await
-            .wrap_err("Should be correctly encoded")
-            .suggestion("Check if this needs to be updated")?;
+        dbg!("msg: {}", encoded_msg.len());
+        // server_client
+        //     .check_send_encoded(encoded_msg)
+        //     .await
+        //     .wrap_err("Should be correctly encoded")
+        //     .suggestion("Check if this needs to be updated")?;
     }
 }
 

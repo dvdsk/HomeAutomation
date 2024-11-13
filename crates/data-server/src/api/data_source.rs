@@ -1,4 +1,5 @@
 use protocol::{affector, DecodeMsgError};
+use reconnecting::SendError;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::{TcpStream, ToSocketAddrs};
@@ -16,8 +17,8 @@ pub enum Error {
 }
 
 pub struct Client {
-    sender: Sender,
-    receiver: Receiver,
+    pub sender: Sender,
+    pub receiver: Receiver,
 }
 
 impl Client {
@@ -58,32 +59,6 @@ impl Client {
             sender: Sender(writer),
         })
     }
-
-    /// # Cancel safety
-    /// This is cancel safe, if it is canceled the reading has not been send yet
-    pub async fn send_reading(&mut self, reading: protocol::Reading) -> Result<(), std::io::Error> {
-        self.sender.send_reading(reading).await
-    }
-
-    /// # Cancel safety
-    /// This is cancel safe, if it is canceled the report has not been send yet
-    pub async fn send_error(&mut self, report: protocol::Error) -> Result<(), std::io::Error> {
-        self.sender.send_error(report).await
-    }
-
-    /// Checks if the encoded message can be decoded then sends it.
-    pub async fn check_send_encoded(&mut self, msg: &[u8]) -> Result<(), SendPreEncodedError> {
-        protocol::Msg::<50>::decode(msg.to_vec()).map_err(SendPreEncodedError::EncodingCheck)?;
-        self.send_bytes(msg).await.map_err(SendPreEncodedError::Io)
-    }
-
-    pub(crate) async fn send_bytes(&mut self, bytes: &[u8]) -> Result<(), std::io::Error> {
-        self.sender.send_bytes(bytes).await
-    }
-
-    pub fn split(self) -> (Sender, Receiver) {
-        (self.sender, self.receiver)
-    }
 }
 
 pub struct Sender(OwnedWriteHalf);
@@ -95,10 +70,10 @@ pub struct Receiver {
 
 #[derive(Debug, thiserror::Error)]
 pub enum SendPreEncodedError {
-    #[error("Ran into io error while sending pre-encoded msg: {0}")]
-    Io(std::io::Error),
     #[error("Pre-encoded message, could not be decoded it might be from a previous version: {0}")]
     EncodingCheck(DecodeMsgError),
+    #[error("Error while sending pre-encoded msg: {0}")]
+    Sending(SendError),
 }
 
 impl Sender {
