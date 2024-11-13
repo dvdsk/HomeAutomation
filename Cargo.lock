@@ -4284,8 +4284,11 @@ name = "zigbee-bridge"
 version = "0.1.0"
 dependencies = [
  "colorimetry",
+ "futures",
+ "futures-concurrency",
  "rumqttc",
  "serde_json",
+ "strum",
  "thiserror",
  "tokio",
  "tracing",

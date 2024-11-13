@@ -1,14 +1,9 @@
 use std::collections::HashMap;
 
 use serde_json::json;
+use strum::EnumDiscriminants;
 
 use crate::lights::{conversion::temp_to_xy, denormalize, kelvin_to_mired};
-
-#[derive(Default, Clone, Debug)]
-pub(super) struct Lamp {
-    pub(super) model: Option<Model>,
-    pub(super) state: LampState,
-}
 
 #[derive(Debug, Clone)]
 pub(super) struct LampState {
@@ -33,7 +28,41 @@ impl Default for LampState {
     }
 }
 
+#[derive(Default, Clone, Debug)]
+pub(super) struct Lamp {
+    pub(super) model: Option<Model>,
+    pub(super) state: LampState,
+}
+
+#[derive(Debug, EnumDiscriminants, Clone)]
+#[strum_discriminants(derive(Hash))]
+pub(super) enum LampProperty {
+    Brightness(f64),
+    ColorTempK(usize),
+    ColorXY((f64, f64)),
+    On(bool),
+    ColorTempStartup(String),
+}
+
+impl LampProperty {
+    pub(crate) fn into_payload(self) -> String {
+        match self {
+            LampProperty::Brightness(bri) => json!({ "brightness": denormalize(bri) }),
+            LampProperty::ColorTempK(k) => json!({ "color_temp": kelvin_to_mired(k) }),
+            LampProperty::ColorXY((x, y)) => json!({ "color": {"x": x, "y": y} }),
+            LampProperty::On(lamp_on) if lamp_on => json!({"state": "ON"}),
+            LampProperty::On(_) => json!({"state": "OFF"}),
+            LampProperty::ColorTempStartup(s) => json!({"color_temp_startup": s}),
+        }
+        .to_string()
+    }
+}
+
 impl Lamp {
+    pub(super) fn changes_relative_to(&self, other: &Self) -> Vec<LampProperty> {
+        self.state.changes_relative_to(&other.state)
+    }
+
     pub(super) fn store_model(&self, model: Model) -> Self {
         Self {
             model: Some(model),
@@ -55,12 +84,64 @@ impl Lamp {
         }
     }
 
-    pub(super) fn to_payloads(&self) -> Vec<String> {
-        self.state.to_payloads(&self.model)
+    pub(crate) fn property_list(&self) -> Vec<LampProperty> {
+        self.state.property_list()
     }
 }
 
+fn bri_close(a: f64, b: f64) -> bool {
+    (a - b).abs() < 1. / 250.
+}
+
+fn temp_close(a: usize, b: usize) -> bool {
+    a.abs_diff(b) < 50
+}
+
+fn xy_close(a: (f64, f64), b: (f64, f64)) -> bool {
+    let d_color_x = (a.0 - b.0).abs();
+    let d_color_y = (a.1 - b.1).abs();
+    d_color_x < 0.01 && d_color_y < 0.01
+}
+
 impl LampState {
+    pub(super) fn changes_relative_to(&self, other: &Self) -> Vec<LampProperty> {
+        let mut res = Vec::new();
+        if let Some(brightness) = self.brightness {
+            if other
+                .brightness
+                .is_none_or(|bri| !bri_close(bri, brightness))
+            {
+                res.push(LampProperty::Brightness(brightness));
+            }
+        }
+
+        if let Some(temp) = self.color_temp_k {
+            if other.color_temp_k.is_none_or(|t| !temp_close(t, temp)) {
+                res.push(LampProperty::ColorTempK(temp));
+            }
+        }
+
+        if let Some(xy) = self.color_xy {
+            if other.color_xy.is_none_or(|xy_b| !xy_close(xy_b, xy)) {
+                res.push(LampProperty::ColorXY(xy));
+            }
+        }
+
+        if let Some(on) = self.on {
+            if other.on.is_none_or(|on_b| on_b != on) {
+                res.push(LampProperty::On(on));
+            }
+        }
+
+        if self.color_temp_startup != other.color_temp_startup {
+            res.push(LampProperty::ColorTempStartup(
+                self.color_temp_startup.clone(),
+            ));
+        }
+
+        res
+    }
+
     fn apply(self, change: Change) -> LampState {
         let mut new_state = self.clone();
         match change {
@@ -75,36 +156,24 @@ impl LampState {
         new_state
     }
 
-    fn to_payloads(&self, model: &Option<Model>) -> Vec<String> {
-        let mut payloads = vec![];
-        match self.on {
-            Some(true) => payloads.push(json!({ "state": "ON" })),
-            Some(false) => payloads.push(json!({ "state": "OFF" })),
-            None => (),
-        };
-
-        if let Some(bri) = self.brightness {
-            payloads.push(json!({ "brightness": denormalize(bri) }));
+    fn property_list(&self) -> Vec<LampProperty> {
+        let mut list = Vec::new();
+        if let Some(val) = self.brightness {
+            list.push(LampProperty::Brightness(val));
         }
-
-        if let Some(model) = model {
-            if model.is_color_lamp() {
-                if let Some(color_xy) = self.color_xy {
-                    payloads.push(
-                        json!({ "color": {"x": color_xy.0, "y": color_xy.1} }),
-                    );
-                }
-            } else if let Some(color_temp) = self.color_temp_k {
-                payloads
-                    .push(json!({ "color_temp": kelvin_to_mired(color_temp) }));
-            }
+        if let Some(val) = self.color_temp_k {
+            list.push(LampProperty::ColorTempK(val));
         }
-
-        payloads.push(json!({ "color_temp_startup": self.color_temp_startup }));
-
-        // The IKEA lamps can only accept one state change command at a time,
-        // so we need to send each parameter in a separate json payload
-        payloads.into_iter().map(|x| x.to_string()).collect()
+        if let Some(val) = self.color_xy {
+            list.push(LampProperty::ColorXY(val));
+        }
+        if let Some(val) = self.on {
+            list.push(LampProperty::On(val));
+        }
+        list.push(LampProperty::ColorTempStartup(
+            self.color_temp_startup.clone(),
+        ));
+        list
     }
 }
 
@@ -131,9 +200,7 @@ impl PartialEq for Lamp {
             // We only ever set temp, and xy doesn't exist
             } else {
                 match (self.state.color_temp_k, other.state.color_temp_k) {
-                    (Some(self_temp), Some(other_temp)) => {
-                        self_temp.abs_diff(other_temp) < 50
-                    }
+                    (Some(self_temp), Some(other_temp)) => self_temp.abs_diff(other_temp) < 50,
                     _ => false,
                 }
             }
@@ -143,11 +210,8 @@ impl PartialEq for Lamp {
             false
         };
 
-        let bri_is_equal = match (self.state.brightness, other.state.brightness)
-        {
-            (Some(self_bri), Some(other_bri)) => {
-                (self_bri - other_bri).abs() < 1. / 250.
-            }
+        let bri_is_equal = match (self.state.brightness, other.state.brightness) {
+            (Some(self_bri), Some(other_bri)) => (self_bri - other_bri).abs() < 1. / 250.,
             _ => false,
         };
 
@@ -183,9 +247,7 @@ impl Model {
             Model::TradfriE27 | Model::TradfriE14 | Model::HueGen4 => true,
             Model::TradfriCandle => false,
             // We assume no so that things at least don't break
-            Model::TradfriOther(_) | Model::HueOther(_) | Model::Other(_) => {
-                false
-            }
+            Model::TradfriOther(_) | Model::HueOther(_) | Model::Other(_) => false,
         }
     }
 

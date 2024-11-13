@@ -19,13 +19,14 @@ color-eyre = "0.6.3"
 tracing = "0.1.40"
 tracing-error = "0.2.0"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+futures-concurrency = "7.6.2"
 time = "0.3.36"
 jiff = "0.1"
 clap = { version = "4", features = ["derive"]} 
 thiserror = "1"
 
 [workspace.package]
-rust-version = "1.78"
+rust-version = "1.82"
 edition = "2021"
 license = "GPLv3"
 authors = ["David Kleingeld & Eva van Houten"]

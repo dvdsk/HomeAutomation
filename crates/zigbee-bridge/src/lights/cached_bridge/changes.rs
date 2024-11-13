@@ -1,37 +1,56 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::{sleep, timeout};
 use tracing::{instrument, trace};
 
-use super::{mqtt::Mqtt, CHANGE_TIMEOUT, WAIT_FOR_INIT_STATES};
+use super::mqtt::Mqtt;
 use crate::lights::lamp::{Change, Lamp};
 use crate::LIGHTS;
 
 pub(super) async fn handle(
-    change_receiver: &mut mpsc::UnboundedReceiver<(String, Change)>,
-    mqtt: &Mqtt,
+    mut change_receiver: mpsc::UnboundedReceiver<(String, Change)>,
+    mqtt: &mut Mqtt,
     known_states: &RwLock<HashMap<String, Lamp>>,
-    needed_states: &mut HashMap<String, Lamp>,
 ) -> ! {
+    const MQTT_MIGHT_BE_DOWN_TIMEOUT: Duration = Duration::from_secs(5);
+    const WAIT_FOR_INIT_STATES: Duration = Duration::from_millis(500);
+
     // Give the initial known states a chance to be fetched
     sleep(WAIT_FOR_INIT_STATES).await;
+    let mut needed_states = HashMap::new();
+    let mut call_again_in = MQTT_MIGHT_BE_DOWN_TIMEOUT;
+
     loop {
-        if let Ok(change) = timeout(CHANGE_TIMEOUT, change_receiver.recv()).await {
+        if let Ok(res) = timeout(call_again_in, change_receiver.recv()).await {
+            let res = res.expect("Channel should never close");
+            let (light_name, change) = res;
+
             trace!("Received change: {change:?}");
-            apply_change(change, known_states, needed_states).await;
-        }
-        send_all(known_states, needed_states, mqtt).await;
+            apply_change(light_name, change, known_states, &mut needed_states).await;
+        };
+
+        call_again_in = send_and_queue(known_states, &mut needed_states, mqtt)
+            .await
+            .min(MQTT_MIGHT_BE_DOWN_TIMEOUT);
     }
 }
 
+/// Might not be done in case a light property in needed does not match known
+/// however has recently been set/send. Needs a recheck in the near future to
+/// make sure the set/send takes effect. We do not send it again now as that
+/// would be a little spammy. Returns when we need to recheck. If we do not need
+/// to do so we return Duration::MAX.
 #[instrument(skip_all)]
-async fn send_all(
+async fn send_and_queue(
     known_states: &RwLock<HashMap<String, Lamp>>,
     needed_states: &mut HashMap<String, Lamp>,
-    mqtt: &Mqtt,
-) {
+    mqtt: &mut Mqtt,
+) -> Duration {
+    let mut call_again_in = Duration::MAX;
     let known_states = known_states.read().await;
+
     for light_name in LIGHTS {
         let Some(needed) = needed_states.get(light_name) else {
             continue;
@@ -39,31 +58,33 @@ async fn send_all(
 
         let Some(known) = known_states.get(light_name) else {
             // Ignore errors because we will retry if the state hasn't changed
-            let _ = mqtt.send_new_state(light_name, needed).await;
+            if let Ok(dur) = mqtt
+                .try_send_state_diff(light_name, needed.property_list())
+                .await
+            {
+                call_again_in = call_again_in.min(dur);
+            }
             continue;
         };
 
         if needed != known {
-            if light_name == "kitchen:ceiling" {
-                trace!(
-                    "Lamp {light_name}
-                sending needed {needed:?} 
-                to replace known {known:?}"
-                );
-            }
+            let diff = needed.changes_relative_to(known);
             // Ignore errors because we will retry if the state hasn't changed
-            let _ = mqtt.send_new_state(light_name, needed).await;
+            if let Ok(dur) = mqtt.try_send_state_diff(light_name, diff).await {
+                call_again_in = call_again_in.min(dur);
+            }
         }
     }
+    call_again_in
 }
 
 #[instrument(skip_all)]
 async fn apply_change(
-    change: Option<(String, Change)>,
+    light_name: String,
+    change: Change,
     known_states: &RwLock<HashMap<String, Lamp>>,
     needed_states: &mut HashMap<String, Lamp>,
 ) {
-    let (light_name, change) = change.expect("Channel should never close");
     let known_states = known_states.read().await;
 
     let needed = match needed_states.get(&light_name) {

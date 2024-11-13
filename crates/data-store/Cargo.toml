@@ -25,7 +25,7 @@ data-server = { workspace = true }
 
 byteseries = { workspace = true }
 tokio = { workspace = true, features = ["fs", "net", "rt-multi-thread", "sync"] }
-futures-concurrency = "7.6.1"
+futures-concurrency = { workspace = true }
 serde = { version = "1.0.203", features = ["derive"] }
 thiserror = { workspace = true }
 futures = "0.3.30"
@@ -34,7 +34,7 @@ num = "0.4.3"
 hdrhistogram = "7.5.4"
 
 [dev-dependencies]
-futures-concurrency = "7.6.1"
+futures-concurrency = { workspace = true }
 nucleo-matcher = "0.3.1"
 reserve-port = "2.0.1"
 temp-dir = "0.1.13"
