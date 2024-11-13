@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::{sleep, timeout};
-use tracing::trace;
+use tracing::{instrument, trace};
 
 use super::{mqtt::Mqtt, CHANGE_TIMEOUT, WAIT_FOR_INIT_STATES};
 use crate::lights::lamp::{Change, Lamp};
@@ -17,9 +17,7 @@ pub(super) async fn handle(
     // Give the initial known states a chance to be fetched
     sleep(WAIT_FOR_INIT_STATES).await;
     loop {
-        if let Ok(change) =
-            timeout(CHANGE_TIMEOUT, change_receiver.recv()).await
-        {
+        if let Ok(change) = timeout(CHANGE_TIMEOUT, change_receiver.recv()).await {
             trace!("Received change: {change:?}");
             apply_change(change, known_states, needed_states).await;
         }
@@ -27,6 +25,7 @@ pub(super) async fn handle(
     }
 }
 
+#[instrument(skip_all)]
 async fn send_all(
     known_states: &RwLock<HashMap<String, Lamp>>,
     needed_states: &mut HashMap<String, Lamp>,
@@ -38,17 +37,27 @@ async fn send_all(
             continue;
         };
 
-        let known = known_states.get(light_name);
-        if Some(needed) != known {
-            trace!(
-                "Sending needed state {needed:?} to replace known {known:?}"
-            );
+        let Some(known) = known_states.get(light_name) else {
+            // Ignore errors because we will retry if the state hasn't changed
+            let _ = mqtt.send_new_state(light_name, needed).await;
+            continue;
+        };
+
+        if needed != known {
+            if light_name == "kitchen:ceiling" {
+                trace!(
+                    "Lamp {light_name}
+                sending needed {needed:?} 
+                to replace known {known:?}"
+                );
+            }
             // Ignore errors because we will retry if the state hasn't changed
             let _ = mqtt.send_new_state(light_name, needed).await;
         }
     }
 }
 
+#[instrument(skip_all)]
 async fn apply_change(
     change: Option<(String, Change)>,
     known_states: &RwLock<HashMap<String, Lamp>>,

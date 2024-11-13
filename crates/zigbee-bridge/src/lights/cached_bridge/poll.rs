@@ -3,7 +3,7 @@ use std::{collections::HashMap, time::Duration};
 use rumqttc::{Event, EventLoop, Incoming};
 use serde_json::Value;
 use tokio::{sync::RwLock, time::sleep};
-use tracing::trace;
+use tracing::{instrument, trace};
 
 use crate::lights::lamp::{Lamp, LampState, Model};
 
@@ -45,6 +45,7 @@ pub(super) async fn poll_mqtt(
     }
 }
 
+#[instrument(skip_all)]
 fn parse_message(message: Event) -> Message {
     match message {
         Event::Incoming(incoming) => match incoming {
@@ -89,6 +90,7 @@ enum Message {
     Other,
 }
 
+#[instrument(skip_all)]
 fn parse_device(device: &Value) -> (String, Model) {
     let properties = device.as_object().unwrap();
 
