@@ -4,7 +4,7 @@
 // Set to on, off after 30s
 // on_time: 30, off_wait_time: 30
 
-use rumqttc::QoS;
+use rumqttc::v5::mqttbytes::QoS;
 
 pub mod lights;
 

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
-use rumqttc::{Event, EventLoop, Incoming};
+use rumqttc::v5::{Event, EventLoop, Incoming};
 use serde_json::Value;
 use tokio::{sync::RwLock, time::sleep};
 use tracing::{instrument, trace};
@@ -51,13 +51,10 @@ fn parse_message(message: Event) -> Message {
         Event::Incoming(incoming) => match incoming {
             Incoming::ConnAck(_)
             | Incoming::PubAck(_)
-            | Incoming::PingResp
+            | Incoming::PingResp(_)
             | Incoming::SubAck(_) => Message::Other,
-            Incoming::Publish(message)
-                if message.topic == "zigbee2mqtt/bridge/devices" =>
-            {
-                let json: Value =
-                    serde_json::from_slice(&message.payload).unwrap();
+            Incoming::Publish(message) if message.topic == "zigbee2mqtt/bridge/devices" => {
+                let json: Value = serde_json::from_slice(&message.payload).unwrap();
                 let list = json.as_array().unwrap();
                 let devices: HashMap<String, Model> = list
                     .iter()
@@ -68,7 +65,8 @@ fn parse_message(message: Event) -> Message {
                 Message::Devices(devices)
             }
             Incoming::Publish(message) => {
-                let topic: Vec<_> = message.topic.split('/').collect();
+                let topic = String::from_utf8_lossy(&message.topic);
+                let topic: Vec<_> = topic.split('/').collect();
                 let name = topic[1].to_string();
                 let data = &(*message.payload);
 
@@ -110,9 +108,7 @@ fn parse_device(device: &Value) -> (String, Model) {
         Some("TRADFRI bulb E27 CWS globe 806lm") => Model::TradfriE27,
         Some("TRADFRI bulb E14 CWS globe 806lm") => Model::TradfriE14,
         Some("LCT001") => Model::HueGen4,
-        Some(id) if id.to_lowercase().contains("tradfri") => {
-            Model::TradfriOther(id.to_owned())
-        }
+        Some(id) if id.to_lowercase().contains("tradfri") => Model::TradfriOther(id.to_owned()),
         Some(id) => Model::Other(id.to_owned()),
         None => Model::Other(String::new()),
     };

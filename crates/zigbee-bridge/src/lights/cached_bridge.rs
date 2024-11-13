@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use rumqttc::{AsyncClient, MqttOptions};
+use rumqttc::v5::{AsyncClient, MqttOptions};
 use tokio::sync::{mpsc, RwLock};
 use tracing::trace;
 
@@ -12,11 +12,10 @@ mod changes;
 mod mqtt;
 mod poll;
 
-
 pub(super) async fn run(change_receiver: mpsc::UnboundedReceiver<(String, Change)>) -> ! {
     let mut options = MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
-    // Set incoming to max mqtt packet size, outgoing to rumqtt default
-    options.set_max_packet_size(2_usize.pow(28), 10240); // incoming: ~ 268 MB
+    // Set max mqtt packet size to 4kB
+    options.set_max_packet_size(Some(4096));
 
     let known_states = RwLock::new(HashMap::new());
 

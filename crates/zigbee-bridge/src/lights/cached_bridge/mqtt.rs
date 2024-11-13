@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use rumqttc::{AsyncClient, ClientError};
+use rumqttc::v5::{AsyncClient, ClientError};
 use serde_json::json;
 use tracing::{instrument, trace, warn};
 
@@ -29,7 +29,7 @@ impl Mqtt {
         trace!("Requesting state for light {name}");
         let payload = json!({"state": ""});
 
-        get(&self.client, name, &payload.to_string()).await.unwrap();
+        get(&self.client, name, payload.to_string()).await.unwrap();
     }
 
     #[instrument(skip(self))]
@@ -45,14 +45,14 @@ impl Mqtt {
             for change in diff {
                 match last_set.get(&change.into()) {
                     None => {
-                        set(&self.client, light_name, &change.payload()).await?;
+                        set(&self.client, light_name, change.payload()).await?;
                         last_set.insert(change.into(), (Instant::now(), change));
                     }
                     Some((at, prev_change))
                         if *prev_change == change
                             && at.elapsed() > TIME_IT_TAKES_TO_APPLY_CHANGE =>
                     {
-                        set(&self.client, light_name, &change.payload()).await?;
+                        set(&self.client, light_name, change.payload()).await?;
                         last_set.insert(change.into(), (Instant::now(), change));
                     }
                     Some((at, _)) => {
@@ -65,7 +65,7 @@ impl Mqtt {
             let mut last_set = HashMap::new();
             for change in diff {
                 let change_key: LampPropertyDiscriminants = change.into();
-                set(&self.client, light_name, &change.payload()).await?;
+                set(&self.client, light_name, change.payload()).await?;
                 last_set.insert(change_key, Instant::now());
             }
         }
@@ -74,7 +74,7 @@ impl Mqtt {
     }
 }
 
-async fn set(client: &AsyncClient, friendly_name: &str, payload: &str) -> Result<(), ClientError> {
+async fn set(client: &AsyncClient, friendly_name: &str, payload: String) -> Result<(), ClientError> {
     let topic = format!("zigbee2mqtt/{friendly_name}/set");
 
     trace!("Sending payload {payload} to lamp {friendly_name}");
@@ -85,13 +85,13 @@ async fn set(client: &AsyncClient, friendly_name: &str, payload: &str) -> Result
     Ok(())
 }
 
-async fn get(client: &AsyncClient, friendly_name: &str, payload: &str) -> Result<(), ClientError> {
+async fn get(client: &AsyncClient, friendly_name: &str, payload: String) -> Result<(), ClientError> {
     let topic = format!("zigbee2mqtt/{friendly_name}/get");
 
     publish(client, &topic, payload).await?;
     Ok(())
 }
 
-async fn publish(client: &AsyncClient, topic: &str, payload: &str) -> Result<(), ClientError> {
+async fn publish(client: &AsyncClient, topic: &str, payload: String) -> Result<(), ClientError> {
     client.publish(topic, QOS, false, payload).await
 }
