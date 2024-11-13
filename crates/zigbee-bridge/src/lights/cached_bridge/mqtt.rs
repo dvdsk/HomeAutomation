@@ -3,14 +3,14 @@ use std::time::{Duration, Instant};
 
 use rumqttc::{AsyncClient, ClientError};
 use serde_json::json;
-use tracing::{trace, warn};
+use tracing::{instrument, trace, warn};
 
 use crate::lights::lamp::{LampProperty, LampPropertyDiscriminants};
 use crate::QOS;
 
 pub(super) struct Mqtt {
     client: AsyncClient,
-    property_last_set: HashMap<String, HashMap<LampPropertyDiscriminants, Instant>>,
+    property_last_set: HashMap<String, HashMap<LampPropertyDiscriminants, (Instant, LampProperty)>>,
 }
 
 impl Mqtt {
@@ -32,6 +32,7 @@ impl Mqtt {
         get(&self.client, name, &payload.to_string()).await.unwrap();
     }
 
+    #[instrument(skip(self))]
     pub(super) async fn try_send_state_diff(
         &mut self,
         light_name: &str,
@@ -42,17 +43,19 @@ impl Mqtt {
 
         if let Some(last_set) = self.property_last_set.get_mut(light_name) {
             for change in diff {
-                let change_key = change.clone().into();
-                match last_set.get(&change_key) {
+                match last_set.get(&change.into()) {
                     None => {
-                        set(&self.client, light_name, &change.clone().into_payload()).await?;
-                        last_set.insert(change_key, Instant::now());
+                        set(&self.client, light_name, &change.payload()).await?;
+                        last_set.insert(change.into(), (Instant::now(), change));
                     }
-                    Some(at) if at.elapsed() > TIME_IT_TAKES_TO_APPLY_CHANGE => {
-                        set(&self.client, light_name, &change.clone().into_payload()).await?;
-                        last_set.insert(change_key, Instant::now());
+                    Some((at, prev_change))
+                        if *prev_change == change
+                            && at.elapsed() > TIME_IT_TAKES_TO_APPLY_CHANGE =>
+                    {
+                        set(&self.client, light_name, &change.payload()).await?;
+                        last_set.insert(change.into(), (Instant::now(), change));
                     }
-                    Some(at) => {
+                    Some((at, _)) => {
                         let until = at.saturating_duration_since(Instant::now());
                         new_call_needed_in = new_call_needed_in.min(until);
                     }
@@ -61,8 +64,8 @@ impl Mqtt {
         } else {
             let mut last_set = HashMap::new();
             for change in diff {
-                let change_key: LampPropertyDiscriminants = change.clone().into();
-                set(&self.client, light_name, &change.clone().into_payload()).await?;
+                let change_key: LampPropertyDiscriminants = change.into();
+                set(&self.client, light_name, &change.payload()).await?;
                 last_set.insert(change_key, Instant::now());
             }
         }

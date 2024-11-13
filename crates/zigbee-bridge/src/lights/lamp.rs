@@ -11,7 +11,7 @@ pub(super) struct LampState {
     pub(super) color_temp_k: Option<usize>,
     pub(super) color_xy: Option<(f64, f64)>,
     pub(super) on: Option<bool>,
-    pub(super) color_temp_startup: String,
+    pub(super) color_temp_startup: ColorTempStartup,
 }
 
 impl Default for LampState {
@@ -23,7 +23,7 @@ impl Default for LampState {
             on: None,
             // Settings, will not be updated from MQTT state message
             // and will never trigger a publish
-            color_temp_startup: String::from("previous"),
+            color_temp_startup: ColorTempStartup::Previous,
         }
     }
 }
@@ -34,25 +34,47 @@ pub(super) struct Lamp {
     pub(super) state: LampState,
 }
 
-#[derive(Debug, EnumDiscriminants, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ColorTempStartup {
+    Previous,
+}
+
+#[derive(Debug, EnumDiscriminants, Clone, Copy)]
 #[strum_discriminants(derive(Hash))]
 pub(super) enum LampProperty {
     Brightness(f64),
     ColorTempK(usize),
     ColorXY((f64, f64)),
     On(bool),
-    ColorTempStartup(String),
+    ColorTempStartup(ColorTempStartup),
 }
 
+impl PartialEq for LampProperty {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (LampProperty::Brightness(a), LampProperty::Brightness(b)) => bri_close(*a, *b),
+            (LampProperty::ColorTempK(a), LampProperty::ColorTempK(b)) => temp_close(*a, *b),
+            (LampProperty::ColorXY(a), LampProperty::ColorXY(b)) => xy_close(*a, *b),
+            (LampProperty::On(a), LampProperty::On(b)) => a == b,
+            (LampProperty::ColorTempStartup(a), LampProperty::ColorTempStartup(b)) => a == b,
+            (_, _) => false,
+        }
+    }
+}
+
+impl Eq for LampProperty {}
+
 impl LampProperty {
-    pub(crate) fn into_payload(self) -> String {
-        match self {
+    pub(crate) fn payload(&self) -> String {
+        match *self {
             LampProperty::Brightness(bri) => json!({ "brightness": denormalize(bri) }),
             LampProperty::ColorTempK(k) => json!({ "color_temp": kelvin_to_mired(k) }),
             LampProperty::ColorXY((x, y)) => json!({ "color": {"x": x, "y": y} }),
             LampProperty::On(lamp_on) if lamp_on => json!({"state": "ON"}),
             LampProperty::On(_) => json!({"state": "OFF"}),
-            LampProperty::ColorTempStartup(s) => json!({"color_temp_startup": s}),
+            LampProperty::ColorTempStartup(ColorTempStartup::Previous) => {
+                json!({"color_temp_startup": "previous"})
+            }
         }
         .to_string()
     }
@@ -134,9 +156,7 @@ impl LampState {
         }
 
         if self.color_temp_startup != other.color_temp_startup {
-            res.push(LampProperty::ColorTempStartup(
-                self.color_temp_startup.clone(),
-            ));
+            res.push(LampProperty::ColorTempStartup(self.color_temp_startup));
         }
 
         res
@@ -170,9 +190,7 @@ impl LampState {
         if let Some(val) = self.on {
             list.push(LampProperty::On(val));
         }
-        list.push(LampProperty::ColorTempStartup(
-            self.color_temp_startup.clone(),
-        ));
+        list.push(LampProperty::ColorTempStartup(self.color_temp_startup));
         list
     }
 }
