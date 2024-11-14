@@ -86,20 +86,6 @@ impl Lamp {
         self.state.changes_relative_to(&other.state)
     }
 
-    pub(super) fn store_model(&self, model: Model) -> Self {
-        Self {
-            model: Some(model),
-            state: self.state.clone(),
-        }
-    }
-
-    pub(super) fn store_state(&self, state: LampState) -> Self {
-        Self {
-            model: self.model.clone(),
-            state,
-        }
-    }
-
     pub(super) fn apply(self, change: Change) -> Self {
         Self {
             model: self.model,

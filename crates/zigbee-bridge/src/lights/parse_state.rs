@@ -16,7 +16,7 @@ pub(super) fn parse_lamp_properties(bytes: &[u8]) -> color_eyre::Result<Vec<Lamp
 
     if let Some(kelvin) = map
         .get("color_temp")
-        .map(|mired| json_to_usize(mired))
+        .map(json_to_usize)
         .transpose()?
         .map(mired_to_kelvin)
     {
@@ -40,7 +40,7 @@ pub(super) fn parse_lamp_properties(bytes: &[u8]) -> color_eyre::Result<Vec<Lamp
 
     if let Some(brightness) = map
         .get("brightness")
-        .map(|bri| json_to_u8(bri))
+        .map(json_to_u8)
         .transpose()?
         .map(normalize)
     {

@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use rumqttc::v5::mqttbytes::QoS;
 use rumqttc::v5::{AsyncClient, ClientError};
 use serde_json::json;
-use tracing::{instrument, trace, warn};
+use tracing::{instrument, trace};
 
 use crate::lights::lamp::{LampProperty, LampPropertyDiscriminants};
 
@@ -105,8 +105,10 @@ async fn get(
 }
 
 async fn publish(client: &AsyncClient, topic: &str, payload: String) -> Result<(), ClientError> {
-    let mut properties = rumqttc::v5::mqttbytes::v5::PublishProperties::default();
-    properties.message_expiry_interval = Some(5); // seconds
+    let properties = rumqttc::v5::mqttbytes::v5::PublishProperties {
+        message_expiry_interval: Some(5), // seconds
+        ..Default::default()
+    };
 
     client
         .publish_with_properties(topic, QoS::AtLeastOnce, false, payload, properties)
