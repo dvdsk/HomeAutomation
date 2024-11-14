@@ -1,84 +1,71 @@
-use std::io;
-
 use serde_json::Value;
 use thiserror::Error;
 
 use crate::lights::{lamp::LampState, mired_to_kelvin, normalize};
 
 #[derive(Error, Debug)]
-pub(super) enum ParseError {
-    #[error("json error: {0}")]
-    Json(#[from] serde_json::Error),
-    #[error("io error: {0}")]
-    Io(#[from] io::Error),
-    #[error("invalid value: {0}")]
-    InvalidValue(String),
+pub(super) enum Error {
+    #[error("Could not deserialize to json: {0}")]
+    NotJson(#[from] serde_json::Error),
+    #[error("Needed key {0}, is missing")]
+    MissingKey(&'static str),
+    #[error("Needed a number however got: {0}")]
+    NotNumber(String),
+    #[error("Needed an integer number however got: {0}")]
+    NotInteger(String),
+    #[error("Needed a 8 bit integer number however got: {0}")]
+    NumberNotU8(String),
+    #[error("Needed an usize bit integer number however got: {0}")]
+    NumberNotUsize(String),
+    #[error("Needed an uf8 string got: {0}")]
+    NotString(String),
+    #[error("Needed json object got: {0}")]
+    NotObject(String),
+    #[error("Invalid light state, expected ON or EFF got: {0}")]
+    InvalidState(String),
 }
 
 impl TryInto<LampState> for &[u8] {
-    type Error = ParseError; // TODO: could be a parse error enum, saves having
-                             // to go through the whole ErrorKind stuff.
-                             //
-                             // But this is fine too, kinda like the str for
-                             // invalid_err() stuff
-                             //
-                             // but get_key(map, "color") could be
-                             // map.get("color").ok_or(ParseError("Missing key
-                             // from map: {key}")). Just an idea, do what you
-                             // prefer.
-                             // <11-11-24, dvdsk>
+    type Error = Error;
 
     fn try_into(self) -> Result<LampState, Self::Error> {
         let json: Value = serde_json::from_slice(self)?;
-        let map = json.as_object().ok_or(invalid_err("Object"))?;
+        let map = json.as_object().ok_or(Error::NotObject(json.to_string()))?;
 
-        // Could be done using .map(|temp| {...}).ok(), except that the question
-        // mark gets in the way
-        let color_temp_mired = match get_key(map, "color_temp") {
-            Ok(temp) => {
-                let color_temp: usize =
-                    json_to_u64(temp)?.try_into().expect("usize should be u64");
-                Some(color_temp)
-            }
-            Err(_) => None,
-        };
+        let color_temp_mired: Option<usize> = map
+            .get("color_temp")
+            .map(|temp| json_to_usize(temp))
+            .transpose()?;
 
-        let color_xy = match get_key(map, "color") {
-            Ok(color) => {
-                let color = color.as_object().ok_or(invalid_err("Object"))?;
-                let color_x = json_to_f64(get_key(color, "x")?)?;
-                let color_y = json_to_f64(get_key(color, "y")?)?;
-                Some((color_x, color_y))
-            }
-            Err(_) => None,
-        };
+        let color_xy = map
+            .get("color")
+            .map(|color| {
+                let color = color
+                    .as_object()
+                    .ok_or(Error::NotObject(color.to_string()))?;
+                let color_x = json_to_f64(color.get("x").ok_or(Error::MissingKey("x"))?)?;
+                let color_y = json_to_f64(color.get("y").ok_or(Error::MissingKey("y"))?)?;
+                Ok::<_, Error>((color_x, color_y))
+            })
+            .transpose()?;
 
-        let brightness = match get_key(map, "brightness") {
-            Ok(bri) => {
-                let bri: u8 = json_to_u64(bri)?
-                    .try_into()
-                    .map_err(|_| invalid_err("u8"))?;
-                Some(bri)
-            }
-            Err(_) => None,
-        };
+        let brightness: Option<u8> = map
+            .get("brightness")
+            .map(|bri| json_to_u8(bri))
+            .transpose()?;
 
-        let on = match get_key(map, "state") {
-            Ok(on) => {
-                let state = on.as_str().ok_or(invalid_err("String"))?;
+        let on = map
+            .get("state")
+            .map(|on| {
+                let state = on.as_str().ok_or(Error::NotString(on.to_string()))?;
                 let on = match state {
                     "ON" => true,
                     "OFF" => false,
-                    other => {
-                        return Err(ParseError::InvalidValue(format!(
-                            "on/off bool: {other}"
-                        )))
-                    }
+                    other => return Err(Error::InvalidState(other.to_string())),
                 };
-                Some(on)
-            }
-            Err(_) => None,
-        };
+                Ok(on)
+            })
+            .transpose()?;
 
         Ok(LampState {
             #[allow(clippy::cast_precision_loss)]
@@ -91,35 +78,29 @@ impl TryInto<LampState> for &[u8] {
     }
 }
 
-fn json_to_u64(json: &Value) -> Result<u64, io::Error> {
-    json.as_number()
-        .ok_or(invalid_err("Number"))?
-        .as_u64()
-        .ok_or(invalid_err("u64"))
+fn json_to_usize(json: &Value) -> Result<usize, Error> {
+    json_to_u64(json)?
+        .try_into()
+        .map_err(|_| Error::NumberNotUsize(json.to_string()))
 }
 
-fn json_to_f64(json: &Value) -> Result<f64, io::Error> {
+fn json_to_u8(json: &Value) -> Result<u8, Error> {
+    json_to_u64(json)?
+        .try_into()
+        .map_err(|_| Error::NumberNotU8(json.to_string()))
+}
+
+fn json_to_u64(json: &Value) -> Result<u64, Error> {
+    json.as_number()
+        .ok_or(Error::NotNumber(json.to_string()))?
+        .as_u64()
+        .ok_or(Error::NotInteger(json.to_string()))
+}
+
+fn json_to_f64(json: &Value) -> Result<f64, Error> {
     Ok(json
         .as_number()
-        .ok_or(invalid_err("Number"))?
+        .ok_or(Error::NotNumber(json.to_string()))?
         .as_f64()
         .expect("Should be Some if not using arbitrary precision"))
-}
-
-fn get_key<'a>(
-    map: &'a serde_json::Map<String, Value>,
-    key: &str,
-) -> Result<&'a Value, io::Error> {
-    let key_err = io::Error::new(
-        io::ErrorKind::InvalidData,
-        "Missing key from map: {key}",
-    );
-    map.get(key).ok_or(key_err)
-}
-
-fn invalid_err(value_type: &str) -> io::Error {
-    io::Error::new(
-        io::ErrorKind::InvalidData,
-        format!("Could not parse json into {value_type}"),
-    )
 }

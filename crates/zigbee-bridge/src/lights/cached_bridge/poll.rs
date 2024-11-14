@@ -46,38 +46,32 @@ pub(super) async fn poll_mqtt(
 }
 
 #[instrument(skip_all)]
-fn parse_message(message: Event) -> Message {
-    match message {
-        Event::Incoming(incoming) => match incoming {
-            Incoming::ConnAck(_)
-            | Incoming::PubAck(_)
-            | Incoming::PingResp(_)
-            | Incoming::SubAck(_) => Message::Other,
-            Incoming::Publish(message) if message.topic == "zigbee2mqtt/bridge/devices" => {
-                let json: Value = serde_json::from_slice(&message.payload).unwrap();
-                let list = json.as_array().unwrap();
-                let devices: HashMap<String, Model> = list
-                    .iter()
-                    .map(parse_device)
-                    .filter(|d| d.0 != "Coordinator")
-                    .collect();
+fn parse_message(event: Event) -> Message {
+    let Event::Incoming(incoming) = event else {
+        return Message::Other;
+    };
 
-                Message::Devices(devices)
-            }
-            Incoming::Publish(message) => {
-                let topic = String::from_utf8_lossy(&message.topic);
-                let topic: Vec<_> = topic.split('/').collect();
-                let name = topic[1].to_string();
-                let data = &(*message.payload);
+    let Incoming::Publish(message) = incoming else {
+        return Message::Other;
+    };
 
-                Message::StateUpdate((name, data.try_into().unwrap()))
-            }
-            other => {
-                dbg!(other);
-                Message::Other
-            }
-        },
-        Event::Outgoing(_) => Message::Other,
+    let topic = String::from_utf8_lossy(&message.topic);
+
+    if topic == "zigbee2mqtt/bridge/devices" {
+        let json: Value = serde_json::from_slice(&message.payload).unwrap();
+        let list = json.as_array().unwrap();
+        let devices: HashMap<String, Model> = list
+            .iter()
+            .map(parse_device)
+            .filter(|d| d.0 != "Coordinator")
+            .collect();
+        Message::Devices(devices)
+    } else {
+        let topic = String::from_utf8_lossy(&message.topic);
+        let topic: Vec<_> = topic.split('/').collect();
+        let name = topic[1].to_string();
+        let data = &(*message.payload);
+        Message::StateUpdate((name, data.try_into().unwrap()))
     }
 }
 

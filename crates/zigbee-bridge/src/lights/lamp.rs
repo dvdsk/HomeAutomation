@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use serde_json::json;
 use strum::EnumDiscriminants;
+use tracing::instrument;
 
 use crate::lights::{conversion::temp_to_xy, denormalize, kelvin_to_mired};
 
@@ -126,6 +127,7 @@ fn xy_close(a: (f64, f64), b: (f64, f64)) -> bool {
 }
 
 impl LampState {
+    #[instrument(ret)]
     pub(super) fn changes_relative_to(&self, other: &Self) -> Vec<LampProperty> {
         let mut res = Vec::new();
         if let Some(brightness) = self.brightness {

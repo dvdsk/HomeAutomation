@@ -14,7 +14,8 @@ pub(super) async fn handle(
     mqtt: &mut Mqtt,
     known_states: &RwLock<HashMap<String, Lamp>>,
 ) -> ! {
-    const MQTT_MIGHT_BE_DOWN_TIMEOUT: Duration = Duration::from_secs(5);
+    // const MQTT_MIGHT_BE_DOWN_TIMEOUT: Duration = Duration::from_secs(5);
+    const MQTT_MIGHT_BE_DOWN_TIMEOUT: Duration = Duration::from_secs(500);
     const WAIT_FOR_INIT_STATES: Duration = Duration::from_millis(500);
 
     // Give the initial known states a chance to be fetched
@@ -42,7 +43,7 @@ pub(super) async fn handle(
 /// make sure the set/send takes effect. We do not send it again now as that
 /// would be a little spammy. Returns when we need to recheck. If we do not need
 /// to do so we return Duration::MAX.
-#[instrument(skip_all)]
+#[instrument(skip_all, fields(light_name))]
 async fn send_and_queue(
     known_states: &RwLock<HashMap<String, Lamp>>,
     needed_states: &mut HashMap<String, Lamp>,
@@ -52,6 +53,8 @@ async fn send_and_queue(
     let known_states = known_states.read().await;
 
     for light_name in LIGHTS {
+        tracing::Span::current().record("light_name", light_name);
+
         let Some(needed) = needed_states.get(light_name) else {
             continue;
         };
@@ -59,7 +62,7 @@ async fn send_and_queue(
         let Some(known) = known_states.get(light_name) else {
             // Ignore errors because we will retry if the state hasn't changed
             if let Ok(dur) = mqtt
-                .try_send_state_diff(light_name, needed.property_list())
+                .try_send_state_diff(light_name.to_string(), needed.property_list())
                 .await
             {
                 call_again_in = call_again_in.min(dur);
@@ -67,10 +70,10 @@ async fn send_and_queue(
             continue;
         };
 
-        if needed != known {
-            let diff = needed.changes_relative_to(known);
+        let diff = needed.changes_relative_to(known);
+        if !diff.is_empty() && known.model.is_some() {
             // Ignore errors because we will retry if the state hasn't changed
-            if let Ok(dur) = mqtt.try_send_state_diff(light_name, diff).await {
+            if let Ok(dur) = mqtt.try_send_state_diff(light_name.to_string(), diff).await {
                 call_again_in = call_again_in.min(dur);
             }
         }

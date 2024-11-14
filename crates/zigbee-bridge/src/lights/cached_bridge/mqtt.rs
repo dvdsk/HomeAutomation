@@ -38,39 +38,38 @@ impl Mqtt {
     #[instrument(skip(self))]
     pub(super) async fn try_send_state_diff(
         &mut self,
-        light_name: &str,
+        light_name: String,
         diff: Vec<LampProperty>,
     ) -> Result<Duration, ClientError> {
         const TIME_IT_TAKES_TO_APPLY_CHANGE: Duration = Duration::from_secs(1);
         let mut new_call_needed_in: Duration = Duration::MAX;
 
-        if let Some(last_set) = self.property_last_set.get_mut(light_name) {
-            for change in diff {
-                match last_set.get(&change.into()) {
-                    None => {
-                        set(&self.client, light_name, change.payload()).await?;
-                        last_set.insert(change.into(), (Instant::now(), change));
-                    }
-                    Some((at, prev_change))
-                        if *prev_change == change
-                            && at.elapsed() > TIME_IT_TAKES_TO_APPLY_CHANGE =>
-                    {
-                        set(&self.client, light_name, change.payload()).await?;
-                        last_set.insert(change.into(), (Instant::now(), change));
-                    }
-                    Some((at, _)) => {
-                        let until = at.saturating_duration_since(Instant::now());
-                        new_call_needed_in = new_call_needed_in.min(until);
-                    }
-                }
+        let last_set = self
+            .property_last_set
+            .entry(light_name.clone())
+            .or_default();
+
+        for change in diff {
+            let Some((at, prev_change)) = last_set.get(&change.into()) else {
+                set(&self.client, &light_name, change.payload()).await?;
+                last_set.insert(change.into(), (Instant::now(), change));
+                continue;
+            };
+
+            if *prev_change != change {
+                set(&self.client, &light_name, change.payload()).await?;
+                last_set.insert(change.into(), (Instant::now(), change));
+                continue;
             }
-        } else {
-            let mut last_set = HashMap::new();
-            for change in diff {
-                let change_key: LampPropertyDiscriminants = change.into();
-                set(&self.client, light_name, change.payload()).await?;
-                last_set.insert(change_key, Instant::now());
+
+            if at.elapsed() > TIME_IT_TAKES_TO_APPLY_CHANGE {
+                set(&self.client, &light_name, change.payload()).await?;
+                last_set.insert(change.into(), (Instant::now(), change));
+                continue;
             }
+
+            let until = at.saturating_duration_since(Instant::now());
+            new_call_needed_in = new_call_needed_in.min(until);
         }
 
         Ok(new_call_needed_in)
