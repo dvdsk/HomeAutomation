@@ -9,8 +9,8 @@ use serde_json::Value;
 use tokio::{sync::RwLock, time::sleep};
 use tracing::{instrument, trace};
 
-use crate::lights::lamp::{Lamp, LampState, Model};
-use crate::lights::parse_state::parse_lamp_state;
+use crate::lights::lamp::{Lamp, LampProperty, Model};
+use crate::lights::parse_state::parse_lamp_properties;
 
 pub(super) async fn poll_mqtt(
     mut eventloop: EventLoop,
@@ -36,24 +36,13 @@ pub(super) async fn poll_mqtt(
             }
         };
 
-        let mut known_states = known_states.write().await;
         match message {
-            Message::StateUpdate((light_name, updated_state)) => {
-                let new_known_state = match known_states.get(&light_name) {
-                    Some(lamp) => lamp.store_state(updated_state),
-                    None => Lamp::default().store_state(updated_state),
-                };
-                trace!("updating known state: {new_known_state:?}");
-                known_states.insert(light_name, new_known_state);
+            Message::StateUpdate((light_name, changed_properties)) => {
+                update_state(known_states, light_name, changed_properties).await;
             }
             Message::Devices(new_devices) => {
                 for (light_name, model) in new_devices {
-                    let new_known_state = match known_states.get(&light_name) {
-                        Some(lamp) => lamp.store_model(model),
-                        None => Lamp::default().store_model(model),
-                    };
-                    trace!("updating known state: {new_known_state:?}");
-                    known_states.insert(light_name, new_known_state);
+                    update_model(known_states, light_name, model).await;
                 }
             }
             Message::Other => (),
@@ -61,10 +50,39 @@ pub(super) async fn poll_mqtt(
     }
 }
 
-// async fn update_state(known_states: &RwLock<HashMap<String, Lamp>>) {
-//     let mut known_states = known_states.write().await;
-//     known_states.entry()
-// }
+async fn update_model(
+    known_states: &RwLock<HashMap<String, Lamp>>,
+    light_name: String,
+    model: Model,
+) {
+    let mut known_states = known_states.write().await;
+    let curr_model = &mut known_states
+        .entry(light_name.to_string())
+        .or_default()
+        .model;
+    *curr_model = Some(model);
+}
+
+async fn update_state(
+    known_states: &RwLock<HashMap<String, Lamp>>,
+    light_name: String,
+    new: Vec<LampProperty>,
+) {
+    let mut known_states = known_states.write().await;
+    let curr = &mut known_states
+        .entry(light_name.to_string())
+        .or_default()
+        .state;
+    for property in new {
+        match property {
+            LampProperty::Brightness(bri) => curr.brightness = Some(bri),
+            LampProperty::ColorTempK(temp) => curr.color_temp_k = Some(temp),
+            LampProperty::ColorXY(xy) => curr.color_xy = Some(xy),
+            LampProperty::On(is_on) => curr.on = Some(is_on),
+            LampProperty::ColorTempStartup(behavior) => curr.color_temp_startup = behavior,
+        }
+    }
+}
 
 #[instrument(skip_all)]
 fn parse_message(event: Event) -> color_eyre::Result<Message> {
@@ -99,7 +117,7 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
         let topic = String::from_utf8_lossy(&message.topic);
         let topic: Vec<_> = topic.split('/').collect();
         let name = topic[1].to_string();
-        let state = parse_lamp_state(&message.payload)
+        let state = parse_lamp_properties(&message.payload)
             .wrap_err("failed to parse lamp state")
             .with_note(|| format!("topic: {topic:?}"))?;
         Ok(Message::StateUpdate((name, state)))
@@ -108,7 +126,7 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
 
 #[derive(Debug)]
 enum Message {
-    StateUpdate((String, LampState)),
+    StateUpdate((String, Vec<LampProperty>)),
     Devices(HashMap<String, Model>),
     Other,
 }

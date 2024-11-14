@@ -3,6 +3,8 @@ use thiserror::Error;
 
 use crate::lights::{lamp::LampState, mired_to_kelvin, normalize};
 
+use super::lamp::LampProperty;
+
 #[derive(Error, Debug)]
 pub(super) enum Error {
     #[error("Could not deserialize to json: {0}")]
@@ -25,16 +27,22 @@ pub(super) enum Error {
     InvalidState(String),
 }
 
-pub(super) fn parse_lamp_state(bytes: &[u8]) -> Result<LampState, Error> {
+pub(super) fn parse_lamp_properties(bytes: &[u8]) -> Result<Vec<LampProperty>, Error> {
+    let mut list = Vec::new();
+
     let json: Value = serde_json::from_slice(bytes)?;
     let map = json.as_object().ok_or(Error::NotObject(json.to_string()))?;
 
-    let color_temp_mired: Option<usize> = map
+    if let Some(kelvin) = map
         .get("color_temp")
-        .map(|temp| json_to_usize(temp))
-        .transpose()?;
+        .map(|mired| json_to_usize(mired))
+        .transpose()?
+        .map(mired_to_kelvin)
+    {
+        list.push(LampProperty::ColorTempK(kelvin));
+    }
 
-    let color_xy = map
+    if let Some(xy) = map
         .get("color")
         .map(|color| {
             let color = color
@@ -44,14 +52,21 @@ pub(super) fn parse_lamp_state(bytes: &[u8]) -> Result<LampState, Error> {
             let color_y = json_to_f64(color.get("y").ok_or(Error::MissingKey("y"))?)?;
             Ok::<_, Error>((color_x, color_y))
         })
-        .transpose()?;
+        .transpose()?
+    {
+        list.push(LampProperty::ColorXY(xy));
+    }
 
-    let brightness: Option<u8> = map
+    if let Some(brightness) = map
         .get("brightness")
         .map(|bri| json_to_u8(bri))
-        .transpose()?;
+        .transpose()?
+        .map(normalize)
+    {
+        list.push(LampProperty::Brightness(brightness));
+    }
 
-    let on = map
+    if let Some(on) = map
         .get("state")
         .map(|on| {
             let state = on.as_str().ok_or(Error::NotString(on.to_string()))?;
@@ -62,16 +77,14 @@ pub(super) fn parse_lamp_state(bytes: &[u8]) -> Result<LampState, Error> {
             };
             Ok(on)
         })
-        .transpose()?;
+        .transpose()?
+    {
+        list.push(LampProperty::On(on))
+    }
 
-    Ok(LampState {
-        #[allow(clippy::cast_precision_loss)]
-        brightness: brightness.map(normalize),
-        color_temp_k: color_temp_mired.map(mired_to_kelvin),
-        color_xy,
-        on,
-        ..Default::default()
-    })
+    // TODO: startup behavior? <14-11-24, dvdsk> 
+    //
+    Ok(list)
 }
 
 fn json_to_usize(json: &Value) -> Result<usize, Error> {
