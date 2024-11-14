@@ -68,7 +68,12 @@ impl Mqtt {
                 continue;
             }
 
-            let until = at.saturating_duration_since(Instant::now());
+            trace!(
+                "not setting property {change:?} for {light_name} as it has \
+                recently been set"
+            );
+            let next_call_allowed = *at + TIME_IT_TAKES_TO_APPLY_CHANGE;
+            let until = next_call_allowed.saturating_duration_since(Instant::now());
             new_call_needed_in = new_call_needed_in.min(until);
         }
 
@@ -84,9 +89,6 @@ async fn set(
     let topic = format!("zigbee2mqtt/{friendly_name}/set");
 
     trace!("Sending payload {payload} to lamp {friendly_name}");
-    if friendly_name == "kitchen:hallway" && payload.contains("state") {
-        warn!("Sending payload {payload} to {friendly_name}");
-    }
     publish(client, &topic, payload).await?;
     Ok(())
 }

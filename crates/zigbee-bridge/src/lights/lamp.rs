@@ -127,7 +127,7 @@ fn xy_close(a: (f64, f64), b: (f64, f64)) -> bool {
 }
 
 impl LampState {
-    #[instrument(ret)]
+    #[instrument]
     pub(super) fn changes_relative_to(&self, other: &Self) -> Vec<LampProperty> {
         let mut res = Vec::new();
         if let Some(brightness) = self.brightness {
@@ -179,15 +179,16 @@ impl LampState {
     }
 
     fn property_list(&self) -> Vec<LampProperty> {
+        // we do not send color xy as the lamp might not support it
+        // if it does then property_list is never called but an exact
+        // diff between the current and need state is send
+
         let mut list = Vec::new();
         if let Some(val) = self.brightness {
             list.push(LampProperty::Brightness(val));
         }
         if let Some(val) = self.color_temp_k {
             list.push(LampProperty::ColorTempK(val));
-        }
-        if let Some(val) = self.color_xy {
-            list.push(LampProperty::ColorXY(val));
         }
         if let Some(val) = self.on {
             list.push(LampProperty::On(val));

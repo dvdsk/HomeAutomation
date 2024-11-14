@@ -28,7 +28,7 @@ pub(super) async fn handle(
             let res = res.expect("Channel should never close");
             let (light_name, change) = res;
 
-            trace!("Received change: {change:?}");
+            trace!("Received change order: {change:?}");
             apply_change(light_name, change, known_states, &mut needed_states).await;
         };
 
@@ -59,19 +59,12 @@ async fn send_and_queue(
             continue;
         };
 
-        let Some(known) = known_states.get(light_name) else {
-            // Ignore errors because we will retry if the state hasn't changed
-            if let Ok(dur) = mqtt
-                .try_send_state_diff(light_name.to_string(), needed.property_list())
-                .await
-            {
-                call_again_in = call_again_in.min(dur);
-            }
-            continue;
+        let diff = match known_states.get(light_name) {
+            Some(known) => needed.changes_relative_to(known),
+            None => needed.property_list(),
         };
 
-        let diff = needed.changes_relative_to(known);
-        if !diff.is_empty() && known.model.is_some() {
+        if !diff.is_empty() {
             // Ignore errors because we will retry if the state hasn't changed
             if let Ok(dur) = mqtt.try_send_state_diff(light_name.to_string(), diff).await {
                 call_again_in = call_again_in.min(dur);

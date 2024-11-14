@@ -25,57 +25,53 @@ pub(super) enum Error {
     InvalidState(String),
 }
 
-impl TryInto<LampState> for &[u8] {
-    type Error = Error;
+pub(super) fn parse_lamp_state(bytes: &[u8]) -> Result<LampState, Error> {
+    let json: Value = serde_json::from_slice(bytes)?;
+    let map = json.as_object().ok_or(Error::NotObject(json.to_string()))?;
 
-    fn try_into(self) -> Result<LampState, Self::Error> {
-        let json: Value = serde_json::from_slice(self)?;
-        let map = json.as_object().ok_or(Error::NotObject(json.to_string()))?;
+    let color_temp_mired: Option<usize> = map
+        .get("color_temp")
+        .map(|temp| json_to_usize(temp))
+        .transpose()?;
 
-        let color_temp_mired: Option<usize> = map
-            .get("color_temp")
-            .map(|temp| json_to_usize(temp))
-            .transpose()?;
-
-        let color_xy = map
-            .get("color")
-            .map(|color| {
-                let color = color
-                    .as_object()
-                    .ok_or(Error::NotObject(color.to_string()))?;
-                let color_x = json_to_f64(color.get("x").ok_or(Error::MissingKey("x"))?)?;
-                let color_y = json_to_f64(color.get("y").ok_or(Error::MissingKey("y"))?)?;
-                Ok::<_, Error>((color_x, color_y))
-            })
-            .transpose()?;
-
-        let brightness: Option<u8> = map
-            .get("brightness")
-            .map(|bri| json_to_u8(bri))
-            .transpose()?;
-
-        let on = map
-            .get("state")
-            .map(|on| {
-                let state = on.as_str().ok_or(Error::NotString(on.to_string()))?;
-                let on = match state {
-                    "ON" => true,
-                    "OFF" => false,
-                    other => return Err(Error::InvalidState(other.to_string())),
-                };
-                Ok(on)
-            })
-            .transpose()?;
-
-        Ok(LampState {
-            #[allow(clippy::cast_precision_loss)]
-            brightness: brightness.map(normalize),
-            color_temp_k: color_temp_mired.map(mired_to_kelvin),
-            color_xy,
-            on,
-            ..Default::default()
+    let color_xy = map
+        .get("color")
+        .map(|color| {
+            let color = color
+                .as_object()
+                .ok_or(Error::NotObject(color.to_string()))?;
+            let color_x = json_to_f64(color.get("x").ok_or(Error::MissingKey("x"))?)?;
+            let color_y = json_to_f64(color.get("y").ok_or(Error::MissingKey("y"))?)?;
+            Ok::<_, Error>((color_x, color_y))
         })
-    }
+        .transpose()?;
+
+    let brightness: Option<u8> = map
+        .get("brightness")
+        .map(|bri| json_to_u8(bri))
+        .transpose()?;
+
+    let on = map
+        .get("state")
+        .map(|on| {
+            let state = on.as_str().ok_or(Error::NotString(on.to_string()))?;
+            let on = match state {
+                "ON" => true,
+                "OFF" => false,
+                other => return Err(Error::InvalidState(other.to_string())),
+            };
+            Ok(on)
+        })
+        .transpose()?;
+
+    Ok(LampState {
+        #[allow(clippy::cast_precision_loss)]
+        brightness: brightness.map(normalize),
+        color_temp_k: color_temp_mired.map(mired_to_kelvin),
+        color_xy,
+        on,
+        ..Default::default()
+    })
 }
 
 fn json_to_usize(json: &Value) -> Result<usize, Error> {
