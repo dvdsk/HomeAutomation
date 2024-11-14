@@ -1,37 +1,18 @@
+use color_eyre::eyre::{bail, Context, OptionExt, Report};
+use color_eyre::Section;
 use serde_json::Value;
-use thiserror::Error;
 
-use crate::lights::{lamp::LampState, mired_to_kelvin, normalize};
+use crate::lights::{mired_to_kelvin, normalize};
 
 use super::lamp::LampProperty;
 
-#[derive(Error, Debug)]
-pub(super) enum Error {
-    #[error("Could not deserialize to json: {0}")]
-    NotJson(#[from] serde_json::Error),
-    #[error("Needed key {0}, is missing")]
-    MissingKey(&'static str),
-    #[error("Needed a number however got: {0}")]
-    NotNumber(String),
-    #[error("Needed an integer number however got: {0}")]
-    NotInteger(String),
-    #[error("Needed a 8 bit integer number however got: {0}")]
-    NumberNotU8(String),
-    #[error("Needed an usize bit integer number however got: {0}")]
-    NumberNotUsize(String),
-    #[error("Needed an uf8 string got: {0}")]
-    NotString(String),
-    #[error("Needed json object got: {0}")]
-    NotObject(String),
-    #[error("Invalid light state, expected ON or EFF got: {0}")]
-    InvalidState(String),
-}
-
-pub(super) fn parse_lamp_properties(bytes: &[u8]) -> Result<Vec<LampProperty>, Error> {
+pub(super) fn parse_lamp_properties(bytes: &[u8]) -> color_eyre::Result<Vec<LampProperty>> {
     let mut list = Vec::new();
 
-    let json: Value = serde_json::from_slice(bytes)?;
-    let map = json.as_object().ok_or(Error::NotObject(json.to_string()))?;
+    let json: Value = serde_json::from_slice(bytes).wrap_err("Could not deserialize")?;
+    let map = json
+        .as_object()
+        .ok_or_eyre("Top level json must be object")?;
 
     if let Some(kelvin) = map
         .get("color_temp")
@@ -47,10 +28,10 @@ pub(super) fn parse_lamp_properties(bytes: &[u8]) -> Result<Vec<LampProperty>, E
         .map(|color| {
             let color = color
                 .as_object()
-                .ok_or(Error::NotObject(color.to_string()))?;
-            let color_x = json_to_f64(color.get("x").ok_or(Error::MissingKey("x"))?)?;
-            let color_y = json_to_f64(color.get("y").ok_or(Error::MissingKey("y"))?)?;
-            Ok::<_, Error>((color_x, color_y))
+                .ok_or_eyre("Color json should be an object")?;
+            let color_x = json_to_f64(color.get("x").ok_or_eyre("Need a key 'x'")?)?;
+            let color_y = json_to_f64(color.get("y").ok_or_eyre("Need a key 'y'")?)?;
+            Ok::<_, Report>((color_x, color_y))
         })
         .transpose()?
     {
@@ -69,11 +50,11 @@ pub(super) fn parse_lamp_properties(bytes: &[u8]) -> Result<Vec<LampProperty>, E
     if let Some(on) = map
         .get("state")
         .map(|on| {
-            let state = on.as_str().ok_or(Error::NotString(on.to_string()))?;
+            let state = on.as_str().ok_or_eyre("state should be a string")?;
             let on = match state {
                 "ON" => true,
                 "OFF" => false,
-                other => return Err(Error::InvalidState(other.to_string())),
+                _ => bail!("state string should be ON or OFF"),
             };
             Ok(on)
         })
@@ -82,34 +63,39 @@ pub(super) fn parse_lamp_properties(bytes: &[u8]) -> Result<Vec<LampProperty>, E
         list.push(LampProperty::On(on))
     }
 
-    // TODO: startup behavior? <14-11-24, dvdsk> 
+    // TODO: startup behavior? <14-11-24, dvdsk>
     //
     Ok(list)
 }
 
-fn json_to_usize(json: &Value) -> Result<usize, Error> {
+fn json_to_usize(json: &Value) -> color_eyre::Result<usize> {
     json_to_u64(json)?
         .try_into()
-        .map_err(|_| Error::NumberNotUsize(json.to_string()))
+        .wrap_err("Should be a usize integer")
+        .with_note(|| format!("got: {json:?}"))
 }
 
-fn json_to_u8(json: &Value) -> Result<u8, Error> {
+fn json_to_u8(json: &Value) -> color_eyre::Result<u8> {
     json_to_u64(json)?
         .try_into()
-        .map_err(|_| Error::NumberNotU8(json.to_string()))
+        .wrap_err("Should be a 8 bit integer")
+        .with_note(|| format!("got: {json:?}"))
 }
 
-fn json_to_u64(json: &Value) -> Result<u64, Error> {
+fn json_to_u64(json: &Value) -> color_eyre::Result<u64> {
     json.as_number()
-        .ok_or(Error::NotNumber(json.to_string()))?
+        .ok_or_eyre("Must be a number")
+        .with_note(|| format!("got: {json:?}"))?
         .as_u64()
-        .ok_or(Error::NotInteger(json.to_string()))
+        .ok_or_eyre("Must be a positive integer")
+        .with_note(|| format!("got: {json:?}"))
 }
 
-fn json_to_f64(json: &Value) -> Result<f64, Error> {
+fn json_to_f64(json: &Value) -> color_eyre::Result<f64> {
     Ok(json
         .as_number()
-        .ok_or(Error::NotNumber(json.to_string()))?
+        .ok_or_eyre("Must be a number")
+        .with_note(|| format!("got: {json:?}"))?
         .as_f64()
         .expect("Should be Some if not using arbitrary precision"))
 }
