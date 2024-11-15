@@ -68,10 +68,10 @@ impl Mqtt {
                 continue;
             }
 
-            trace!(
-                "not setting property {change:?} for {light_name} as it has \
-                recently been set"
-            );
+            // trace!(
+            //     "not setting property {change:?} for {light_name} as it has \
+            //     recently been set"
+            // );
             let next_call_allowed = *at + TIME_IT_TAKES_TO_APPLY_CHANGE;
             let until = next_call_allowed.saturating_duration_since(Instant::now());
             new_call_needed_in = new_call_needed_in.min(until);

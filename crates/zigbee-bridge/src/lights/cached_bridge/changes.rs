@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::{sleep, timeout};
-use tracing::{instrument, trace};
+use tracing::{debug, instrument, trace};
 
 use super::mqtt::Mqtt;
 use crate::lights::lamp::{Change, Lamp};
@@ -24,11 +24,12 @@ pub(super) async fn handle(
     let mut call_again_in = MQTT_MIGHT_BE_DOWN_TIMEOUT;
 
     loop {
+        debug!("timeout: {call_again_in:?}");
         if let Ok(res) = timeout(call_again_in, change_receiver.recv()).await {
             let res = res.expect("Channel should never close");
             let (light_name, change) = res;
 
-            trace!("Received change order: {change:?}");
+            trace!("Received change: {change:?} for lamp {light_name}");
             apply_change(light_name, change, known_states, &mut needed_states).await;
         };
 
@@ -43,7 +44,7 @@ pub(super) async fn handle(
 /// make sure the set/send takes effect. We do not send it again now as that
 /// would be a little spammy. Returns when we need to recheck. If we do not need
 /// to do so we return Duration::MAX.
-#[instrument(skip_all, fields(light_name))]
+#[instrument(skip_all)]
 async fn send_and_queue(
     known_states: &RwLock<HashMap<String, Lamp>>,
     needed_states: &mut HashMap<String, Lamp>,

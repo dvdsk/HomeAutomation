@@ -94,6 +94,7 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
         return Ok(Message::Other);
     };
 
+    trace!("message: {message:?}");
     let topic = String::from_utf8_lossy(&message.topic);
 
     if topic == "zigbee2mqtt/bridge/devices" {
