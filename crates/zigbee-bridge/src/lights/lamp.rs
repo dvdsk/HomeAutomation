@@ -83,7 +83,8 @@ impl LampProperty {
 
 impl Lamp {
     pub(super) fn changes_relative_to(&self, other: &Self) -> Vec<LampProperty> {
-        self.state.changes_relative_to(&other.state)
+        self.state
+            .changes_relative_to(&other.state, self.model.as_ref())
     }
 
     pub(super) fn apply(self, change: Change) -> Self {
@@ -114,7 +115,11 @@ fn xy_close(a: (f64, f64), b: (f64, f64)) -> bool {
 
 impl LampState {
     #[instrument]
-    pub(super) fn changes_relative_to(&self, other: &Self) -> Vec<LampProperty> {
+    pub(super) fn changes_relative_to(
+        &self,
+        other: &Self,
+        model: Option<&Model>,
+    ) -> Vec<LampProperty> {
         let mut res = Vec::new();
         if let Some(brightness) = self.brightness {
             if other
@@ -131,9 +136,11 @@ impl LampState {
             }
         }
 
-        if let Some(xy) = self.color_xy {
-            if other.color_xy.is_none_or(|xy_b| !xy_close(xy_b, xy)) {
-                res.push(LampProperty::ColorXY(xy));
+        if model.is_some_and(Model::is_color_lamp) {
+            if let Some(xy) = self.color_xy {
+                if other.color_xy.is_none_or(|xy_b| !xy_close(xy_b, xy)) {
+                    res.push(LampProperty::ColorXY(xy));
+                }
             }
         }
 
