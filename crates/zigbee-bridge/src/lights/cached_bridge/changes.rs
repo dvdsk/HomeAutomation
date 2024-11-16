@@ -30,7 +30,8 @@ pub(super) async fn handle(
             let (light_name, change) = res;
 
             trace!("Received change: {change:?} for lamp {light_name}");
-            apply_change(light_name, change, known_states, &mut needed_states).await;
+            apply_change(light_name, change, known_states, &mut needed_states)
+                .await;
         };
 
         call_again_in = send_and_queue(known_states, &mut needed_states, mqtt)
@@ -67,7 +68,9 @@ async fn send_and_queue(
 
         if !diff.is_empty() {
             // Ignore errors because we will retry if the state hasn't changed
-            if let Ok(dur) = mqtt.try_send_state_diff(light_name.to_string(), diff).await {
+            if let Ok(dur) =
+                mqtt.try_send_state_diff(light_name.to_string(), diff).await
+            {
                 call_again_in = call_again_in.min(dur);
             }
         }

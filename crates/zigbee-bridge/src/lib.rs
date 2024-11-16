@@ -25,7 +25,7 @@ mod tests {
     #[ignore]
     #[tokio::test]
     async fn change_all_lights() {
-        std::env::set_var("RUST_LOG", "brain=trace,zigbee_bridge=trace,info"); 
+        std::env::set_var("RUST_LOG", "brain=trace,zigbee_bridge=trace,info");
         let controller = Controller::start_bridge();
 
         println!("Setting to on, 2200");

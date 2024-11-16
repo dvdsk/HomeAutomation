@@ -6,10 +6,13 @@ use crate::lights::{mired_to_kelvin, normalize};
 
 use super::lamp::LampProperty;
 
-pub(super) fn parse_lamp_properties(bytes: &[u8]) -> color_eyre::Result<Vec<LampProperty>> {
+pub(super) fn parse_lamp_properties(
+    bytes: &[u8],
+) -> color_eyre::Result<Vec<LampProperty>> {
     let mut list = Vec::new();
 
-    let json: Value = serde_json::from_slice(bytes).wrap_err("Could not deserialize")?;
+    let json: Value =
+        serde_json::from_slice(bytes).wrap_err("Could not deserialize")?;
     let map = json
         .as_object()
         .ok_or_eyre("Top level json must be object")?;
@@ -29,8 +32,10 @@ pub(super) fn parse_lamp_properties(bytes: &[u8]) -> color_eyre::Result<Vec<Lamp
             let color = color
                 .as_object()
                 .ok_or_eyre("Color json should be an object")?;
-            let color_x = json_to_f64(color.get("x").ok_or_eyre("Need a key 'x'")?)?;
-            let color_y = json_to_f64(color.get("y").ok_or_eyre("Need a key 'y'")?)?;
+            let color_x =
+                json_to_f64(color.get("x").ok_or_eyre("Need a key 'x'")?)?;
+            let color_y =
+                json_to_f64(color.get("y").ok_or_eyre("Need a key 'y'")?)?;
             Ok::<_, Report>((color_x, color_y))
         })
         .transpose()?

@@ -12,8 +12,11 @@ mod changes;
 mod mqtt;
 mod poll;
 
-pub(super) async fn run(change_receiver: mpsc::UnboundedReceiver<(String, Change)>) -> ! {
-    let mut options = MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
+pub(super) async fn run(
+    change_receiver: mpsc::UnboundedReceiver<(String, Change)>,
+) -> ! {
+    let mut options =
+        MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
     // Set max mqtt packet size to 4kB
     options.set_max_packet_size(Some(4096));
 
@@ -21,7 +24,8 @@ pub(super) async fn run(change_receiver: mpsc::UnboundedReceiver<(String, Change
 
     // Reconnecting to broker is handled by Eventloop::poll
     let channel_capacity = 128;
-    let (client, eventloop) = AsyncClient::new(options.clone(), channel_capacity);
+    let (client, eventloop) =
+        AsyncClient::new(options.clone(), channel_capacity);
     let mut mqtt = Mqtt::new(client);
 
     mqtt.subscribe("zigbee2mqtt/bridge/devices").await.unwrap();
@@ -34,7 +38,8 @@ pub(super) async fn run(change_receiver: mpsc::UnboundedReceiver<(String, Change
 
     trace!("Starting main zigbee management loops");
     let poll_mqtt = poll::poll_mqtt(eventloop, &known_states);
-    let handle_changes = changes::handle(change_receiver, &mut mqtt, &known_states);
+    let handle_changes =
+        changes::handle(change_receiver, &mut mqtt, &known_states);
 
     tokio::select! {
         () = handle_changes => unreachable!("should not panic"),

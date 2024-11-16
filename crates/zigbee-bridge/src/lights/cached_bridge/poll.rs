@@ -38,7 +38,8 @@ pub(super) async fn poll_mqtt(
 
         match message {
             Message::StateUpdate((light_name, changed_properties)) => {
-                update_state(known_states, light_name, changed_properties).await;
+                update_state(known_states, light_name, changed_properties)
+                    .await;
             }
             Message::Devices(new_devices) => {
                 for (light_name, model) in new_devices {
@@ -79,7 +80,9 @@ async fn update_state(
             LampProperty::ColorTempK(temp) => curr.color_temp_k = Some(temp),
             LampProperty::ColorXY(xy) => curr.color_xy = Some(xy),
             LampProperty::On(is_on) => curr.on = Some(is_on),
-            LampProperty::ColorTempStartup(behavior) => curr.color_temp_startup = behavior,
+            LampProperty::ColorTempStartup(behavior) => {
+                curr.color_temp_startup = behavior
+            }
         }
     }
 }
@@ -155,7 +158,9 @@ fn parse_device(device: &Value) -> color_eyre::Result<(String, Model)> {
         Some("TRADFRI bulb E27 CWS globe 806lm") => Model::TradfriE27,
         Some("TRADFRI bulb E14 CWS globe 806lm") => Model::TradfriE14,
         Some("LCT001") => Model::HueGen4,
-        Some(id) if id.to_lowercase().contains("tradfri") => Model::TradfriOther(id.to_owned()),
+        Some(id) if id.to_lowercase().contains("tradfri") => {
+            Model::TradfriOther(id.to_owned())
+        }
         Some(id) => Model::Other(id.to_owned()),
         None => Model::Other(String::new()),
     };

@@ -10,7 +10,10 @@ use crate::lights::lamp::{LampProperty, LampPropertyDiscriminants};
 
 pub(super) struct Mqtt {
     client: AsyncClient,
-    property_last_set: HashMap<String, HashMap<LampPropertyDiscriminants, (Instant, LampProperty)>>,
+    property_last_set: HashMap<
+        String,
+        HashMap<LampPropertyDiscriminants, (Instant, LampProperty)>,
+    >,
 }
 
 impl Mqtt {
@@ -21,7 +24,10 @@ impl Mqtt {
         }
     }
 
-    pub(super) async fn subscribe(&self, topic: &str) -> Result<(), ClientError> {
+    pub(super) async fn subscribe(
+        &self,
+        topic: &str,
+    ) -> Result<(), ClientError> {
         // Its okay for messages to arrive twice or more. MQTT guarantees
         // ordering and we only do something if the cached bridge indicates we
         // need to so light states arriving twice is not an issue.
@@ -73,7 +79,8 @@ impl Mqtt {
             //     recently been set"
             // );
             let next_call_allowed = *at + TIME_IT_TAKES_TO_APPLY_CHANGE;
-            let until = next_call_allowed.saturating_duration_since(Instant::now());
+            let until =
+                next_call_allowed.saturating_duration_since(Instant::now());
             new_call_needed_in = new_call_needed_in.min(until);
         }
 
@@ -104,13 +111,23 @@ async fn get(
     Ok(())
 }
 
-async fn publish(client: &AsyncClient, topic: &str, payload: String) -> Result<(), ClientError> {
+async fn publish(
+    client: &AsyncClient,
+    topic: &str,
+    payload: String,
+) -> Result<(), ClientError> {
     let properties = rumqttc::v5::mqttbytes::v5::PublishProperties {
         message_expiry_interval: Some(5), // seconds
         ..Default::default()
     };
 
     client
-        .publish_with_properties(topic, QoS::AtLeastOnce, false, payload, properties)
+        .publish_with_properties(
+            topic,
+            QoS::AtLeastOnce,
+            false,
+            payload,
+            properties,
+        )
         .await
 }

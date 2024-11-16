@@ -53,11 +53,20 @@ pub(super) enum LampProperty {
 impl PartialEq for LampProperty {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (LampProperty::Brightness(a), LampProperty::Brightness(b)) => bri_close(*a, *b),
-            (LampProperty::ColorTempK(a), LampProperty::ColorTempK(b)) => temp_close(*a, *b),
-            (LampProperty::ColorXY(a), LampProperty::ColorXY(b)) => xy_close(*a, *b),
+            (LampProperty::Brightness(a), LampProperty::Brightness(b)) => {
+                bri_close(*a, *b)
+            }
+            (LampProperty::ColorTempK(a), LampProperty::ColorTempK(b)) => {
+                temp_close(*a, *b)
+            }
+            (LampProperty::ColorXY(a), LampProperty::ColorXY(b)) => {
+                xy_close(*a, *b)
+            }
             (LampProperty::On(a), LampProperty::On(b)) => a == b,
-            (LampProperty::ColorTempStartup(a), LampProperty::ColorTempStartup(b)) => a == b,
+            (
+                LampProperty::ColorTempStartup(a),
+                LampProperty::ColorTempStartup(b),
+            ) => a == b,
             (_, _) => false,
         }
     }
@@ -68,9 +77,15 @@ impl Eq for LampProperty {}
 impl LampProperty {
     pub(crate) fn payload(&self) -> String {
         match *self {
-            LampProperty::Brightness(bri) => json!({ "brightness": denormalize(bri) }),
-            LampProperty::ColorTempK(k) => json!({ "color_temp": kelvin_to_mired(k) }),
-            LampProperty::ColorXY((x, y)) => json!({ "color": {"x": x, "y": y} }),
+            LampProperty::Brightness(bri) => {
+                json!({ "brightness": denormalize(bri) })
+            }
+            LampProperty::ColorTempK(k) => {
+                json!({ "color_temp": kelvin_to_mired(k) })
+            }
+            LampProperty::ColorXY((x, y)) => {
+                json!({ "color": {"x": x, "y": y} })
+            }
             LampProperty::On(lamp_on) if lamp_on => json!({"state": "ON"}),
             LampProperty::On(_) => json!({"state": "OFF"}),
             LampProperty::ColorTempStartup(ColorTempStartup::Previous) => {
@@ -82,7 +97,10 @@ impl LampProperty {
 }
 
 impl Lamp {
-    pub(super) fn changes_relative_to(&self, other: &Self) -> Vec<LampProperty> {
+    pub(super) fn changes_relative_to(
+        &self,
+        other: &Self,
+    ) -> Vec<LampProperty> {
         self.state
             .changes_relative_to(&other.state, self.model.as_ref())
     }
@@ -214,7 +232,9 @@ impl PartialEq for Lamp {
             // We only ever set temp, and xy doesn't exist
             } else {
                 match (self.state.color_temp_k, other.state.color_temp_k) {
-                    (Some(self_temp), Some(other_temp)) => self_temp.abs_diff(other_temp) < 50,
+                    (Some(self_temp), Some(other_temp)) => {
+                        self_temp.abs_diff(other_temp) < 50
+                    }
                     _ => false,
                 }
             }
@@ -224,8 +244,11 @@ impl PartialEq for Lamp {
             false
         };
 
-        let bri_is_equal = match (self.state.brightness, other.state.brightness) {
-            (Some(self_bri), Some(other_bri)) => (self_bri - other_bri).abs() < 1. / 250.,
+        let bri_is_equal = match (self.state.brightness, other.state.brightness)
+        {
+            (Some(self_bri), Some(other_bri)) => {
+                (self_bri - other_bri).abs() < 1. / 250.
+            }
             _ => false,
         };
 
@@ -261,7 +284,9 @@ impl Model {
             Model::TradfriE27 | Model::TradfriE14 | Model::HueGen4 => true,
             Model::TradfriCandle => false,
             // We assume no so that things at least don't break
-            Model::TradfriOther(_) | Model::HueOther(_) | Model::Other(_) => false,
+            Model::TradfriOther(_) | Model::HueOther(_) | Model::Other(_) => {
+                false
+            }
         }
     }
 
