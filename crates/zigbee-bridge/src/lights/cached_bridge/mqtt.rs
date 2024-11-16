@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use rumqttc::v5::mqttbytes::QoS;
 use rumqttc::v5::{AsyncClient, ClientError};
 use serde_json::json;
-use tracing::{instrument, trace};
+use tracing::{instrument, trace, warn};
 
 use crate::lights::lamp::{LampProperty, LampPropertyDiscriminants};
 
@@ -121,6 +121,7 @@ async fn publish(
         ..Default::default()
     };
 
+    warn!("To MQTT: {topic}, {payload}");
     client
         .publish_with_properties(
             topic,

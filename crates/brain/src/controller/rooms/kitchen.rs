@@ -4,6 +4,7 @@ use futures_concurrency::future::Race;
 use futures_util::FutureExt;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
+use tracing::warn;
 
 use crate::controller::rooms::small_bedroom;
 use crate::controller::{local_now, Event, RestrictedSystem};
@@ -75,26 +76,29 @@ pub async fn run(
             Res::Event(_) => (), // handle_event(e),
             Res::ShouldUpdate => {
                 update(&mut system).await;
-                next_update = Instant::now() + Duration::from_secs(60);
+                next_update = Instant::now() + INTERVAL;
             }
         }
     }
 }
 
 async fn update(system: &mut RestrictedSystem) {
-    let (new_ct, new_bri) = small_bedroom::optimal_ct_bri();
+    let (new_ct, new_bri) = optimal_ct_bri();
     system.all_lamps_ct(new_ct, new_bri).await;
     tracing::trace!("updated lamps");
 }
 
-fn _optimal_ct_bri() -> (u16, u8) {
+fn optimal_ct_bri() -> (u16, u8) {
     let now = local_now();
-    match now.hour() {
-        0..=8 | 22.. => (500, 180),
-        9..=16 => (270, u8::MAX),
-        17..=19 => (300, u8::MAX),
-        20..=21 => (400, 210),
+    let optimal = match now.hour() {
+        min if min % 2 == 0 => (400, u8::MAX), // Even hour: orange
+        min if min % 2 == 1 => (250, u8::MAX), // Odd hour: blue
+        _ => (400, u8::MAX),
+    };
+    if now.second() <= 9 {
+        warn!("Correct color temp is now {}", optimal.0);
     }
+    optimal
 }
 
 // fn handle_event(e: RelevantEvent) {
