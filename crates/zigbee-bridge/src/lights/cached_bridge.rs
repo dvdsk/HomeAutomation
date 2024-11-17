@@ -5,15 +5,15 @@ use tokio::sync::{mpsc, RwLock};
 use tracing::trace;
 
 use self::mqtt::Mqtt;
-use crate::lights::lamp::Change;
-use crate::{LIGHTS, MQTT_IP, MQTT_PORT};
+use crate::{lights::lamp, LIGHTS, MQTT_IP, MQTT_PORT};
+
 
 mod changes;
 mod mqtt;
 mod poll;
 
 pub(super) async fn run(
-    change_receiver: mpsc::UnboundedReceiver<(String, Change)>,
+    change_receiver: mpsc::UnboundedReceiver<(String, lamp::Change)>,
 ) -> ! {
     let mut options =
         MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);

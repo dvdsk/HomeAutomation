@@ -4,11 +4,11 @@ use serde_json::Value;
 
 use crate::lights::{mired_to_kelvin, normalize};
 
-use super::lamp::LampProperty;
+use super::lamp;
 
 pub(super) fn parse_lamp_properties(
     bytes: &[u8],
-) -> color_eyre::Result<Vec<LampProperty>> {
+) -> color_eyre::Result<Vec<lamp::Property>> {
     let mut list = Vec::new();
 
     let json: Value =
@@ -23,7 +23,7 @@ pub(super) fn parse_lamp_properties(
         .transpose()?
         .map(mired_to_kelvin)
     {
-        list.push(LampProperty::ColorTempK(kelvin));
+        list.push(lamp::Property::ColorTempK(kelvin));
     }
 
     if let Some(xy) = map
@@ -40,7 +40,7 @@ pub(super) fn parse_lamp_properties(
         })
         .transpose()?
     {
-        list.push(LampProperty::ColorXY(xy));
+        list.push(lamp::Property::ColorXY(xy));
     }
 
     if let Some(brightness) = map
@@ -49,7 +49,7 @@ pub(super) fn parse_lamp_properties(
         .transpose()?
         .map(normalize)
     {
-        list.push(LampProperty::Brightness(brightness));
+        list.push(lamp::Property::Brightness(brightness));
     }
 
     if let Some(on) = map
@@ -65,7 +65,7 @@ pub(super) fn parse_lamp_properties(
         })
         .transpose()?
     {
-        list.push(LampProperty::On(on));
+        list.push(lamp::Property::On(on));
     }
 
     // TODO: startup behavior? <14-11-24, dvdsk>

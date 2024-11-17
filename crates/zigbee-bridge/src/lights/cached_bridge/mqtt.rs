@@ -6,13 +6,13 @@ use rumqttc::v5::{AsyncClient, ClientError};
 use serde_json::json;
 use tracing::{instrument, trace, warn};
 
-use crate::lights::lamp::{LampProperty, LampPropertyDiscriminants};
+use crate::lights::lamp;
 
 pub(super) struct Mqtt {
     client: AsyncClient,
     property_last_set: HashMap<
         String,
-        HashMap<LampPropertyDiscriminants, (Instant, LampProperty)>,
+        HashMap<lamp::PropertyDiscriminants, (Instant, lamp::Property)>,
     >,
 }
 
@@ -45,7 +45,7 @@ impl Mqtt {
     pub(super) async fn try_send_state_diff(
         &mut self,
         light_name: String,
-        diff: Vec<LampProperty>,
+        diff: Vec<lamp::Property>,
     ) -> Result<Duration, ClientError> {
         const TIME_IT_TAKES_TO_APPLY_CHANGE: Duration = Duration::from_secs(1);
         let mut new_call_needed_in: Duration = Duration::MAX;

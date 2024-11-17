@@ -10,7 +10,7 @@ use tokio::{sync::RwLock, time::sleep};
 use tracing::{instrument, trace, warn};
 
 use crate::lights::kelvin_to_mired;
-use crate::lights::lamp::{Lamp, LampProperty, Model};
+use crate::lights::lamp::{self, Lamp};
 use crate::lights::parse_state::parse_lamp_properties;
 
 pub(super) async fn poll_mqtt(
@@ -55,7 +55,7 @@ pub(super) async fn poll_mqtt(
 async fn update_model(
     known_states: &RwLock<HashMap<String, Lamp>>,
     light_name: String,
-    model: Model,
+    model: lamp::Model,
 ) {
     let mut known_states = known_states.write().await;
     let current_lamp = known_states.entry(light_name.to_string()).or_default();
@@ -65,12 +65,12 @@ async fn update_model(
 async fn update_state(
     known_states: &RwLock<HashMap<String, Lamp>>,
     light_name: String,
-    new: Vec<LampProperty>,
+    new: Vec<lamp::Property>,
 ) {
     let mut known_states = known_states.write().await;
     let current_lamp = known_states.entry(light_name.to_string()).or_default();
     for property in new {
-        if let LampProperty::ColorTempK(temp) = property {
+        if let lamp::Property::ColorTempK(temp) = property {
             if light_name == "kitchen:fridge" {
                 warn!(
                     "ZB received fridge color temp change: {}",
@@ -102,7 +102,7 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
             .as_array()
             .ok_or_eyre("devices list should be array its not")
             .with_note(|| format!("json was: {json:?}"))?;
-        let devices: HashMap<String, Model> = list
+        let devices: HashMap<String, lamp::Model> = list
             .iter()
             .map(|dev| {
                 parse_device(dev)
@@ -125,13 +125,13 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
 
 #[derive(Debug)]
 enum Message {
-    StateUpdate((String, Vec<LampProperty>)),
-    Devices(HashMap<String, Model>),
+    StateUpdate((String, Vec<lamp::Property>)),
+    Devices(HashMap<String, lamp::Model>),
     Other,
 }
 
 #[instrument(skip_all)]
-fn parse_device(device: &Value) -> color_eyre::Result<(String, Model)> {
+fn parse_device(device: &Value) -> color_eyre::Result<(String, lamp::Model)> {
     let properties = device
         .as_object()
         .wrap_err("device should be json object")?;
@@ -149,15 +149,15 @@ fn parse_device(device: &Value) -> color_eyre::Result<(String, Model)> {
         .transpose()?;
 
     let model = match model_id {
-        Some("TRADFRI bulb E14 WS candle 470lm") => Model::TradfriCandle,
-        Some("TRADFRI bulb E27 CWS globe 806lm") => Model::TradfriE27,
-        Some("TRADFRI bulb E14 CWS globe 806lm") => Model::TradfriE14,
-        Some("LCT001") => Model::HueGen4,
+        Some("TRADFRI bulb E14 WS candle 470lm") => lamp::Model::TradfriCandle,
+        Some("TRADFRI bulb E27 CWS globe 806lm") => lamp::Model::TradfriE27,
+        Some("TRADFRI bulb E14 CWS globe 806lm") => lamp::Model::TradfriE14,
+        Some("LCT001") => lamp::Model::HueGen4,
         Some(id) if id.to_lowercase().contains("tradfri") => {
-            Model::TradfriOther(id.to_owned())
+            lamp::Model::TradfriOther(id.to_owned())
         }
-        Some(id) => Model::Other(id.to_owned()),
-        None => Model::Other(String::new()),
+        Some(id) => lamp::Model::Other(id.to_owned()),
+        None => lamp::Model::Other(String::new()),
     };
 
     Ok((friendly_name, model))

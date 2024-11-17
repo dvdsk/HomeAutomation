@@ -1,7 +1,7 @@
 use tracing::instrument;
 
 use super::property::{
-    bri_is_close, temp_is_close, xy_is_close, ColorTempStartup, LampProperty,
+    bri_is_close, temp_is_close, xy_is_close, ColorTempStartup, Property,
 };
 use super::Change;
 use super::Model;
@@ -36,14 +36,14 @@ impl LampState {
         &self,
         other: &Self,
         model: Option<&Model>,
-    ) -> Vec<LampProperty> {
+    ) -> Vec<Property> {
         let mut res = Vec::new();
         if let Some(bri_self) = self.brightness {
             if other
                 .brightness
                 .is_none_or(|bri_other| !bri_is_close(bri_other, bri_self))
             {
-                res.push(LampProperty::Brightness(bri_self));
+                res.push(Property::Brightness(bri_self));
             }
         }
 
@@ -52,7 +52,7 @@ impl LampState {
                 .color_temp_k
                 .is_none_or(|temp_other| !temp_is_close(temp_other, temp_self))
             {
-                res.push(LampProperty::ColorTempK(temp_self));
+                res.push(Property::ColorTempK(temp_self));
             }
         }
 
@@ -62,19 +62,19 @@ impl LampState {
                     .color_xy
                     .is_none_or(|xy_other| !xy_is_close(xy_other, xy_self))
                 {
-                    res.push(LampProperty::ColorXY(xy_self));
+                    res.push(Property::ColorXY(xy_self));
                 }
             }
         }
 
         if let Some(on_self) = self.on {
             if other.on.is_none_or(|on_other| on_other != on_self) {
-                res.push(LampProperty::On(on_self));
+                res.push(Property::On(on_self));
             }
         }
 
         if self.color_temp_startup != other.color_temp_startup {
-            res.push(LampProperty::ColorTempStartup(self.color_temp_startup));
+            res.push(Property::ColorTempStartup(self.color_temp_startup));
         }
 
         res
@@ -94,22 +94,22 @@ impl LampState {
         new_state
     }
 
-    pub(crate) fn property_list(&self) -> Vec<LampProperty> {
+    pub(crate) fn property_list(&self) -> Vec<Property> {
         // we do not send color xy as the lamp might not support it
         // if it does then property_list is never called but an exact
         // diff between the current and need state is send
 
         let mut list = Vec::new();
         if let Some(val) = self.brightness {
-            list.push(LampProperty::Brightness(val));
+            list.push(Property::Brightness(val));
         }
         if let Some(val) = self.color_temp_k {
-            list.push(LampProperty::ColorTempK(val));
+            list.push(Property::ColorTempK(val));
         }
         if let Some(val) = self.on {
-            list.push(LampProperty::On(val));
+            list.push(Property::On(val));
         }
-        list.push(LampProperty::ColorTempStartup(self.color_temp_startup));
+        list.push(Property::ColorTempStartup(self.color_temp_startup));
         list
     }
 }

@@ -6,11 +6,11 @@ use tokio::time::{sleep, timeout};
 use tracing::{debug, instrument, trace};
 
 use super::mqtt::Mqtt;
-use crate::lights::lamp::{Change, Lamp};
+use crate::lights::lamp::{self, Lamp};
 use crate::LIGHTS;
 
 pub(super) async fn handle(
-    mut change_receiver: mpsc::UnboundedReceiver<(String, Change)>,
+    mut change_receiver: mpsc::UnboundedReceiver<(String, lamp::Change)>,
     mqtt: &mut Mqtt,
     known_states: &RwLock<HashMap<String, Lamp>>,
 ) -> ! {
@@ -81,7 +81,7 @@ async fn send_and_queue(
 #[instrument(skip_all)]
 async fn apply_change(
     light_name: String,
-    change: Change,
+    change: lamp::Change,
     known_states: &RwLock<HashMap<String, Lamp>>,
     needed_states: &mut HashMap<String, Lamp>,
 ) {

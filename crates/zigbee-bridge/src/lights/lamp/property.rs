@@ -10,7 +10,7 @@ pub(crate) enum ColorTempStartup {
 
 #[derive(Debug, EnumDiscriminants, Clone, Copy)]
 #[strum_discriminants(derive(Hash))]
-pub(crate) enum LampProperty {
+pub(crate) enum Property {
     Brightness(f64),
     ColorTempK(usize),
     ColorXY((f64, f64)),
@@ -18,45 +18,45 @@ pub(crate) enum LampProperty {
     ColorTempStartup(ColorTempStartup),
 }
 
-impl PartialEq for LampProperty {
+impl PartialEq for Property {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (LampProperty::Brightness(a), LampProperty::Brightness(b)) => {
+            (Property::Brightness(a), Property::Brightness(b)) => {
                 bri_is_close(*a, *b)
             }
-            (LampProperty::ColorTempK(a), LampProperty::ColorTempK(b)) => {
+            (Property::ColorTempK(a), Property::ColorTempK(b)) => {
                 temp_is_close(*a, *b)
             }
-            (LampProperty::ColorXY(a), LampProperty::ColorXY(b)) => {
+            (Property::ColorXY(a), Property::ColorXY(b)) => {
                 xy_is_close(*a, *b)
             }
-            (LampProperty::On(a), LampProperty::On(b)) => a == b,
+            (Property::On(a), Property::On(b)) => a == b,
             (
-                LampProperty::ColorTempStartup(a),
-                LampProperty::ColorTempStartup(b),
+                Property::ColorTempStartup(a),
+                Property::ColorTempStartup(b),
             ) => a == b,
             (_, _) => false,
         }
     }
 }
 
-impl Eq for LampProperty {}
+impl Eq for Property {}
 
-impl LampProperty {
+impl Property {
     pub(crate) fn payload(&self) -> String {
         match *self {
-            LampProperty::Brightness(bri) => {
+            Property::Brightness(bri) => {
                 json!({ "brightness": denormalize(bri) })
             }
-            LampProperty::ColorTempK(k) => {
+            Property::ColorTempK(k) => {
                 json!({ "color_temp": kelvin_to_mired(k) })
             }
-            LampProperty::ColorXY((x, y)) => {
+            Property::ColorXY((x, y)) => {
                 json!({ "color": {"x": x, "y": y} })
             }
-            LampProperty::On(lamp_on) if lamp_on => json!({"state": "ON"}),
-            LampProperty::On(_) => json!({"state": "OFF"}),
-            LampProperty::ColorTempStartup(ColorTempStartup::Previous) => {
+            Property::On(lamp_on) if lamp_on => json!({"state": "ON"}),
+            Property::On(_) => json!({"state": "OFF"}),
+            Property::ColorTempStartup(ColorTempStartup::Previous) => {
                 json!({"color_temp_startup": "previous"})
             }
         }

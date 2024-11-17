@@ -1,5 +1,5 @@
 pub(super) use model::Model;
-pub(super) use property::{LampProperty, LampPropertyDiscriminants};
+pub(super) use property::{Property, PropertyDiscriminants};
 
 use state::LampState;
 
@@ -25,7 +25,7 @@ impl Lamp {
     pub(super) fn changes_relative_to(
         &self,
         other: &Self,
-    ) -> Vec<LampProperty> {
+    ) -> Vec<Property> {
         self.state
             .changes_relative_to(&other.state, self.model.as_ref())
     }
@@ -37,18 +37,18 @@ impl Lamp {
         }
     }
 
-    pub(crate) fn property_list(&self) -> Vec<LampProperty> {
+    pub(crate) fn property_list(&self) -> Vec<Property> {
         self.state.property_list()
     }
 
-    pub(crate) fn change_state(&mut self, property: LampProperty) {
+    pub(crate) fn change_state(&mut self, property: Property) {
         let state = &mut self.state;
         match property {
-            LampProperty::Brightness(bri) => state.brightness = Some(bri),
-            LampProperty::ColorTempK(temp) => state.color_temp_k = Some(temp),
-            LampProperty::ColorXY(xy) => state.color_xy = Some(xy),
-            LampProperty::On(is_on) => state.on = Some(is_on),
-            LampProperty::ColorTempStartup(behavior) => {
+            Property::Brightness(bri) => state.brightness = Some(bri),
+            Property::ColorTempK(temp) => state.color_temp_k = Some(temp),
+            Property::ColorXY(xy) => state.color_xy = Some(xy),
+            Property::On(is_on) => state.on = Some(is_on),
+            Property::ColorTempStartup(behavior) => {
                 state.color_temp_startup = behavior;
             }
         }
