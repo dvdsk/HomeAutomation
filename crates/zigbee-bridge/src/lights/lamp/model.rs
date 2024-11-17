@@ -7,12 +7,13 @@ pub(crate) enum Model {
     TradfriE14,
     HueGen4,
     TradfriOther(String),
+    #[allow(unused)]
     HueOther(String),
     Other(String),
 }
 
 impl Model {
-    pub(crate) fn is_color_lamp(&self) -> bool {
+    pub(super) fn is_color_lamp(&self) -> bool {
         #[allow(clippy::match_same_arms)] // clearer comment
         match self {
             Model::TradfriE27 | Model::TradfriE14 | Model::HueGen4 => true,
@@ -24,7 +25,8 @@ impl Model {
         }
     }
 
-    pub(crate) fn color_deviation(&self, color_temp: usize) -> (usize, f64) {
+    #[allow(unused)]
+    pub(super) fn color_deviation(&self, color_temp: usize) -> (usize, f64) {
         match self {
             Model::TradfriCandle => todo!(),
             Model::TradfriE27 => todo!(),
@@ -36,8 +38,9 @@ impl Model {
         }
     }
 
+    #[allow(unused)]
     // Value for actual color temp (after temp correction)
-    pub(crate) fn blackbody_table(&self) -> HashMap<usize, f64> {
+    fn blackbody_table(&self) -> HashMap<usize, f64> {
         match self {
             // 105.455.00 data
             Model::TradfriCandle => vec![
@@ -94,8 +97,9 @@ impl Model {
         .collect()
     }
 
+    #[allow(unused)]
     // Value to add to requested color temp
-    pub(crate) fn temp_table(&self) -> HashMap<usize, isize> {
+    fn temp_table(&self) -> HashMap<usize, isize> {
         match self {
             Model::TradfriCandle => {
                 vec![(2200, 30), (2700, 20), (4000, 50)]
