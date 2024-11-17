@@ -5,6 +5,7 @@ use clap::Parser;
 use color_eyre::eyre::Context;
 use color_eyre::Section;
 use data_server::api::data_source::reconnecting;
+use tracing::debug;
 
 mod usb;
 
@@ -25,7 +26,9 @@ struct Cli {
 async fn main() -> Result<(), color_eyre::Report> {
     color_eyre::install().unwrap();
     setup_tracing();
+
     let args = Cli::parse();
+    debug!("Started usb-bridge");
 
     let (order_tx, order_rx) = tokio::sync::mpsc::channel(10);
     let mut usb = usb::ReconnectingUsb::new(args.serial_number, order_rx);
@@ -33,17 +36,20 @@ async fn main() -> Result<(), color_eyre::Report> {
         .get_affectors()
         .await
         .wrap_err("Could not get affector list")?;
-    // let mut server_client = reconnecting::Client::new(args.data_server, affectors, Some(order_tx));
-    dbg!(affectors);
+    dbg!(&affectors);
+    let mut server_client = reconnecting::Client::new(
+        args.data_server,
+        affectors,
+        Some(order_tx),
+    ).await?;
 
     loop {
         let encoded_msg = usb.handle_usb().await;
-        dbg!("msg: {}", encoded_msg.len());
-        // server_client
-        //     .check_send_encoded(encoded_msg)
-        //     .await
-        //     .wrap_err("Should be correctly encoded")
-        //     .suggestion("Check if this needs to be updated")?;
+        server_client
+            .check_send_encoded(encoded_msg)
+            .await
+            .wrap_err("Should be correctly encoded")
+            .suggestion("Check if this needs to be updated")?;
     }
 }
 
@@ -55,6 +61,7 @@ fn setup_tracing() {
         .with_file(true)
         .with_line_number(true)
         .with_target(false)
+        .without_time()
         .with_ansi(false)
         .with_filter(tracing_subscriber::filter::EnvFilter::from_default_env());
     tracing_subscriber::registry()

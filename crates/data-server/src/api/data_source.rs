@@ -51,21 +51,10 @@ impl Client {
         let (reader, writer) = stream.into_split();
 
         Ok(Self {
-            receiver: Receiver {
-                reader,
-                decoder: affector::Decoder::default(),
-                buffer: vec![0u8; 100],
-            },
+            receiver: Receiver::from_reader(reader),
             sender: Sender(writer),
         })
     }
-}
-
-pub struct Sender(OwnedWriteHalf);
-pub struct Receiver {
-    reader: OwnedReadHalf,
-    decoder: affector::Decoder,
-    buffer: Vec<u8>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -107,13 +96,37 @@ pub enum ReceiveError {
     Io(std::io::Error),
     #[error("The connection was closed by the data-server")]
     ConnClosed,
+    #[error("Could not deserialize")]
+    Deserialize(affector::DeserializeError),
+}
+
+pub struct Sender(OwnedWriteHalf);
+pub struct Receiver {
+    reader: OwnedReadHalf,
+    decoder: affector::Decoder,
+    buffer: Vec<u8>,
 }
 
 impl Receiver {
+    fn from_reader(reader: OwnedReadHalf) -> Self {
+        Self {
+            reader,
+            decoder: affector::Decoder::default(),
+            buffer: Vec::new(),
+        }
+    }
+
     pub async fn receive(&mut self) -> Result<protocol::Affector, ReceiveError> {
         loop {
             if !self.buffer.is_empty() {
-                if let Some((item, remaining)) = self.decoder.feed(&self.buffer) {
+                if let Some((item, remaining)) = self
+                    .decoder
+                    // this should shrink the buffer on deserialize error, it does
+                    // not however. For now its okay (no more errors) however if
+                    // something goes wrong in the future this is where to look first
+                    .feed(&self.buffer)
+                    .map_err(ReceiveError::Deserialize)?
+                {
                     let new_buffer = remaining.to_vec();
                     self.buffer = new_buffer;
                     return Ok(item);

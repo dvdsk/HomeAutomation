@@ -94,18 +94,25 @@ impl Default for Decoder {
     }
 }
 
+#[derive(Debug)]
+pub struct DeserializeError;
+
 impl Decoder {
     /// If this returns Some(_, remaining) move the remaining into it again
-    pub fn feed<'a>(&mut self, read_bytes: &'a [u8]) -> Option<(Affector, &'a [u8])> {
+    pub fn feed<'a>(
+        &mut self,
+        read_bytes: &'a [u8],
+    ) -> Result<Option<(Affector, &'a [u8])>, DeserializeError> {
         let mut window = read_bytes;
         while !window.is_empty() {
             window = match self.cobs_buf.feed::<Affector>(read_bytes) {
                 FeedResult::Consumed => break,
-                FeedResult::OverFull(new_window) | FeedResult::DeserError(new_window) => new_window,
-                FeedResult::Success { data, remaining } => return Some((data, remaining)),
+                FeedResult::OverFull(new_window) => new_window,
+                FeedResult::DeserError(_) => return Err(DeserializeError),
+                FeedResult::Success { data, remaining } => return Ok(Some((data, remaining))),
             }
         }
-        None
+        Ok(None)
     }
 }
 
@@ -170,8 +177,8 @@ mod test {
 
         let mut decoder = Decoder::default();
 
-        decoder.feed(&encoded);
-        let res = decoder.feed(&encoded);
+        decoder.feed(&encoded).unwrap();
+        let res = decoder.feed(&encoded).unwrap();
 
         let empty_slice = [].as_slice();
         assert_eq!(res, Some((test_affector, empty_slice)));

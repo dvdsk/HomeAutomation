@@ -10,7 +10,7 @@ authors.workspace = true
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"], default-features = false }
-postcard = { version = "1.0", features = ["experimental-derive", "use-defmt"] }
+postcard = { version = "1.0.10", features = ["experimental-derive", "use-defmt"] }
 heapless = { version = "0.8.0", features = ["serde", "defmt-03"] }
 strum = { version = "0.26.2", default-features = false, features = ["derive"] }
 thiserror = { workspace = true, optional = true }

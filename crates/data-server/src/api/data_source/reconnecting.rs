@@ -46,6 +46,7 @@ async fn handle_conn(
                 }
             }
         } else {
+            dbg!();
             handle_sending(conn.sender, &mut msgs_to_send).await;
         }
     }
@@ -70,6 +71,7 @@ async fn handle_sending(
         if let Err(e) = res {
             return SendOrRecvError::Sending(e);
         }
+        tracing::debug!("send bytes: {}", msg.len());
     }
 }
 
@@ -97,6 +99,7 @@ async fn handle_recieving(
             Err(err) => return SendOrRecvError::Recieving(err),
         };
 
+        tracing::debug!("recv item: {msg:?}");
         msgs_recieved
             .send(msg)
             .await
@@ -104,23 +107,34 @@ async fn handle_recieving(
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+#[error("Invalid address: {0}")]
+pub struct InvalidAddress(String);
+
 impl Client {
     /// Needs a list of the affectors that can be controlled through this
     /// node as an argument. If your node provides not controllable affectors
     /// pass in an empty Vec.
     #[must_use]
-    pub fn new(
-        addr: SocketAddr,
+    pub async fn new<A: tokio::net::ToSocketAddrs>(
+        addr: A,
         affectors: Vec<protocol::Affector>,
         affector_tx: Option<mpsc::Sender<Affector>>,
-    ) -> Self {
+    ) -> Result<Self, InvalidAddress> {
+        let addr: SocketAddr = tokio::net::lookup_host(addr)
+            .await
+            .map_err(|e| e.to_string())
+            .map_err(InvalidAddress)?
+            .next()
+            .ok_or_else(|| InvalidAddress("No address passed in".to_string()))?;
+
         let (to_send_tx, to_send_rx) = mpsc::channel(100);
         let task = handle_conn(addr, affectors, to_send_rx, affector_tx);
         let handle = tokio::spawn(task);
-        Self {
+        Ok(Self {
             _conn_handler_task: AbortOnDrop(handle),
             to_send_tx,
-        }
+        })
     }
 
     async fn send_bytes(&mut self, bytes: Vec<u8>) -> Result<(), SendError> {

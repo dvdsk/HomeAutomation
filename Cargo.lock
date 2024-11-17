@@ -958,6 +958,7 @@ dependencies = [
  "heapless 0.8.0",
  "linux-embedded-hal",
  "protocol",
+ "ratelimited-logger",
  "tokio",
  "tracing",
  "tracing-error",

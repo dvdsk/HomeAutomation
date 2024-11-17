@@ -21,6 +21,10 @@ struct Cli {
     /// Addr to which data-source can supply messages
     #[arg(short, long)]
     update_addr: SocketAddr,
+
+    /// Reset data-sources that have missing or slow sensors
+    #[arg(short, long)]
+    enable_reset: bool,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -30,6 +34,7 @@ async fn main() -> Result<()> {
     let Cli {
         subscribe_addr,
         update_addr,
+        enable_reset,
     } = Cli::parse();
     assert_ne!(subscribe_addr, update_addr);
 
@@ -38,11 +43,20 @@ async fn main() -> Result<()> {
 
     let affectors = server::AffectorRegistar::default();
     let (tx, rx) = mpsc::channel(2000);
-    select! {
-        e = server::client::handle(subscribe_addr, tx.clone(), affectors.clone()) => e,
-        e = server::handle_nodes(update_addr, &tx, affectors.clone()) => e,
-        e = server::spread_updates(rx) => e,
-        _ = server::node_watchdog(affectors, &tx) => Ok(()),
+
+    if enable_reset {
+        select! {
+            e = server::client::handle(subscribe_addr, tx.clone(), affectors.clone()) => e,
+            e = server::handle_nodes(update_addr, &tx, affectors.clone()) => e,
+            e = server::spread_updates(rx) => e,
+            _ = server::node_watchdog(affectors, &tx) => Ok(()),
+        }
+    } else {
+        select! {
+            e = server::client::handle(subscribe_addr, tx.clone(), affectors.clone()) => e,
+            e = server::handle_nodes(update_addr, &tx, affectors.clone()) => e,
+            e = server::spread_updates(rx) => e,
+        }
     }
 }
 
