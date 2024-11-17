@@ -54,13 +54,13 @@ impl PartialEq for LampProperty {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (LampProperty::Brightness(a), LampProperty::Brightness(b)) => {
-                bri_close(*a, *b)
+                bri_is_close(*a, *b)
             }
             (LampProperty::ColorTempK(a), LampProperty::ColorTempK(b)) => {
-                temp_close(*a, *b)
+                temp_is_close(*a, *b)
             }
             (LampProperty::ColorXY(a), LampProperty::ColorXY(b)) => {
-                xy_close(*a, *b)
+                xy_is_close(*a, *b)
             }
             (LampProperty::On(a), LampProperty::On(b)) => a == b,
             (
@@ -117,15 +117,15 @@ impl Lamp {
     }
 }
 
-fn bri_close(a: f64, b: f64) -> bool {
+fn bri_is_close(a: f64, b: f64) -> bool {
     (a - b).abs() < 1. / 250.
 }
 
-fn temp_close(a: usize, b: usize) -> bool {
+fn temp_is_close(a: usize, b: usize) -> bool {
     a.abs_diff(b) < 50
 }
 
-fn xy_close(a: (f64, f64), b: (f64, f64)) -> bool {
+fn xy_is_close(a: (f64, f64), b: (f64, f64)) -> bool {
     let d_color_x = (a.0 - b.0).abs();
     let d_color_y = (a.1 - b.1).abs();
     d_color_x < 0.01 && d_color_y < 0.01
@@ -139,32 +139,38 @@ impl LampState {
         model: Option<&Model>,
     ) -> Vec<LampProperty> {
         let mut res = Vec::new();
-        if let Some(brightness) = self.brightness {
+        if let Some(bri_self) = self.brightness {
             if other
                 .brightness
-                .is_none_or(|bri| !bri_close(bri, brightness))
+                .is_none_or(|bri_other| !bri_is_close(bri_other, bri_self))
             {
-                res.push(LampProperty::Brightness(brightness));
+                res.push(LampProperty::Brightness(bri_self));
             }
         }
 
-        if let Some(temp) = self.color_temp_k {
-            if other.color_temp_k.is_none_or(|t| !temp_close(t, temp)) {
-                res.push(LampProperty::ColorTempK(temp));
+        if let Some(temp_self) = self.color_temp_k {
+            if other
+                .color_temp_k
+                .is_none_or(|temp_other| !temp_is_close(temp_other, temp_self))
+            {
+                res.push(LampProperty::ColorTempK(temp_self));
             }
         }
 
         if model.is_some_and(Model::is_color_lamp) {
-            if let Some(xy) = self.color_xy {
-                if other.color_xy.is_none_or(|xy_b| !xy_close(xy_b, xy)) {
-                    res.push(LampProperty::ColorXY(xy));
+            if let Some(xy_self) = self.color_xy {
+                if other
+                    .color_xy
+                    .is_none_or(|xy_other| !xy_is_close(xy_other, xy_self))
+                {
+                    res.push(LampProperty::ColorXY(xy_self));
                 }
             }
         }
 
-        if let Some(on) = self.on {
-            if other.on.is_none_or(|on_b| on_b != on) {
-                res.push(LampProperty::On(on));
+        if let Some(on_self) = self.on {
+            if other.on.is_none_or(|on_other| on_other != on_self) {
+                res.push(LampProperty::On(on_self));
             }
         }
 
