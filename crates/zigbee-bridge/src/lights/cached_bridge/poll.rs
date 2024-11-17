@@ -71,28 +71,18 @@ async fn update_state(
     new: Vec<LampProperty>,
 ) {
     let mut known_states = known_states.write().await;
-    let curr = &mut known_states
-        .entry(light_name.to_string())
-        .or_default()
-        .state;
+    let current_lamp =
+        &mut known_states.entry(light_name.to_string()).or_default();
     for property in new {
-        match property {
-            LampProperty::Brightness(bri) => curr.brightness = Some(bri),
-            LampProperty::ColorTempK(temp) => {
-                if light_name == "kitchen:fridge" {
-                    warn!(
-                        "ZB received fridge color temp change: {}",
-                        kelvin_to_mired(temp)
-                    );
-                }
-                curr.color_temp_k = Some(temp)
-            }
-            LampProperty::ColorXY(xy) => curr.color_xy = Some(xy),
-            LampProperty::On(is_on) => curr.on = Some(is_on),
-            LampProperty::ColorTempStartup(behavior) => {
-                curr.color_temp_startup = behavior
+        if let LampProperty::ColorTempK(temp) = property {
+            if light_name == "kitchen:fridge" {
+                warn!(
+                    "ZB received fridge color temp change: {}",
+                    kelvin_to_mired(temp)
+                );
             }
         }
+        current_lamp.change_state(property);
     }
 }
 

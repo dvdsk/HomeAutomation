@@ -1,6 +1,8 @@
 pub(super) use model::Model;
 pub(super) use property::{LampProperty, LampPropertyDiscriminants};
 
+use state::LampState;
+
 mod model;
 mod property;
 mod state;
@@ -16,7 +18,7 @@ pub(super) enum Change {
 #[derive(Default, Clone, Debug)]
 pub(super) struct Lamp {
     pub(super) model: Option<Model>,
-    pub(super) state: state::LampState,
+    state: LampState,
 }
 
 impl Lamp {
@@ -37,6 +39,19 @@ impl Lamp {
 
     pub(crate) fn property_list(&self) -> Vec<LampProperty> {
         self.state.property_list()
+    }
+
+    pub(crate) fn change_state(&mut self, property: LampProperty) {
+        let state = &mut self.state;
+        match property {
+            LampProperty::Brightness(bri) => state.brightness = Some(bri),
+            LampProperty::ColorTempK(temp) => state.color_temp_k = Some(temp),
+            LampProperty::ColorXY(xy) => state.color_xy = Some(xy),
+            LampProperty::On(is_on) => state.on = Some(is_on),
+            LampProperty::ColorTempStartup(behavior) => {
+                state.color_temp_startup = behavior
+            }
+        }
     }
 }
 

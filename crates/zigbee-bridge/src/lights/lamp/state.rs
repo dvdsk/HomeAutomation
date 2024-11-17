@@ -8,12 +8,12 @@ use super::Model;
 use crate::lights::conversion::temp_to_xy;
 
 #[derive(Debug, Clone)]
-pub(crate) struct LampState {
-    pub(crate) brightness: Option<f64>,
-    pub(crate) color_temp_k: Option<usize>,
-    pub(crate) color_xy: Option<(f64, f64)>,
-    pub(crate) on: Option<bool>,
-    pub(crate) color_temp_startup: ColorTempStartup,
+pub(super) struct LampState {
+    pub(super) brightness: Option<f64>,
+    pub(super) color_temp_k: Option<usize>,
+    pub(super) color_xy: Option<(f64, f64)>,
+    pub(super) on: Option<bool>,
+    pub(super) color_temp_startup: ColorTempStartup,
 }
 
 impl Default for LampState {
