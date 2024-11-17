@@ -17,7 +17,7 @@ pub(super) enum Change {
 
 #[derive(Default, Clone, Debug)]
 pub(super) struct Lamp {
-    pub(super) model: Option<Model>,
+    model: Option<Model>,
     state: LampState,
 }
 
@@ -52,6 +52,10 @@ impl Lamp {
                 state.color_temp_startup = behavior
             }
         }
+    }
+
+    pub(crate) fn set_model(&mut self, model: Model) {
+        self.model = Some(model);
     }
 }
 

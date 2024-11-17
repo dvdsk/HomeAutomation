@@ -58,11 +58,10 @@ async fn update_model(
     model: Model,
 ) {
     let mut known_states = known_states.write().await;
-    let curr_model = &mut known_states
+    let current_lamp = &mut known_states
         .entry(light_name.to_string())
-        .or_default()
-        .model;
-    *curr_model = Some(model);
+        .or_default();
+    current_lamp.set_model(model);
 }
 
 async fn update_state(
@@ -72,7 +71,7 @@ async fn update_state(
 ) {
     let mut known_states = known_states.write().await;
     let current_lamp =
-        &mut known_states.entry(light_name.to_string()).or_default();
+        known_states.entry(light_name.to_string()).or_default();
     for property in new {
         if let LampProperty::ColorTempK(temp) = property {
             if light_name == "kitchen:fridge" {
