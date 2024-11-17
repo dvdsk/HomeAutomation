@@ -49,7 +49,7 @@ impl Lamp {
             LampProperty::ColorXY(xy) => state.color_xy = Some(xy),
             LampProperty::On(is_on) => state.on = Some(is_on),
             LampProperty::ColorTempStartup(behavior) => {
-                state.color_temp_startup = behavior
+                state.color_temp_startup = behavior;
             }
         }
     }

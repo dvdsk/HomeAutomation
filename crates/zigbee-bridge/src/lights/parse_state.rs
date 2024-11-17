@@ -65,7 +65,7 @@ pub(super) fn parse_lamp_properties(
         })
         .transpose()?
     {
-        list.push(LampProperty::On(on))
+        list.push(LampProperty::On(on));
     }
 
     // TODO: startup behavior? <14-11-24, dvdsk>
