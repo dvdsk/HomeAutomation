@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use time::{OffsetDateTime, UtcOffset};
 use tokio::sync::broadcast;
 use tokio::task::JoinSet;
+use tracing::warn;
 use zigbee_bridge::lights::{mired_to_kelvin, normalize};
 
 // now_local works some of the time only... this replaces it with.......
@@ -41,6 +42,13 @@ impl RestrictedSystem {
             self.system.lights.set_ct(name, bri, ct).await.unwrap();
         }
 
+        let now = local_now();
+        if !&self.allowed_lights_new.is_empty()
+            && now.minute() == 0
+            && now.second() <= 9
+        {
+            warn!("B sending changes to ZB (every 5s from now): ct = {ct}");
+        }
         for name in &self.allowed_lights_new {
             self.system
                 .lights_new

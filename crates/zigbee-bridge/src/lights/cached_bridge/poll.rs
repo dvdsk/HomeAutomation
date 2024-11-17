@@ -7,8 +7,9 @@ use ratelimited_logger::RateLimitedLogger;
 use rumqttc::v5::{Event, EventLoop, Incoming};
 use serde_json::Value;
 use tokio::{sync::RwLock, time::sleep};
-use tracing::{instrument, trace};
+use tracing::{instrument, trace, warn};
 
+use crate::lights::kelvin_to_mired;
 use crate::lights::lamp::{Lamp, LampProperty, Model};
 use crate::lights::parse_state::parse_lamp_properties;
 
@@ -31,7 +32,7 @@ pub(super) async fn poll_mqtt(
         let message = match parse_message(message) {
             Ok(message) => message,
             Err(err) => {
-                ratelimited_logger::warn!(logger; "Error parsing mqtt message: {err}");
+                ratelimited_logger::warn!(logger; "ZB error parsing mqtt message: {err}");
                 continue;
             }
         };
@@ -77,7 +78,15 @@ async fn update_state(
     for property in new {
         match property {
             LampProperty::Brightness(bri) => curr.brightness = Some(bri),
-            LampProperty::ColorTempK(temp) => curr.color_temp_k = Some(temp),
+            LampProperty::ColorTempK(temp) => {
+                if light_name == "kitchen:fridge" {
+                    warn!(
+                        "ZB received fridge color temp change: {}",
+                        kelvin_to_mired(temp)
+                    );
+                }
+                curr.color_temp_k = Some(temp)
+            }
             LampProperty::ColorXY(xy) => curr.color_xy = Some(xy),
             LampProperty::On(is_on) => curr.on = Some(is_on),
             LampProperty::ColorTempStartup(behavior) => {

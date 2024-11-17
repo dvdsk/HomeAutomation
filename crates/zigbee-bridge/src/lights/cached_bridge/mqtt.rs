@@ -121,7 +121,9 @@ async fn publish(
         ..Default::default()
     };
 
-    warn!("To MQTT: {topic}, {payload}");
+    if topic.contains("kitchen:fridge") {
+        warn!("ZB to MQTT (fridge): {payload}");
+    }
     client
         .publish_with_properties(
             topic,
