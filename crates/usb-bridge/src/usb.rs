@@ -37,20 +37,26 @@ impl ReconnectingUsb {
             next_poll: Instant::now(),
             conn: None,
             bytes: Vec::new().into_iter(),
-            logger: ratelimited_logger::RateLimitedLogger::default(),
+            logger: ratelimited_logger::RateLimitedLogger::default()
+                .with_per_msg_period(Duration::from_secs(60)),
             to_send,
         }
     }
 
     pub(crate) async fn get_affectors(&mut self) -> color_eyre::Result<Vec<Affector>> {
         let msg = loop {
-            if let Some(msg) = self
+            match self
                 .try_request_data(device::get(protocol::usb::GET_AFFECTOR_LIST))
-                .await?
+                .await
             {
-                break msg;
+                Ok(Some(msg)) => break msg,
+                Ok(None) => continue, // needs another call to decode more
+                Err(e) => {
+                    let logger = &mut self.logger;
+                    rl::warn!(logger; "Error trying get affector list: {e}");
+                    sleep(Duration::from_secs(5)).await;
+                }
             }
-            sleep(Duration::from_secs(5)).await;
         };
         let msg = protocol::Msg::<50>::decode(msg.to_vec()).wrap_err(
             "Could not decode protocol::Msg, maybe the protocol library \
