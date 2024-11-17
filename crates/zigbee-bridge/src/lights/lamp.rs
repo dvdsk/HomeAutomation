@@ -1,10 +1,14 @@
-use std::collections::HashMap;
-
-use serde_json::json;
-use strum::EnumDiscriminants;
 use tracing::instrument;
 
-use crate::lights::{conversion::temp_to_xy, denormalize, kelvin_to_mired};
+use crate::lights::conversion::temp_to_xy;
+
+pub(super) use model::Model;
+pub(super) use property::{LampProperty, LampPropertyDiscriminants};
+
+use property::{bri_is_close, temp_is_close, xy_is_close, ColorTempStartup};
+
+mod model;
+mod property;
 
 #[derive(Debug, Clone)]
 pub(super) struct LampState {
@@ -35,67 +39,6 @@ pub(super) struct Lamp {
     pub(super) state: LampState,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum ColorTempStartup {
-    Previous,
-}
-
-#[derive(Debug, EnumDiscriminants, Clone, Copy)]
-#[strum_discriminants(derive(Hash))]
-pub(super) enum LampProperty {
-    Brightness(f64),
-    ColorTempK(usize),
-    ColorXY((f64, f64)),
-    On(bool),
-    ColorTempStartup(ColorTempStartup),
-}
-
-impl PartialEq for LampProperty {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (LampProperty::Brightness(a), LampProperty::Brightness(b)) => {
-                bri_is_close(*a, *b)
-            }
-            (LampProperty::ColorTempK(a), LampProperty::ColorTempK(b)) => {
-                temp_is_close(*a, *b)
-            }
-            (LampProperty::ColorXY(a), LampProperty::ColorXY(b)) => {
-                xy_is_close(*a, *b)
-            }
-            (LampProperty::On(a), LampProperty::On(b)) => a == b,
-            (
-                LampProperty::ColorTempStartup(a),
-                LampProperty::ColorTempStartup(b),
-            ) => a == b,
-            (_, _) => false,
-        }
-    }
-}
-
-impl Eq for LampProperty {}
-
-impl LampProperty {
-    pub(crate) fn payload(&self) -> String {
-        match *self {
-            LampProperty::Brightness(bri) => {
-                json!({ "brightness": denormalize(bri) })
-            }
-            LampProperty::ColorTempK(k) => {
-                json!({ "color_temp": kelvin_to_mired(k) })
-            }
-            LampProperty::ColorXY((x, y)) => {
-                json!({ "color": {"x": x, "y": y} })
-            }
-            LampProperty::On(lamp_on) if lamp_on => json!({"state": "ON"}),
-            LampProperty::On(_) => json!({"state": "OFF"}),
-            LampProperty::ColorTempStartup(ColorTempStartup::Previous) => {
-                json!({"color_temp_startup": "previous"})
-            }
-        }
-        .to_string()
-    }
-}
-
 impl Lamp {
     pub(super) fn changes_relative_to(
         &self,
@@ -115,20 +58,6 @@ impl Lamp {
     pub(crate) fn property_list(&self) -> Vec<LampProperty> {
         self.state.property_list()
     }
-}
-
-fn bri_is_close(a: f64, b: f64) -> bool {
-    (a - b).abs() < 1. / 250.
-}
-
-fn temp_is_close(a: usize, b: usize) -> bool {
-    a.abs_diff(b) < 50
-}
-
-fn xy_is_close(a: (f64, f64), b: (f64, f64)) -> bool {
-    let d_color_x = (a.0 - b.0).abs();
-    let d_color_y = (a.1 - b.1).abs();
-    d_color_x < 0.01 && d_color_y < 0.01
 }
 
 impl LampState {
@@ -270,117 +199,4 @@ pub(super) enum Change {
     Brightness(f64),
     ColorTemp(usize),
     ColorXy((f64, f64)),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum Model {
-    TradfriCandle,
-    TradfriE27,
-    TradfriE14,
-    HueGen4,
-    TradfriOther(String),
-    HueOther(String),
-    Other(String),
-}
-
-impl Model {
-    fn is_color_lamp(&self) -> bool {
-        #[allow(clippy::match_same_arms)] // clearer comment
-        match self {
-            Model::TradfriE27 | Model::TradfriE14 | Model::HueGen4 => true,
-            Model::TradfriCandle => false,
-            // We assume no so that things at least don't break
-            Model::TradfriOther(_) | Model::HueOther(_) | Model::Other(_) => {
-                false
-            }
-        }
-    }
-
-    fn color_deviation(&self, color_temp: usize) -> (usize, f64) {
-        match self {
-            Model::TradfriCandle => todo!(),
-            Model::TradfriE27 => todo!(),
-            Model::TradfriE14 => todo!(),
-            Model::HueGen4 => todo!(),
-            Model::TradfriOther(_) => todo!(),
-            Model::HueOther(_) => todo!(),
-            Model::Other(_) => todo!(),
-        }
-    }
-
-    // Value for actual color temp (after temp correction)
-    fn blackbody_table(&self) -> HashMap<usize, f64> {
-        match self {
-            // 105.455.00 data
-            Model::TradfriCandle => vec![
-                (2170, 0.0028),
-                (2391, 0.0018),
-                (2683, 0.0006),
-                (2990, 0.0006),
-                (3193, 0.0012),
-                (3590, 0.003),
-                (3791, 0.0036),
-                (3951, 0.0046),
-            ],
-            // 604.391.68 data
-            Model::TradfriE27 => vec![
-                (1964, -0.003),
-                (2090, 0.0014),
-                (2668, 0.0015),
-                (3046, 0.001),
-                (3499, 0.0015),
-                (3605, -0.0011),
-                (4098, -0.0017),
-                (4110, -0.0009),
-                (4250, 0.0007),
-            ],
-            // 204.391.94 data
-            Model::TradfriE14 => vec![
-                (1841, -0.0032),
-                (2055, -0.0034),
-                (2120, 0.0012),
-                (2738, -0.0005),
-                (3070, 0.0004),
-                (3467, 0.0045),
-                (3555, 0.00),
-                (3981, 0.0009),
-                (4113, 0.0037),
-            ],
-            // A19 Color 9.5W data
-            Model::HueGen4 | Model::HueOther(_) => vec![
-                (1998, 0.0005),
-                (2197, 0.00000),
-                (2519, -0.0004),
-                (2695, -0.0007),
-                (2849, -0.0011),
-                (3358, -0.0012),
-                (3864, -0.012),
-                (4010, -0.0009),
-                (5455, -0.0005),
-                (6495, 0.0014),
-            ],
-            Model::TradfriOther(_) => todo!(),
-            Model::Other(_) => todo!(),
-        }
-        .into_iter()
-        .collect()
-    }
-
-    // Value to add to requested color temp
-    fn temp_table(&self) -> HashMap<usize, isize> {
-        match self {
-            Model::TradfriCandle => {
-                vec![(2200, 30), (2700, 20), (4000, 50)]
-            }
-            Model::TradfriE27 => vec![(2200, 110), (2700, 30), (4000, -110)],
-            Model::TradfriE14 => vec![(2200, 70), (2700, -40), (4000, 20)],
-            Model::HueGen4 | Model::HueOther(_) => {
-                vec![(2200, 2), (2700, 5), (4000, -10), (5500, 45), (6500, 5)]
-            }
-            Model::TradfriOther(_) => todo!(),
-            Model::Other(_) => todo!(),
-        }
-        .into_iter()
-        .collect()
-    }
 }
