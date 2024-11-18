@@ -72,7 +72,6 @@ impl ReconnectingUsb {
     pub(crate) async fn handle_usb(&mut self) -> Vec<u8> {
         let mut retry_period = Duration::from_millis(100);
         loop {
-            tracing::info!("polling usb");
             if let Some(len) = self.bytes.next() {
                 if len == 0 {
                     self.bytes = Vec::new().into_iter();
