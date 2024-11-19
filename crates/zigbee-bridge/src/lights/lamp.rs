@@ -1,11 +1,13 @@
 pub(super) use model::Model;
 pub(super) use property::{Property, PropertyDiscriminants};
 
-use state::LampState;
+use self::property::{bri_is_close, temp_is_close, xy_is_close};
+use tracing::instrument;
+
+use super::conversion::temp_to_xy;
 
 mod model;
 mod property;
-mod state;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) enum Change {
@@ -18,38 +20,100 @@ pub(super) enum Change {
 #[derive(Default, Clone, Debug)]
 pub(super) struct Lamp {
     model: Option<Model>,
-    state: LampState,
+    brightness: Option<f64>,
+    color_temp_k: Option<usize>,
+    color_xy: Option<(f64, f64)>,
+    on: Option<bool>,
+    color_temp_startup: property::ColorTempStartup,
 }
 
 impl Lamp {
-    pub(super) fn changes_relative_to(
-        &self,
-        other: &Self,
-    ) -> Vec<Property> {
-        self.state
-            .changes_relative_to(&other.state, self.model.as_ref())
+    #[instrument]
+    pub(super) fn changes_relative_to(&self, other: &Self) -> Vec<Property> {
+        let mut res = Vec::new();
+        if let Some(bri_self) = self.brightness {
+            if other
+                .brightness
+                .is_none_or(|bri_other| !bri_is_close(bri_other, bri_self))
+            {
+                res.push(Property::Brightness(bri_self));
+            }
+        }
+
+        if let Some(temp_self) = self.color_temp_k {
+            if other
+                .color_temp_k
+                .is_none_or(|temp_other| !temp_is_close(temp_other, temp_self))
+            {
+                res.push(Property::ColorTempK(temp_self));
+            }
+        }
+
+        if self.model.as_ref().is_some_and(Model::is_color_lamp) {
+            if let Some(xy_self) = self.color_xy {
+                if other
+                    .color_xy
+                    .is_none_or(|xy_other| !xy_is_close(xy_other, xy_self))
+                {
+                    res.push(Property::ColorXY(xy_self));
+                }
+            }
+        }
+
+        if let Some(on_self) = self.on {
+            if other.on.is_none_or(|on_other| on_other != on_self) {
+                res.push(Property::On(on_self));
+            }
+        }
+
+        if self.color_temp_startup != other.color_temp_startup {
+            res.push(Property::ColorTempStartup(self.color_temp_startup));
+        }
+
+        res
     }
 
     pub(super) fn apply(self, change: Change) -> Self {
-        Self {
-            model: self.model,
-            state: self.state.apply(change),
+        let mut new_state = self.clone();
+        match change {
+            Change::On(on) => new_state.on = Some(on),
+            Change::Brightness(bri) => new_state.brightness = Some(bri),
+            Change::ColorTemp(temp) => {
+                new_state.color_temp_k = Some(temp);
+                new_state.color_xy = Some(temp_to_xy(temp));
+            }
+            Change::ColorXy(xy) => new_state.color_xy = Some(xy),
         }
+        new_state
     }
 
     pub(crate) fn property_list(&self) -> Vec<Property> {
-        self.state.property_list()
+        // we do not send color xy as the lamp might not support it
+        // if it does then property_list is never called but an exact
+        // diff between the current and need state is send
+
+        let mut list = Vec::new();
+        if let Some(val) = (&self).brightness {
+            list.push(Property::Brightness(val));
+        }
+        if let Some(val) = (&self).color_temp_k {
+            list.push(Property::ColorTempK(val));
+        }
+        if let Some(val) = (&self).on {
+            list.push(Property::On(val));
+        }
+        list.push(Property::ColorTempStartup((&self).color_temp_startup));
+        list
     }
 
     pub(crate) fn change_state(&mut self, property: Property) {
-        let state = &mut self.state;
         match property {
-            Property::Brightness(bri) => state.brightness = Some(bri),
-            Property::ColorTempK(temp) => state.color_temp_k = Some(temp),
-            Property::ColorXY(xy) => state.color_xy = Some(xy),
-            Property::On(is_on) => state.on = Some(is_on),
+            Property::Brightness(bri) => self.brightness = Some(bri),
+            Property::ColorTempK(temp) => self.color_temp_k = Some(temp),
+            Property::ColorXY(xy) => self.color_xy = Some(xy),
+            Property::On(is_on) => self.on = Some(is_on),
             Property::ColorTempStartup(behavior) => {
-                state.color_temp_startup = behavior;
+                self.color_temp_startup = behavior;
             }
         }
     }
@@ -70,7 +134,7 @@ impl PartialEq for Lamp {
             // We only ever set xy for color lamps,
             // so color temp doesn't say anything
             if self_model.is_color_lamp() {
-                match (self.state.color_xy, other.state.color_xy) {
+                match (self.color_xy, other.color_xy) {
                     (Some(self_xy), Some(other_xy)) => {
                         let d_color_x = (self_xy.0 - other_xy.0).abs();
                         let d_color_y = (self_xy.1 - other_xy.1).abs();
@@ -81,7 +145,7 @@ impl PartialEq for Lamp {
                 }
             // We only ever set temp, and xy doesn't exist
             } else {
-                match (self.state.color_temp_k, other.state.color_temp_k) {
+                match (self.color_temp_k, other.color_temp_k) {
                     (Some(self_temp), Some(other_temp)) => {
                         self_temp.abs_diff(other_temp) < 50
                     }
@@ -94,15 +158,14 @@ impl PartialEq for Lamp {
             false
         };
 
-        let bri_is_equal = match (self.state.brightness, other.state.brightness)
-        {
+        let bri_is_equal = match (self.brightness, other.brightness) {
             (Some(self_bri), Some(other_bri)) => {
                 (self_bri - other_bri).abs() < 1. / 250.
             }
             _ => false,
         };
 
-        self.state.on == other.state.on && bri_is_equal && color_is_equal
+        self.on == other.on && bri_is_equal && color_is_equal
     }
 }
 

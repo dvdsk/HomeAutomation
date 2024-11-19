@@ -3,8 +3,9 @@ use strum::EnumDiscriminants;
 
 use crate::lights::{denormalize, kelvin_to_mired};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ColorTempStartup {
+    #[default]
     Previous,
 }
 
