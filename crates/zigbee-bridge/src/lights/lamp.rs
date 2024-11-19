@@ -9,14 +9,6 @@ use super::conversion::temp_to_xy;
 mod model;
 mod property;
 
-#[derive(Debug, Clone, Copy)]
-pub(super) enum Change {
-    On(bool),
-    Brightness(f64),
-    ColorTemp(usize),
-    ColorXy((f64, f64)),
-}
-
 #[derive(Default, Clone, Debug)]
 pub(super) struct Lamp {
     model: Option<Model>,
@@ -73,16 +65,19 @@ impl Lamp {
         res
     }
 
-    pub(super) fn apply(self, change: Change) -> Self {
+    pub(super) fn apply(self, change: Property) -> Self {
         let mut new_state = self.clone();
         match change {
-            Change::On(on) => new_state.on = Some(on),
-            Change::Brightness(bri) => new_state.brightness = Some(bri),
-            Change::ColorTemp(temp) => {
+            Property::On(on) => new_state.on = Some(on),
+            Property::Brightness(bri) => new_state.brightness = Some(bri),
+            Property::ColorTempK(temp) => {
                 new_state.color_temp_k = Some(temp);
                 new_state.color_xy = Some(temp_to_xy(temp));
             }
-            Change::ColorXy(xy) => new_state.color_xy = Some(xy),
+            Property::ColorXY(xy) => new_state.color_xy = Some(xy),
+            Property::ColorTempStartup(ct_startup) => {
+                new_state.color_temp_startup = ct_startup
+            }
         }
         new_state
     }

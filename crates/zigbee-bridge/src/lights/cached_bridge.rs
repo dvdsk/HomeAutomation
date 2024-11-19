@@ -13,7 +13,7 @@ mod mqtt;
 mod poll;
 
 pub(super) async fn run(
-    change_receiver: mpsc::UnboundedReceiver<(String, lamp::Change)>,
+    change_receiver: mpsc::UnboundedReceiver<(String, lamp::Property)>,
 ) -> ! {
     let mut options =
         MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);

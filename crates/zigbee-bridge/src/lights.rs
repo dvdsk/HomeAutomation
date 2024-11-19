@@ -14,7 +14,7 @@ mod parse_state;
 
 #[derive(Debug, Clone)]
 pub struct Controller {
-    change_sender: mpsc::UnboundedSender<(String, lamp::Change)>,
+    change_sender: mpsc::UnboundedSender<(String, lamp::Property)>,
 }
 
 impl Controller {
@@ -31,32 +31,38 @@ impl Controller {
 
     pub fn set_on(&self, friendly_name: &str) {
         self.change_sender
-            .send((friendly_name.to_string(), lamp::Change::On(true)))
+            .send((friendly_name.to_string(), lamp::Property::On(true)))
             .expect("Sender should never be dropped");
     }
 
     pub fn set_off(&self, friendly_name: &str) {
         self.change_sender
-            .send((friendly_name.to_string(), lamp::Change::On(false)))
+            .send((friendly_name.to_string(), lamp::Property::On(false)))
             .expect("Sender should never be dropped");
     }
 
     /// Brightness from 0 to 1
     pub fn set_brightness(&self, friendly_name: &str, brightness: f64) {
         self.change_sender
-            .send((friendly_name.to_string(), lamp::Change::Brightness(brightness)))
+            .send((
+                friendly_name.to_string(),
+                lamp::Property::Brightness(brightness),
+            ))
             .expect("Sender should never be dropped");
     }
 
     pub fn set_color_temp(&self, friendly_name: &str, kelvin: usize) {
         self.change_sender
-            .send((friendly_name.to_string(), lamp::Change::ColorTemp(kelvin)))
+            .send((
+                friendly_name.to_string(),
+                lamp::Property::ColorTempK(kelvin),
+            ))
             .expect("Sender should never be dropped");
     }
 
     pub fn set_color_xy(&self, friendly_name: &str, xy: (f64, f64)) {
         self.change_sender
-            .send((friendly_name.to_string(), lamp::Change::ColorXy(xy)))
+            .send((friendly_name.to_string(), lamp::Property::ColorXY(xy)))
             .expect("Sender should never be dropped");
     }
 }
