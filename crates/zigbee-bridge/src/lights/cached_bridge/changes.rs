@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use tokio::sync::{mpsc, RwLock};
-use tokio::time::{sleep, timeout};
+use tokio::time::sleep;
 use tracing::{debug, instrument, trace};
 
 use super::mqtt::Mqtt;
@@ -14,27 +14,34 @@ pub(super) async fn handle(
     mqtt: &mut Mqtt,
     known_states: &RwLock<HashMap<String, Lamp>>,
 ) -> ! {
-    // const MQTT_MIGHT_BE_DOWN_TIMEOUT: Duration = Duration::from_secs(5);
     const MQTT_MIGHT_BE_DOWN_TIMEOUT: Duration = Duration::from_secs(500);
     const WAIT_FOR_INIT_STATES: Duration = Duration::from_millis(500);
 
     // Give the initial known states a chance to be fetched
     sleep(WAIT_FOR_INIT_STATES).await;
+
     let mut needed_states = HashMap::new();
-    let mut call_again_in = MQTT_MIGHT_BE_DOWN_TIMEOUT;
+    let mut timeout = MQTT_MIGHT_BE_DOWN_TIMEOUT;
 
     loop {
-        debug!("timeout: {call_again_in:?}");
-        if let Ok(res) = timeout(call_again_in, change_receiver.recv()).await {
-            let res = res.expect("Channel should never close");
-            let (light_name, change) = res;
+        debug!("timeout: {timeout:?}");
+        if let Ok(update) =
+            tokio::time::timeout(timeout, change_receiver.recv()).await
+        {
+            let (light_name, change) =
+                update.expect("Channel should never close");
 
             trace!("Received change: {change:?} for lamp {light_name}");
-            apply_change(light_name, change, known_states, &mut needed_states)
-                .await;
+            apply_change_to_needed(
+                light_name,
+                change,
+                known_states,
+                &mut needed_states,
+            )
+            .await;
         };
 
-        call_again_in = send_and_queue(known_states, &mut needed_states, mqtt)
+        timeout = on_change_or_timeout(known_states, &mut needed_states, mqtt)
             .await
             .min(MQTT_MIGHT_BE_DOWN_TIMEOUT);
     }
@@ -46,12 +53,12 @@ pub(super) async fn handle(
 /// would be a little spammy. Returns when we need to recheck. If we do not need
 /// to do so we return Duration::MAX.
 #[instrument(skip_all)]
-async fn send_and_queue(
+async fn on_change_or_timeout(
     known_states: &RwLock<HashMap<String, Lamp>>,
     needed_states: &mut HashMap<String, Lamp>,
     mqtt: &mut Mqtt,
 ) -> Duration {
-    let mut call_again_in = Duration::MAX;
+    let mut new_timeout = Duration::MAX;
     let known_states = known_states.read().await;
 
     for light_name in LIGHTS {
@@ -63,23 +70,23 @@ async fn send_and_queue(
 
         let diff = match known_states.get(light_name) {
             Some(known) => needed.changes_relative_to(known),
-            None => needed.property_list(),
+            None => needed.all_as_changes(),
         };
 
         if !diff.is_empty() {
-            // Ignore errors because we will retry if the state hasn't changed
-            if let Ok(dur) =
-                mqtt.try_send_state_diff(light_name.to_string(), diff).await
-            {
-                call_again_in = call_again_in.min(dur);
-            }
+            let _ = mqtt.send_diff(light_name, &diff).await;
+
+            let this_light_due = mqtt.earliest_change_due(light_name, &diff);
+            let this_light_timeout =
+                this_light_due.saturating_duration_since(Instant::now());
+            new_timeout = new_timeout.min(this_light_timeout);
         }
     }
-    call_again_in
+    new_timeout
 }
 
 #[instrument(skip_all)]
-async fn apply_change(
+async fn apply_change_to_needed(
     light_name: String,
     change: lamp::Property,
     known_states: &RwLock<HashMap<String, Lamp>>,

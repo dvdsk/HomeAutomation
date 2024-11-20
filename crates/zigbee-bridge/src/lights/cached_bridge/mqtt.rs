@@ -10,7 +10,7 @@ use crate::lights::lamp;
 
 pub(super) struct Mqtt {
     client: AsyncClient,
-    property_last_set: HashMap<
+    last_sent: HashMap<
         String,
         HashMap<lamp::PropertyDiscriminants, (Instant, lamp::Property)>,
     >,
@@ -20,7 +20,7 @@ impl Mqtt {
     pub(super) fn new(client: AsyncClient) -> Self {
         Mqtt {
             client,
-            property_last_set: HashMap::new(),
+            last_sent: HashMap::new(),
         }
     }
 
@@ -38,99 +38,110 @@ impl Mqtt {
         trace!("Requesting state for light {name}");
         let payload = json!({"state": ""});
 
-        get(&self.client, name, payload.to_string()).await.unwrap();
+        self.get(name, payload.to_string()).await.unwrap();
+    }
+
+    /// Pre-condition: diff non-empty
+    pub(super) fn earliest_change_due(
+        &self,
+        light_name: &str,
+        diff: &[lamp::Property],
+    ) -> Instant {
+        diff.into_iter()
+            .map(|change| self.change_next_due(light_name, &change))
+            .min()
+            .expect("Diff should be non-empty")
+    }
+
+    fn change_next_due(
+        &self,
+        light_name: &str,
+        change: &lamp::Property,
+    ) -> Instant {
+        const CHANGE_APPLY_DELAY: Duration = Duration::from_secs(1);
+
+        let Some(light_send_record) = self.last_sent.get(light_name) else {
+            // lamp has never been sent before
+            return Instant::now();
+        };
+
+        let Some(prop_send_record) = light_send_record.get(&change.into())
+        else {
+            // property has never been sent before
+            return Instant::now();
+        };
+
+        let (sent_at, prev_change) = prop_send_record;
+
+        if prev_change != change || sent_at.elapsed() > CHANGE_APPLY_DELAY {
+            // we are overdue
+            Instant::now()
+        } else {
+            *sent_at + CHANGE_APPLY_DELAY
+        }
     }
 
     #[instrument(skip(self))]
-    pub(super) async fn try_send_state_diff(
+    pub(super) async fn send_diff(
         &mut self,
-        light_name: String,
-        diff: Vec<lamp::Property>,
-    ) -> Result<Duration, ClientError> {
-        const TIME_IT_TAKES_TO_APPLY_CHANGE: Duration = Duration::from_secs(1);
-        let mut new_call_needed_in: Duration = Duration::MAX;
-
-        let last_set = self
-            .property_last_set
-            .entry(light_name.clone())
-            .or_default();
-
+        light_name: &str,
+        diff: &[lamp::Property],
+    ) -> Result<(), ClientError> {
         for change in diff {
-            let Some((at, prev_change)) = last_set.get(&change.into()) else {
-                set(&self.client, &light_name, change.payload()).await?;
-                last_set.insert(change.into(), (Instant::now(), change));
-                continue;
-            };
+            self.set(&light_name, change.payload()).await?;
 
-            if *prev_change != change {
-                set(&self.client, &light_name, change.payload()).await?;
-                last_set.insert(change.into(), (Instant::now(), change));
-                continue;
-            }
-
-            if at.elapsed() > TIME_IT_TAKES_TO_APPLY_CHANGE {
-                set(&self.client, &light_name, change.payload()).await?;
-                last_set.insert(change.into(), (Instant::now(), change));
-                continue;
-            }
-
-            // trace!(
-            //     "not setting property {change:?} for {light_name} as it has \
-            //     recently been set"
-            // );
-            let next_call_allowed = *at + TIME_IT_TAKES_TO_APPLY_CHANGE;
-            let until =
-                next_call_allowed.saturating_duration_since(Instant::now());
-            new_call_needed_in = new_call_needed_in.min(until);
+            let light_send_record =
+                self.last_sent.entry(light_name.to_owned()).or_default();
+            light_send_record.insert(change.into(), (Instant::now(), *change));
         }
 
-        Ok(new_call_needed_in)
+        Ok(())
     }
-}
 
-async fn set(
-    client: &AsyncClient,
-    friendly_name: &str,
-    payload: String,
-) -> Result<(), ClientError> {
-    let topic = format!("zigbee2mqtt/{friendly_name}/set");
+    async fn set(
+        &self,
+        friendly_name: &str,
+        payload: String,
+    ) -> Result<(), ClientError> {
+        let topic = format!("zigbee2mqtt/{friendly_name}/set");
 
-    trace!("Sending payload {payload} to lamp {friendly_name}");
-    publish(client, &topic, payload).await?;
-    Ok(())
-}
-
-async fn get(
-    client: &AsyncClient,
-    friendly_name: &str,
-    payload: String,
-) -> Result<(), ClientError> {
-    let topic = format!("zigbee2mqtt/{friendly_name}/get");
-
-    publish(client, &topic, payload).await?;
-    Ok(())
-}
-
-async fn publish(
-    client: &AsyncClient,
-    topic: &str,
-    payload: String,
-) -> Result<(), ClientError> {
-    let properties = rumqttc::v5::mqttbytes::v5::PublishProperties {
-        message_expiry_interval: Some(5), // seconds
-        ..Default::default()
-    };
-
-    if topic.contains("kitchen:fridge") {
-        warn!("ZB to MQTT (fridge): {payload}");
+        trace!("Sending payload {payload} to lamp {friendly_name}");
+        self.publish(&topic, payload).await?;
+        Ok(())
     }
-    client
-        .publish_with_properties(
-            topic,
-            QoS::AtLeastOnce,
-            false,
-            payload,
-            properties,
-        )
-        .await
+
+    async fn get(
+        &self,
+        friendly_name: &str,
+        payload: String,
+    ) -> Result<(), ClientError> {
+        let topic = format!("zigbee2mqtt/{friendly_name}/get");
+
+        self.publish(&topic, payload).await?;
+        Ok(())
+    }
+
+    async fn publish(
+        &self,
+        topic: &str,
+        payload: String,
+    ) -> Result<(), ClientError> {
+        let properties = rumqttc::v5::mqttbytes::v5::PublishProperties {
+            message_expiry_interval: Some(5), // seconds
+            ..Default::default()
+        };
+
+        if topic.contains("kitchen:fridge") {
+            warn!("ZB to MQTT (fridge): {payload}");
+        }
+        self.client
+            .publish_with_properties(
+                topic,
+                QoS::AtLeastOnce,
+                false,
+                payload,
+                properties,
+            )
+            .await
+    }
 }

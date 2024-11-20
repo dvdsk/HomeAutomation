@@ -82,7 +82,7 @@ impl Lamp {
         new_state
     }
 
-    pub(crate) fn property_list(&self) -> Vec<Property> {
+    pub(crate) fn all_as_changes(&self) -> Vec<Property> {
         // we do not send color xy as the lamp might not support it
         // if it does then property_list is never called but an exact
         // diff between the current and need state is send
