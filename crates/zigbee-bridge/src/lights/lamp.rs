@@ -113,6 +113,13 @@ impl Lamp {
         }
     }
 
+    pub(crate) fn add_model_from(mut self, other: &Lamp) -> Self {
+        if let Some(model) = &other.model {
+            self.model = Some(model.clone());
+        }
+        self
+    }
+
     pub(crate) fn set_model(&mut self, model: Model) {
         self.model = Some(model);
     }
