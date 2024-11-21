@@ -2,10 +2,11 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use tokio::sync::{mpsc, RwLock};
-use tokio::time::sleep;
+use tokio::time::{sleep, timeout};
 use tracing::{debug, instrument, trace};
 
 use super::mqtt::Mqtt;
+use super::{MQTT_MIGHT_BE_DOWN_TIMEOUT, WAIT_FOR_INIT_STATES};
 use crate::lights::lamp::{self, Lamp};
 use crate::LIGHTS;
 
@@ -14,19 +15,16 @@ pub(super) async fn handle(
     mqtt: &mut Mqtt,
     known_states: &RwLock<HashMap<String, Lamp>>,
 ) -> ! {
-    const MQTT_MIGHT_BE_DOWN_TIMEOUT: Duration = Duration::from_secs(500);
-    const WAIT_FOR_INIT_STATES: Duration = Duration::from_millis(500);
-
     // Give the initial known states a chance to be fetched
     sleep(WAIT_FOR_INIT_STATES).await;
 
     let mut needed_states = HashMap::new();
-    let mut timeout = MQTT_MIGHT_BE_DOWN_TIMEOUT;
+    let mut call_at_least_in = MQTT_MIGHT_BE_DOWN_TIMEOUT;
 
     loop {
-        debug!("timeout: {timeout:?}");
+        debug!("timeout: {call_at_least_in:?}");
         if let Ok(update) =
-            tokio::time::timeout(timeout, change_receiver.recv()).await
+            timeout(call_at_least_in, change_receiver.recv()).await
         {
             let (light_name, change) =
                 update.expect("Channel should never close");
@@ -41,9 +39,10 @@ pub(super) async fn handle(
             .await;
         };
 
-        timeout = on_change_or_timeout(known_states, &mut needed_states, mqtt)
-            .await
-            .min(MQTT_MIGHT_BE_DOWN_TIMEOUT);
+        call_at_least_in =
+            send_diff_get_timeout(known_states, &mut needed_states, mqtt)
+                .await
+                .min(MQTT_MIGHT_BE_DOWN_TIMEOUT);
     }
 }
 
@@ -53,17 +52,18 @@ pub(super) async fn handle(
 /// would be a little spammy. Returns when we need to recheck. If we do not need
 /// to do so we return Duration::MAX.
 #[instrument(skip_all)]
-async fn on_change_or_timeout(
+async fn send_diff_get_timeout(
     known_states: &RwLock<HashMap<String, Lamp>>,
     needed_states: &mut HashMap<String, Lamp>,
     mqtt: &mut Mqtt,
 ) -> Duration {
-    let mut new_timeout = Duration::MAX;
     let known_states = known_states.read().await;
+    let mut light_deadlines = Vec::new();
 
     for light_name in LIGHTS {
         tracing::Span::current().record("light_name", light_name);
 
+        // if there is no needed state, we ignore this light
         let Some(needed) = needed_states.get(light_name) else {
             continue;
         };
@@ -73,16 +73,17 @@ async fn on_change_or_timeout(
             None => needed.all_as_changes(),
         };
 
-        if !diff.is_empty() {
-            let _ = mqtt.send_diff(light_name, &diff).await;
-
-            let this_light_due = mqtt.earliest_change_due(light_name, &diff);
-            let this_light_timeout =
-                this_light_due.saturating_duration_since(Instant::now());
-            new_timeout = new_timeout.min(this_light_timeout);
+        let _ = mqtt.send_diff_where_due(light_name, &diff).await;
+        if let Some(deadline) = mqtt.next_deadline(light_name, &diff) {
+            light_deadlines.push(deadline);
         }
     }
-    new_timeout
+
+    light_deadlines
+        .into_iter()
+        .min()
+        .map(|deadline| deadline.saturating_duration_since(Instant::now()))
+        .unwrap_or(Duration::MAX)
 }
 
 #[instrument(skip_all)]

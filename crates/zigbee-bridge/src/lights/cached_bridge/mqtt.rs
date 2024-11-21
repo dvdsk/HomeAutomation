@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use rumqttc::v5::mqttbytes::QoS;
 use rumqttc::v5::{AsyncClient, ClientError};
@@ -8,8 +8,11 @@ use tracing::{instrument, trace, warn};
 
 use crate::lights::lamp;
 
+use super::CHANGE_APPLY_DELAY;
+
 pub(super) struct Mqtt {
     client: AsyncClient,
+    // TODO: extract into SendTracker struct?
     last_sent: HashMap<
         String,
         HashMap<lamp::PropertyDiscriminants, (Instant, lamp::Property)>,
@@ -41,16 +44,14 @@ impl Mqtt {
         self.get(name, payload.to_string()).await.unwrap();
     }
 
-    /// Pre-condition: diff non-empty
-    pub(super) fn earliest_change_due(
+    pub(super) fn next_deadline(
         &self,
         light_name: &str,
         diff: &[lamp::Property],
-    ) -> Instant {
+    ) -> Option<Instant> {
         diff.into_iter()
             .map(|change| self.change_next_due(light_name, &change))
             .min()
-            .expect("Diff should be non-empty")
     }
 
     fn change_next_due(
@@ -58,8 +59,6 @@ impl Mqtt {
         light_name: &str,
         change: &lamp::Property,
     ) -> Instant {
-        const CHANGE_APPLY_DELAY: Duration = Duration::from_secs(1);
-
         let Some(light_send_record) = self.last_sent.get(light_name) else {
             // lamp has never been sent before
             return Instant::now();
@@ -81,18 +80,26 @@ impl Mqtt {
         }
     }
 
+    fn is_due(&self, light_name: &str, change: &lamp::Property) -> bool {
+        let deadline = self.change_next_due(light_name, change);
+        deadline < Instant::now()
+    }
+
     #[instrument(skip(self))]
-    pub(super) async fn send_diff(
+    pub(super) async fn send_diff_where_due(
         &mut self,
         light_name: &str,
         diff: &[lamp::Property],
     ) -> Result<(), ClientError> {
         for change in diff {
-            self.set(&light_name, change.payload()).await?;
+            if self.is_due(&light_name, change) {
+                self.set(&light_name, change.payload()).await?;
 
-            let light_send_record =
-                self.last_sent.entry(light_name.to_owned()).or_default();
-            light_send_record.insert(change.into(), (Instant::now(), *change));
+                let light_send_record =
+                    self.last_sent.entry(light_name.to_owned()).or_default();
+                light_send_record
+                    .insert(change.into(), (Instant::now(), *change));
+            }
         }
 
         Ok(())

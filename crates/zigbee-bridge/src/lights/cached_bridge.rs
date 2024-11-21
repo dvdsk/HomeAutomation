@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use rumqttc::v5::{AsyncClient, MqttOptions};
 use tokio::sync::{mpsc, RwLock};
@@ -7,10 +7,13 @@ use tracing::trace;
 use self::mqtt::Mqtt;
 use crate::{lights::lamp, LIGHTS, MQTT_IP, MQTT_PORT};
 
-
 mod changes;
 mod mqtt;
 mod poll;
+
+const MQTT_MIGHT_BE_DOWN_TIMEOUT: Duration = Duration::from_secs(500);
+const WAIT_FOR_INIT_STATES: Duration = Duration::from_millis(500);
+const CHANGE_APPLY_DELAY: Duration = Duration::from_secs(1);
 
 pub(super) async fn run(
     change_receiver: mpsc::UnboundedReceiver<(String, lamp::Property)>,
