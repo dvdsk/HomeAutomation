@@ -19,6 +19,8 @@ pub(super) async fn run(
         MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
     // Set max mqtt packet size to 4kB
     options.set_max_packet_size(Some(4096));
+    // Keep subscriptions when reconnecting!!!!
+    options.set_clean_start(false);
 
     let known_states = RwLock::new(HashMap::new());
 
