@@ -93,33 +93,57 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
     };
 
     trace!("message: {message:?}");
-    let topic = String::from_utf8_lossy(&message.topic);
+    let topic: &str = &String::from_utf8_lossy(&message.topic);
 
-    if topic == "zigbee2mqtt/bridge/devices" {
-        let json: Value = serde_json::from_slice(&message.payload)
-            .wrap_err("could not parse message payload as json")?;
-        let list = json
-            .as_array()
-            .ok_or_eyre("devices list should be array its not")
-            .with_note(|| format!("json was: {json:?}"))?;
-        let devices: HashMap<String, lamp::Model> = list
-            .iter()
-            .map(|dev| {
-                parse_device(dev)
-                    .wrap_err("could not parse device")
-                    .with_note(|| format!("device: {dev:?}"))
-            })
-            .filter_ok(|d| d.0 != "Coordinator")
-            .collect::<Result<_, _>>()?;
-        Ok(Message::Devices(devices))
+    match topic {
+        "zigbee2mqtt/bridge/devices" => {
+            let json: Value = serde_json::from_slice(&message.payload)
+                .wrap_err("could not parse message payload as json")?;
+            let list = json
+                .as_array()
+                .ok_or_eyre("devices list should be array its not")
+                .with_note(|| format!("json was: {json:?}"))?;
+            let devices: HashMap<String, lamp::Model> = list
+                .iter()
+                .map(|dev| {
+                    parse_device(dev)
+                        .wrap_err("could not parse device")
+                        .with_note(|| format!("device: {dev:?}"))
+                })
+                .filter_ok(|d| d.0 != "Coordinator")
+                .collect::<Result<_, _>>()?;
+            Ok(Message::Devices(devices))
+        }
+        "zigbee2mqtt/bridge/logging" => {
+            let json: Value = serde_json::from_slice(&message.payload)
+                .wrap_err("could not parse message payload as json")?;
+            let log = json
+                .as_object()
+                .ok_or_eyre("log should be map it is not")
+                .with_note(|| format!("json was: {json:?}"))?;
+            // parse_log_message(log)
+            Ok(Message::Other)
+        }
+        topic => {
+            let topic: Vec<_> = topic.split('/').collect();
+            let name = topic[1].to_string();
+            let state = parse_lamp_properties(&message.payload)
+                .wrap_err("failed to parse lamp state")
+                .with_note(|| format!("topic: {topic:?}"))?;
+            Ok(Message::StateUpdate((name, state)))
+        }
+    }
+}
+
+fn parse_log_message(
+    log: &serde_json::Map<String, Value>,
+) -> color_eyre::Result<Message> {
+    let level = log.get("level").ok_or_eyre("no level in log message")?;
+    let message = log.get("message").ok_or_eyre("no message in log message")?;
+    if level == "error" {
+        todo!()
     } else {
-        let topic = String::from_utf8_lossy(&message.topic);
-        let topic: Vec<_> = topic.split('/').collect();
-        let name = topic[1].to_string();
-        let state = parse_lamp_properties(&message.payload)
-            .wrap_err("failed to parse lamp state")
-            .with_note(|| format!("topic: {topic:?}"))?;
-        Ok(Message::StateUpdate((name, state)))
+        Ok(Message::Other)
     }
 }
 

@@ -2,7 +2,7 @@ pub(super) use model::Model;
 pub(super) use property::{Property, PropertyDiscriminants};
 
 use self::property::{bri_is_close, color_is_close};
-use tracing::instrument;
+use tracing::{error, instrument};
 
 use super::conversion::temp_to_xy;
 
@@ -21,9 +21,11 @@ impl Color {
     }
 }
 
+// TODO: some way to enforce read-only (thus known-updatable-only) fields?
 #[derive(Default, Clone, Debug)]
 pub(super) struct Lamp {
     model: Option<Model>,
+    is_online: Option<bool>,
     brightness: Option<f64>,
     color: Option<Color>,
     is_on: Option<bool>,
@@ -34,6 +36,9 @@ impl Lamp {
     #[instrument]
     pub(super) fn changes_relative_to(&self, other: &Self) -> Vec<Property> {
         let mut res = Vec::new();
+
+        // Ignore model and is_online, because they are read-only
+
         if let Some(bri_self) = self.brightness {
             if other
                 .brightness
@@ -45,7 +50,7 @@ impl Lamp {
 
         if let Some(color_self) = self.color {
             let log_err = |err| {
-                tracing::error!("Comparing incompatible lamp states, defaulting to same\nSelf: {self:?}\nOther: {other:?}\nErr: {err}");
+                error!("Comparing incompatible lamp states, defaulting to same\nSelf: {self:?}\nOther: {other:?}\nErr: {err}");
             };
 
             let color_is_close = match other.color {
@@ -105,15 +110,15 @@ impl Lamp {
             Property::ColorTempStartup(behaviour) => {
                 self.color_temp_startup = behaviour
             }
+            Property::Online(is_online) => self.is_online = Some(is_online),
         }
     }
 
     pub(crate) fn all_as_changes(&self) -> Vec<Property> {
-        // we do not send color xy as the lamp might not support it
-        // if it does then property_list is never called but an exact
-        // diff between the current and need state is send
-
         let mut list = Vec::new();
+
+        // Ignore model and is_online, because they are read-only
+
         if let Some(val) = (&self).brightness {
             list.push(Property::Brightness(val));
         }

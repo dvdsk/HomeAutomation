@@ -1,5 +1,6 @@
 use serde_json::json;
 use strum::EnumDiscriminants;
+use tracing::error;
 
 use crate::lights::{denormalize, kelvin_to_mired};
 
@@ -14,6 +15,7 @@ pub(crate) enum ColorTempStartup {
 #[derive(Debug, EnumDiscriminants, Clone, Copy)]
 #[strum_discriminants(derive(Hash))]
 pub(crate) enum Property {
+    Online(bool),
     Brightness(f64),
     ColorTempK(usize),
     ColorXY((f64, f64)),
@@ -35,6 +37,8 @@ impl PartialEq for Property {
             (Property::ColorTempStartup(a), Property::ColorTempStartup(b)) => {
                 a == b
             }
+            // we never need to update this, thus we always consider it the same
+            (Property::Online(_), Property::Online(_)) => true,
             (_, _) => false,
         }
     }
@@ -58,6 +62,11 @@ impl Property {
             Property::On(_) => json!({"state": "OFF"}),
             Property::ColorTempStartup(ColorTempStartup::Previous) => {
                 json!({"color_temp_startup": "previous"})
+            }
+            // read-only, shouldn't be called, safe default
+            Property::Online(_) => {
+                error!("Tried to convert Online to payload");
+                json!({"state": ""})
             }
         }
         .to_string()
