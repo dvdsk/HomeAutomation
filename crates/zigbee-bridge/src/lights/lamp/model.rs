@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Range};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Model {
@@ -22,6 +22,17 @@ impl Model {
             Model::TradfriOther(_) | Model::HueOther(_) | Model::Other(_) => {
                 false
             }
+        }
+    }
+
+    pub(super) fn temp_k_range(&self) -> Range<usize> {
+        match self {
+            Model::TradfriCandle => 2200..4000,
+            Model::TradfriE27 | Model::TradfriE14 => 1780..4000,
+            Model::HueGen4 => 2000..6500,
+            Model::TradfriOther(_) => 2200..4000,
+            Model::HueOther(_) => 2200..6500,
+            Model::Other(_) => 2200..4000,
         }
     }
 

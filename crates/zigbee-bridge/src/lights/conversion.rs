@@ -32,7 +32,9 @@ pub(super) fn temp_to_xy(color_temp: usize) -> (f64, f64) {
     let cct = CCT::try_new(color_temp as f64, DUV_IKEA).unwrap();
     let xyz: XYZ = cct.try_into().unwrap();
 
-    xyz_to_xy(xyz)
+    let (x, y) = xyz_to_xy(xyz);
+    (x.clamp(0.0, 1.0), y.clamp(0.0, 1.0))
+
 }
 
 fn xyz_to_xy(xyz: XYZ) -> (f64, f64) {

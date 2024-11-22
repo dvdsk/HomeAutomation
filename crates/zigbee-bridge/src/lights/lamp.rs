@@ -88,6 +88,8 @@ impl Lamp {
                     if model.supports_xy() {
                         self.color = Some(Color::xy_from_temp(temp));
                     } else {
+                        let range = model.temp_k_range();
+                        let temp = temp.clamp(range.start, range.end);
                         self.color = Some(Color::TempK(temp))
                     }
                 }
