@@ -78,7 +78,7 @@ async fn update_state(
                 );
             }
         }
-        current_lamp.change_state(property);
+        current_lamp.apply(property);
     }
 }
 

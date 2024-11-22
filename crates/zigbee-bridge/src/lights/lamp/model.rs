@@ -13,7 +13,7 @@ pub(crate) enum Model {
 }
 
 impl Model {
-    pub(super) fn is_color_lamp(&self) -> bool {
+    pub(super) fn supports_xy(&self) -> bool {
         #[allow(clippy::match_same_arms)] // clearer comment
         match self {
             Model::TradfriE27 | Model::TradfriE14 | Model::HueGen4 => true,

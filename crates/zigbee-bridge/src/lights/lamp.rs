@@ -1,7 +1,7 @@
 pub(super) use model::Model;
 pub(super) use property::{Property, PropertyDiscriminants};
 
-use self::property::{bri_is_close, temp_is_close, xy_is_close};
+use self::property::{bri_is_close, color_is_close};
 use tracing::instrument;
 
 use super::conversion::temp_to_xy;
@@ -9,13 +9,24 @@ use super::conversion::temp_to_xy;
 mod model;
 mod property;
 
+#[derive(Clone, Copy, Debug)]
+enum Color {
+    TempK(usize),
+    XY((f64, f64)),
+}
+
+impl Color {
+    fn xy_from_temp(temp: usize) -> Color {
+        Color::XY(temp_to_xy(temp))
+    }
+}
+
 #[derive(Default, Clone, Debug)]
 pub(super) struct Lamp {
     model: Option<Model>,
     brightness: Option<f64>,
-    color_temp_k: Option<usize>,
-    color_xy: Option<(f64, f64)>,
-    on: Option<bool>,
+    color: Option<Color>,
+    is_on: Option<bool>,
     color_temp_startup: property::ColorTempStartup,
 }
 
@@ -32,28 +43,30 @@ impl Lamp {
             }
         }
 
-        if let Some(temp_self) = self.color_temp_k {
-            if other
-                .color_temp_k
-                .is_none_or(|temp_other| !temp_is_close(temp_other, temp_self))
-            {
-                res.push(Property::ColorTempK(temp_self));
-            }
-        }
+        if let Some(color_self) = self.color {
+            let log_err = |err| {
+                tracing::error!("Comparing incompatible lamp states, defaulting to same\nSelf: {self:?}\nOther: {other:?}\nErr: {err}");
+            };
 
-        if self.model.as_ref().is_some_and(Model::is_color_lamp) {
-            if let Some(xy_self) = self.color_xy {
-                if other
-                    .color_xy
-                    .is_none_or(|xy_other| !xy_is_close(xy_other, xy_self))
-                {
-                    res.push(Property::ColorXY(xy_self));
+            let color_is_close = match other.color {
+                None => false,
+                Some(color_other) => color_is_close(color_other, color_self)
+                    .unwrap_or_else(|err| {
+                        log_err(err);
+                        true
+                    }),
+            };
+
+            if !color_is_close {
+                match color_self {
+                    Color::XY(xy) => res.push(Property::ColorXY(xy)),
+                    Color::TempK(temp) => res.push(Property::ColorTempK(temp)),
                 }
             }
         }
 
-        if let Some(on_self) = self.on {
-            if other.on.is_none_or(|on_other| on_other != on_self) {
+        if let Some(on_self) = self.is_on {
+            if other.is_on.is_none_or(|on_other| on_other != on_self) {
                 res.push(Property::On(on_self));
             }
         }
@@ -65,21 +78,32 @@ impl Lamp {
         res
     }
 
-    pub(super) fn apply(self, change: Property) -> Self {
-        let mut new_state = self.clone();
+    pub(super) fn apply(&mut self, change: Property) {
         match change {
-            Property::On(on) => new_state.on = Some(on),
-            Property::Brightness(bri) => new_state.brightness = Some(bri),
+            Property::On(is_on) => self.is_on = Some(is_on),
+            Property::Brightness(bri) => self.brightness = Some(bri),
             Property::ColorTempK(temp) => {
-                new_state.color_temp_k = Some(temp);
-                new_state.color_xy = Some(temp_to_xy(temp));
+                // if we know the model, we know how to apply temp
+                if let Some(model) = &self.model {
+                    if model.supports_xy() {
+                        self.color = Some(Color::xy_from_temp(temp));
+                    } else {
+                        self.color = Some(Color::TempK(temp))
+                    }
+                }
             }
-            Property::ColorXY(xy) => new_state.color_xy = Some(xy),
-            Property::ColorTempStartup(ct_startup) => {
-                new_state.color_temp_startup = ct_startup
+            Property::ColorXY(xy) => {
+                // don't apply xy to unknown or non-color lamp
+                if let Some(model) = &self.model {
+                    if model.supports_xy() {
+                        self.color = Some(Color::XY(xy))
+                    }
+                }
+            }
+            Property::ColorTempStartup(behaviour) => {
+                self.color_temp_startup = behaviour
             }
         }
-        new_state
     }
 
     pub(crate) fn all_as_changes(&self) -> Vec<Property> {
@@ -91,26 +115,17 @@ impl Lamp {
         if let Some(val) = (&self).brightness {
             list.push(Property::Brightness(val));
         }
-        if let Some(val) = (&self).color_temp_k {
-            list.push(Property::ColorTempK(val));
+        if let Some(val) = &self.color {
+            match val {
+                Color::XY(xy) => list.push(Property::ColorXY(*xy)),
+                Color::TempK(temp) => list.push(Property::ColorTempK(*temp)),
+            }
         }
-        if let Some(val) = (&self).on {
+        if let Some(val) = (&self).is_on {
             list.push(Property::On(val));
         }
         list.push(Property::ColorTempStartup((&self).color_temp_startup));
         list
-    }
-
-    pub(crate) fn change_state(&mut self, property: Property) {
-        match property {
-            Property::Brightness(bri) => self.brightness = Some(bri),
-            Property::ColorTempK(temp) => self.color_temp_k = Some(temp),
-            Property::ColorXY(xy) => self.color_xy = Some(xy),
-            Property::On(is_on) => self.on = Some(is_on),
-            Property::ColorTempStartup(behavior) => {
-                self.color_temp_startup = behavior;
-            }
-        }
     }
 
     pub(crate) fn add_model_from(mut self, other: &Lamp) -> Self {

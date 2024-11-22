@@ -97,12 +97,12 @@ async fn apply_change_to_needed(
 
     let default = Lamp::default();
     let known = known_states.get(&light_name).unwrap_or(&default);
-    let needed = match needed_states.get(&light_name) {
+    let mut needed = match needed_states.get(&light_name) {
         // make sure needed has the model if known has it
         Some(needed) => needed.clone().add_model_from(&known),
         None => known.clone(),
     };
 
-    let with_change_applied = needed.apply(change);
-    needed_states.insert(light_name, with_change_applied);
+    needed.apply(change);
+    needed_states.insert(light_name, needed);
 }
