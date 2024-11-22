@@ -8,7 +8,7 @@ use tracing::{instrument, trace, warn};
 
 use crate::lights::lamp;
 
-use super::CHANGE_APPLY_DELAY;
+use super::TIME_IT_TAKES_TO_APPLY_CHANGE;
 
 pub(super) struct Mqtt {
     client: AsyncClient,
@@ -64,20 +64,24 @@ impl Mqtt {
             return Instant::now();
         };
 
-        let Some(prop_send_record) = light_send_record.get(&change.into())
+        let Some((sent_at, prev_change)) =
+            light_send_record.get(&change.into())
         else {
             // property has never been sent before
             return Instant::now();
         };
 
-        let (sent_at, prev_change) = prop_send_record;
-
-        if prev_change != change || sent_at.elapsed() > CHANGE_APPLY_DELAY {
-            // we are overdue
-            Instant::now()
-        } else {
-            *sent_at + CHANGE_APPLY_DELAY
+        // there is a new change
+        if prev_change != change {
+            return Instant::now();
         }
+
+        // we are overdue
+        if sent_at.elapsed() > TIME_IT_TAKES_TO_APPLY_CHANGE {
+            return Instant::now();
+        }
+
+        *sent_at + TIME_IT_TAKES_TO_APPLY_CHANGE
     }
 
     fn is_due(&self, light_name: &str, change: &lamp::Property) -> bool {
