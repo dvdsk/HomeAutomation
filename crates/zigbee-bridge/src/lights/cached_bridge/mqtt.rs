@@ -7,8 +7,9 @@ use serde_json::json;
 use tracing::{instrument, trace, warn};
 
 use crate::lights::lamp;
+use crate::LIGHTS;
 
-use super::TIME_IT_TAKES_TO_APPLY_CHANGE;
+use super::{TIME_IT_TAKES_TO_APPLY_CHANGE, TO_SUBSCRIBE};
 
 pub(super) struct Mqtt {
     client: AsyncClient,
@@ -27,10 +28,19 @@ impl Mqtt {
         }
     }
 
-    pub(super) async fn subscribe(
-        &self,
-        topic: &str,
-    ) -> Result<(), ClientError> {
+    pub(super) async fn subscribe_to_all(&self) {
+        for topic in TO_SUBSCRIBE {
+            self.subscribe(topic).await.unwrap();
+        }
+        for light in LIGHTS {
+            self.subscribe(&format!("zigbee2mqtt/{light}"))
+                .await
+                .unwrap();
+            self.request_state(light).await;
+        }
+    }
+
+    async fn subscribe(&self, topic: &str) -> Result<(), ClientError> {
         // Its okay for messages to arrive twice or more. MQTT guarantees
         // ordering and we only do something if the cached bridge indicates we
         // need to so light states arriving twice is not an issue.

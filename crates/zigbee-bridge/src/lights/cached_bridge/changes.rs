@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{mpsc, Mutex, RwLock};
 use tokio::time::{sleep, timeout};
 use tracing::{debug, instrument, trace, warn};
 
@@ -12,7 +12,7 @@ use crate::LIGHTS;
 
 pub(super) async fn handle(
     mut change_receiver: mpsc::UnboundedReceiver<(String, lamp::Property)>,
-    mqtt: &mut Mqtt,
+    mqtt: &RwLock<Mqtt>,
     known_states: &RwLock<HashMap<String, Lamp>>,
 ) -> ! {
     // Give the initial known states a chance to be fetched
@@ -39,8 +39,9 @@ pub(super) async fn handle(
             .await;
         };
 
+        let mut mqtt = mqtt.write().await;
         call_at_least_in =
-            send_diff_get_timeout(known_states, &mut needed_states, mqtt)
+            send_diff_get_timeout(known_states, &mut needed_states, &mut mqtt)
                 .await
                 .min(MQTT_MIGHT_BE_DOWN_TIMEOUT);
     }

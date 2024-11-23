@@ -6,6 +6,7 @@ use itertools::Itertools;
 use ratelimited_logger::RateLimitedLogger;
 use rumqttc::v5::{Event, EventLoop, Incoming};
 use serde_json::Value;
+use tokio::sync::Mutex;
 use tokio::{sync::RwLock, time::sleep};
 use tracing::{instrument, trace, warn};
 
@@ -13,8 +14,11 @@ use crate::lights::kelvin_to_mired;
 use crate::lights::lamp::{self, Lamp};
 use crate::lights::parse_state::parse_lamp_properties;
 
+use super::mqtt::Mqtt;
+
 pub(super) async fn poll_mqtt(
     mut eventloop: EventLoop,
+    mqtt: &RwLock<Mqtt>,
     known_states: &RwLock<HashMap<String, Lamp>>,
 ) -> ! {
     let mut logger = RateLimitedLogger::default();
@@ -47,6 +51,11 @@ pub(super) async fn poll_mqtt(
                 for (light_name, model) in new_devices {
                     update_model(known_states, light_name, model).await;
                 }
+            }
+            Message::ConnAck => {
+                warn!("Received ConnAck, resubscribing");
+                let mqtt = mqtt.read().await;
+                mqtt.subscribe_to_all().await;
             }
             Message::Other => (),
         }
@@ -95,8 +104,10 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
         return Ok(Message::Other);
     };
 
-    let Incoming::Publish(message) = incoming else {
-        return Ok(Message::Other);
+    let message = match incoming {
+        Incoming::Publish(message) => message,
+        Incoming::ConnAck(_) => return Ok(Message::ConnAck),
+        _ => return Ok(Message::Other),
     };
 
     trace!("message: {message:?}");
@@ -160,6 +171,7 @@ fn parse_log_message(
 enum Message {
     StateUpdate((String, Vec<lamp::Property>)),
     Devices(HashMap<String, lamp::Model>),
+    ConnAck,
     Other,
 }
 
