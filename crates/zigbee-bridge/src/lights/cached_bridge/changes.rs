@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::{sleep, timeout};
-use tracing::{debug, instrument, trace};
+use tracing::{debug, instrument, trace, warn};
 
 use super::mqtt::Mqtt;
 use super::{MQTT_MIGHT_BE_DOWN_TIMEOUT, WAIT_FOR_INIT_STATES};
@@ -104,5 +104,8 @@ async fn apply_change_to_needed(
     };
 
     needed.apply(change);
+    // if light_name == "kitchen:fridge" {
+    //     warn!("New (fridge) needed state model: {:?}", needed.model);
+    // }
     needed_states.insert(light_name, needed);
 }

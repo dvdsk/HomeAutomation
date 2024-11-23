@@ -43,6 +43,7 @@ pub(super) async fn poll_mqtt(
                     .await;
             }
             Message::Devices(new_devices) => {
+                warn!("Received devices list");
                 for (light_name, model) in new_devices {
                     update_model(known_states, light_name, model).await;
                 }
@@ -59,6 +60,12 @@ async fn update_model(
 ) {
     let mut known_states = known_states.write().await;
     let current_lamp = known_states.entry(light_name.to_string()).or_default();
+    if light_name == "kitchen:fridge" {
+        warn!(
+            "Received model update for fridge lamp,\nold: {:?},\nnew: {model:?}",
+            current_lamp.model
+            );
+    }
     current_lamp.set_model(model);
 }
 
@@ -97,8 +104,10 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
 
     match topic {
         "zigbee2mqtt/bridge/devices" => {
+            warn!("ZB received devices message");
             let json: Value = serde_json::from_slice(&message.payload)
                 .wrap_err("could not parse message payload as json")?;
+            warn!("contents: {json:#?}");
             let list = json
                 .as_array()
                 .ok_or_eyre("devices list should be array its not")

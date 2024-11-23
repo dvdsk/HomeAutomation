@@ -24,7 +24,8 @@ impl Color {
 // TODO: some way to enforce read-only (thus known-updatable-only) fields?
 #[derive(Default, Clone, Debug)]
 pub(super) struct Lamp {
-    model: Option<Model>,
+    // TODO: remove after debugging
+    pub(super) model: Option<Model>,
     is_online: Option<bool>,
     brightness: Option<f64>,
     color: Option<Color>,

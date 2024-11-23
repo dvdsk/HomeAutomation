@@ -83,19 +83,22 @@ pub async fn run(
 }
 
 async fn update(system: &mut RestrictedSystem) {
-    let (new_ct, new_bri) = small_bedroom::optimal_ct_bri();
+    // let (new_ct, new_bri) = small_bedroom::optimal_ct_bri();
+    let (new_ct, new_bri) = _testing_ct_bri();
     system.all_lamps_ct(new_ct, new_bri).await;
     tracing::trace!("updated lamps");
 }
 
 fn _testing_ct_bri() -> (u16, u8) {
     let now = local_now();
-    let optimal = match now.hour() {
+    // let optimal = match now.hour() {
+    let optimal = match now.minute() {
         min if min % 2 == 0 => (400, u8::MAX), // Even hour: orange
         min if min % 2 == 1 => (250, u8::MAX), // Odd hour: blue
         _ => (400, u8::MAX),
     };
-    if now.minute() == 0 && now.second() <= 9 {
+    // if now.minute() == 0 && now.second() <= 9 {
+    if now.second() <= 9 {
         warn!("B: correct color temp is now {}", optimal.0);
     }
     optimal
