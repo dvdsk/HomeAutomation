@@ -67,7 +67,16 @@ async fn send_diff_get_timeout(
             None => needed.all_as_changes(),
         };
 
-        let _ = mqtt.send_diff_where_due(light_name, &diff).await;
+        let is_online = match known_states.get(light_name) {
+            Some(known) => known.is_online,
+            // we assume the lamp is online so that init messages get sent
+            None => true,
+        };
+
+        if is_online {
+            let _ = mqtt.send_diff_where_due(light_name, &diff).await;
+        }
+
         if let Some(deadline) = mqtt.next_deadline(light_name, &diff) {
             light_deadlines.push(deadline);
         }

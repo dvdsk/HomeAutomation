@@ -25,7 +25,7 @@ impl Color {
 #[derive(Clone, Debug)]
 pub(super) struct Lamp {
     model: Model,
-    is_online: Option<bool>,
+    pub(super) is_online: bool,
     brightness: Option<f64>,
     color: Option<Color>,
     is_on: Option<bool>,
@@ -36,7 +36,8 @@ impl Lamp {
     pub(super) fn new(name: &str) -> Self {
         Self {
             model: Model::from_light(name),
-            is_online: None,
+            // we assume the lamp is online so that init messages get sent
+            is_online: true,
             brightness: None,
             color: None,
             is_on: None,
@@ -117,7 +118,7 @@ impl Lamp {
             Property::ColorTempStartup(behaviour) => {
                 self.color_temp_startup = behaviour
             }
-            Property::Online(is_online) => self.is_online = Some(is_online),
+            Property::Online(is_online) => self.is_online = is_online,
         }
     }
 

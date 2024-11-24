@@ -68,8 +68,9 @@ pub(super) fn parse_lamp_properties(
         list.push(lamp::Property::On(on));
     }
 
-    // TODO: startup behavior? <14-11-24, dvdsk>
-    //
+    // we have just received a state message, so the lamp must be online
+    list.push(lamp::Property::Online(true));
+
     Ok(list)
 }
 
