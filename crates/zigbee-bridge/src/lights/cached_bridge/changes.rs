@@ -8,7 +8,6 @@ use tracing::{debug, instrument, trace, warn};
 use super::mqtt::Mqtt;
 use super::{MQTT_MIGHT_BE_DOWN_TIMEOUT, WAIT_FOR_INIT_STATES};
 use crate::lights::lamp::{self, Lamp};
-use crate::LIGHTS;
 
 pub(super) async fn handle(
     mut change_receiver: mpsc::UnboundedReceiver<(String, lamp::Property)>,
@@ -60,13 +59,8 @@ async fn send_diff_get_timeout(
     let known_states = known_states.read().await;
     let mut light_deadlines = Vec::new();
 
-    for (light_name, _) in LIGHTS {
+    for (light_name, needed) in needed_states {
         tracing::Span::current().record("light_name", light_name);
-
-        // if there is no needed state, we ignore this light
-        let Some(needed) = needed_states.get(light_name) else {
-            continue;
-        };
 
         let diff = match known_states.get(light_name) {
             Some(known) => needed.changes_relative_to(known),

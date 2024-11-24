@@ -5,7 +5,7 @@ use tokio::sync::{mpsc, RwLock};
 use tracing::trace;
 
 use self::mqtt::Mqtt;
-use crate::{lights::lamp, LIGHTS, MQTT_IP, MQTT_PORT};
+use crate::{lights::lamp, LIGHT_MODELS, MQTT_IP, MQTT_PORT};
 
 mod changes;
 mod mqtt;
@@ -34,7 +34,7 @@ pub(super) async fn run(
     let mut mqtt = Mqtt::new(client);
 
     mqtt.subscribe("zigbee2mqtt/bridge/logging").await.unwrap();
-    for (light, _) in LIGHTS {
+    for (light, _) in LIGHT_MODELS {
         mqtt.subscribe(&format!("zigbee2mqtt/{light}"))
             .await
             .unwrap();

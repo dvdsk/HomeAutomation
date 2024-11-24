@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::Range};
 
 use tracing::warn;
 
-use crate::LIGHTS;
+use crate::LIGHT_MODELS;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Model {
@@ -10,6 +10,7 @@ pub(crate) enum Model {
     TradfriE27,
     TradfriE14,
     HueGen4,
+    #[allow(unused)]
     TradfriOther(String),
     #[allow(unused)]
     HueOther(String),
@@ -18,7 +19,7 @@ pub(crate) enum Model {
 
 impl Model {
     pub(super) fn from_light(name: &str) -> Self {
-        let map = HashMap::from(LIGHTS);
+        let map = HashMap::from(LIGHT_MODELS);
         match map.get(name) {
             Some(model) => model.clone(),
             None => {

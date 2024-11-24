@@ -24,7 +24,6 @@ impl Color {
 // TODO: some way to enforce read-only (thus known-updatable-only) fields?
 #[derive(Clone, Debug)]
 pub(super) struct Lamp {
-    name: String,
     model: Model,
     is_online: Option<bool>,
     brightness: Option<f64>,
@@ -36,7 +35,6 @@ pub(super) struct Lamp {
 impl Lamp {
     pub(super) fn new(name: &str) -> Self {
         Self {
-            name: name.to_owned(),
             model: Model::from_light(name),
             is_online: None,
             brightness: None,
