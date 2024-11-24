@@ -83,6 +83,15 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
     let topic: &str = &String::from_utf8_lossy(&message.topic);
 
     match topic {
+        "zigbee2mqtt/bridge/event" => {
+            let json: Value = serde_json::from_slice(&message.payload)
+                .wrap_err("could not parse message payload as json")?;
+            let bridge_event = json
+                .as_object()
+                .ok_or_eyre("log should be map it is not")
+                .with_note(|| format!("json was: {json:?}"))?;
+            dbg!(parse_bridge_event(bridge_event))
+        }
         "zigbee2mqtt/bridge/logging" => {
             let json: Value = serde_json::from_slice(&message.payload)
                 .wrap_err("could not parse message payload as json")?;
@@ -90,7 +99,7 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
                 .as_object()
                 .ok_or_eyre("log should be map it is not")
                 .with_note(|| format!("json was: {json:?}"))?;
-            parse_log_message(log)
+            dbg!(parse_log_message(log))
         }
         topic => {
             let topic: Vec<_> = topic.split('/').collect();
@@ -101,6 +110,36 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
             Ok(Message::StateUpdate((name, state)))
         }
     }
+}
+
+fn parse_bridge_event(
+    payload: &serde_json::Map<String, Value>,
+) -> color_eyre::Result<Message> {
+    let event = payload
+        .get("type")
+        .ok_or_eyre("no type in bridge event")?
+        .as_str()
+        .ok_or_eyre("bridge event type is not a string")?;
+    let data = payload
+        .get("data")
+        .ok_or_eyre("no data in bridge event")?
+        .as_object()
+        .ok_or_eyre("bridge event data is not a map")?;
+    let light_name = data
+        .get("friendly_name")
+        .ok_or_eyre("no name in bridge event data")?
+        .as_str()
+        .ok_or_eyre("bridge event friendly name is not a string")?
+        .to_owned();
+
+    let is_online = match event {
+        "device_joined" | "device_announce" => true,
+        "device_leave" => false,
+        _ => return Ok(Message::Other),
+    };
+
+    let update = (light_name, vec![lamp::Property::Online(is_online)]);
+    Ok(Message::StateUpdate(update))
 }
 
 fn parse_log_message(
@@ -123,10 +162,8 @@ fn parse_log_message(
     if level == "error" {
         if let Some(caps) = regex.captures(message) {
             let light_name = caps[1].to_string();
-            return Ok(Message::StateUpdate((
-                light_name,
-                vec![lamp::Property::Online(false)],
-            )));
+            let update = (light_name, vec![lamp::Property::Online(false)]);
+            return Ok(Message::StateUpdate(update));
         }
     }
 
