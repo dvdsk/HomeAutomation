@@ -3,6 +3,7 @@ use std::{collections::HashMap, time::Duration};
 use color_eyre::eyre::{Context, OptionExt};
 use color_eyre::Section;
 use ratelimited_logger::RateLimitedLogger;
+use regex::Regex;
 use rumqttc::v5::{Event, EventLoop, Incoming};
 use serde_json::Value;
 use tokio::{sync::RwLock, time::sleep};
@@ -89,8 +90,7 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
                 .as_object()
                 .ok_or_eyre("log should be map it is not")
                 .with_note(|| format!("json was: {json:?}"))?;
-            // parse_log_message(log)
-            Ok(Message::Other)
+            parse_log_message(log)
         }
         topic => {
             let topic: Vec<_> = topic.split('/').collect();
@@ -107,12 +107,30 @@ fn parse_log_message(
     log: &serde_json::Map<String, Value>,
 ) -> color_eyre::Result<Message> {
     let level = log.get("level").ok_or_eyre("no level in log message")?;
-    let message = log.get("message").ok_or_eyre("no message in log message")?;
-    if level == "error" {
-        todo!()
-    } else {
-        Ok(Message::Other)
+    let message = log
+        .get("message")
+        .ok_or_eyre("no message in log message")?
+        .as_str()
+        .ok_or_eyre("log message is not a string")?;
+
+    if level != "error" {
+        return Ok(Message::Other);
     }
+
+    let regex =
+        Regex::new(r"Publish.*? to '(.*?)' failed.*?MAC no ack").unwrap();
+
+    if level == "error" {
+        if let Some(caps) = regex.captures(message) {
+            let light_name = caps[1].to_string();
+            return Ok(Message::StateUpdate((
+                light_name,
+                vec![lamp::Property::Online(false)],
+            )));
+        }
+    }
+
+    Ok(Message::Other)
 }
 
 #[derive(Debug)]

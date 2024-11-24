@@ -4289,6 +4289,7 @@ dependencies = [
  "futures-concurrency",
  "itertools",
  "ratelimited-logger",
+ "regex",
  "rumqttc",
  "serde_json",
  "strum",
