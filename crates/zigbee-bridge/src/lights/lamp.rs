@@ -1,4 +1,4 @@
-pub(super) use model::Model;
+pub(crate) use model::Model;
 pub(super) use property::{Property, PropertyDiscriminants};
 
 use self::property::{bri_is_close, color_is_close};
@@ -22,10 +22,10 @@ impl Color {
 }
 
 // TODO: some way to enforce read-only (thus known-updatable-only) fields?
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub(super) struct Lamp {
-    // TODO: remove after debugging
-    pub(super) model: Option<Model>,
+    name: String,
+    model: Model,
     is_online: Option<bool>,
     brightness: Option<f64>,
     color: Option<Color>,
@@ -34,6 +34,18 @@ pub(super) struct Lamp {
 }
 
 impl Lamp {
+    pub(super) fn new(name: &str) -> Self {
+        Self {
+            name: name.to_owned(),
+            model: Model::from_light(name),
+            is_online: None,
+            brightness: None,
+            color: None,
+            is_on: None,
+            color_temp_startup: property::ColorTempStartup::default(),
+        }
+    }
+
     #[instrument]
     pub(super) fn changes_relative_to(&self, other: &Self) -> Vec<Property> {
         let mut res = Vec::new();
@@ -90,22 +102,18 @@ impl Lamp {
             Property::Brightness(bri) => self.brightness = Some(bri),
             Property::ColorTempK(temp) => {
                 // if we know the model, we know how to apply temp
-                if let Some(model) = &self.model {
-                    if model.supports_xy() {
-                        self.color = Some(Color::xy_from_temp(temp));
-                    } else {
-                        let range = model.temp_k_range();
-                        let temp = temp.clamp(range.start, range.end);
-                        self.color = Some(Color::TempK(temp))
-                    }
+                if self.model.supports_xy() {
+                    self.color = Some(Color::xy_from_temp(temp));
+                } else {
+                    let range = self.model.temp_k_range();
+                    let temp = temp.clamp(range.start, range.end);
+                    self.color = Some(Color::TempK(temp))
                 }
             }
             Property::ColorXY(xy) => {
                 // don't apply xy to unknown or non-color lamp
-                if let Some(model) = &self.model {
-                    if model.supports_xy() {
-                        self.color = Some(Color::XY(xy))
-                    }
+                if self.model.supports_xy() {
+                    self.color = Some(Color::XY(xy))
                 }
             }
             Property::ColorTempStartup(behaviour) => {
@@ -134,16 +142,5 @@ impl Lamp {
         }
         list.push(Property::ColorTempStartup((&self).color_temp_startup));
         list
-    }
-
-    pub(crate) fn add_model_from(mut self, other: &Lamp) -> Self {
-        if let Some(model) = &other.model {
-            self.model = Some(model.clone());
-        }
-        self
-    }
-
-    pub(crate) fn set_model(&mut self, model: Model) {
-        self.model = Some(model);
     }
 }

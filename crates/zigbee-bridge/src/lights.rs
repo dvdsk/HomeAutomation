@@ -6,6 +6,7 @@ use tracing::trace;
 pub use conversion::{
     denormalize, kelvin_to_mired, mired_to_kelvin, normalize,
 };
+pub(crate) use lamp::Model;
 
 mod cached_bridge;
 mod conversion;

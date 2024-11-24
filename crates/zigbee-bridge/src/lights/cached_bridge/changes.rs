@@ -60,7 +60,7 @@ async fn send_diff_get_timeout(
     let known_states = known_states.read().await;
     let mut light_deadlines = Vec::new();
 
-    for light_name in LIGHTS {
+    for (light_name, _) in LIGHTS {
         tracing::Span::current().record("light_name", light_name);
 
         // if there is no needed state, we ignore this light
@@ -95,17 +95,15 @@ async fn apply_change_to_needed(
 ) {
     let known_states = known_states.read().await;
 
-    let default = Lamp::default();
-    let known = known_states.get(&light_name).unwrap_or(&default);
+    let known = known_states
+        .get(&light_name)
+        .map(|l| l.to_owned())
+        .unwrap_or_else(|| Lamp::new(&light_name));
     let mut needed = match needed_states.get(&light_name) {
-        // make sure needed has the model if known has it
-        Some(needed) => needed.clone().add_model_from(&known),
-        None => known.clone(),
+        Some(needed) => needed.clone(),
+        None => known,
     };
 
     needed.apply(change);
-    // if light_name == "kitchen:fridge" {
-    //     warn!("New (fridge) needed state model: {:?}", needed.model);
-    // }
     needed_states.insert(light_name, needed);
 }

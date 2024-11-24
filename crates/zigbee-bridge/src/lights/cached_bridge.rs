@@ -33,9 +33,8 @@ pub(super) async fn run(
         AsyncClient::new(options.clone(), channel_capacity);
     let mut mqtt = Mqtt::new(client);
 
-    mqtt.subscribe("zigbee2mqtt/bridge/devices").await.unwrap();
     mqtt.subscribe("zigbee2mqtt/bridge/logging").await.unwrap();
-    for light in LIGHTS {
+    for (light, _) in LIGHTS {
         mqtt.subscribe(&format!("zigbee2mqtt/{light}"))
             .await
             .unwrap();

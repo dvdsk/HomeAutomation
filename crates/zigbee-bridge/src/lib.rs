@@ -4,16 +4,18 @@
 // Set to on, off after 30s
 // on_time: 30, off_wait_time: 30
 
+use lights::Model;
+
 pub mod lights;
 
 const MQTT_IP: &str = "192.168.1.43";
 const MQTT_PORT: u16 = 1883;
-const LIGHTS: [&str; 5] = [
-    "kitchen:fridge",
-    "kitchen:hallway",
-    "kitchen:hood_left",
-    "kitchen:hood_right",
-    "kitchen:ceiling",
+const LIGHTS: [(&str, Model); 5] = [
+    ("kitchen:fridge", Model::TradfriE14),
+    ("kitchen:hallway", Model::TradfriE27),
+    ("kitchen:hood_left", Model::TradfriCandle),
+    ("kitchen:hood_right", Model::TradfriCandle),
+    ("kitchen:ceiling", Model::HueGen4),
 ];
 
 #[cfg(test)]
@@ -29,7 +31,7 @@ mod tests {
         let controller = Controller::start_bridge();
 
         println!("Setting to on, 2200");
-        for light in LIGHTS {
+        for (light, _) in LIGHTS {
             controller.set_on(light);
             controller.set_color_temp(light, 2200);
         }
@@ -37,14 +39,14 @@ mod tests {
         tokio::time::sleep(Duration::from_secs(1)).await;
 
         println!("Turning off");
-        for light in LIGHTS {
+        for (light, _) in LIGHTS {
             controller.set_off(light);
         }
 
         tokio::time::sleep(Duration::from_secs(1)).await;
 
         println!("Turning on to 4000");
-        for light in LIGHTS {
+        for (light, _) in LIGHTS {
             controller.set_on(light);
             controller.set_color_temp(light, 4000);
         }
@@ -52,7 +54,7 @@ mod tests {
         tokio::time::sleep(Duration::from_secs(1)).await;
 
         println!("Setting bri to 1.0");
-        for light in LIGHTS {
+        for (light, _) in LIGHTS {
             controller.set_brightness(light, 1.0);
         }
 

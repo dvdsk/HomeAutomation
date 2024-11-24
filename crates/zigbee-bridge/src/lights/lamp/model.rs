@@ -1,5 +1,9 @@
 use std::{collections::HashMap, ops::Range};
 
+use tracing::warn;
+
+use crate::LIGHTS;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Model {
     TradfriCandle,
@@ -13,6 +17,17 @@ pub(crate) enum Model {
 }
 
 impl Model {
+    pub(super) fn from_light(name: &str) -> Self {
+        let map = HashMap::from(LIGHTS);
+        match map.get(name) {
+            Some(model) => model.clone(),
+            None => {
+                warn!("No model known for light {name}");
+                Model::Other(String::from("Unknown"))
+            }
+        }
+    }
+
     pub(super) fn supports_xy(&self) -> bool {
         #[allow(clippy::match_same_arms)] // clearer comment
         match self {
