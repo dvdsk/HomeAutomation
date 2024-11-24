@@ -90,7 +90,7 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
                 .as_object()
                 .ok_or_eyre("log should be map it is not")
                 .with_note(|| format!("json was: {json:?}"))?;
-            dbg!(parse_bridge_event(bridge_event))
+            parse_bridge_event(bridge_event)
         }
         "zigbee2mqtt/bridge/logging" => {
             let json: Value = serde_json::from_slice(&message.payload)
@@ -99,7 +99,7 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
                 .as_object()
                 .ok_or_eyre("log should be map it is not")
                 .with_note(|| format!("json was: {json:?}"))?;
-            dbg!(parse_log_message(log))
+            parse_log_message(log)
         }
         topic => {
             let topic: Vec<_> = topic.split('/').collect();
@@ -137,6 +137,9 @@ fn parse_bridge_event(
         "device_leave" => false,
         _ => return Ok(Message::Other),
     };
+    if light_name == "kitchen:fridge" {
+        warn!("Fridge online: {is_online}");
+    }
 
     let update = (light_name, vec![lamp::Property::Online(is_online)]);
     Ok(Message::StateUpdate(update))
@@ -157,11 +160,14 @@ fn parse_log_message(
     }
 
     let regex =
-        Regex::new(r"Publish.*? to '(.*?)' failed.*?MAC no ack").unwrap();
+        Regex::new(r"Publish.*? to '(.*?)' failed").unwrap();
 
     if level == "error" {
         if let Some(caps) = regex.captures(message) {
             let light_name = caps[1].to_string();
+            if light_name == "kitchen:fridge" {
+                warn!("Fridge is Offline");
+            }
             let update = (light_name, vec![lamp::Property::Online(false)]);
             return Ok(Message::StateUpdate(update));
         }
