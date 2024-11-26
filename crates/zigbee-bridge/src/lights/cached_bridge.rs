@@ -13,7 +13,9 @@ mod poll;
 
 const MQTT_MIGHT_BE_DOWN_TIMEOUT: Duration = Duration::from_secs(500);
 const WAIT_FOR_INIT_STATES: Duration = Duration::from_millis(500);
-const TIME_IT_TAKES_TO_APPLY_CHANGE: Duration = Duration::from_secs(1);
+// unfortunately we have to use the zigbee-herdsman timeout to prevent
+// the z2m queue from getting filled up
+const TIME_IT_TAKES_TO_APPLY_CHANGE: Duration = Duration::from_secs(10);
 
 pub(super) async fn run(
     change_receiver: mpsc::UnboundedReceiver<(String, lamp::Property)>,

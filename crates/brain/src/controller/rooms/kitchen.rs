@@ -83,8 +83,8 @@ pub async fn run(
 }
 
 async fn update(system: &mut RestrictedSystem) {
-    // let (new_ct, new_bri) = small_bedroom::optimal_ct_bri();
-    let (new_ct, new_bri) = _testing_ct_bri();
+    let (new_ct, new_bri) = small_bedroom::optimal_ct_bri();
+    // let (new_ct, new_bri) = _testing_ct_bri();
     system.all_lamps_ct(new_ct, new_bri).await;
     tracing::trace!("updated lamps");
 }
