@@ -42,13 +42,6 @@ impl RestrictedSystem {
             self.system.lights.set_ct(name, bri, ct).await.unwrap();
         }
 
-        let now = local_now();
-        if !&self.allowed_lights_new.is_empty()
-            && now.minute() == 0
-            && now.second() <= 9
-        {
-            warn!("B sending changes to ZB (every 5s from now): ct = {ct}");
-        }
         for name in &self.allowed_lights_new {
             self.system
                 .lights_new

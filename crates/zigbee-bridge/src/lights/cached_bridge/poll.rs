@@ -57,13 +57,21 @@ async fn update_state(
         .entry(light_name.to_owned())
         .or_insert_with(|| Lamp::new(light_name));
     for property in new {
-        if let lamp::Property::ColorTempK(temp) = property {
-            if light_name == "kitchen:fridge" {
-                warn!(
-                    "ZB received fridge color temp change: {}",
-                    kelvin_to_mired(temp)
-                );
+        match property {
+            lamp::Property::ColorTempK(temp) => {
+                if light_name == "kitchen:fridge" {
+                    warn!(
+                        "ZB received fridge color temp change: {}",
+                        kelvin_to_mired(temp)
+                    );
+                }
             }
+            lamp::Property::Online(new_online) => {
+                if new_online != current_lamp.is_online {
+                    warn!("ZB received fridge online change: {new_online}");
+                }
+            }
+            _ => (),
         }
         current_lamp.apply(property);
     }
@@ -137,9 +145,6 @@ fn parse_bridge_event(
         "device_leave" => false,
         _ => return Ok(Message::Other),
     };
-    if light_name == "kitchen:fridge" {
-        warn!("Fridge online: {is_online}");
-    }
 
     let update = (light_name, vec![lamp::Property::Online(is_online)]);
     Ok(Message::StateUpdate(update))
@@ -159,15 +164,11 @@ fn parse_log_message(
         return Ok(Message::Other);
     }
 
-    let regex =
-        Regex::new(r"Publish.*? to '(.*?)' failed").unwrap();
+    let regex = Regex::new(r"Publish.*? to '(.*?)' failed").unwrap();
 
     if level == "error" {
         if let Some(caps) = regex.captures(message) {
             let light_name = caps[1].to_string();
-            if light_name == "kitchen:fridge" {
-                warn!("Fridge is Offline");
-            }
             let update = (light_name, vec![lamp::Property::Online(false)]);
             return Ok(Message::StateUpdate(update));
         }
