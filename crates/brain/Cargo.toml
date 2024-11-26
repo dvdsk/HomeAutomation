@@ -41,5 +41,5 @@ tracing = {workspace = true}
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tracing-journald = "0.3.0"
 clap = { workspace = true }
-futures-concurrency = "7.5.0"
+futures-concurrency = { workspace = true }
 strum = { version = "0.26.2", default-features = false, features = ["derive"] }

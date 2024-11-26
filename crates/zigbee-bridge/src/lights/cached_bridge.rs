@@ -1,49 +1,53 @@
-use std::collections::HashMap;
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
-use rumqttc::{AsyncClient, MqttOptions};
+use rumqttc::v5::{AsyncClient, MqttOptions};
 use tokio::sync::{mpsc, RwLock};
+use tracing::trace;
 
 use self::mqtt::Mqtt;
-use crate::lights::state::Change;
-use crate::{LIGHTS, MQTT_IP, MQTT_PORT};
+use crate::{lights::lamp, LIGHT_MODELS, MQTT_IP, MQTT_PORT};
 
 mod changes;
 mod mqtt;
 mod poll;
 
-const CHANGE_TIMEOUT: Duration = Duration::from_secs(5);
+const MQTT_MIGHT_BE_DOWN_TIMEOUT: Duration = Duration::from_secs(500);
 const WAIT_FOR_INIT_STATES: Duration = Duration::from_millis(500);
+// unfortunately we have to use the zigbee-herdsman timeout to prevent
+// the z2m queue from getting filled up
+const TIME_IT_TAKES_TO_APPLY_CHANGE: Duration = Duration::from_secs(10);
 
-pub(crate) async fn run(mut change_receiver: mpsc::UnboundedReceiver<(String, Change)>) -> ! {
-    let mut options = MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
-    // Set incoming to max mqtt packet size, outgoing to rumqtt default
-    options.set_max_packet_size(2_usize.pow(28), 10240);
+pub(super) async fn run(
+    change_receiver: mpsc::UnboundedReceiver<(String, lamp::Property)>,
+) -> ! {
+    let mut options =
+        MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
+    // Set max mqtt packet size to 4kB
+    options.set_max_packet_size(Some(4096));
+    // Keep subscriptions when reconnecting!!!!
+    options.set_clean_start(false);
 
     let known_states = RwLock::new(HashMap::new());
-    let devices = RwLock::new(HashMap::new());
-    let mut needed_states = HashMap::new();
 
     // Reconnecting to broker is handled by Eventloop::poll
-    let (client, eventloop) = AsyncClient::new(options.clone(), 128);
-    let mqtt = Mqtt::new(client);
+    let channel_capacity = 128;
+    let (client, eventloop) =
+        AsyncClient::new(options.clone(), channel_capacity);
+    let mut mqtt = Mqtt::new(client);
 
-    mqtt.subscribe("zigbee2mqtt/bridge/devices").await.unwrap();
-    for light in LIGHTS {
+    mqtt.subscribe("zigbee2mqtt/bridge/logging").await.unwrap();
+    mqtt.subscribe("zigbee2mqtt/bridge/event").await.unwrap();
+    for (light, _) in LIGHT_MODELS {
         mqtt.subscribe(&format!("zigbee2mqtt/{light}"))
             .await
             .unwrap();
         mqtt.request_state(light).await;
     }
 
-    let poll_mqtt = poll::poll_mqtt(eventloop, &known_states, &devices);
-    let handle_changes = changes::handle(
-        &mut change_receiver,
-        &mqtt,
-        &known_states,
-        &mut needed_states,
-        &devices,
-    );
+    trace!("Starting main zigbee management loops");
+    let poll_mqtt = poll::poll_mqtt(eventloop, &known_states);
+    let handle_changes =
+        changes::handle(change_receiver, &mut mqtt, &known_states);
 
     tokio::select! {
         () = handle_changes => unreachable!("should not panic"),

@@ -1,18 +1,21 @@
 #![allow(clippy::missing_panics_doc)]
 use tokio::sync::mpsc;
-
-use self::state::Change;
+use tracing::trace;
 
 // TODO: make private once system is ported
-pub use conversion::{kelvin_to_mired, mired_to_kelvin, normalize, denormalize};
+pub use conversion::{
+    denormalize, kelvin_to_mired, mired_to_kelvin, normalize,
+};
+pub(crate) use lamp::Model;
 
 mod cached_bridge;
 mod conversion;
-mod state;
+mod lamp;
+mod parse_state;
 
 #[derive(Debug, Clone)]
 pub struct Controller {
-    change_sender: mpsc::UnboundedSender<(String, state::Change)>,
+    change_sender: mpsc::UnboundedSender<(String, lamp::Property)>,
 }
 
 impl Controller {
@@ -21,6 +24,7 @@ impl Controller {
         let (change_sender, change_receiver) = mpsc::unbounded_channel();
 
         let run_bridge = cached_bridge::run(change_receiver);
+        trace!("Spawning zigbee bridge task");
         tokio::task::spawn(run_bridge);
 
         Self { change_sender }
@@ -28,31 +32,38 @@ impl Controller {
 
     pub fn set_on(&self, friendly_name: &str) {
         self.change_sender
-            .send((friendly_name.to_string(), Change::On(true)))
+            .send((friendly_name.to_string(), lamp::Property::On(true)))
             .expect("Sender should never be dropped");
     }
 
     pub fn set_off(&self, friendly_name: &str) {
         self.change_sender
-            .send((friendly_name.to_string(), Change::On(false)))
+            .send((friendly_name.to_string(), lamp::Property::On(false)))
             .expect("Sender should never be dropped");
     }
 
+    /// Brightness from 0 to 1
     pub fn set_brightness(&self, friendly_name: &str, brightness: f64) {
         self.change_sender
-            .send((friendly_name.to_string(), Change::Brightness(brightness)))
+            .send((
+                friendly_name.to_string(),
+                lamp::Property::Brightness(brightness),
+            ))
             .expect("Sender should never be dropped");
     }
 
     pub fn set_color_temp(&self, friendly_name: &str, kelvin: usize) {
         self.change_sender
-            .send((friendly_name.to_string(), Change::ColorTemp(kelvin)))
+            .send((
+                friendly_name.to_string(),
+                lamp::Property::ColorTempK(kelvin),
+            ))
             .expect("Sender should never be dropped");
     }
 
-    // pub fn set_color_xy(&self, friendly_name: &str, xy: (f64, f64)) {
-    //     self.change_sender
-    //         .send((friendly_name.to_string(), Change::ColorXy(xy)))
-    //         .expect("Sender should never be dropped");
-    // }
+    pub fn set_color_xy(&self, friendly_name: &str, xy: (f64, f64)) {
+        self.change_sender
+            .send((friendly_name.to_string(), lamp::Property::ColorXY(xy)))
+            .expect("Sender should never be dropped");
+    }
 }

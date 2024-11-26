@@ -1,112 +1,184 @@
 use std::{collections::HashMap, time::Duration};
 
-use rumqttc::{Event, EventLoop, Incoming};
+use color_eyre::eyre::{Context, OptionExt};
+use color_eyre::Section;
+use ratelimited_logger::RateLimitedLogger;
+use regex::Regex;
+use rumqttc::v5::{Event, EventLoop, Incoming};
 use serde_json::Value;
 use tokio::{sync::RwLock, time::sleep};
+use tracing::{instrument, trace, warn};
 
-use crate::lights::state::{Lamp, Model};
+use crate::lights::kelvin_to_mired;
+use crate::lights::lamp::{self, Lamp};
+use crate::lights::parse_state::parse_lamp_properties;
 
 pub(super) async fn poll_mqtt(
     mut eventloop: EventLoop,
     known_states: &RwLock<HashMap<String, Lamp>>,
-    devices: &RwLock<HashMap<String, Model>>,
 ) -> ! {
+    let mut logger = RateLimitedLogger::default();
+
     loop {
         let message = match eventloop.poll().await {
             Ok(message) => message,
             Err(err) => {
-                println!("Error while polling: {err}");
+                trace!("Error while polling: {err}");
                 sleep(Duration::from_millis(100)).await;
                 continue;
             }
         };
 
-        match parse_message(message) {
-            Message::StateUpdate((light_name, new_known_state)) => {
-                let mut known_states = known_states.write().await;
-                known_states.insert(light_name, new_known_state);
+        let message = match parse_message(message) {
+            Ok(message) => message,
+            Err(err) => {
+                ratelimited_logger::warn!(logger; "ZB error parsing mqtt message: {err}");
+                continue;
             }
-            Message::Devices(new_devices) => {
-                let mut devices = devices.write().await;
-                if *devices != new_devices {
-                    dbg!(&new_devices);
-                }
-                *devices = new_devices
+        };
+
+        match message {
+            Message::StateUpdate((light_name, changed_properties)) => {
+                update_state(known_states, &light_name, changed_properties)
+                    .await;
             }
             Message::Other => (),
         }
     }
 }
 
-fn parse_message(message: Event) -> Message {
-    match message {
-        Event::Incoming(incoming) => match incoming {
-            Incoming::ConnAck(_)
-            | Incoming::PubAck(_)
-            | Incoming::PingResp
-            | Incoming::SubAck(_) => Message::Other,
-            Incoming::Publish(message)
-                if message.topic == "zigbee2mqtt/bridge/devices" =>
-            {
-                let json: Value =
-                    serde_json::from_slice(&message.payload).unwrap();
-                let list = json.as_array().unwrap();
-                let devices: HashMap<String, Model> = list
-                    .into_iter()
-                    .map(parse_device)
-                    .filter(|d| d.0 != "Coordinator")
-                    .collect();
-
-                Message::Devices(devices)
+async fn update_state(
+    known_states: &RwLock<HashMap<String, Lamp>>,
+    light_name: &str,
+    new: Vec<lamp::Property>,
+) {
+    let mut known_states = known_states.write().await;
+    let current_lamp = known_states
+        .entry(light_name.to_owned())
+        .or_insert_with(|| Lamp::new(light_name));
+    for property in new {
+        match property {
+            lamp::Property::ColorTempK(temp) => {
+                if light_name == "kitchen:fridge" {
+                    warn!(
+                        "ZB received fridge color temp change: {}",
+                        kelvin_to_mired(temp)
+                    );
+                }
             }
-            Incoming::Publish(message) => {
-                let topic: Vec<_> = message.topic.split('/').collect();
-                let name = topic[1].to_string();
-                let data = &(*message.payload);
-
-                Message::StateUpdate((name, data.try_into().unwrap()))
+            lamp::Property::Online(new_online) => {
+                if new_online != current_lamp.is_online {
+                    warn!("ZB received fridge online change: {new_online}");
+                }
             }
-            other => {
-                dbg!(other);
-                Message::Other
-            }
-        },
-        Event::Outgoing(_) => Message::Other,
+            _ => (),
+        }
+        current_lamp.apply(property);
     }
+}
+
+#[instrument(skip_all)]
+fn parse_message(event: Event) -> color_eyre::Result<Message> {
+    let Event::Incoming(incoming) = event else {
+        return Ok(Message::Other);
+    };
+
+    let Incoming::Publish(message) = incoming else {
+        return Ok(Message::Other);
+    };
+
+    trace!("message: {message:?}");
+    let topic: &str = &String::from_utf8_lossy(&message.topic);
+
+    match topic {
+        "zigbee2mqtt/bridge/event" => {
+            let json: Value = serde_json::from_slice(&message.payload)
+                .wrap_err("could not parse message payload as json")?;
+            let bridge_event = json
+                .as_object()
+                .ok_or_eyre("log should be map it is not")
+                .with_note(|| format!("json was: {json:?}"))?;
+            parse_bridge_event(bridge_event)
+        }
+        "zigbee2mqtt/bridge/logging" => {
+            let json: Value = serde_json::from_slice(&message.payload)
+                .wrap_err("could not parse message payload as json")?;
+            let log = json
+                .as_object()
+                .ok_or_eyre("log should be map it is not")
+                .with_note(|| format!("json was: {json:?}"))?;
+            parse_log_message(log)
+        }
+        topic => {
+            let topic: Vec<_> = topic.split('/').collect();
+            let name = topic[1].to_string();
+            let state = parse_lamp_properties(&message.payload)
+                .wrap_err("failed to parse lamp state")
+                .with_note(|| format!("topic: {topic:?}"))?;
+            Ok(Message::StateUpdate((name, state)))
+        }
+    }
+}
+
+fn parse_bridge_event(
+    payload: &serde_json::Map<String, Value>,
+) -> color_eyre::Result<Message> {
+    let event = payload
+        .get("type")
+        .ok_or_eyre("no type in bridge event")?
+        .as_str()
+        .ok_or_eyre("bridge event type is not a string")?;
+    let data = payload
+        .get("data")
+        .ok_or_eyre("no data in bridge event")?
+        .as_object()
+        .ok_or_eyre("bridge event data is not a map")?;
+    let light_name = data
+        .get("friendly_name")
+        .ok_or_eyre("no name in bridge event data")?
+        .as_str()
+        .ok_or_eyre("bridge event friendly name is not a string")?
+        .to_owned();
+
+    let is_online = match event {
+        "device_joined" | "device_announce" => true,
+        "device_leave" => false,
+        _ => return Ok(Message::Other),
+    };
+
+    let update = (light_name, vec![lamp::Property::Online(is_online)]);
+    Ok(Message::StateUpdate(update))
+}
+
+fn parse_log_message(
+    log: &serde_json::Map<String, Value>,
+) -> color_eyre::Result<Message> {
+    let level = log.get("level").ok_or_eyre("no level in log message")?;
+    let message = log
+        .get("message")
+        .ok_or_eyre("no message in log message")?
+        .as_str()
+        .ok_or_eyre("log message is not a string")?;
+
+    if level != "error" {
+        return Ok(Message::Other);
+    }
+
+    let regex = Regex::new(r"Publish.*? to '(.*?)' failed").unwrap();
+
+    if level == "error" {
+        if let Some(caps) = regex.captures(message) {
+            let light_name = caps[1].to_string();
+            let update = (light_name, vec![lamp::Property::Online(false)]);
+            return Ok(Message::StateUpdate(update));
+        }
+    }
+
+    Ok(Message::Other)
 }
 
 #[derive(Debug)]
 enum Message {
-    StateUpdate((String, Lamp)),
-    Devices(HashMap<String, Model>),
+    StateUpdate((String, Vec<lamp::Property>)),
     Other,
-}
-
-fn parse_device(device: &Value) -> (String, Model) {
-    let properties = device.as_object().unwrap();
-
-    let friendly_name = properties
-        .get("friendly_name")
-        .unwrap()
-        .as_str()
-        .unwrap()
-        .to_owned();
-    let model_id = properties
-        .get("model_id")
-        .map(Value::as_str)
-        .map(Option::unwrap);
-
-    let model = match model_id {
-        Some("TRADFRI bulb E14 WS candle 470lm") => Model::TradfriCandle,
-        Some("TRADFRI bulb E27 CWS globe 806lm") => Model::TradfriE27,
-        Some("TRADFRI bulb E14 CWS globe 806lm") => Model::TradfriE14,
-        Some("LCT001") => Model::HueGen4,
-        Some(id) if id.to_lowercase().contains("tradfri") => {
-            Model::TradfriOther(id.to_owned())
-        }
-        Some(id) => Model::Other(id.to_owned()),
-        None => Model::Other("".to_owned()),
-    };
-
-    (friendly_name, model)
 }
