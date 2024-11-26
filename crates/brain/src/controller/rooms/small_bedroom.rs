@@ -2,6 +2,8 @@ use std::time::Duration;
 
 use futures_concurrency::future::Race;
 use futures_util::FutureExt;
+use protocol::small_bedroom::ButtonPanel;
+use protocol::{small_bedroom, Reading};
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
 use zigbee_bridge::lights::{denormalize, kelvin_to_mired};
@@ -40,17 +42,22 @@ impl RecvFiltered for broadcast::Receiver<Event> {
 
 #[derive(Debug)]
 enum RelevantEvent {
-    // DeskButton(protocol::large_bedroom::DeskButton),
+    Button(ButtonPanel),
 }
 
-fn filter(_event: Event) -> Option<RelevantEvent> {
-    // match event {
-    //     // Event::Sensor(SensorValue::ButtonPress(Button::LargeBedroomDesk(desk))) => {
-    //     //     Some(RelevantEvent::DeskButton(desk))
-    //     // }
-    //     _ => None,
-    // }
-    None
+fn event_filter(event: Event) -> Option<RelevantEvent> {
+    match event {
+        Event::Sensor(Reading::SmallBedroom(
+            small_bedroom::Reading::ButtonPanel(button),
+        )) => Some(RelevantEvent::Button(button)),
+        _ => None,
+    }
+}
+
+#[derive(Debug)]
+enum Trigger {
+    Event(RelevantEvent),
+    ShouldUpdate,
 }
 
 pub async fn run(
@@ -59,25 +66,37 @@ pub async fn run(
     _event_tx: broadcast::Sender<Event>,
     mut system: RestrictedSystem,
 ) {
-    enum Res {
-        Event(RelevantEvent),
-        ShouldUpdate,
-    }
-
     let _state = State::Normal;
     let mut next_update = Instant::now() + INTERVAL;
     loop {
-        let get_event = event_rx.recv_filter_mapped(filter).map(Res::Event);
-        let tick = sleep_until(next_update).map(|_| Res::ShouldUpdate);
+        let get_event = event_rx
+            .recv_filter_mapped(event_filter)
+            .map(Trigger::Event);
+        let tick = sleep_until(next_update).map(|_| Trigger::ShouldUpdate);
 
-        let res = (get_event, tick).race().await;
-        match res {
-            Res::Event(_) => (), //handle_event(e),
-            Res::ShouldUpdate => {
+        let trigger = (get_event, tick).race().await;
+        match trigger {
+            Trigger::Event(RelevantEvent::Button(button)) => {
+                handle_buttonpress(&mut system, button).await;
+            }
+            Trigger::ShouldUpdate => {
                 update(&mut system).await;
                 next_update = Instant::now() + INTERVAL;
             }
         }
+    }
+}
+
+async fn handle_buttonpress(
+    system: &mut RestrictedSystem,
+    button: ButtonPanel,
+) {
+    dbg!(&button);
+    match button {
+        ButtonPanel::BottomLeft(_) => system.all_lamps_off().await,
+        ButtonPanel::BottomMiddle(_) => system.all_lamps_on().await,
+        ButtonPanel::BOttomRight(_) => system.all_lamps_ct(2000, 254).await,
+        _ => (),
     }
 }
 
