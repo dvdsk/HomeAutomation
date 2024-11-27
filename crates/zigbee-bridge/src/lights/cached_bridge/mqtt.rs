@@ -142,8 +142,8 @@ impl Mqtt {
             ..Default::default()
         };
 
-        if topic.contains("kitchen:fridge") {
-            warn!("ZB to MQTT (fridge): {payload}");
+        if topic.contains("kitchen:ceiling") {
+            warn!("ZB to MQTT (ceiling): {payload}");
         }
         self.client
             .publish_with_properties(
