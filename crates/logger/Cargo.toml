@@ -1,0 +1,16 @@
+[package]
+name = "logger"
+version = "0.1.0"
+rust-version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+tracing = { workspace = true }
+tracing-error = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing-journald = "0.3"
+libsystemd = "0.7"
+governor = "0.6.3"
+tracing-core = "0.1.32"
