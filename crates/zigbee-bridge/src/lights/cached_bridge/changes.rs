@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::{sleep, timeout};
-use tracing::{debug, instrument, trace, warn};
+use tracing::{debug, instrument, trace};
 
 use super::mqtt::Mqtt;
 use super::{MQTT_MIGHT_BE_DOWN_TIMEOUT, WAIT_FOR_INIT_STATES};

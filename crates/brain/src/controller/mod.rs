@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use time::{OffsetDateTime, UtcOffset};
 use tokio::sync::broadcast;
 use tokio::task::JoinSet;
-use tracing::warn;
 use zigbee_bridge::lights::{mired_to_kelvin, normalize};
 
 // now_local works some of the time only... this replaces it with.......
