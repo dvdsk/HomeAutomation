@@ -1,6 +1,5 @@
 use clap::Parser;
 use color_eyre::eyre::Context;
-use color_eyre::Result;
 use data_server::api::data_source::reconnecting::Client;
 use std::net::SocketAddr;
 
@@ -29,7 +28,7 @@ async fn main() {
     color_eyre::install().unwrap();
     let cli = Cli::parse();
 
-    logger::tracing::setup().unwrap();
+    logger::tracing::setup();
 
     let (tx, mut rx) = mpsc::channel(100);
     sensors::start_monitoring(tx.clone(), cli.bedroom);

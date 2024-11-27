@@ -494,6 +494,7 @@ dependencies = [
  "futures-concurrency",
  "futures-util",
  "hueclient",
+ "logger",
  "mpd",
  "protocol",
  "rand",
@@ -505,8 +506,6 @@ dependencies = [
  "time",
  "tokio",
  "tracing",
- "tracing-journald",
- "tracing-subscriber",
  "tz-rs",
  "zigbee-bridge",
 ]
@@ -945,6 +944,7 @@ dependencies = [
  "futures",
  "futures-concurrency",
  "governor",
+ "logger",
  "protocol",
  "reserve-port",
  "rpc",
@@ -974,6 +974,7 @@ dependencies = [
  "futures-concurrency",
  "hdrhistogram",
  "jiff",
+ "logger",
  "nucleo-matcher",
  "num",
  "protocol",
@@ -1702,6 +1703,7 @@ dependencies = [
  "data-store",
  "dirs",
  "gethostname",
+ "logger",
  "nucleo-matcher",
  "promptly",
  "protocol",
@@ -2362,6 +2364,7 @@ dependencies = [
  "hdrhistogram",
  "heapless 0.8.0",
  "jiff",
+ "logger",
  "nucleo-matcher",
  "num",
  "protocol",
@@ -3478,6 +3481,7 @@ dependencies = [
  "itertools",
  "jiff",
  "log-store",
+ "logger",
  "protocol",
  "ratatui",
  "strip-ansi-escapes",
@@ -4021,9 +4025,9 @@ checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
 
 [[package]]
 name = "tracing"
-version = "0.1.40"
+version = "0.1.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3523ab5a71916ccf420eebdf5521fcef02141234bbc0b8a49f2fdc4544364ef"
+checksum = "784e0ac535deb450455cbfa28a6f0df145ea1bb7ae51b821cf5e7927fdcfbdd0"
 dependencies = [
  "pin-project-lite",
  "tracing-attributes",

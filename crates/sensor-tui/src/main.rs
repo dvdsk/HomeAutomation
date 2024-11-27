@@ -34,7 +34,7 @@ struct Cli {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    setup_tracing().unwrap();
+    logger::tracing::setup();
 
     let Cli {
         data_server,
@@ -65,26 +65,6 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn setup_tracing() -> Result<()> {
-    use tracing_error::ErrorLayer;
-    use tracing_subscriber::{self, layer::SubscriberExt, util::SubscriberInitExt, Layer};
-
-    color_eyre::install().unwrap();
-
-    let log_file = std::fs::File::create("log.txt")?;
-    let file_subscriber = tracing_subscriber::fmt::layer()
-        .with_file(true)
-        .with_line_number(true)
-        .with_writer(log_file)
-        .with_target(false)
-        .with_ansi(false)
-        .with_filter(tracing_subscriber::filter::EnvFilter::from_default_env());
-    tracing_subscriber::registry()
-        .with(file_subscriber)
-        .with(ErrorLayer::default())
-        .init();
-    Ok(())
-}
 
 /// Similar to the `std::dbg!` macro, but generates `tracing` events rather
 /// than printing to stdout.

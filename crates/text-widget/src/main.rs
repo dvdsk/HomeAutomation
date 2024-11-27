@@ -30,12 +30,10 @@ struct Cli {
     json: bool,
 
     /// String describing the reading. Something like temp can resolve to
-    /// `large_bedroom desk temperature`
+    /// `large_bedroom desk temperature`.
+    ///
+    /// Run with RUST_LOG=debug to print the resolved string
     reading: String,
-
-    /// prints the resolved string
-    #[arg(short, long)]
-    debug: bool,
 }
 
 async fn wait_for_update(client: &mut ReconnectingSubscribedClient, needed: &Reading) -> Reading {
@@ -69,8 +67,9 @@ async fn setup(cli: &Cli, client: &mut ReconnectingSubscribedClient) -> Result<p
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    color_eyre::install().unwrap();
     let cli = Cli::parse();
-    setup_tracing(cli.debug)?;
+    logger::tracing::setup();
 
     let mut client = ReconnectingClient::new(cli.server, name()).subscribe();
 
@@ -114,31 +113,4 @@ fn print(use_json: bool, msg: &str) {
     } else {
         println!("{msg}");
     }
-}
-
-fn setup_tracing(debug: bool) -> Result<()> {
-    use tracing_error::ErrorLayer;
-    use tracing_subscriber::filter;
-    use tracing_subscriber::{self, layer::SubscriberExt, util::SubscriberInitExt};
-
-    color_eyre::install().unwrap();
-
-    let filter = filter::EnvFilter::builder().from_env().unwrap();
-    let filter = if debug {
-        let directive = concat!(env!("CARGO_PKG_NAME"), "=debug").parse()?;
-        filter.add_directive(directive)
-    } else {
-        filter
-    };
-
-    let fmt = tracing_subscriber::fmt::layer()
-        .pretty()
-        .with_line_number(true);
-
-    tracing_subscriber::registry()
-        .with(filter)
-        .with(fmt)
-        .with(ErrorLayer::default())
-        .init();
-    Ok(())
 }

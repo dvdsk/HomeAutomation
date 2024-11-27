@@ -3,8 +3,6 @@ use std::net::{IpAddr, SocketAddr};
 
 use clap::Parser;
 use tokio::sync::broadcast;
-use tracing::warn;
-
 mod controller;
 mod system;
 
@@ -14,11 +12,11 @@ mod input;
 #[derive(Parser)]
 #[command(version, about, long_about=None)]
 struct Opt {
-    /// ip address whete to subscribe for updates
+    /// IP address where to subscribe for updates
     #[clap(short, long)]
     data_server: SocketAddr,
 
-    /// ip address for mpd server
+    /// IP address for mpd server
     #[clap(short, long)]
     mpd_ip: IpAddr,
 
@@ -34,7 +32,7 @@ struct Opt {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    setup_tracing();
+    logger::tracing::setup();
     let opt = Opt::parse();
 
     let db = sled::Config::default() //651ms
@@ -60,33 +58,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     input::api::setup(wakeup.clone(), opt.port).await?;
 
     unreachable!();
-}
-
-pub fn setup_tracing() {
-    use tracing_subscriber::filter;
-    use tracing_subscriber::fmt;
-    use tracing_subscriber::prelude::*;
-
-    let filter = filter::EnvFilter::builder()
-        .with_regex(true)
-        .try_from_env()
-        .unwrap_or_else(|_| {
-            filter::EnvFilter::builder()
-                .parse("brain=debug,info")
-                .unwrap()
-        });
-
-    let fmt = fmt::layer()
-        .pretty()
-        .with_line_number(true)
-        .with_test_writer();
-
-    let registry = tracing_subscriber::registry().with(filter).with(fmt);
-    match tracing_journald::layer() {
-        Ok(journal) => registry.with(journal).init(),
-        Err(err) => {
-            warn!("Failed to init journald logging, error: {err}");
-            registry.init()
-        }
-    };
 }

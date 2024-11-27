@@ -1,7 +1,6 @@
 use nusb::transfer;
 use tokio::sync::mpsc;
 
-use ratelimited_logger as rl;
 use tokio::time::{sleep, sleep_until, timeout};
 
 use protocol::Affector;
@@ -21,7 +20,6 @@ pub(crate) struct ReconnectingUsb {
     pub(crate) next_poll: Instant,
     pub(crate) conn: Option<nusb::Device>,
     pub(crate) bytes: vec::IntoIter<u8>,
-    pub(crate) logger: ratelimited_logger::RateLimitedLogger,
     pub(crate) to_send: mpsc::Receiver<Affector>,
 }
 
@@ -37,8 +35,6 @@ impl ReconnectingUsb {
             next_poll: Instant::now(),
             conn: None,
             bytes: Vec::new().into_iter(),
-            logger: ratelimited_logger::RateLimitedLogger::default()
-                .with_per_msg_period(Duration::from_secs(60)),
             to_send,
         }
     }
@@ -52,8 +48,7 @@ impl ReconnectingUsb {
                 Ok(Some(msg)) => break msg,
                 Ok(None) => continue, // needs another call to decode more
                 Err(e) => {
-                    let logger = &mut self.logger;
-                    rl::warn!(logger; "Error trying get affector list: {e}");
+                    tracing::warn!("Error trying get affector list: {e}");
                     sleep(Duration::from_secs(5)).await;
                 }
             }
@@ -100,8 +95,7 @@ impl ReconnectingUsb {
                 Ok(Some(bytes)) => break bytes.into_iter(),
                 Ok(None) => continue,
                 Err(e) => {
-                    let logger = &mut self.logger;
-                    rl::warn!(logger; "could not receive sensor message: {e:?}");
+                    tracing::warn!("could not receive sensor message: {e:?}");
                     *retry_period *= 2;
                     *retry_period = (*retry_period).min(Duration::from_secs(30));
                     sleep(*retry_period).await;
@@ -120,8 +114,7 @@ impl ReconnectingUsb {
                 Ok(Status::Done) => break,
                 Ok(Status::CallAgain) => continue,
                 Err(e) => {
-                    let logger = &mut self.logger;
-                    rl::warn!(logger; "could not send affector order: {e:?}");
+                    tracing::warn!("could not send affector order: {e:?}");
                     *retry_period *= 2;
                     *retry_period = (*retry_period).min(Duration::from_secs(30));
                     sleep(*retry_period).await;

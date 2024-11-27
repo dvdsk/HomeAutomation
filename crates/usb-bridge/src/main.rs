@@ -25,7 +25,7 @@ struct Cli {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), color_eyre::Report> {
     color_eyre::install().unwrap();
-    setup_tracing();
+    logger::tracing::setup();
 
     let args = Cli::parse();
     debug!("Started usb-bridge");
@@ -51,21 +51,4 @@ async fn main() -> Result<(), color_eyre::Report> {
             .wrap_err("Should be correctly encoded")
             .suggestion("Check if this needs to be updated")?;
     }
-}
-
-fn setup_tracing() {
-    use tracing_error::ErrorLayer;
-    use tracing_subscriber::{self, layer::SubscriberExt, util::SubscriberInitExt, Layer};
-
-    let file_subscriber = tracing_subscriber::fmt::layer()
-        .with_file(true)
-        .with_line_number(true)
-        .with_target(false)
-        .without_time()
-        .with_ansi(false)
-        .with_filter(tracing_subscriber::filter::EnvFilter::from_default_env());
-    tracing_subscriber::registry()
-        .with(file_subscriber)
-        .with(ErrorLayer::default())
-        .init();
 }

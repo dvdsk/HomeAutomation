@@ -38,8 +38,7 @@ rand = "0.8"
 
 futures-util = "0.3.30"
 tracing = {workspace = true}
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
-tracing-journald = "0.3.0"
+logger.workspace = true
 clap = { workspace = true }
 futures-concurrency = { workspace = true }
 strum = { version = "0.26.2", default-features = false, features = ["derive"] }

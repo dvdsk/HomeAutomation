@@ -761,7 +761,7 @@ dependencies = [
  "postcard",
  "postcard-rpc",
  "protocol",
- "ratelimited-logger",
+ "ratelimited",
  "schema",
  "tokio",
  "tracing",
@@ -1229,7 +1229,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ratelimited-logger"
+name = "ratelimited"
 version = "0.1.0"
 dependencies = [
  "governor",
@@ -1307,7 +1307,7 @@ dependencies = [
  "color-eyre",
  "futures",
  "governor",
- "ratelimited-logger",
+ "ratelimited",
  "serde",
  "thiserror",
  "tokio",
