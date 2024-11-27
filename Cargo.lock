@@ -1067,8 +1067,8 @@ dependencies = [
  "gpiocdev-embedded-hal",
  "heapless 0.8.0",
  "linux-embedded-hal",
+ "logger",
  "protocol",
- "ratelimited-logger",
  "tokio",
  "tracing",
  "tracing-error",
@@ -3197,16 +3197,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ratelimited-logger"
-version = "0.1.0"
-dependencies = [
- "governor",
- "tracing",
- "tracing-error",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "raw-cpuid"
 version = "11.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3358,7 +3348,7 @@ dependencies = [
  "color-eyre",
  "futures",
  "governor",
- "ratelimited-logger",
+ "logger",
  "serde",
  "thiserror",
  "tokio",
@@ -4226,9 +4216,9 @@ dependencies = [
  "color-eyre",
  "data-server",
  "heapless 0.8.0",
+ "logger",
  "nusb",
  "protocol",
- "ratelimited-logger",
  "tokio",
  "tracing",
  "tracing-error",
@@ -4752,7 +4742,7 @@ dependencies = [
  "futures",
  "futures-concurrency",
  "itertools",
- "ratelimited-logger",
+ "logger",
  "regex",
  "rumqttc",
  "serde_json",

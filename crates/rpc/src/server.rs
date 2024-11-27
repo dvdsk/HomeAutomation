@@ -16,7 +16,6 @@ use tokio::pin;
 use tokio_serde::formats::Bincode;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
-use ratelimited_logger::{self as rlog, RateLimitedLogger};
 use tracing::{debug, error, instrument};
 
 type Conn<RpcReq, RpcResp> = tokio_serde::Framed<
@@ -29,7 +28,9 @@ type Conn<RpcReq, RpcResp> = tokio_serde::Framed<
 pub async fn run<RpcReq, RpcResp, PerfFut>(
     port: u16,
     perform_request: impl Fn(RpcReq, &str) -> PerfFut + Clone + Send + 'static,
-    sub_handler: Option<impl SubscriberHandler<Update = RpcResp> + Clone + 'static>,
+    sub_handler: Option<
+        impl SubscriberHandler<Update = RpcResp> + Clone + 'static,
+    >,
 ) -> color_eyre::Result<()>
 where
     RpcReq: Unpin + Serialize + DeserializeOwned + fmt::Debug + Send + 'static,
@@ -44,26 +45,29 @@ where
         .await
         .wrap_err("Could not bind to address")
         .with_note(|| format!("port: {port}"))?;
-    let mut logger = RateLimitedLogger::default();
 
     loop {
         let (socket, source) = match listener.accept().await {
             Err(e) => {
-                rlog::warn!(logger; "client could not connect: {e}");
+                tracing::warn!("client could not connect: {e}");
                 continue;
             }
             Ok(res) => res,
         };
 
         let Some((mut conn, name)) =
-            handshake_and_log::<RpcReq, RpcResp>(socket, source, &mut logger).await
+            handshake_and_log::<RpcReq, RpcResp>(socket, source).await
         else {
             continue;
         };
 
-        if let Err(allowed_again) = limiter.check_key(&(source.ip(), name.clone())) {
-            let allowed_in = allowed_again.wait_time_from(DefaultClock::default().now());
-            let _ignore_err = conn.send(crate::Response::TooManyReq { allowed_in }).await;
+        if let Err(allowed_again) =
+            limiter.check_key(&(source.ip(), name.clone()))
+        {
+            let allowed_in =
+                allowed_again.wait_time_from(DefaultClock::default().now());
+            let _ignore_err =
+                conn.send(crate::Response::TooManyReq { allowed_in }).await;
             continue;
         }
 
@@ -84,7 +88,6 @@ where
 async fn handshake_and_log<RpcReq, RpcResp>(
     stream: TcpStream,
     source: SocketAddr,
-    logger: &mut RateLimitedLogger,
 ) -> Option<(Conn<RpcReq, RpcResp>, String)>
 where
     RpcReq: Unpin + Serialize + DeserializeOwned + fmt::Debug + Send + 'static,
@@ -96,19 +99,25 @@ where
             .max_frame_length(super::MAX_PACKAGE_SIZE)
             .new_codec(),
     );
-    let mut stream: tokio_serde::Framed<_, crate::Request<RpcReq>, crate::Response<RpcResp>, _> =
-        tokio_serde::Framed::new(length_delimited, Bincode::default());
+    let mut stream: tokio_serde::Framed<
+        _,
+        crate::Request<RpcReq>,
+        crate::Response<RpcResp>,
+        _,
+    > = tokio_serde::Framed::new(length_delimited, Bincode::default());
 
     match stream.try_next().await {
         Ok(Some(crate::Request::Handshake { client_name })) => {
             return Some((stream, client_name));
         }
         Ok(Some(other)) => {
-            rlog::warn!(logger; "client from {source} tried to connected without handshake, it send: {other:?}")
+            tracing::warn!("client from {source} tried to connected without handshake, it send: {other:?}")
         }
-        Ok(None) => rlog::warn!(logger; "client from {source} closed connection immediately"),
+        Ok(None) => {
+            tracing::warn!("client from {source} closed connection immediately")
+        }
         Err(e) => {
-            rlog::warn!(logger; "connection or decoding issue while receiving handshake from {source}, error: {e:?}")
+            tracing::warn!("connection or decoding issue while receiving handshake from {source}, error: {e:?}")
         }
     }
 
@@ -146,7 +155,9 @@ async fn handle_client<RpcReq, RpcResp, PerfFut>(
         match request {
             crate::Request::Rpc(rpc_request) => {
                 let response = perform_request(rpc_request, &client_name).await;
-                if let Err(e) = conn.send(crate::Response::RpcResponse(response)).await {
+                if let Err(e) =
+                    conn.send(crate::Response::RpcResponse(response)).await
+                {
                     error!("Error sending response to client: {e:?}");
                     return;
                 }
@@ -155,7 +166,9 @@ async fn handle_client<RpcReq, RpcResp, PerfFut>(
                 if let Some(mut sub_handler) = sub_handler.take() {
                     let stream = sub_handler.setup().await;
                     pin!(stream);
-                    if let Err(e) = conn.send(crate::Response::SubscribeOk).await {
+                    if let Err(e) =
+                        conn.send(crate::Response::SubscribeOk).await
+                    {
                         debug!("Error sending response to client: {e:?}");
                         return;
                     }
@@ -165,7 +178,9 @@ async fn handle_client<RpcReq, RpcResp, PerfFut>(
                             .next()
                             .await
                             .expect("subscribe stream should never end");
-                        if let Err(e) = conn.send(crate::Response::Update(update)).await {
+                        if let Err(e) =
+                            conn.send(crate::Response::Update(update)).await
+                        {
                             debug!("Error sending response to client: {e:?}");
                             return;
                         }

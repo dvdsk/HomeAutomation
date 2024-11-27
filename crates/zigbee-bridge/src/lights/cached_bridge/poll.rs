@@ -2,7 +2,6 @@ use std::{collections::HashMap, time::Duration};
 
 use color_eyre::eyre::{Context, OptionExt};
 use color_eyre::Section;
-use ratelimited_logger::RateLimitedLogger;
 use regex::Regex;
 use rumqttc::v5::{Event, EventLoop, Incoming};
 use serde_json::Value;
@@ -17,8 +16,6 @@ pub(super) async fn poll_mqtt(
     mut eventloop: EventLoop,
     known_states: &RwLock<HashMap<String, Lamp>>,
 ) -> ! {
-    let mut logger = RateLimitedLogger::default();
-
     loop {
         let message = match eventloop.poll().await {
             Ok(message) => message,
@@ -32,7 +29,7 @@ pub(super) async fn poll_mqtt(
         let message = match parse_message(message) {
             Ok(message) => message,
             Err(err) => {
-                ratelimited_logger::warn!(logger; "ZB error parsing mqtt message: {err}");
+                warn!("ZB error parsing mqtt message: {err}");
                 continue;
             }
         };

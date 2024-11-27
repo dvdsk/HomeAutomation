@@ -2,7 +2,6 @@ use clap::Parser;
 use color_eyre::eyre::Context;
 use color_eyre::Result;
 use data_server::api::data_source::reconnecting::Client;
-use ratelimited_logger::RateLimitedLogger;
 use std::net::SocketAddr;
 
 use tokio::sync::mpsc;
@@ -30,8 +29,7 @@ async fn main() {
     color_eyre::install().unwrap();
     let cli = Cli::parse();
 
-    setup_tracing().unwrap();
-    let mut logger = RateLimitedLogger::default();
+    logger::tracing::setup().unwrap();
 
     let (tx, mut rx) = mpsc::channel(100);
     sensors::start_monitoring(tx.clone(), cli.bedroom);
@@ -54,24 +52,7 @@ async fn main() {
         };
 
         if let Err(e) = res {
-            ratelimited_logger::warn!(logger; "{e}");
+            tracing::warn!("{e}");
         }
     }
-}
-
-fn setup_tracing() -> Result<()> {
-    use tracing_error::ErrorLayer;
-    use tracing_subscriber::{self, layer::SubscriberExt, util::SubscriberInitExt, Layer};
-
-    let file_subscriber = tracing_subscriber::fmt::layer()
-        .with_file(true)
-        .with_line_number(true)
-        .with_target(false)
-        .with_ansi(false)
-        .with_filter(tracing_subscriber::filter::EnvFilter::from_default_env());
-    tracing_subscriber::registry()
-        .with(file_subscriber)
-        .with(ErrorLayer::default())
-        .init();
-    Ok(())
 }

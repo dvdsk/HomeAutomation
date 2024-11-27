@@ -11,7 +11,7 @@ heapless = "0.8.0"
 
 protocol = { workspace = true }
 data-server = { workspace = true }
-ratelimited-logger = { workspace = true }
+logger = { workspace = true }
 
 tokio = { workspace = true }
 clap = { workspace = true }
