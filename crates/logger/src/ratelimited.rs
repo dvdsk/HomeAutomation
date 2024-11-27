@@ -5,105 +5,127 @@ use governor::state::NotKeyed;
 use governor::Quota;
 use governor::RateLimiter;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::num::NonZero;
-use std::num::NonZeroU32;
 use std::sync::Mutex;
 use std::time::Duration;
 use tracing::field::Visit;
+use tracing::Event;
 use tracing::Metadata;
 use tracing::Subscriber;
 use tracing_core::callsite;
-use tracing_core::span;
 use tracing_core::Interest;
 use tracing_subscriber::layer::Context;
 
-struct Message {
+struct LimitState {
     limiter: RateLimiter<NotKeyed, InMemoryState, DefaultClock, NoOpMiddleware>,
     supressed: usize,
 }
-
-struct LogMsgHash(u64);
-struct CallSite {
-    limiter: RateLimiter<NotKeyed, InMemoryState, DefaultClock, NoOpMiddleware>,
-    supressed: usize,
-    msg_limited: HashMap<LogMsgHash, Message>,
-}
-
-#[derive(Debug, Hash, PartialEq, Eq)]
-struct Key {
-    callsite: callsite::Identifier,
-}
-
-impl Key {
-    fn from_meta(meta: &Metadata<'_>) -> Key {
-        Key {
-            callsite: meta.callsite(),
+impl LimitState {
+    fn new(quota: Quota) -> Self {
+        Self {
+            limiter: RateLimiter::direct(quota),
+            supressed: 0,
         }
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Hash)]
+struct LogMsgHash(u64);
+struct CallSite {
+    state: LimitState,
+    msg: HashMap<LogMsgHash, LimitState>,
+}
+
 struct Inner {
     pub callsite: HashMap<callsite::Identifier, CallSite>,
-    pub callsite_by_span_id: HashMap<span::Id, callsite::Identifier>,
-    pub global: CallSite,
-}
-
-fn span_quota() -> Quota {
-    Quota::per_second(NonZero::new(1).unwrap()).allow_burst(NonZero::new(10).unwrap())
-}
-
-fn message_quota() -> Quota {
-    Quota::per_second(NonZero::new(1).unwrap()).allow_burst(NonZero::new(10).unwrap())
-}
-
-fn global_quota() -> Quota {
-    Quota::per_second(NonZero::new(1).unwrap()).allow_burst(NonZero::new(10).unwrap())
+    pub global: LimitState,
 }
 
 impl Inner {
-    /// Should this be filtered? Determined by the work of on_record
-    fn enabled(&mut self, meta: &Metadata<'_>) -> bool {
-    }
+    fn event_enabled(&mut self, event: &Event<'_>, quoti: &Quoti) -> bool {
+        if self.global.limiter.check().is_err() {
+            self.global.supressed += 1;
+        } else if self.global.supressed > 0 {
+            eprintln!(
+                "Logs are being ratelimitted, supressed {} messages",
+                self.global.supressed
+            );
+            self.global.supressed = 0;
+        }
 
-    fn on_record(&mut self, span_id: &span::Id, values: &span::Record<'_>) {
-        let callsite_id = self
-            .callsite_by_span_id
-            .get(span_id)
-            .expect("on_new_span handler should run before on_record");
         let callsite = self
             .callsite
-            .entry(callsite_id.clone())
+            .entry(event.metadata().callsite().clone())
             .or_insert(CallSite {
-                limiter: RateLimiter::direct(span_quota()),
-                withheld: 0,
-                msg_limited: HashMap::new(),
+                state: LimitState {
+                    limiter: RateLimiter::direct(quoti.callsite),
+                    supressed: 0,
+                },
+                msg: HashMap::new(),
             });
 
-        if callsite.limiter.check().is_err() {
-            callsite.supressed += 1;
-            return
+        if callsite.state.limiter.check().is_err() {
+            callsite.state.supressed += 1;
+            return false;
+        } else if callsite.state.supressed > 0 {
+            eprintln!(
+                "Logs from this callsite are ratelimitted, \
+                supressed {} messages",
+                callsite.state.supressed
+            );
+            callsite.state.supressed = 0;
         }
 
         let mut visitor = Visitor {
             hash: LogMsgHash(0), // placeholder
         };
-        values.record(&mut visitor);
-    }
+        event.record(&mut visitor);
+        let msg = callsite
+            .msg
+            .entry(visitor.hash)
+            .or_insert_with(|| LimitState {
+                limiter: RateLimiter::direct(quoti.msg),
+                supressed: 0,
+            });
 
-    pub fn on_new_span(&mut self, attrs: &span::Attributes<'_>, span_id: &span::Id) {
-        self.callsite_by_span_id
-            .insert(span_id.clone(), attrs.metadata().callsite());
+        if msg.limiter.check().is_err() {
+            msg.supressed += 1;
+            false
+        } else if msg.supressed > 0 {
+            eprintln!(
+                "Logs with this exact message are ratelimitted, \
+                supressed {} messages",
+                msg.supressed
+            );
+            msg.supressed = 0;
+            true
+        } else {
+            true
+        }
+    }
+}
+
+struct Quoti {
+    global: Quota,
+    callsite: Quota,
+    msg: Quota,
+}
+
+impl Default for Quoti {
+    fn default() -> Self {
+        Self {
+            global: Quota::per_second(NonZero::new(9).unwrap())
+                .allow_burst(NonZero::new(9).unwrap()),
+            callsite: Quota::per_second(NonZero::new(6).unwrap())
+                .allow_burst(NonZero::new(6).unwrap()),
+            msg: Quota::per_second(NonZero::new(1).unwrap()).allow_burst(NonZero::new(1).unwrap()),
+        }
     }
 }
 
 pub struct Limiter {
     inner: Mutex<Inner>,
-    // pub msg_rate_limiter:
-    //     RateLimiter<String, DefaultKeyedStateStore<String>, DefaultClock, NoOpMiddleware>,
-    // pub global_rate_limiter:
-    // pub was_withheld: HashSet<String>,
-    // pub withheld: usize,
+    quoti: Quoti,
 }
 
 impl<S: Subscriber> tracing_subscriber::layer::Filter<S> for Limiter {
@@ -123,22 +145,13 @@ impl<S: Subscriber> tracing_subscriber::layer::Filter<S> for Limiter {
     /// [`metadata`]: tracing_core::Metadata
     /// [`Subscriber::enabled`]: tracing_core::Subscriber::enabled
     /// [filtered]: crate::filter::Filtered
-    fn enabled(&self, meta: &Metadata<'_>, _: &Context<'_, S>) -> bool {
-        self.inner.lock().unwrap().enabled(meta)
+    fn enabled(&self, _: &Metadata<'_>, _: &Context<'_, S>) -> bool {
+        // all filtering is done based on event_enabled
+        true
     }
 
-    /// uses visitor pattern (sorry, tracing uses it so we must ...)
-    /// derived from tracing-subscriber EnvFilter::on_record
-    /// -> span.record_update
-    /// -> record.record
-    /// -> m.visitor()
-    /// -> impl<'a> Visit for MatchVisitor
-    fn on_record(&self, id: &span::Id, values: &span::Record<'_>, _: Context<'_, S>) {
-        self.inner.lock().unwrap().on_record(id, values)
-    }
-
-    fn on_new_span(&self, attrs: &span::Attributes<'_>, id: &span::Id, _: Context<'_, S>) {
-        self.inner.lock().unwrap().on_new_span(attrs, id);
+    fn event_enabled(&self, event: &Event<'_>, _: &Context<'_, S>) -> bool {
+        self.inner.lock().unwrap().event_enabled(event, &self.quoti)
     }
 
     fn callsite_enabled(&self, _: &'static Metadata<'static>) -> Interest {
@@ -183,41 +196,72 @@ fn debug_hash(debug: &impl std::fmt::Debug) -> LogMsgHash {
             Ok(())
         }
     }
-    let mut hasher = FmtHasher { hash_state: DefaultHasher::new() };
+    let mut hasher = FmtHasher {
+        hash_state: DefaultHasher::new(),
+    };
 
     // Try to "write" the value's `fmt::Debug` output to a `Matcher`. This
     // returns an error if the `fmt::Debug` implementation wrote any
     // characters that did not match the expected pattern.
-    write!(hasher, "{:?}", debug).is_ok();
+    write!(hasher, "{:?}", debug).expect("hashing can not go wrong");
     LogMsgHash(hasher.hash_state.finish())
 }
 
 impl Default for Limiter {
     fn default() -> Self {
-        let per_msg_quota = Quota::with_period(Duration::from_secs(5))
-            .unwrap()
-            .allow_burst(NonZeroU32::new(5).unwrap());
-        let global_quota = Quota::with_period(Duration::from_secs(1))
-            .unwrap()
-            .allow_burst(NonZeroU32::new(25).unwrap());
         Self {
-            msg_rate_limiter: RateLimiter::keyed(per_msg_quota),
-            global_rate_limiter: RateLimiter::direct(global_quota),
-            was_withheld: HashSet::<String>,
+            inner: Mutex::new(Inner {
+                callsite: HashMap::new(),
+                global: LimitState::new(Quoti::default().global),
+            }),
+            quoti: Quoti::default(),
         }
     }
 }
 
 impl Limiter {
-    pub fn with_per_msg_period(self, one_msg_per: Duration) -> Self {
-        let quota = Quota::with_period(one_msg_per)
-            .unwrap()
-            .allow_burst(NonZeroU32::new(5).unwrap());
-        Self {
-            msg_rate_limiter: RateLimiter::keyed(quota),
-            global_rate_limiter: self.global_rate_limiter,
-            withheld: self.withheld,
-            was_withheld: self.was_withheld,
+    pub fn with_global_period(mut self, one_log_per: Duration) -> Self {
+        self.quoti.global = Quota::with_period(one_log_per)
+            .expect("duration may not be zero")
+            .allow_burst(self.quoti.global.burst_size());
+
+        {
+            let mut inner = self.inner.lock().unwrap();
+            inner.global.limiter = RateLimiter::direct(self.quoti.global)
         }
+
+        self
+    }
+    pub fn with_callsite_period(mut self, one_callsite_log_per: Duration) -> Self {
+        self.quoti.callsite = Quota::with_period(one_callsite_log_per)
+            .expect("duration may not be zero")
+            .allow_burst(self.quoti.callsite.burst_size());
+
+        {
+            let mut inner = self.inner.lock().unwrap();
+            for CallSite { state, .. } in inner.callsite.values_mut() {
+                state.limiter = RateLimiter::direct(self.quoti.callsite)
+            }
+        }
+
+        self
+    }
+    pub fn with_msg_period(mut self, one_msg_per: Duration) -> Self {
+        self.quoti.msg = Quota::with_period(one_msg_per)
+            .expect("duration may not be zero")
+            .allow_burst(self.quoti.msg.burst_size());
+
+        {
+            let mut inner = self.inner.lock().unwrap();
+            for msg_state in inner
+                .callsite
+                .values_mut()
+                .flat_map(|CallSite { msg, .. }| msg.values_mut())
+            {
+                msg_state.limiter = RateLimiter::direct(self.quoti.msg)
+            }
+        }
+
+        self
     }
 }

@@ -1,5 +1,6 @@
 use tracing::level_filters::LevelFilter;
-use tracing_subscriber::registry::LookupSpan;
+
+use crate::ratelimited;
 
 /// # WARNING
 /// part of the filter syntax is broken (sad)
@@ -45,7 +46,7 @@ pub fn setup() {
     use tracing_subscriber::util::SubscriberInitExt;
     use tracing_subscriber::{self, layer::SubscriberExt};
 
-    let filter = filter::EnvFilter::builder()
+    let env_filter = filter::EnvFilter::builder()
         .with_regex(true)
         .try_from_env()
         .unwrap_or_else(|_| {
@@ -53,6 +54,8 @@ pub fn setup() {
                 .with_default_directive(LevelFilter::INFO.into())
                 .parse_lossy("")
         });
+
+    let ratelimiter = ratelimited::Limiter::default();
 
     let fmt = fmt::layer()
         .pretty()
@@ -62,18 +65,21 @@ pub fn setup() {
         .with_target(false)
         .with_ansi(true);
 
-    let registry = tracing_subscriber::registry()
-        .register_filter()
-        .with(filter)
-        .with(ErrorLayer::default());
+    let registry = tracing_subscriber::Registry::default().with(ErrorLayer::default());
+    use tracing_subscriber::Layer;
+
     if libsystemd::logging::connected_to_journal() {
         match tracing_journald::layer() {
             Ok(journal) => {
-                registry.with(journal).init();
+                registry
+                    .with(journal.with_filter(ratelimiter).with_filter(env_filter))
+                    .init();
                 tracing::info!("Started logging & tracing to journald");
             }
             Err(err) => {
-                registry.with(fmt).init();
+                registry
+                    .with(fmt.with_filter(ratelimiter).with_filter(env_filter))
+                    .init();
                 tracing::error!(
                     "Could not log to journald directly. Logging to stderr \
                     as fallback. Error connecting to journald:: {err}"
@@ -81,7 +87,7 @@ pub fn setup() {
             }
         };
     } else {
-        registry.with(fmt).init();
+        registry.with(fmt.with_filter(ratelimiter).with_filter(env_filter)).init();
         tracing::info!("Started logging & tracing to stderr");
     }
 }

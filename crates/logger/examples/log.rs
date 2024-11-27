@@ -1,10 +1,3 @@
-use std::thread;
-use std::time::Duration;
-
-use tracing::field::FieldSet;
-use tracing::{Level, Metadata};
-use tracing_core::callsite::DefaultCallsite;
-
 // use logger::{ratelimited::Logger, warn};
 //
 // fn main() {
@@ -19,25 +12,37 @@ use tracing_core::callsite::DefaultCallsite;
 //     }
 // }
 
+use std::time::Duration;
+
+fn log_a() {
+    tracing::info!("a");
+}
+
+fn log_b() {
+    tracing::info!("b");
+}
+
+fn log_c() {
+    tracing::info!("c");
+}
+
+
 fn main() {
     logger::tracing::setup();
 
-    tracing::info!("works");
-    let callsite = DefaultCallsite
-    let fields = FieldSet::new(names, callsite)
-    let meta = Metadata::new("test", "test", Level::INFO, None, None, None, FieldSet::new 
-    tracing::Event::dispatch(DefaultCallsite::new, kind))
+    // functions otherwise the callsite will be different
+    log_a();
+    log_a();
+    log_a();
+    log_b();
+    log_a();
+    log_b();
+    log_a();
+    log_c();
+    log_a();
 
-
-    static META: $crate::Metadata<'static> = {
-    $crate::metadata! {
-        name: $name,
-        target: $target,
-        level: $lvl,
-        fields: $crate::fieldset!( $($fields)* ),
-        callsite: &__CALLSITE,
-        kind: $kind,
-        }
-    };
-    $crate::callsite::DefaultCallsite::new(&META)
+    std::thread::sleep(Duration::from_secs(2));
+    log_a();
+    log_b();
+    log_c();
 }
