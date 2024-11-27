@@ -1,20 +1,27 @@
 use defmt::{unwrap, warn};
 use embassy_futures::select::{self, select};
 use embassy_time::{with_timeout, Duration, Instant};
+use heapless::HistoryBuffer;
 use protocol::small_bedroom::{self, bed};
 use protocol::{affector, Affector, ErrorReport, SensorMessage};
 
 use crate::channel::{PriorityValue, QueueItem, Queues};
 use crate::sensors::slow;
-use crate::usb_wrapper::{UsbHandle, UsbReceiver, UsbSender};
+use crate::usb_wrapper::{NoSpaceInQueue, UsbHandle, UsbReceiver, UsbSender};
 
 pub(crate) type SensMsg = SensorMessage<10>;
-async fn collect_pending(publish: &Queues, reading: PriorityValue) -> SensorMessage<10> {
+type IsLowPrio = bool;
+
+/// send as soon as we find a high priority message
+async fn collect_pending(
+    publish: &Queues,
+    reading: PriorityValue,
+) -> (IsLowPrio, SensorMessage<10>) {
     let mut msg = SensMsg::default();
-    let low_priority = reading.low_priority();
+    let mut is_low_priority = reading.low_priority();
     unwrap!(msg.values.push(reading.value));
 
-    if low_priority {
+    if is_low_priority {
         let deadline = Instant::now() + Duration::from_millis(200);
         while msg.space_left() {
             let until = deadline.saturating_duration_since(Instant::now());
@@ -23,6 +30,7 @@ async fn collect_pending(publish: &Queues, reading: PriorityValue) -> SensorMess
                     unwrap!(msg.values.push(new.value));
                 }
                 Ok(new) => {
+                    is_low_priority = false;
                     unwrap!(msg.values.push(new.value));
                     break;
                 }
@@ -37,31 +45,36 @@ async fn collect_pending(publish: &Queues, reading: PriorityValue) -> SensorMess
             unwrap!(msg.values.push(next.value));
         }
     }
-    msg
+    (is_low_priority, msg)
 }
 
-async fn get_messages<'a>(publish: &Queues, buf: &'a mut [u8]) -> &'a [u8] {
+async fn get_messages<'a>(publish: &Queues, buf: &'a mut [u8]) -> (IsLowPrio, &'a [u8]) {
     let next = publish.receive().await;
     match next {
         QueueItem::Reading(reading) => {
-            let msg = collect_pending(publish, reading).await;
+            let (is_low_prio, msg) = collect_pending(publish, reading).await;
             let encoded_len = msg.encode_slice(&mut buf[1..]).len();
             buf[0] = protocol::Msg::<0>::READINGS;
-            &buf[..=encoded_len]
+            (is_low_prio, &buf[..=encoded_len])
         }
         QueueItem::Error(error) => {
             let error = protocol::small_bedroom::Error::Bed(error.into());
             let error = protocol::Error::SmallBedroom(error);
             let encoded_len = ErrorReport::new(error).encode_slice(&mut buf[1..]).len();
             buf[0] = protocol::Msg::<0>::ERROR_REPORT;
-            &buf[..=encoded_len]
+            (true, &buf[..=encoded_len])
         }
     }
 }
 
+pub async fn handle(
+    usb: UsbHandle<'_>,
+    publish: &Queues,
+    driver_orderers: &slow::DriverOrderers,
+) -> ! {
+    const MIN_BETWEEN_COMM_ERRS: Duration = Duration::from_secs(30);
+    let mut last_errors_at: HistoryBuffer<_, 5> = HistoryBuffer::new();
 
-
-pub async fn handle(usb: UsbHandle<'_>, publish: &Queues, driver_orderers: &slow::DriverOrderers) {
     loop {
         publish.clear().await;
 
@@ -75,34 +88,77 @@ pub async fn handle(usb: UsbHandle<'_>, publish: &Queues, driver_orderers: &slow
             select::Either::First(e) => warn!("Error while sending messages: {}", e),
             select::Either::Second(e) => warn!("Error receiving orders: {}", e),
         };
+
+        let mut error_after = Instant::now();
+        if last_errors_at
+            .oldest_ordered()
+            .rev()
+            .copied()
+            .all(|error: Instant| {
+                let is_recent = error_after.duration_since(error) < MIN_BETWEEN_COMM_ERRS;
+                error_after = error;
+                is_recent
+            })
+        {
+            defmt::error!(
+                "Something is terribly wrong with the connection, \
+                5 errors occured each within 30 seconds of the previous. \
+                Resetting entire node"
+            );
+            cortex_m::peripheral::SCB::sys_reset();
+        } else {
+            last_errors_at.write(Instant::now());
+        }
     }
 }
 
-fn affector_list() -> affector::ListMessage<5> {
+const AFFECTOR_LIST_MAX_SIZE: usize = protocol::Msg::<5>::max_size();
+pub fn affector_list() -> heapless::Vec<u8, AFFECTOR_LIST_MAX_SIZE> {
     let mut list = affector::ListMessage::<5>::empty();
-    unwrap!(list.values.push(Affector::SmallBedroom(
-        protocol::small_bedroom::Affector::Bed(bed::Affector::Sps30FanClean),
-    )));
-    unwrap!(list.values.push(Affector::SmallBedroom(
-        protocol::small_bedroom::Affector::Bed(bed::Affector::MhzZeroPointCalib),
-    )));
-    unwrap!(list.values.push(Affector::SmallBedroom(
-        protocol::small_bedroom::Affector::Bed(bed::Affector::Nau7802Calib),
-    )));
+    unwrap!(
+        list.values.push(Affector::SmallBedroom(
+            protocol::small_bedroom::Affector::Bed(bed::Affector::Sps30FanClean),
+        )),
+        "list is long enough"
+    );
+    unwrap!(
+        list.values.push(Affector::SmallBedroom(
+            protocol::small_bedroom::Affector::Bed(bed::Affector::MhzZeroPointCalib),
+        )),
+        "list is long enough"
+    );
+    unwrap!(
+        list.values.push(Affector::SmallBedroom(
+            protocol::small_bedroom::Affector::Bed(bed::Affector::Nau7802Calib),
+        )),
+        "list is long enough"
+    );
+    unwrap!(
+        list.values.push(Affector::SmallBedroom(
+            protocol::small_bedroom::Affector::Bed(bed::Affector::ResetNode),
+        )),
+        "list is long enough"
+    );
 
-    list
+    let mut buf = heapless::Vec::new();
+    defmt::unwrap!(buf.resize_default(AFFECTOR_LIST_MAX_SIZE));
+    let encoded_len = list.encode_slice(&mut buf).len();
+    buf.truncate(encoded_len);
+    buf
 }
 
 async fn send_messages(usb: UsbSender<'_>, publish: &Queues) {
     let mut buf = [0; protocol::Msg::<5>::max_size()];
-    let encoded_len = affector_list().encode_slice(&mut buf[1..]).len();
-    buf[0] = protocol::Msg::<5>::AFFECTOR_LIST;
-    let to_send = &buf[..=encoded_len];
-    usb.send(to_send).await;
-
     loop {
-        let to_send = get_messages(publish, &mut buf).await;
-        usb.send(to_send).await;
+        let (is_low_prio, to_send) = get_messages(publish, &mut buf).await;
+        while let Err(NoSpaceInQueue) = usb.send(to_send, is_low_prio).await {
+            if is_low_prio {
+                defmt::trace!("dropping low priority package because queue is full");
+                break;
+            } else {
+                usb.wait_till_queue_free().await;
+            }
+        }
     }
 }
 
@@ -132,6 +188,10 @@ async fn receive_orders(usb: UsbReceiver<'_>, driver_orderers: &slow::DriverOrde
             }
             bed::Affector::Sps30FanClean => {
                 driver_orderers.sps.send(()).await;
+            }
+            bed::Affector::ResetNode => {
+                defmt::info!("resetting node as orderd via affector");
+                cortex_m::peripheral::SCB::sys_reset();
             }
         }
     }

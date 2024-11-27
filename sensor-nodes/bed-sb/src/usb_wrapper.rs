@@ -1,20 +1,22 @@
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_sync::mutex::Mutex;
+use embassy_sync::signal::Signal;
 use embassy_usb::control::{InResponse, OutResponse, Recipient, RequestType};
 use embassy_usb::types::InterfaceNumber;
 use embassy_usb::UsbDevice;
-use protocol::affector;
+use protocol::{affector, usb};
 
-/// USB full speed devices such as this one have a max data packet size of 1023
-const SEND_BUFFER_SIZE: usize = 208;
 const MAX_RECV_ITEM_SIZE: usize = 1 + affector::Affector::ENCODED_SIZE;
 
 pub(crate) type RecvItem = heapless::Vec<u8, MAX_RECV_ITEM_SIZE>;
+type SendQueue = Mutex<NoopRawMutex, heapless::Deque<u8, { usb::SEND_BUFFER_SIZE }>>;
 
 pub struct UsbControlHandler<'a> {
     pub if_num: Option<InterfaceNumber>,
-    send_queue: &'a Mutex<NoopRawMutex, heapless::Deque<u8, SEND_BUFFER_SIZE>>,
+    affector_list: &'a [u8],
+    send_queue: &'a SendQueue,
+    ready_to_send: &'a Signal<NoopRawMutex, ()>,
     receive_queue: &'a Channel<NoopRawMutex, RecvItem, 2>,
 }
 
@@ -41,8 +43,8 @@ impl embassy_usb::Handler for UsbControlHandler<'_> {
             return None;
         }
 
-        // Accept request 100, value 200, reject others.
-        if req.request == 100 && req.value == 200 && data.len() <= MAX_RECV_ITEM_SIZE {
+        // Accept affector orders only.
+        if req.request == usb::AFFECTOR_ORDER && data.len() <= MAX_RECV_ITEM_SIZE {
             let data = heapless::Vec::from_slice(data).expect("checked length above");
             if self.receive_queue.try_send(data).is_err() {
                 Some(OutResponse::Rejected)
@@ -73,16 +75,37 @@ impl embassy_usb::Handler for UsbControlHandler<'_> {
             return None;
         }
 
-        if buf.len() != SEND_BUFFER_SIZE {
+        if buf.len() != usb::SEND_BUFFER_SIZE {
             defmt::warn!(
                 "Send buffer is incorrect size ({}), should be: {}. \
-                Please adjuct host driver (usb-bridge) os the usb stack here",
+                recompile either usb-bridge or this",
                 buf.len(),
-                SEND_BUFFER_SIZE
+                usb::SEND_BUFFER_SIZE
             );
             return Some(InResponse::Rejected);
         }
 
+        defmt::info!("usb request: {:?}", req);
+        if req.request == usb::GET_AFFECTOR_LIST {
+            self.send_affector_list(buf);
+            Some(InResponse::Accepted(buf))
+        } else if req.request == usb::GET_QUEUED_MESSAGES {
+            self.send_queued(buf)?;
+            Some(InResponse::Accepted(buf))
+        } else {
+            Some(InResponse::Rejected)
+        }
+    }
+}
+
+impl UsbControlHandler<'_> {
+    fn send_affector_list(&mut self, buf: &mut [u8]) {
+        buf[0] = protocol::Msg::<5>::AFFECTOR_LIST;
+        buf[1..1 + self.affector_list.len()].copy_from_slice(self.affector_list);
+        buf[1 + self.affector_list.len()..].fill(0);
+    }
+
+    fn send_queued(&mut self, buf: &mut [u8]) -> Option<()> {
         let Ok(mut send_queue) = self.send_queue.try_lock() else {
             return None;
         };
@@ -94,13 +117,14 @@ impl embassy_usb::Handler for UsbControlHandler<'_> {
                 *byte = 0; // end of encoded data
             }
         }
-
-        Some(InResponse::Accepted(buf))
+        self.ready_to_send.signal(());
+        Some(())
     }
 }
 
 pub struct UsbHandle<'a> {
-    send_queue: &'a Mutex<NoopRawMutex, heapless::Deque<u8, SEND_BUFFER_SIZE>>,
+    send_queue: &'a SendQueue,
+    ready_to_send: &'a Signal<NoopRawMutex, ()>,
     receive_queue: &'a Channel<NoopRawMutex, heapless::Vec<u8, MAX_RECV_ITEM_SIZE>, 2>,
 }
 
@@ -109,6 +133,7 @@ impl<'a> UsbHandle<'a> {
         (
             UsbSender {
                 send_queue: self.send_queue,
+                ready_to_send: self.ready_to_send,
             },
             UsbReceiver {
                 receive_queue: self.receive_queue,
@@ -118,28 +143,52 @@ impl<'a> UsbHandle<'a> {
 }
 
 pub struct UsbSender<'a> {
-    send_queue: &'a Mutex<NoopRawMutex, heapless::Deque<u8, SEND_BUFFER_SIZE>>,
+    send_queue: &'a SendQueue,
+    ready_to_send: &'a Signal<NoopRawMutex, ()>,
 }
 
+pub struct NoSpaceInQueue;
+
 impl UsbSender<'_> {
-    pub(crate) async fn send(&self, to_send: &[u8]) {
+    pub(crate) async fn send(
+        &self,
+        to_send: &[u8],
+        is_low_prio: bool,
+    ) -> Result<(), NoSpaceInQueue> {
+        const RESERVED_FOR_HIGH_PRIO: usize = 32;
+
         let mut queue = self.send_queue.lock().await;
         let free = queue.capacity() - queue.len();
         if free < 1 + to_send.len() {
-            defmt::trace!("dropping package because queue is full");
-            return; // drop the package
+            return Err(NoSpaceInQueue);
         }
 
-        defmt::unwrap!(queue.push_back(
-            to_send
-                .len()
-                .try_into()
-                .expect("send only supports buffers up to and including u8::MAX long"),
-        ));
+        let left_over = free - 1 - to_send.len();
+        if left_over < RESERVED_FOR_HIGH_PRIO && is_low_prio {
+            return Err(NoSpaceInQueue);
+        }
+
+        defmt::unwrap!(
+            queue.push_back(defmt::unwrap!(
+                to_send.len().try_into(),
+                "send only supports buffers up to and including u8::MAX long"
+            ),),
+            "just checked that queue has capacity"
+        );
 
         for byte in to_send {
             defmt::unwrap!(queue.push_back(*byte))
         }
+        Ok(())
+    }
+
+    pub(crate) async fn wait_till_queue_free(&self) {
+        let wait_for_ready = self.ready_to_send.wait();
+        if !self.send_queue.lock().await.is_full() {
+            return;
+        }
+
+        wait_for_ready.await
     }
 }
 
@@ -169,7 +218,8 @@ pub fn config() -> embassy_usb::Config<'static> {
 }
 
 pub struct StackA {
-    send_queue: Mutex<NoopRawMutex, heapless::Deque<u8, SEND_BUFFER_SIZE>>,
+    send_queue: SendQueue,
+    ready_to_send: Signal<NoopRawMutex, ()>,
     receive_queue: Channel<NoopRawMutex, heapless::Vec<u8, MAX_RECV_ITEM_SIZE>, 2>,
 }
 
@@ -178,6 +228,7 @@ impl StackA {
         Self {
             send_queue: Mutex::new(heapless::Deque::new()),
             receive_queue: Channel::new(),
+            ready_to_send: Signal::new(),
         }
     }
 }
@@ -186,22 +237,24 @@ pub struct StackB<'a> {
     config_descriptor: [u8; 256],
     bos_descriptor: [u8; 256],
     msos_descriptor: [u8; 256],
-    control_buf: [u8; SEND_BUFFER_SIZE],
+    control_buf: [u8; usb::SEND_BUFFER_SIZE],
     handler: UsbControlHandler<'a>,
 }
 
 impl<'a> StackB<'a> {
-    pub(crate) fn new(stack_a: &'a StackA) -> Self {
+    pub(crate) fn new(stack_a: &'a StackA, affector_list: &'a [u8]) -> Self {
         Self {
             config_descriptor: [0u8; 256],
             bos_descriptor: [0u8; 256],
             msos_descriptor: [0u8; 256],
-            control_buf: [0u8; SEND_BUFFER_SIZE],
+            control_buf: [0u8; usb::SEND_BUFFER_SIZE],
 
             handler: UsbControlHandler {
                 if_num: None,
                 send_queue: &stack_a.send_queue,
                 receive_queue: &stack_a.receive_queue,
+                ready_to_send: &stack_a.ready_to_send,
+                affector_list,
             },
         }
     }
@@ -270,6 +323,7 @@ pub(crate) fn new<'a, D: embassy_usb::driver::Driver<'a>>(
         UsbHandle {
             send_queue: &stack_a.send_queue,
             receive_queue: &stack_a.receive_queue,
+            ready_to_send: &stack_a.ready_to_send,
         },
     )
 }

@@ -1,4 +1,5 @@
 use protocol::{affector, DecodeMsgError};
+use reconnecting::SendError;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::{TcpStream, ToSocketAddrs};
@@ -16,8 +17,8 @@ pub enum Error {
 }
 
 pub struct Client {
-    sender: Sender,
-    receiver: Receiver,
+    pub sender: Sender,
+    pub receiver: Receiver,
 }
 
 impl Client {
@@ -50,55 +51,18 @@ impl Client {
         let (reader, writer) = stream.into_split();
 
         Ok(Self {
-            receiver: Receiver {
-                reader,
-                decoder: affector::Decoder::default(),
-                buffer: vec![0u8; 100],
-            },
+            receiver: Receiver::from_reader(reader),
             sender: Sender(writer),
         })
     }
-
-    /// # Cancel safety
-    /// This is cancel safe, if it is canceled the reading has not been send yet
-    pub async fn send_reading(&mut self, reading: protocol::Reading) -> Result<(), std::io::Error> {
-        self.sender.send_reading(reading).await
-    }
-
-    /// # Cancel safety
-    /// This is cancel safe, if it is canceled the report has not been send yet
-    pub async fn send_error(&mut self, report: protocol::Error) -> Result<(), std::io::Error> {
-        self.sender.send_error(report).await
-    }
-
-    /// Checks if the encoded message can be decoded then sends it.
-    pub async fn check_send_encoded(&mut self, msg: &[u8]) -> Result<(), SendPreEncodedError> {
-        protocol::Msg::<50>::decode(msg.to_vec()).map_err(SendPreEncodedError::EncodingCheck)?;
-        self.send_bytes(msg).await.map_err(SendPreEncodedError::Io)
-    }
-
-    pub(crate) async fn send_bytes(&mut self, bytes: &[u8]) -> Result<(), std::io::Error> {
-        self.sender.send_bytes(bytes).await
-    }
-
-    pub fn split(self) -> (Sender, Receiver) {
-        (self.sender, self.receiver)
-    }
-}
-
-pub struct Sender(OwnedWriteHalf);
-pub struct Receiver {
-    reader: OwnedReadHalf,
-    decoder: affector::Decoder,
-    buffer: Vec<u8>,
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum SendPreEncodedError {
-    #[error("Ran into io error while sending pre-encoded msg: {0}")]
-    Io(std::io::Error),
     #[error("Pre-encoded message, could not be decoded it might be from a previous version: {0}")]
     EncodingCheck(DecodeMsgError),
+    #[error("Error while sending pre-encoded msg: {0}")]
+    Sending(SendError),
 }
 
 impl Sender {
@@ -132,13 +96,37 @@ pub enum ReceiveError {
     Io(std::io::Error),
     #[error("The connection was closed by the data-server")]
     ConnClosed,
+    #[error("Could not deserialize")]
+    Deserialize(affector::DeserializeError),
+}
+
+pub struct Sender(OwnedWriteHalf);
+pub struct Receiver {
+    reader: OwnedReadHalf,
+    decoder: affector::Decoder,
+    buffer: Vec<u8>,
 }
 
 impl Receiver {
+    fn from_reader(reader: OwnedReadHalf) -> Self {
+        Self {
+            reader,
+            decoder: affector::Decoder::default(),
+            buffer: Vec::new(),
+        }
+    }
+
     pub async fn receive(&mut self) -> Result<protocol::Affector, ReceiveError> {
         loop {
             if !self.buffer.is_empty() {
-                if let Some((item, remaining)) = self.decoder.feed(&self.buffer) {
+                if let Some((item, remaining)) = self
+                    .decoder
+                    // this should shrink the buffer on deserialize error, it does
+                    // not however. For now its okay (no more errors) however if
+                    // something goes wrong in the future this is where to look first
+                    .feed(&self.buffer)
+                    .map_err(ReceiveError::Deserialize)?
+                {
                     let new_buffer = remaining.to_vec();
                     self.buffer = new_buffer;
                     return Ok(item);

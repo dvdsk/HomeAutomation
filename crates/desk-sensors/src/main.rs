@@ -1,6 +1,8 @@
 use clap::Parser;
+use color_eyre::eyre::Context;
 use color_eyre::Result;
-use data_server::api::data_source;
+use data_server::api::data_source::reconnecting::Client;
+use ratelimited_logger::RateLimitedLogger;
 use std::net::SocketAddr;
 
 use tokio::sync::mpsc;
@@ -29,17 +31,30 @@ async fn main() {
     let cli = Cli::parse();
 
     setup_tracing().unwrap();
+    let mut logger = RateLimitedLogger::default();
 
     let (tx, mut rx) = mpsc::channel(100);
     sensors::start_monitoring(tx.clone(), cli.bedroom);
 
     info!("connecting to dataserver on: {}", cli.data_server);
-    let mut client = data_source::reconnecting::Client::new(cli.data_server, Vec::new());
+    let mut client = Client::new(cli.data_server, Vec::new(), None)
+        .await
+        .unwrap();
 
     loop {
-        match rx.recv().await.expect("sensor monitoring never stops") {
-            Ok(reading) => client.send_reading(reading).await,
-            Err(report) => client.send_error(report).await,
+        let res = match rx.recv().await.expect("sensor monitoring never stops") {
+            Ok(reading) => client
+                .send_reading(reading)
+                .await
+                .wrap_err("Sending reading"),
+            Err(report) => client
+                .send_error(report)
+                .await
+                .wrap_err("Sending error report"),
+        };
+
+        if let Err(e) = res {
+            ratelimited_logger::warn!(logger; "{e}");
         }
     }
 }

@@ -517,6 +517,7 @@ pub enum Affector {
     Nau7802LeftCalib,
     Nau7802RightCalib,
     RgbLed { red: u8, green: u8, blue: u8 },
+    ResetNode,
 }
 
 impl Affector {
@@ -529,6 +530,7 @@ impl Affector {
             (Affector::Nau7802LeftCalib, Affector::Nau7802LeftCalib) => true,
             (Affector::Nau7802RightCalib, Affector::Nau7802RightCalib) => true,
             (Affector::RgbLed { .. }, Affector::RgbLed { .. }) => true,
+            (Affector::ResetNode, Affector::ResetNode) => true,
             _ => false,
         }
     }
@@ -578,6 +580,10 @@ impl Affector {
                     },
                 },
             ],
+            Affector::ResetNode => vec![Control {
+                name: "reset the node",
+                value: ControlValue::Trigger,
+            }],
         }
     }
 }
@@ -590,7 +596,8 @@ impl affector::tree::Tree for Affector {
             Affector::MhzZeroPointCalib => "Set the current co2 value as 400ppm",
             Affector::Nau7802LeftCalib |
             Affector::Nau7802RightCalib =>  "Detect and correct power supply and temperature variations to ADC",
-            Affector::RgbLed {..} => "Set color & power of the RGB led at the top of the bed post"
+            Affector::RgbLed {..} => "Set color & power of the RGB led at the top of the bed post",
+            Affector::ResetNode => "Reset the node, this might fix errors such as I2c getting stuck after Arbitration Error",
         };
 
         affector::tree::Item::Leaf(affector::Info { description })

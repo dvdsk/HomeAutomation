@@ -1,8 +1,10 @@
 #![no_std]
 #![no_main]
 
+use core::time::Duration;
+
 use embassy_executor::Spawner;
-use embassy_futures::select::{self, Either3};
+use embassy_futures::select::{self, Either4};
 use embassy_stm32::exti::ExtiInput;
 use embassy_stm32::gpio::Pull;
 use embassy_stm32::i2c::{self, I2c};
@@ -24,7 +26,6 @@ use {defmt_rtt as _, panic_probe as _};
 mod channel;
 mod comms;
 mod error_cache;
-mod reset_on_error_i2c;
 mod sensors;
 mod usb_wrapper;
 use crate::channel::Queues;
@@ -72,6 +73,7 @@ fn config() -> Config {
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
     let p = embassy_stm32::init(config());
+    let dog = IndependentWatchdog::new(p.IWDG, Duration::from_secs(5).as_micros() as u32);
 
     let mut usart_config = usart::Config::default();
     usart_config.baudrate = 9600;
@@ -112,7 +114,6 @@ async fn main(_spawner: Spawner) {
         Hertz(150_000),
         i2c::Config::default(),
     );
-    let i2c_1 = reset_on_error_i2c::I2c::new(i2c_1, Hertz(150_000), i2c::Config::default());
     let i2c_1: Mutex<NoopRawMutex, _> = Mutex::new(i2c_1);
 
     let i2c_3 = I2c::new(
@@ -126,7 +127,6 @@ async fn main(_spawner: Spawner) {
         Hertz(150_000),
         i2c::Config::default(),
     );
-    let i2c_3 = reset_on_error_i2c::I2c::new(i2c_3, Hertz(150_000), i2c::Config::default());
     let i2c_3: Mutex<NoopRawMutex, _> = Mutex::new(i2c_3);
 
     let buttons = ButtonInputs {
@@ -153,8 +153,9 @@ async fn main(_spawner: Spawner) {
         usb_driver_config,
     );
 
+    let affector_list = comms::affector_list();
     let stack_a = usb_wrapper::StackA::new();
-    let mut stack_b = usb_wrapper::StackB::new(&stack_a);
+    let mut stack_b = usb_wrapper::StackB::new(&stack_a, &affector_list);
     let (mut usb_bus, usb_handle) = usb_wrapper::new(&stack_a, &mut stack_b, usb_driver);
 
     let driver_orderers = slow::DriverOrderers::new();
@@ -172,10 +173,19 @@ async fn main(_spawner: Spawner) {
         buttons,
     );
 
-    let res = select::select3(&mut handle_network, init_then_measure, usb_bus.run()).await;
+    let res = select::select4(
+        &mut handle_network,
+        init_then_measure,
+        usb_bus.run(),
+        keep_dog_happy(dog),
+    )
+    .await;
+
     let unrecoverable_err = match res {
-        Either3::First(()) | Either3::Third(()) | Either3::Second(Ok(())) => defmt::unreachable!(),
-        Either3::Second(Err(err)) => err,
+        Either4::First(_) | Either4::Second(Ok(())) | Either4::Third(()) | Either4::Fourth(_) => {
+            defmt::unreachable!()
+        }
+        Either4::Second(Err(err)) => err,
     };
 
     // at this point no other errors have occurred
@@ -201,10 +211,9 @@ pub fn usb_config() -> embassy_usb::Config<'static> {
     config
 }
 
-async fn keep_dog_happy(mut dog: IndependentWatchdog<'_, IWDG>) {
+async fn keep_dog_happy(mut dog: IndependentWatchdog<'_, IWDG>) -> ! {
     loop {
-        dog.unleash();
-        Timer::after_secs(8).await;
+        Timer::after_secs(1).await;
         trace!("petting dog");
         dog.pet();
     }

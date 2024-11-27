@@ -13,6 +13,7 @@ pub mod affector;
 mod device;
 mod error;
 pub mod reading;
+pub mod usb;
 
 mod msg;
 pub use affector::Affector;

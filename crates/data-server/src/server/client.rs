@@ -6,7 +6,7 @@ use color_eyre::Result;
 
 use crate::api::subscriber;
 
-use super::{affector::Offline, affector::Registar, Event};
+use super::{affector::Registar, Event};
 
 #[derive(Debug, Clone)]
 struct SubHandler {
@@ -96,7 +96,7 @@ async fn perform_request_inner(
                     .map_err(|_| subscriber::ServerError::FailedToSpread)?;
                 subscriber::Response::Actuate(Ok(()))
             }
-            Err(Offline) => subscriber::Response::Actuate(Err(subscriber::AffectorError::Offline)),
+            Err(err) => subscriber::Response::Actuate(Err(err)),
         },
         subscriber::Request::ListAffectors => subscriber::Response::ListAffectors(affectors.list()),
     })

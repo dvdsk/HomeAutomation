@@ -100,7 +100,7 @@ impl Queues {
     }
 }
 
-/// Higher prio will be send earlier
+/// Higher priority will be send earlier
 pub struct PriorityValue {
     priority: u8,
     pub value: protocol::Reading,
