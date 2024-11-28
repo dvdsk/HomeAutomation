@@ -191,6 +191,7 @@ async fn receive_orders(usb: UsbReceiver<'_>, driver_orderers: &slow::DriverOrde
             }
             bed::Affector::ResetNode => {
                 defmt::info!("resetting node as orderd via affector");
+                defmt::flush();
                 cortex_m::peripheral::SCB::sys_reset();
             }
         }

@@ -105,6 +105,7 @@ impl ReconnectingUsb {
     }
 
     pub(crate) async fn send_order(&mut self, retry_period: &mut Duration, order: Affector) {
+        tracing::info!("sending order");
         let data = order.encode();
         for _ in 0..2 {
             match self

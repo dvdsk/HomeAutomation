@@ -85,7 +85,6 @@ impl embassy_usb::Handler for UsbControlHandler<'_> {
             return Some(InResponse::Rejected);
         }
 
-        defmt::info!("usb request: {:?}", req);
         if req.request == usb::GET_AFFECTOR_LIST {
             self.send_affector_list(buf);
             Some(InResponse::Accepted(buf))
