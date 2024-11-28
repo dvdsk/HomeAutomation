@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::Instant;
 
 use crossterm::event::{KeyCode, KeyEvent};
 use protocol::{affector, Affector};
@@ -7,6 +8,7 @@ use ratatui::Frame;
 use tokio::sync::mpsc;
 use tui_tree_widget::{TreeItem, TreeState};
 
+use crate::control;
 use crate::Update;
 
 use super::Theme;
@@ -22,7 +24,9 @@ pub type TreeKey = [u8; 6];
 struct AffectorState {
     affector: Affector,
     selected_control: usize,
+    last_input: Option<Instant>,
     last_controlled_by: Option<String>,
+    last_order_status: Option<control::AffectorStatus>,
     info: affector::Info,
     device_broken: DeviceBroken,
 }
@@ -37,9 +41,11 @@ pub struct Tab {
 impl Tab {
     pub fn render(&mut self, frame: &mut Frame, layout: Rect, theme: &Theme) {
         let [main, footer] =
-            Layout::vertical([Constraint::Fill(1), Constraint::Max(1)]).areas(layout);
+            Layout::vertical([Constraint::Fill(1), Constraint::Max(1)])
+                .areas(layout);
         let [left, right] =
-            Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(main);
+            Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)])
+                .areas(main);
 
         render::tree(frame, left, &self.ground, &mut self.tree_state);
 
@@ -51,7 +57,8 @@ impl Tab {
 
         if let Some(ref mut data) = data {
             let [top, bottom] =
-                Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(right);
+                Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)])
+                    .areas(right);
             render::details(frame, data, top);
             render::controls(frame, data, bottom);
         };
@@ -102,20 +109,24 @@ impl Tab {
                 affector,
                 controlled_by,
             } => {
-                self.update_tree(&affector, Some(controlled_by), DeviceBroken::No);
+                self.mark_controlled(&affector, controlled_by);
                 None
             }
             Update::SensorError(ref err) => {
                 let broken = err.device().info().affectors;
                 for affector in broken {
-                    self.update_tree(affector, None, DeviceBroken::Yes);
+                    self.mark_broken(affector);
                 }
                 Some(update)
             }
             Update::AffectorList(affectors) => {
                 for affector in affectors {
-                    self.update_tree(&affector, None, DeviceBroken::No);
+                    self.add(&affector);
                 }
+                None
+            }
+            Update::AffectorOrderStatus { affector, status } => {
+                self.update_order_status(&affector, status);
                 None
             }
         };
@@ -135,15 +146,47 @@ enum DeviceBroken {
 }
 
 impl Tab {
+    fn mark_controlled(
+        &mut self,
+        affector: &protocol::Affector,
+        controlled_by: String,
+    ) {
+        self.update_tree(affector, move |state| {
+            state.last_controlled_by = Some(controlled_by);
+        })
+    }
+
+    fn mark_broken(&mut self, affector: &protocol::Affector) {
+        self.update_tree(affector, move |state| {
+            state.device_broken = DeviceBroken::Yes;
+        })
+    }
+
+    fn add(&mut self, affector: &protocol::Affector) {
+        self.update_tree(affector, move |state| {
+            state.affector = *affector;
+        })
+    }
+
+    fn update_order_status(
+        &mut self,
+        affector: &protocol::Affector,
+        status: control::AffectorStatus,
+    ) {
+        self.update_tree(affector, move |state| {
+            state.last_order_status = Some(status);
+        })
+    }
+
     fn update_tree(
         &mut self,
         affector: &protocol::Affector,
-        controller: Option<String>,
-        broken: DeviceBroken,
+        update: impl FnOnce(&mut AffectorState) -> (),
     ) {
         let key = tree_key(affector);
 
-        let mut tree = add_root(affector as &dyn AffectorTree, &mut self.ground);
+        let mut tree =
+            add_root(affector as &dyn AffectorTree, &mut self.ground);
         let mut tree_node = match affector.inner() {
             Item::Leaf(_) => unreachable!("no values at level 0"),
             Item::Node(inner) => inner,
@@ -153,21 +196,16 @@ impl Tab {
                 Item::Leaf(info) => {
                     let text = tree_node.name();
                     add_leaf(text, tree, key);
-                    self.data
-                        .entry(key)
-                        .and_modify(|state| state.affector = *affector)
-                        .and_modify(|state| {
-                            if controller.is_some() {
-                                state.last_controlled_by = controller.clone();
-                            }
-                        })
-                        .or_insert(AffectorState {
-                            affector: *affector,
-                            info,
-                            selected_control: 0,
-                            last_controlled_by: controller,
-                            device_broken: broken,
-                        });
+                    let item = self.data.entry(key).or_insert(AffectorState {
+                        affector: *affector,
+                        info,
+                        selected_control: 0,
+                        last_controlled_by: None,
+                        device_broken: DeviceBroken::No,
+                        last_input: None,
+                        last_order_status: None,
+                    });
+                    update(item);
                     return;
                 }
                 Item::Node(inner) => {

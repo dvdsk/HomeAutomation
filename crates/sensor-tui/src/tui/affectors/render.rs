@@ -33,13 +33,33 @@ pub(super) fn tree(
     );
 }
 
-pub(super) fn details(frame: &mut Frame, data: &&mut AffectorState, top: Rect) {
+pub(super) fn details(frame: &mut Frame, data: &mut AffectorState, top: Rect) {
     let mut text = vec![data.info.description.to_owned()];
     if let Some(ref name) = data.last_controlled_by {
         text.push(format!("\nlast controlled by: {name}"));
     }
+    if let Some(ref at) = data.last_input {
+        let input_action = match data
+            .affector
+            .controls()
+            .get(data.selected_control)
+            .expect("controls are never removed")
+            .value
+        {
+            affector::ControlValue::Trigger => "trigged",
+            affector::ControlValue::SetNum { .. } => "set",
+        };
+        let elapsed = crate::time::format::duration(at.elapsed().as_secs_f64());
+        text.push(format!("\nwe last {input_action}: {elapsed} ago"));
+    }
+    if let Some(ref status) = data.last_order_status {
+        text.push(format!("\nstatus: {status}"));
+    }
     if let DeviceBroken::Yes = data.device_broken {
-        text.push("\nWarning: Device reports error, affector might not work".to_owned());
+        text.push(
+            "\nWarning: Device reports error, affector might not work"
+                .to_owned(),
+        );
     }
     let text = text.join("\n");
 
@@ -51,12 +71,16 @@ pub(super) fn details(frame: &mut Frame, data: &&mut AffectorState, top: Rect) {
     )
 }
 
-pub(crate) fn controls(frame: &mut Frame, data: &mut &mut AffectorState, bottom: Rect) {
+pub(crate) fn controls(
+    frame: &mut Frame,
+    data: &mut &mut AffectorState,
+    bottom: Rect,
+) {
     use affector::ControlValue as V;
 
     let controls = data.affector.controls();
-    let constraints =
-        iter::once(Constraint::Max(1)).chain(controls.iter().map(|_| Constraint::Max(3)));
+    let constraints = iter::once(Constraint::Max(1))
+        .chain(controls.iter().map(|_| Constraint::Max(3)));
     let layout = Layout::default().constraints(constraints).split(bottom);
     let mut layout = layout.iter();
 
@@ -75,7 +99,7 @@ pub(crate) fn controls(frame: &mut Frame, data: &mut &mut AffectorState, bottom:
                 frame,
                 *layout,
                 control.name,
-                valid_range,
+                &valid_range,
                 *value,
                 is_selected,
             ),
@@ -98,7 +122,8 @@ fn render_slider(
         Style::default()
     };
 
-    let percentage = (current_value as u64 * 100) / (valid_range.end - valid_range.start);
+    let percentage =
+        (current_value as u64 * 100) / (valid_range.end - valid_range.start);
     frame.render_widget(
         Gauge::default()
             .block(Block::bordered().title(name).style(style))

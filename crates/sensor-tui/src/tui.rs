@@ -1,6 +1,9 @@
 use crossterm::{
     event::{self, KeyCode, KeyEventKind, KeyModifiers},
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{
+        disable_raw_mode, enable_raw_mode, EnterAlternateScreen,
+        LeaveAlternateScreen,
+    },
     ExecutableCommand,
 };
 use protocol::Affector;
@@ -100,8 +103,12 @@ impl App {
             terminal.draw(|frame| {
                 let layout = render(frame, self);
                 match self.active_tab {
-                    ActiveTab::Readings => self.readings_tab.render(frame, layout, &self.theme),
-                    ActiveTab::Affectors => self.affectors_tab.render(frame, layout, &self.theme),
+                    ActiveTab::Readings => {
+                        self.readings_tab.render(frame, layout, &self.theme)
+                    }
+                    ActiveTab::Affectors => {
+                        self.affectors_tab.render(frame, layout, &self.theme)
+                    }
                 }
             })?;
 
@@ -114,16 +121,22 @@ impl App {
                     tracing::trace!("key pressed: {key:?}");
                     if key.kind == KeyEventKind::Press {
                         let res = match key.code {
-                            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            KeyCode::Char('c')
+                                if key
+                                    .modifiers
+                                    .contains(KeyModifiers::CONTROL) =>
+                            {
                                 break Ok(());
                             }
                             _ => Some(key),
                         }
                         .and_then(|key| match self.active_tab {
-                            ActiveTab::Readings => self.readings_tab.handle_key(key),
-                            ActiveTab::Affectors => {
-                                self.affectors_tab.handle_key(key, &mut control_tx)
+                            ActiveTab::Readings => {
+                                self.readings_tab.handle_key(key)
                             }
+                            ActiveTab::Affectors => self
+                                .affectors_tab
+                                .handle_key(key, &mut control_tx),
                         })
                         .and_then(|key| self.reports.handle_key(key));
 
@@ -135,7 +148,9 @@ impl App {
                                 KeyCode::Right => {
                                     self.active_tab = self.active_tab.swap();
                                 }
-                                KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
+                                KeyCode::Char('q') | KeyCode::Esc => {
+                                    return Ok(())
+                                }
                                 _ => (),
                             }
                         }
@@ -165,9 +180,14 @@ impl App {
             | Update::Fetched { .. }
             | Update::ReadingList(_)
             | Update::SensorError(_)
+            | Update::AffectorOrderStatus { .. }
             | Update::SensorReading(_) => return Some(update),
-            Update::PopulateError(e) => self.reports.add(e.wrap_err("Error populating lists")),
-            Update::FetchError(e) => self.reports.add(e.wrap_err("Error fetching")),
+            Update::PopulateError(e) => {
+                self.reports.add(e.wrap_err("Error populating lists"))
+            }
+            Update::FetchError(e) => {
+                self.reports.add(e.wrap_err("Error fetching"))
+            }
             Update::SubscribeError(e) => self
                 .reports
                 .add(e.wrap_err("Error while subscribing to data-server")),

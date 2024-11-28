@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crossterm::event::{KeyCode, KeyEvent};
 use protocol::affector::ControlValue as C;
 use tokio::sync::mpsc;
@@ -11,6 +13,7 @@ pub(crate) fn handle(
     state: &mut AffectorState,
     control_tx: &mut mpsc::Sender<protocol::Affector>,
 ) -> Option<KeyEvent> {
+    state.last_input = Some(Instant::now());
     let mut controls = state.affector.controls();
     let control = &mut controls[state.selected_control].value;
 

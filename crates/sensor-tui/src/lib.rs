@@ -47,6 +47,10 @@ pub enum Update {
         controlled_by: String,
     },
     AffectorList(Vec<protocol::Affector>),
+    AffectorOrderStatus {
+        affector: protocol::Affector,
+        status: control::AffectorStatus,
+    },
     PopulateError(color_eyre::Report),
 }
 

@@ -59,7 +59,7 @@ async fn main() -> Result<()> {
         log_store,
         tx1_clone2,
     ));
-    task::spawn(control::watch_and_send(data_server, rx3));
+    task::spawn(control::watch_and_send(data_server, rx3, tx1));
 
     let UserIntent::Shutdown = rx2.recv()?;
     Ok(())
