@@ -80,13 +80,14 @@ impl Inner {
             hash: LogMsgHash(0), // placeholder
         };
         event.record(&mut visitor);
-        let msg = callsite
-            .msg
-            .entry(visitor.hash)
-            .or_insert_with(|| LimitState {
-                limiter: RateLimiter::direct(quoti.msg),
-                supressed: 0,
-            });
+        let msg =
+            callsite
+                .msg
+                .entry(visitor.hash)
+                .or_insert_with(|| LimitState {
+                    limiter: RateLimiter::direct(quoti.msg),
+                    supressed: 0,
+                });
 
         if msg.limiter.check().is_err() {
             msg.supressed += 1;
@@ -118,7 +119,8 @@ impl Default for Quoti {
                 .allow_burst(NonZero::new(9).unwrap()),
             callsite: Quota::per_second(NonZero::new(6).unwrap())
                 .allow_burst(NonZero::new(6).unwrap()),
-            msg: Quota::per_second(NonZero::new(1).unwrap()).allow_burst(NonZero::new(1).unwrap()),
+            msg: Quota::per_second(NonZero::new(1).unwrap())
+                .allow_burst(NonZero::new(1).unwrap()),
         }
     }
 }
@@ -164,7 +166,11 @@ struct Visitor {
 }
 
 impl Visit for Visitor {
-    fn record_debug(&mut self, _field: &tracing_core::Field, value: &dyn std::fmt::Debug) {
+    fn record_debug(
+        &mut self,
+        _field: &tracing_core::Field,
+        value: &dyn std::fmt::Debug,
+    ) {
         self.hash = debug_hash(&value)
     }
 }
@@ -232,7 +238,10 @@ impl Limiter {
 
         self
     }
-    pub fn with_callsite_period(mut self, one_callsite_log_per: Duration) -> Self {
+    pub fn with_callsite_period(
+        mut self,
+        one_callsite_log_per: Duration,
+    ) -> Self {
         self.quoti.callsite = Quota::with_period(one_callsite_log_per)
             .expect("duration may not be zero")
             .allow_burst(self.quoti.callsite.burst_size());
@@ -250,6 +259,54 @@ impl Limiter {
         self.quoti.msg = Quota::with_period(one_msg_per)
             .expect("duration may not be zero")
             .allow_burst(self.quoti.msg.burst_size());
+
+        {
+            let mut inner = self.inner.lock().unwrap();
+            for msg_state in inner
+                .callsite
+                .values_mut()
+                .flat_map(|CallSite { msg, .. }| msg.values_mut())
+            {
+                msg_state.limiter = RateLimiter::direct(self.quoti.msg)
+            }
+        }
+
+        self
+    }
+
+    pub fn with_global_burst(mut self, burst_size: u32) -> Self {
+        self.quoti.global =
+            Quota::with_period(self.quoti.global.replenish_interval())
+                .expect("duration may not be zero")
+                .allow_burst(NonZero::new(burst_size).unwrap());
+
+        {
+            let mut inner = self.inner.lock().unwrap();
+            inner.global.limiter = RateLimiter::direct(self.quoti.global)
+        }
+
+        self
+    }
+    pub fn with_callsite_burst(mut self, burst_size: u32) -> Self {
+        self.quoti.callsite =
+            Quota::with_period(self.quoti.callsite.replenish_interval())
+                .expect("duration may not be zero")
+                .allow_burst(NonZero::new(burst_size).unwrap());
+
+        {
+            let mut inner = self.inner.lock().unwrap();
+            for CallSite { state, .. } in inner.callsite.values_mut() {
+                state.limiter = RateLimiter::direct(self.quoti.callsite)
+            }
+        }
+
+        self
+    }
+    pub fn with_msg_burst(mut self, burst_size: u32) -> Self {
+        self.quoti.callsite =
+            Quota::with_period(self.quoti.msg.replenish_interval())
+                .expect("duration may not be zero")
+                .allow_burst(NonZero::new(burst_size).unwrap());
 
         {
             let mut inner = self.inner.lock().unwrap();

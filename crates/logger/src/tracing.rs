@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use tracing::level_filters::LevelFilter;
 
 use crate::ratelimited;
@@ -55,7 +57,13 @@ pub fn setup() {
                 .parse_lossy("")
         });
 
-    let ratelimiter = ratelimited::Limiter::default();
+    let ratelimiter = ratelimited::Limiter::default()
+        .with_global_period(Duration::from_secs(1))
+        .with_global_burst(20)
+        .with_callsite_period(Duration::from_secs(5))
+        .with_global_burst(10)
+        .with_msg_period(Duration::from_secs(20))
+        .with_msg_burst(10);
 
     let fmt = fmt::layer()
         .pretty()
@@ -65,14 +73,19 @@ pub fn setup() {
         .with_target(false)
         .with_ansi(true);
 
-    let registry = tracing_subscriber::Registry::default().with(ErrorLayer::default());
+    let registry =
+        tracing_subscriber::Registry::default().with(ErrorLayer::default());
     use tracing_subscriber::Layer;
 
     if libsystemd::logging::connected_to_journal() {
         match tracing_journald::layer() {
             Ok(journal) => {
                 registry
-                    .with(journal.with_filter(ratelimiter).with_filter(env_filter))
+                    .with(
+                        journal
+                            .with_filter(ratelimiter)
+                            .with_filter(env_filter),
+                    )
                     .init();
                 tracing::info!("Started logging & tracing to journald");
             }
@@ -87,7 +100,9 @@ pub fn setup() {
             }
         };
     } else {
-        registry.with(fmt.with_filter(ratelimiter).with_filter(env_filter)).init();
+        registry
+            .with(fmt.with_filter(ratelimiter).with_filter(env_filter))
+            .init();
         tracing::info!("Started logging & tracing to stderr");
     }
 }

@@ -19,7 +19,9 @@ struct LastSeen {
 
 impl LastSeen {
     fn update(&mut self, reading: Reading) {
-        if let Some((_, time)) = self.map.iter_mut().find(|(r, _)| r.is_same_as(&reading)) {
+        if let Some((_, time)) =
+            self.map.iter_mut().find(|(r, _)| r.is_same_as(&reading))
+        {
             *time = Instant::now();
         } else {
             self.map.push((reading, Instant::now()));
@@ -48,18 +50,28 @@ impl LastSeen {
             .filter_map(|(reading, _)| {
                 match reading {
                     Reading::LargeBedroom(large_bedroom::Reading::Bed(_)) => {
-                        Some(Affector::LargeBedroom(large_bedroom::Affector::Bed(
-                            large_bedroom::bed::Affector::ResetNode,
-                        )))
+                        Some(Affector::LargeBedroom(
+                            large_bedroom::Affector::Bed(
+                                large_bedroom::bed::Affector::ResetNode,
+                            ),
+                        ))
                     }
-                    Reading::LargeBedroom(large_bedroom::Reading::Desk(_)) => None,
+                    Reading::LargeBedroom(large_bedroom::Reading::Desk(_)) => {
+                        None
+                    }
                     Reading::SmallBedroom(small_bedroom::Reading::Bed(_)) => {
-                        Some(Affector::SmallBedroom(small_bedroom::Affector::Bed(
-                            small_bedroom::bed::Affector::ResetNode,
-                        )))
+                        Some(Affector::SmallBedroom(
+                            small_bedroom::Affector::Bed(
+                                small_bedroom::bed::Affector::ResetNode,
+                            ),
+                        ))
                     }
-                    Reading::SmallBedroom(small_bedroom::Reading::Desk(_)) => None,
-                    Reading::SmallBedroom(small_bedroom::Reading::ButtonPanel(_)) => None,
+                    Reading::SmallBedroom(small_bedroom::Reading::Desk(_)) => {
+                        None
+                    }
+                    Reading::SmallBedroom(
+                        small_bedroom::Reading::ButtonPanel(_),
+                    ) => None,
                 }
                 .map(|reset_cmd| (reading, reset_cmd))
             })
@@ -70,7 +82,10 @@ impl LastSeen {
                     .find(|(a, _)| a.is_same_as(reset_cmd))
                     .map(|(_, at)| at)
                     .copied();
-                !last_reset.is_some_and(|last_reset| last_reset.elapsed() < MIN_RESET_INTERVAL)
+                dbg!(&self.last_reset);
+                !last_reset.is_some_and(|last_reset| {
+                    last_reset.elapsed() < MIN_RESET_INTERVAL
+                })
             })
             .map(|(reading, reset_cmd)| (reading.clone(), reset_cmd))
             .collect();
@@ -85,7 +100,10 @@ impl LastSeen {
     }
 }
 
-pub async fn node_watchdog(registar: AffectorRegistar, sub_tx: &mpsc::Sender<Event>) -> ! {
+pub async fn node_watchdog(
+    registar: AffectorRegistar,
+    sub_tx: &mpsc::Sender<Event>,
+) -> ! {
     let (tx, mut rx) = mpsc::channel(128);
     sub_tx
         .send(Event::NewSub { tx })
