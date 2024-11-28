@@ -8,7 +8,7 @@ use serde_json::Value;
 use tokio::{sync::RwLock, time::sleep};
 use tracing::{instrument, trace, warn};
 
-use crate::lights::kelvin_to_mired;
+use crate::lights::denormalize;
 use crate::lights::lamp::{self, Lamp};
 use crate::lights::parse_state::parse_lamp_properties;
 
@@ -54,22 +54,25 @@ async fn update_state(
         .entry(light_name.to_owned())
         .or_insert_with(|| Lamp::new(light_name));
     for property in new {
-        match property {
-            lamp::Property::ColorTempK(temp) => {
-                if light_name == "kitchen:fridge" {
+        if light_name == "kitchen:ceiling" {
+            match property {
+                lamp::Property::Brightness(bri) => {
                     warn!(
-                        "ZB received fridge color temp change: {}",
-                        kelvin_to_mired(temp)
+                        "ZB received ceiling brightness change: {}",
+                        denormalize(bri)
                     );
                 }
-            }
-            lamp::Property::Online(new_online) => {
-                if new_online != current_lamp.is_online {
-                    warn!("ZB received fridge online change: {new_online}");
+                lamp::Property::Online(new_online) => {
+                    if new_online != current_lamp.is_online {
+                        warn!(
+                            "ZB received ceiling online change: {new_online}"
+                        );
+                    }
                 }
+                _ => (),
             }
-            _ => (),
         }
+
         current_lamp.apply(property);
     }
 }
