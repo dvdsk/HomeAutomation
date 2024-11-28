@@ -12,11 +12,18 @@ use tokio::sync::mpsc::{Receiver, Sender};
 
 use tracing::{instrument, warn};
 
-#[derive(Debug)]
 pub(crate) struct Registration {
     tx: tokio::sync::mpsc::Sender<protocol::Affector>,
     controls: Vec<protocol::Affector>,
     rate_limiter: governor::DefaultDirectRateLimiter,
+}
+
+impl std::fmt::Debug for Registration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Registration")
+            .field("controls", &self.controls)
+            .finish()
+    }
 }
 
 impl Registration {
@@ -30,11 +37,23 @@ impl Registration {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct Registar(Arc<Mutex<SlotMap<DefaultKey, Registration>>>);
 
+impl std::fmt::Debug for Registar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let this = self.0.lock().unwrap();
+        let list: Vec<_> = this.values().map(|r| format!("{r:?}")).collect();
+        f.debug_struct("Registar").field("0", &list).finish()
+    }
+}
+
 impl Registar {
-    pub(crate) fn register(&self, tx: Sender<Affector>, affectors: Vec<Affector>) -> DefaultKey {
+    pub(crate) fn register(
+        &self,
+        tx: Sender<Affector>,
+        affectors: Vec<Affector>,
+    ) -> DefaultKey {
         let mut this = self.0.lock().expect("nothing should panic");
 
         let to_remove: Vec<_> = this
@@ -69,21 +88,27 @@ impl Registar {
         let _ = this.remove(key); // Could have been removed by register
     }
 
-    pub(crate) fn activate(&self, order: Affector) -> Result<(), AffectorError> {
-        tracing::info!("client is trying to activate: {order:?}");
+    pub(crate) fn activate(
+        &self,
+        order: Affector,
+    ) -> Result<(), AffectorError> {
+        tracing::debug!("client is trying to activate: {order:?}");
         let mut this = self.0.lock().expect("nothing should panic");
-        for possible_controller in this.iter_mut().map(|(_, reg)| reg).filter(|reg| {
-            reg.controls
-                .iter()
-                .any(|control| control.is_same_as(&order))
-        }) {
+        for possible_controller in
+            this.iter_mut().map(|(_, reg)| reg).filter(|reg| {
+                reg.controls
+                    .iter()
+                    .any(|control| control.is_same_as(&order))
+            })
+        {
             if possible_controller.rate_limiter.check().is_err() {
                 return Err(AffectorError::RateLimited);
             }
             if possible_controller.tx.try_send(order).is_ok() {
                 possible_controller.update(order);
+                tracing::info!("client activated: {order:?}");
                 return Ok(());
-            }
+            };
         }
 
         Err(AffectorError::Offline)
@@ -107,7 +132,10 @@ pub enum AffectorError {
 }
 
 #[instrument(skip_all)]
-pub(super) async fn control_affectors(mut writer: OwnedWriteHalf, mut rx: Receiver<Affector>) {
+pub(super) async fn control_affectors(
+    mut writer: OwnedWriteHalf,
+    mut rx: Receiver<Affector>,
+) {
     while let Some(new_order) = rx.recv().await {
         let buf = new_order.encode();
         if let Err(e) = writer.write_all(&buf).await {

@@ -263,14 +263,18 @@ impl Reading {
             | (Self::NumberPm2_5(_), Self::NumberPm2_5(_))
             | (Self::NumberPm4_0(_), Self::NumberPm4_0(_))
             | (Self::NumberPm10(_), Self::NumberPm10(_))
-            | (Self::TypicalParticleSize(_), Self::TypicalParticleSize(_)) => true,
+            | (Self::TypicalParticleSize(_), Self::TypicalParticleSize(_)) => {
+                true
+            }
             (Self::Button(a), Self::Button(b)) => a.is_same_as(b),
             _ => false,
         }
     }
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
+#[derive(
+    Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq,
+)]
 pub enum Error {
     Running(SensorError),
     Setup(SensorError),
@@ -282,8 +286,12 @@ impl Error {
     #[must_use]
     pub(crate) fn device(&self) -> Device {
         match self {
-            Self::Running(sensor_err) | Self::Setup(sensor_err) => sensor_err.device(),
-            Self::SetupTimedOut(device) | Self::Timeout(device) => device.clone(),
+            Self::Running(sensor_err) | Self::Setup(sensor_err) => {
+                sensor_err.device()
+            }
+            Self::SetupTimedOut(device) | Self::Timeout(device) => {
+                device.clone()
+            }
         }
     }
 }
@@ -299,7 +307,9 @@ impl core::fmt::Display for Error {
     }
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(
+    Clone, Debug, defmt::Format, Serialize, Deserialize, Eq, PartialEq,
+)]
 pub enum SensorError {
     Sht31(heapless::String<200>),
     Bme680(heapless::String<200>),
@@ -343,7 +353,17 @@ impl SensorError {
     }
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq, Hash)]
+#[derive(
+    Clone,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    Eq,
+    PartialEq,
+    Hash,
+)]
 pub enum Device {
     Sht31,
     Bme680,
@@ -486,13 +506,7 @@ pub enum Affector {
 impl Affector {
     #[must_use]
     pub fn is_same_as(&self, other: &Self) -> bool {
-        #[allow(clippy::match_like_matches_macro)]
-        match (self, other) {
-            (Affector::Sps30FanClean, Affector::Sps30FanClean) => true,
-            (Affector::MhzZeroPointCalib, Affector::MhzZeroPointCalib) => true,
-            (Affector::Nau7802Calib, Affector::Nau7802Calib) => true,
-            _ => false,
-        }
+        self.eq(other)
     }
 
     #[cfg(feature = "alloc")]
@@ -545,8 +559,12 @@ mod test {
     fn test_is_same_as() {
         assert!(Reading::Co2(5).is_same_as(&Reading::Co2(0)));
 
-        let a = crate::Reading::SmallBedroom(crate::small_bedroom::Reading::Bed(Reading::Co2(5)));
-        let b = crate::Reading::SmallBedroom(crate::small_bedroom::Reading::Bed(Reading::Co2(0)));
+        let a = crate::Reading::SmallBedroom(
+            crate::small_bedroom::Reading::Bed(Reading::Co2(5)),
+        );
+        let b = crate::Reading::SmallBedroom(
+            crate::small_bedroom::Reading::Bed(Reading::Co2(0)),
+        );
 
         assert!(a.is_same_as(&b));
     }
