@@ -110,7 +110,6 @@ pub enum AffectorError {
 pub(super) async fn control_affectors(mut writer: OwnedWriteHalf, mut rx: Receiver<Affector>) {
     while let Some(new_order) = rx.recv().await {
         let buf = new_order.encode();
-        dbg!(&buf);
         if let Err(e) = writer.write_all(&buf).await {
             warn!("Could not send affector order: {e}");
             break;

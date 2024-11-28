@@ -46,7 +46,6 @@ async fn handle_conn(
                 }
             }
         } else {
-            dbg!();
             handle_sending(conn.sender, &mut msgs_to_send).await;
         }
     }

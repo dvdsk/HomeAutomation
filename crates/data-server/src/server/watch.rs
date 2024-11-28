@@ -43,7 +43,7 @@ impl LastSeen {
     fn check_and_bite(&mut self, registar: &AffectorRegistar) {
         let to_reset = self.map.iter().filter(|(reading, last_seen)| {
             let max_interval = reading.leaf().device.info().max_sample_interval;
-            last_seen.elapsed() > max_interval * 10
+            last_seen.elapsed() > max_interval.saturating_mul(10)
         });
 
         let mut reset_commands: Vec<_> = to_reset
@@ -82,7 +82,6 @@ impl LastSeen {
                     .find(|(a, _)| a.is_same_as(reset_cmd))
                     .map(|(_, at)| at)
                     .copied();
-                dbg!(&self.last_reset);
                 !last_reset.is_some_and(|last_reset| {
                     last_reset.elapsed() < MIN_RESET_INTERVAL
                 })
