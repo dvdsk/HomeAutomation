@@ -36,6 +36,41 @@ struct RestrictedSystem {
 }
 
 impl RestrictedSystem {
+    async fn one_lamp_ct(&mut self, name: &'static str, ct: u16, bri: u8) {
+        if self.allowed_lights.contains(&name) {
+            self.system.lights.set_ct(name, bri, ct).await.unwrap();
+        }
+
+        if self.allowed_lights_new.contains(&name) {
+            self.system
+                .lights_new
+                .set_color_temp(name, mired_to_kelvin(ct.into()));
+            self.system.lights_new.set_brightness(name, normalize(bri));
+        }
+    }
+
+    async fn one_lamp_on(&mut self, name: &'static str) {
+        if self.allowed_lights.contains(&name) {
+            self.system.lights.single_on(name).await.unwrap();
+        }
+
+        if self.allowed_lights_new.contains(&name) {
+            self.system.lights_new.set_on(name);
+        }
+
+    }
+
+    async fn one_lamp_off(&mut self, name: &'static str) {
+        if self.allowed_lights.contains(&name) {
+            self.system.lights.single_off(name).await.unwrap();
+        }
+
+        if self.allowed_lights_new.contains(&name) {
+            self.system.lights_new.set_off(name);
+        }
+
+    }
+
     async fn all_lamps_ct(&mut self, ct: u16, bri: u8) {
         for name in &self.allowed_lights {
             self.system.lights.set_ct(name, bri, ct).await.unwrap();

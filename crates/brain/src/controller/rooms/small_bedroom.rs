@@ -5,19 +5,21 @@ use futures_util::FutureExt;
 use protocol::small_bedroom::ButtonPanel;
 use protocol::{small_bedroom, Reading};
 use tokio::sync::broadcast;
-use tokio::time::{sleep_until, Instant};
+use tokio::time::{sleep, sleep_until, Instant};
 use zigbee_bridge::lights::{denormalize, kelvin_to_mired};
 
 use crate::controller::{local_now, Event, RestrictedSystem};
 
+#[derive(PartialEq, Eq, Debug)]
 enum State {
-    _Sleep,
-    _Wakeup,
+    Sleep,
+    Wakeup,
     Normal,
-    _Away,
+    Override,
 }
 
-const INTERVAL: Duration = Duration::from_secs(5);
+const UPDATE_INTERVAL: Duration = Duration::from_secs(5);
+const OFF_DELAY: Duration = Duration::from_secs(60);
 
 trait RecvFiltered {
     async fn recv_filter_mapped<T>(
@@ -66,8 +68,8 @@ pub async fn run(
     _event_tx: broadcast::Sender<Event>,
     mut system: RestrictedSystem,
 ) {
-    let _state = State::Normal;
-    let mut next_update = Instant::now() + INTERVAL;
+    let mut room_state = State::Normal;
+    let mut next_update = Instant::now() + UPDATE_INTERVAL;
     loop {
         let get_event = event_rx
             .recv_filter_mapped(event_filter)
@@ -77,11 +79,12 @@ pub async fn run(
         let trigger = (get_event, tick).race().await;
         match trigger {
             Trigger::Event(RelevantEvent::Button(button)) => {
-                handle_buttonpress(&mut system, button).await;
+                handle_buttonpress(&mut system, &mut room_state, button).await;
+            }
             }
             Trigger::ShouldUpdate => {
-                update(&mut system).await;
-                next_update = Instant::now() + INTERVAL;
+                set_time_color(&mut system, &room_state).await;
+                next_update = Instant::now() + UPDATE_INTERVAL;
             }
         }
     }
@@ -89,20 +92,37 @@ pub async fn run(
 
 async fn handle_buttonpress(
     system: &mut RestrictedSystem,
+    room_state: &mut State,
     button: ButtonPanel,
 ) {
-    dbg!(&button);
+    dbg!(button);
     match button {
-        ButtonPanel::BottomLeft(_) => system.all_lamps_off().await,
-        ButtonPanel::BottomMiddle(_) => system.all_lamps_on().await,
-        ButtonPanel::BOttomRight(_) => system.all_lamps_ct(2000, 254).await,
+        ButtonPanel::BottomLeft(_) => {
+            *room_state = State::Sleep;
+            system.one_lamp_off("small_bedroom:bureau").await;
+            system.one_lamp_off("small_bedroom:piano").await;
+            sleep(OFF_DELAY).await;
+            system.all_lamps_off().await;
+        }
+        ButtonPanel::BottomMiddle(_) => {
+            *room_state = State::Normal;
+            system.all_lamps_on().await;
+            set_time_color(system, &room_state).await;
+        }
+        ButtonPanel::BOttomRight(_) => {
+            *room_state = State::Override;
+            system.all_lamps_on().await;
+            system.all_lamps_ct(2000, 254).await;
+        }
         _ => (),
     }
 }
 
-async fn update(system: &mut RestrictedSystem) {
-    let (new_ct, new_bri) = optimal_ct_bri();
-    system.all_lamps_ct(new_ct, new_bri).await;
+async fn set_time_color(system: &mut RestrictedSystem, room_state: &State) {
+    if room_state == &State::Normal {
+        let (new_ct, new_bri) = optimal_ct_bri();
+        system.all_lamps_ct(new_ct, new_bri).await;
+    }
 }
 
 const fn time(hour: u8, minute: u8) -> f64 {
