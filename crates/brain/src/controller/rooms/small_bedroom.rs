@@ -45,6 +45,7 @@ impl RecvFiltered for broadcast::Receiver<Event> {
 #[derive(Debug)]
 enum RelevantEvent {
     Button(ButtonPanel),
+    Wakeup,
 }
 
 fn event_filter(event: Event) -> Option<RelevantEvent> {
@@ -81,6 +82,8 @@ pub async fn run(
             Trigger::Event(RelevantEvent::Button(button)) => {
                 handle_buttonpress(&mut system, &mut room_state, button).await;
             }
+            Trigger::Event(RelevantEvent::Wakeup) => {
+                run_wakeup(&mut system, &mut room_state).await;
             }
             Trigger::ShouldUpdate => {
                 set_time_color(&mut system, &room_state).await;
@@ -88,6 +91,39 @@ pub async fn run(
             }
         }
     }
+}
+
+async fn run_wakeup(system: &mut RestrictedSystem, room_state: &mut State) {
+    *room_state = State::Wakeup;
+
+    let light_name = "small_bedroom:piano";
+    let bri = 1;
+    let ct = 2000;
+    let bri_growth: f64 = 1.32;
+    let ct_growth: f64 = 1.028;
+
+    system
+        .one_lamp_ct(light_name, kelvin_to_mired(ct).try_into().unwrap(), bri)
+        .await;
+    // Make sure the light is the right ct and bri before turning it on
+    sleep(Duration::from_secs(1)).await;
+    system.one_lamp_on(light_name).await;
+
+    for minute in 1..=20 {
+        sleep(Duration::from_secs(1)).await;
+        let new_bri = ((bri as f64) * bri_growth.powi(minute)).round() as u8;
+        let new_ct = (ct as f64 * ct_growth.powi(minute)).round() as usize;
+
+        system
+            .one_lamp_ct(
+                light_name,
+                kelvin_to_mired(new_ct).try_into().unwrap(),
+                new_bri,
+            )
+            .await;
+    }
+
+    *room_state = State::Normal;
 }
 
 async fn handle_buttonpress(
