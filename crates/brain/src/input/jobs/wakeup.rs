@@ -1,7 +1,7 @@
 use crate::controller::Event;
 
 use super::{Job, Jobs};
-use chrono::{DateTime, Local, Timelike, Utc};
+use jiff::Zoned;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
@@ -22,7 +22,10 @@ pub enum Error {
     JobError(#[from] super::Error),
 }
 
-async fn reset_on_wakeup(wake_up: WakeUp, mut event_rx: broadcast::Receiver<Event>) {
+async fn reset_on_wakeup(
+    wake_up: WakeUp,
+    mut event_rx: broadcast::Receiver<Event>,
+) {
     loop {
         match event_rx.recv().await {
             Ok(Event::WakeUp) => {
@@ -55,10 +58,10 @@ impl WakeUp {
 
         Ok(Self(inner))
     }
-    pub async fn tomorrow(&self) -> Option<(u8, u8)> {
+    pub async fn tomorrow(&self) -> Option<(i8, i8)> {
         self.0.lock().await.tomorrow
     }
-    pub async fn usually(&self) -> Option<(u8, u8)> {
+    pub async fn usually(&self) -> Option<(i8, i8)> {
         self.0.lock().await.usually
     }
     pub fn reset(&self) -> Result<(), Error> {
@@ -78,12 +81,12 @@ impl WakeUp {
     }
 }
 
-type Time = Option<(u8, u8)>;
+type Time = Option<(i8, i8)>;
 struct Inner {
     db: sled::Tree,
     pub tomorrow: Time,
     pub usually: Time,
-    job_id: Option<u64>,
+    job_id: Option<i64>,
     jobs: Jobs,
 }
 
@@ -93,15 +96,15 @@ impl Inner {
 
         let usually = db
             .get("usually")?
-            // we want bincode to deserialize to Option<(u8,u8)> not (u8,u8)
+            // we want bincode to deserialize to Option<(i8,i8)> not (i8,i8)
             .and_then(|b| bincode::deserialize(&b).unwrap());
-        let job_id = db.get("job_id")?.map(|b| bincode::deserialize(&b).unwrap());
+        let job_id =
+            db.get("job_id")?.map(|b| bincode::deserialize(&b).unwrap());
         let next_alarm = job_id
             .as_ref()
             .and_then(|id| jobs.get(*id).unwrap())
-            .map(|job| job.time.into())
-            .map(|t: DateTime<Local>| t)
-            .map(|t| (t.hour() as u8, t.minute() as u8));
+            .map(|job| job.time)
+            .map(|t| (t.hour() as i8, t.minute() as i8));
         let tomorrow = next_alarm.filter(|tomorrow| Some(*tomorrow) != usually);
 
         Ok(Self {
@@ -114,12 +117,12 @@ impl Inner {
     }
 
     /// stores a new job
-    fn save_job_id(&mut self, id: u64) -> Result<(), Error> {
+    fn save_job_id(&mut self, id: i64) -> Result<(), Error> {
         self.job_id = Some(id);
         let bytes = bincode::serialize(&id).unwrap();
         if let Some(bytes) = self.db.insert("job_id", bytes)? {
             let old_job_id = bincode::deserialize(&bytes).unwrap();
-            self.jobs.remove_alarm(old_job_id)?;
+            self.jobs.remove_job(old_job_id)?;
         }
         self.db.flush().unwrap();
         Ok(())
@@ -133,13 +136,13 @@ impl Inner {
     }
 
     async fn replace_job(&mut self, job: Job) -> Result<(), Error> {
-        let id = self.jobs.add_alarm(job).await?;
+        let id = self.jobs.add_job(job).await?;
         self.save_job_id(id)?;
         Ok(())
     }
 
     fn remove_job(&mut self) -> Result<(), Error> {
-        self.jobs.remove_alarm(self.job_id.unwrap())?;
+        self.jobs.remove_job(self.job_id.unwrap())?;
         self.job_id = None;
         Ok(())
     }
@@ -187,7 +190,7 @@ impl Inner {
     }
 }
 
-fn job_from(hour: u8, min: u8) -> Job {
+fn job_from(hour: i8, min: i8) -> Job {
     Job {
         time: to_datetime(hour, min),
         event: Event::WakeUp,
@@ -195,21 +198,20 @@ fn job_from(hour: u8, min: u8) -> Job {
     }
 }
 
-fn to_datetime(hour: u8, min: u8) -> DateTime<Utc> {
-    let (hour, min) = (hour as u32, min as u32);
-    let now = Local::now();
-    let today = now.date_naive();
-    let alarm = today.and_hms_opt(hour, min, 0).unwrap();
+fn to_datetime(hour: i8, min: i8) -> Zoned {
+    let now = crate::time::now();
+    let job_time = now.with().hour(hour).minute(min).second(0).build().unwrap();
 
-    if alarm < now.naive_local() {
-        let tomorrow = now.date_naive().succ_opt().unwrap();
+    if job_time < now {
+        let tomorrow = now.tomorrow().unwrap();
         tomorrow
-            .and_hms_opt(hour, min, 0)
+            .with()
+            .hour(hour)
+            .minute(min)
+            .second(0)
+            .build()
             .unwrap()
-            .and_local_timezone(Local)
-            .unwrap()
-            .with_timezone(&Utc)
     } else {
-        alarm.and_local_timezone(Local).unwrap().with_timezone(&Utc)
+        job_time
     }
 }

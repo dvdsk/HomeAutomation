@@ -27,7 +27,7 @@ async fn tomorrow(aState(state): aState<State>) -> Vec<u8> {
 }
 
 async fn set_usually(aState(state): aState<State>, body: Bytes) -> StatusCode {
-    let time: Option<(u8, u8)> = bincode::deserialize(&body[..])
+    let time: Option<(i8, i8)> = bincode::deserialize(&body[..])
         .map_err(|_| "Could not deserialize into time")
         .unwrap();
     state
@@ -41,7 +41,7 @@ async fn set_usually(aState(state): aState<State>, body: Bytes) -> StatusCode {
 }
 
 async fn set_tomorrow(aState(state): aState<State>, body: Bytes) -> StatusCode {
-    let time: Option<(u8, u8)> = bincode::deserialize(&body[..])
+    let time: Option<(i8, i8)> = bincode::deserialize(&body[..])
         .map_err(|_| "Could not deserialize into time")
         .unwrap();
     state

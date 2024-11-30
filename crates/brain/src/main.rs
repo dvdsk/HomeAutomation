@@ -3,11 +3,12 @@ use std::net::{IpAddr, SocketAddr};
 
 use clap::Parser;
 use tokio::sync::broadcast;
+
 mod controller;
 mod system;
-
 mod errors;
 mod input;
+mod time;
 
 #[derive(Parser)]
 #[command(version, about, long_about=None)]
@@ -46,8 +47,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (event_tx, event_rx) = broadcast::channel(250);
     let subscribed_rxs = array::from_fn(|_| event_tx.subscribe());
 
-    let (jobs, _waker_thread) = input::jobs::Jobs::setup(event_tx.clone(), db.clone())?;
-    let wakeup = input::jobs::WakeUp::setup(db.clone(), jobs.clone(), event_rx)?;
+    let (jobs, _waker_thread) =
+        input::jobs::Jobs::setup(event_tx.clone(), db.clone())?;
+    let wakeup =
+        input::jobs::WakeUp::setup(db.clone(), jobs.clone(), event_rx)?;
     // let (_mpd_status, _mpd_watcher_thread, _updater_tx) =
     //     input::MpdStatus::start_updating(opt.mpd_ip)?;
 

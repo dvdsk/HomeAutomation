@@ -7,7 +7,7 @@ use tokio::time::{sleep_until, Instant};
 use tracing::warn;
 
 use crate::controller::rooms::small_bedroom;
-use crate::controller::{local_now, Event, RestrictedSystem};
+use crate::controller::{Event, RestrictedSystem};
 
 enum State {
     // Sleep,
@@ -90,7 +90,7 @@ async fn update(system: &mut RestrictedSystem) {
 }
 
 fn _testing_ct_bri() -> (u16, u8) {
-    let now = local_now();
+    let now = crate::time::now();
     // let optimal = match now.hour() {
     let optimal = match now.minute() {
         min if min % 2 == 0 => (400, u8::MAX), // Even hour: orange

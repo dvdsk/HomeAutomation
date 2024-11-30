@@ -12,7 +12,7 @@ use tokio::time::{sleep, sleep_until, Instant};
 use tracing::warn;
 use zigbee_bridge::lights::{denormalize, kelvin_to_mired};
 
-use crate::controller::{local_now, Event, RestrictedSystem};
+use crate::controller::{Event, RestrictedSystem};
 
 #[derive(PartialEq, Eq, Debug)]
 enum State {
@@ -202,12 +202,12 @@ async fn set_time_color(
     }
 }
 
-const fn time(hour: u8, minute: u8) -> f64 {
+const fn time(hour: i8, minute: i8) -> f64 {
     hour as f64 + minute as f64 / 60.
 }
 
 pub(crate) fn optimal_ct_bri() -> (u16, u8) {
-    let now = local_now();
+    let now = crate::time::now();
     const T0_00: f64 = time(0, 0);
     const T8_00: f64 = time(8, 0);
     const T9_00: f64 = time(9, 0);
