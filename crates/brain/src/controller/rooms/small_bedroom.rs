@@ -1,11 +1,15 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use futures_concurrency::future::Race;
 use futures_util::FutureExt;
 use protocol::small_bedroom::ButtonPanel;
 use protocol::{small_bedroom, Reading};
-use tokio::sync::broadcast;
+use tokio::sync::broadcast::error::RecvError;
+use tokio::sync::{broadcast, Mutex};
+use tokio::task;
 use tokio::time::{sleep, sleep_until, Instant};
+use tracing::warn;
 use zigbee_bridge::lights::{denormalize, kelvin_to_mired};
 
 use crate::controller::{local_now, Event, RestrictedSystem};
@@ -34,7 +38,14 @@ impl RecvFiltered for broadcast::Receiver<Event> {
         filter_map: impl Fn(Event) -> Option<T>,
     ) -> T {
         loop {
-            let event = self.recv().await.unwrap();
+            let event = match self.recv().await {
+                Ok(event) => event,
+                Err(RecvError::Lagged(n)) => {
+                    warn!("SB missed {n} events");
+                    continue;
+                }
+                Err(err) => panic!("{err}"),
+            };
             if let Some(relevant) = filter_map(event) {
                 return relevant;
             }
@@ -69,7 +80,7 @@ pub async fn run(
     _event_tx: broadcast::Sender<Event>,
     mut system: RestrictedSystem,
 ) {
-    let mut room_state = State::Normal;
+    let room_state = Arc::new(Mutex::new(State::Normal));
     let mut next_update = Instant::now() + UPDATE_INTERVAL;
     loop {
         let get_event = event_rx
@@ -80,21 +91,27 @@ pub async fn run(
         let trigger = (get_event, tick).race().await;
         match trigger {
             Trigger::Event(RelevantEvent::Button(button)) => {
-                handle_buttonpress(&mut system, &mut room_state, button).await;
+                handle_buttonpress(system.clone(), room_state.clone(), button)
+                    .await;
             }
             Trigger::Event(RelevantEvent::Wakeup) => {
-                run_wakeup(&mut system, &mut room_state).await;
+                task::spawn(run_wakeup(system.clone(), room_state.clone()));
             }
             Trigger::ShouldUpdate => {
-                set_time_color(&mut system, &room_state).await;
+                set_time_color(&mut system, room_state.clone()).await;
                 next_update = Instant::now() + UPDATE_INTERVAL;
             }
         }
     }
 }
 
-async fn run_wakeup(system: &mut RestrictedSystem, room_state: &mut State) {
-    *room_state = State::Wakeup;
+async fn run_wakeup(
+    mut system: RestrictedSystem,
+    room_state: Arc<Mutex<State>>,
+) {
+    {
+        *room_state.lock().await = State::Wakeup;
+    }
 
     let light_name = "small_bedroom:piano";
     let bri = 1;
@@ -111,6 +128,11 @@ async fn run_wakeup(system: &mut RestrictedSystem, room_state: &mut State) {
 
     for minute in 1..=20 {
         sleep(Duration::from_secs(1)).await;
+        // room state has changed, thus wakeup should be aborted
+        if *room_state.lock().await != State::Wakeup {
+            return;
+        }
+
         let new_bri = ((bri as f64) * bri_growth.powi(minute)).round() as u8;
         let new_ct = (ct as f64 * ct_growth.powi(minute)).round() as usize;
 
@@ -123,39 +145,58 @@ async fn run_wakeup(system: &mut RestrictedSystem, room_state: &mut State) {
             .await;
     }
 
-    *room_state = State::Normal;
+    *room_state.lock().await = State::Normal;
+}
+
+async fn delayed_off(
+    mut system: RestrictedSystem,
+    room_state: Arc<Mutex<State>>,
+) {
+    sleep(OFF_DELAY).await;
+    // room state has changed, thus off should be aborted
+    if *room_state.lock().await != State::Sleep {
+        return;
+    }
+    system.all_lamps_off().await;
 }
 
 async fn handle_buttonpress(
-    system: &mut RestrictedSystem,
-    room_state: &mut State,
+    mut system: RestrictedSystem,
+    room_state: Arc<Mutex<State>>,
     button: ButtonPanel,
 ) {
     dbg!(button);
     match button {
         ButtonPanel::BottomLeft(_) => {
-            *room_state = State::Sleep;
+            {
+                *room_state.lock().await = State::Sleep;
+            }
             system.one_lamp_off("small_bedroom:bureau").await;
             system.one_lamp_off("small_bedroom:piano").await;
-            sleep(OFF_DELAY).await;
-            system.all_lamps_off().await;
+            task::spawn(delayed_off(system.clone(), room_state.clone()));
         }
         ButtonPanel::BottomMiddle(_) => {
-            *room_state = State::Normal;
+            {
+                *room_state.lock().await = State::Normal;
+            }
             system.all_lamps_on().await;
-            set_time_color(system, &room_state).await;
+            set_time_color(&mut system, room_state).await;
         }
         ButtonPanel::BOttomRight(_) => {
-            *room_state = State::Override;
-            system.all_lamps_on().await;
-            system.all_lamps_ct(2000, 254).await;
+            task::spawn(run_wakeup(system.clone(), room_state.clone()));
+            // *room_state = State::Override;
+            // system.all_lamps_on().await;
+            // system.all_lamps_ct(2000, 254).await;
         }
         _ => (),
     }
 }
 
-async fn set_time_color(system: &mut RestrictedSystem, room_state: &State) {
-    if room_state == &State::Normal {
+async fn set_time_color(
+    system: &mut RestrictedSystem,
+    room_state: Arc<Mutex<State>>,
+) {
+    if *room_state.lock().await == State::Normal {
         let (new_ct, new_bri) = optimal_ct_bri();
         system.all_lamps_ct(new_ct, new_bri).await;
     }

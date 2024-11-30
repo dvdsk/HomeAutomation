@@ -29,6 +29,7 @@ pub enum Event {
     WakeUp,
 }
 
+#[derive(Clone)]
 struct RestrictedSystem {
     allowed_lights: Vec<&'static str>,
     allowed_lights_new: Vec<&'static str>,
