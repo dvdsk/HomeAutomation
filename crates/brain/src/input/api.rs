@@ -4,7 +4,8 @@ use axum::http::StatusCode;
 use axum::routing::get;
 use axum::Router;
 
-use super::jobs::WakeUp;
+use crate::controller::large_bedroom::wakeup::WakeUp;
+
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

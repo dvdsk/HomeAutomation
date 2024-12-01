@@ -8,6 +8,8 @@ use tracing::{info, warn};
 
 use crate::controller::{Event, RestrictedSystem};
 
+pub(crate) mod wakeup;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum State {
     // Sleep,
@@ -71,7 +73,7 @@ fn filter(event: Event) -> Option<RelevantEvent> {
     })
 }
 
-pub async fn run(
+pub(crate) async fn run(
     mut event_rx: broadcast::Receiver<Event>,
     // todo if state change message everyone using this
     _event_tx: broadcast::Sender<Event>,

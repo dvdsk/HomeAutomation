@@ -9,9 +9,6 @@ use tracing::{error, info};
 
 use crate::{controller::Event, time::to_datetime};
 
-pub mod wakeup;
-pub use wakeup::WakeUp;
-
 #[derive(thiserror::Error, Debug)]
 pub(crate) enum Error {
     #[error("Could not store/edit job on disk")]
@@ -30,7 +27,7 @@ pub(crate) struct Job {
 }
 
 impl Job {
-    fn at_next(
+    pub(crate) fn at_next(
         hour: i8,
         min: i8,
         event: Event,

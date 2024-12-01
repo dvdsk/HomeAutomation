@@ -1,6 +1,6 @@
 use crate::controller::Event;
+use crate::input::jobs::{self, Job, Jobs};
 
-use super::{Job, Jobs};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
@@ -18,7 +18,7 @@ pub enum Error {
     #[error("Error modifying wakeup alarms: {0}")]
     DbError(#[from] sled::Error),
     #[error("Could not create/edit wakeup job")]
-    JobError(#[from] super::Error),
+    JobError(#[from] jobs::Error),
 }
 
 async fn reset_on_wakeup(

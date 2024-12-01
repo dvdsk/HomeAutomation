@@ -1,4 +1,5 @@
 mod rooms;
+pub(crate) use rooms::large_bedroom;
 
 use crate::system::System;
 pub use protocol::Reading;
@@ -14,7 +15,7 @@ pub enum Event {
 }
 
 #[derive(Clone)]
-struct RestrictedSystem {
+pub(crate) struct RestrictedSystem {
     allowed_lights: Vec<&'static str>,
     allowed_lights_new: Vec<&'static str>,
     system: System,
