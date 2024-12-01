@@ -14,9 +14,9 @@ pub use wakeup::WakeUp;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("Could store/edit job on disk")]
+    #[error("Could not store/edit job on disk")]
     DbError(#[from] sled::Error),
-    #[error("Could not inform waker about new job")]
+    #[error("Could not inform event timer about new job")]
     CommError(#[from] mpsc::SendError<()>),
 }
 
@@ -25,7 +25,7 @@ pub struct Job {
     pub time: Zoned,
     pub event: Event,
     /// how long after the time was missed the job
-    /// should still go off
+    /// should still be executed
     pub expiration: Option<Duration>,
 }
 
@@ -46,7 +46,7 @@ impl Job {
 
 #[derive(Debug, Clone)]
 pub struct Jobs {
-    waker_tx: mpsc::Sender<()>,
+    job_change_tx: mpsc::Sender<()>,
     list: JobList,
 }
 
@@ -56,10 +56,10 @@ struct JobList {
 }
 
 use mpsc::RecvTimeoutError::*;
-fn waker(
+fn event_timer(
     mut job_list: JobList,
     event_tx: broadcast::Sender<Event>,
-    waker_rx: mpsc::Receiver<()>,
+    job_change_rx: mpsc::Receiver<()>,
 ) {
     loop {
         // This can fail
@@ -80,7 +80,7 @@ fn waker(
             info!("next job is in: {} seconds", timeout.as_secs());
 
             // do we send out the event or should we add or remove a job?
-            match waker_rx.recv_timeout(timeout) {
+            match job_change_rx.recv_timeout(timeout) {
                 Ok(_) => continue, // new job entered, restart loop
                 Err(Disconnected) => return,
                 Err(Timeout) => {
@@ -93,10 +93,10 @@ fn waker(
                 }
             }
         } else {
-            //no alarm to wait on, wait for instructions
+            //no job to wait on, wait for instructions
             info!("no job in the future");
-            //A message through the mpsc signals an alarm has been added
-            match waker_rx.recv() {
+            //A message through the mpsc signals a job has been added
+            match job_change_rx.recv() {
                 // jobs were added or removed, go back and start waiting on them
                 Ok(_) => break,
                 // can't have timed out thus program should exit
@@ -115,12 +115,19 @@ impl Jobs {
             db: db.open_tree("jobs")?,
         };
 
-        let (waker_tx, waker_rx) = mpsc::channel();
-        let waker_db_copy = job_list.clone();
-        let waker_thread =
-            thread::spawn(move || waker(waker_db_copy, event_tx, waker_rx));
+        let (job_change_tx, job_change_rx) = mpsc::channel();
+        let job_list_clone = job_list.clone();
+        let event_timer_thread = thread::spawn(move || {
+            event_timer(job_list_clone, event_tx, job_change_rx)
+        });
 
-        Ok((Self { list: job_list, waker_tx }, waker_thread))
+        Ok((
+            Self {
+                list: job_list,
+                job_change_tx,
+            },
+            event_timer_thread,
+        ))
     }
 
     // we decrease the time till the job until there is a place in the database
@@ -128,52 +135,39 @@ impl Jobs {
     // it is never changed
     pub async fn add_job(&self, to_add: Job) -> Result<i64, Error> {
         let id = self.list.add_job(to_add).await?;
-        //signal waker to update its next alarm
-        // TODO this feels like it shouldn't be here in this way
-        self.waker_tx.send(())?;
+        //signal event timer to update its next job
+        self.job_change_tx.send(())?;
         Ok(id)
     }
     pub fn remove_job(&self, to_remove: i64) -> Result<Option<Job>, Error> {
-        let removed_alarm = self.list.remove_job(to_remove)?;
-        self.waker_tx.send(())?; //signal waker to update its next alarm
-        Ok(removed_alarm)
+        let removed_job = self.list.remove_job(to_remove)?;
+        //signal event timer to update its next job
+        self.job_change_tx.send(())?;
+        Ok(removed_job)
     }
     pub fn get(&self, id: i64) -> Result<Option<Job>, Error> {
-        self.list.get_alarm(id)
+        self.list.get_job(id)
     }
-
-    // pub fn list(&self) -> Vec<(u64, Job)> {
-    //     let start: &[u8] = &[0];
-    //     let alarms = self.list.db.range(start..);
-    //
-    //     let mut list = Vec::new();
-    //     for (key, alarm) in alarms.filter_map(Result::ok) {
-    //         let alarm = bincode::deserialize(&alarm).unwrap();
-    //         let key = key.as_ref().read_u64::<BigEndian>().unwrap();
-    //         list.push((key, alarm));
-    //     }
-    //     list
-    // }
 }
 
 impl JobList {
-    pub fn get_alarm(&self, id: i64) -> Result<Option<Job>, Error> {
+    pub fn get_job(&self, id: i64) -> Result<Option<Job>, Error> {
         Ok(self
             .db
             .get(id.to_be_bytes())?
             .map(|k| bincode::deserialize::<Job>(&k).unwrap()))
     }
 
-    // we decrease the time till the alarm until there is a place in the database
-    // as only one alarm can fire at the time, after an alarm gets a timeslot
+    // we decrease the time till the job until there is a place in the database
+    // as only one job can fire at the time, after a job gets a timeslot
     // it is never changed
-    /// return the key for the alarm
+    /// return the key for the job
     async fn add_job(&self, to_add: Job) -> Result<i64, Error> {
         let mut timestamp = to_add.time.timestamp().as_millisecond();
         let job = bincode::serialize(&to_add).unwrap();
 
-        // create alarm entry if there is no alarm at this timestamp yet
-        // if there is already an alarm scheduled, change the key for this one
+        // create job entry if there is no job at this timestamp yet
+        // if there is already a job scheduled, change the key for this one
         // until there is a spot free
         // TODO check how this works and expand sled documentation for fail cases
         while let Err(_old_event) = self.db.compare_and_swap(
@@ -212,7 +206,7 @@ impl JobList {
                 }
             }
             Err(error) => {
-                error!("Could not retrieve next alarm: {:?}", error);
+                error!("Could not retrieve next job: {:?}", error);
                 None
             }
         }

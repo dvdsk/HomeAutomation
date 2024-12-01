@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (event_tx, event_rx) = broadcast::channel(250);
     let subscribed_rxs = array::from_fn(|_| event_tx.subscribe());
 
-    let (jobs, _waker_thread) =
+    let (jobs, _event_timer_thread) =
         input::jobs::Jobs::setup(event_tx.clone(), db.clone())?;
     let wakeup =
         input::jobs::WakeUp::setup(db.clone(), jobs.clone(), event_rx)?;
