@@ -1,7 +1,6 @@
 use crate::controller::Event;
 
 use super::{Job, Jobs};
-use jiff::Zoned;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
@@ -151,7 +150,7 @@ impl Inner {
     /// time we set that, otherwise remove all
     pub fn reset(&mut self) -> Result<(), Error> {
         if let Some((hour, min)) = self.usually {
-            let job = job_from(hour, min);
+            let job = wakeup_at_next(hour, min);
             let add = self.replace_job(job);
             let rt = Runtime::new().unwrap();
             rt.block_on(add)?;
@@ -164,7 +163,7 @@ impl Inner {
         match time {
             None => self.reset()?,
             Some((hour, min)) => {
-                let job = job_from(hour, min);
+                let job = wakeup_at_next(hour, min);
                 self.replace_job(job).await?;
             }
         }
@@ -176,7 +175,7 @@ impl Inner {
         self.save_usually(&time)?;
         match time {
             Some((hour, min)) => {
-                let job = job_from(hour, min);
+                let job = wakeup_at_next(hour, min);
                 self.replace_job(job).await?;
             }
             None => {
@@ -190,28 +189,11 @@ impl Inner {
     }
 }
 
-fn job_from(hour: i8, min: i8) -> Job {
-    Job {
-        time: to_datetime(hour, min),
-        event: Event::WakeUp,
-        expiration: Some(Duration::from_secs(3 * 60 * 60)),
-    }
-}
-
-fn to_datetime(hour: i8, min: i8) -> Zoned {
-    let now = crate::time::now();
-    let job_time = now.with().hour(hour).minute(min).second(0).build().unwrap();
-
-    if job_time < now {
-        let tomorrow = now.tomorrow().unwrap();
-        tomorrow
-            .with()
-            .hour(hour)
-            .minute(min)
-            .second(0)
-            .build()
-            .unwrap()
-    } else {
-        job_time
-    }
+fn wakeup_at_next(hour: i8, min: i8) -> Job {
+    Job::at_next(
+        hour,
+        min,
+        Event::WakeUp,
+        Some(Duration::from_secs(3 * 60 * 60)),
+    )
 }

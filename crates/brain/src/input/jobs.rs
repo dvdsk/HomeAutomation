@@ -7,7 +7,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 use serde::{Deserialize, Serialize};
 use sled;
 
-use crate::controller::Event;
+use crate::{controller::Event, time::to_datetime};
 
 pub mod wakeup;
 pub use wakeup::WakeUp;
@@ -30,13 +30,14 @@ pub struct Job {
 }
 
 impl Job {
-    pub fn from(
-        time: Zoned,
+    fn at_next(
+        hour: i8,
+        min: i8,
         event: Event,
         expiration: Option<Duration>,
-    ) -> Self {
+    ) -> Job {
         Job {
-            time,
+            time: to_datetime(hour, min),
             event,
             expiration,
         }
@@ -63,42 +64,43 @@ fn waker(
     loop {
         // This can fail
         // TODO make sure an non waking error alarm is send to the user
-        if let Some((id, current_alarm)) = job_list.peek_next() {
+        if let Some((id, current_job)) = job_list.peek_next() {
             let now = crate::time::now();
-            let timeout = &current_alarm.time - &now;
-            if let Some(expiration) = current_alarm.expiration {
-                if now
-                    > &current_alarm.time + Span::try_from(expiration).unwrap()
+            let timeout = &current_job.time - &now;
+            if let Some(expiration) = current_job.expiration {
+                if now > &current_job.time + Span::try_from(expiration).unwrap()
                 {
-                    error!("skipping alarm too far in the past");
+                    error!("skipping job too far in the past");
                     job_list.remove_job(id).unwrap();
-                    continue; // alarm too far in the past, skip and get next
+                    continue; // job too far in the past, skip and get next
                 }
             }
             let timeout =
                 Duration::try_from(timeout).unwrap_or(Duration::from_secs(0));
-            info!("next alarm is in: {} seconds", timeout.as_secs());
+            info!("next job is in: {} seconds", timeout.as_secs());
 
-            // do we sound an alarm or should we add or remove one?
+            // do we send out the event or should we add or remove a job?
             match waker_rx.recv_timeout(timeout) {
-                Ok(_) => continue, // new alarm entered restart loop
+                Ok(_) => continue, // new job entered, restart loop
                 Err(Disconnected) => return,
                 Err(Timeout) => {
-                    // time to sound the alarm
+                    // time to send the job event
                     event_tx
-                        .send(current_alarm.event)
+                        .send(current_job.event)
                         .expect("controller should listen on this");
                     job_list.remove_job(id).unwrap();
-                    continue; //get next alarm
+                    continue; //get next job
                 }
             }
         } else {
             //no alarm to wait on, wait for instructions
-            info!("no alarm in the future");
+            info!("no job in the future");
             //A message through the mpsc signals an alarm has been added
             match waker_rx.recv() {
-                Ok(_) => break, //alarms were added or remove, go back and start waiting on it
-                Err(_) => return, //cant have timed out thus program should exit
+                // jobs were added or removed, go back and start waiting on them
+                Ok(_) => break,
+                // can't have timed out thus program should exit
+                Err(_) => return,
             }
         }
     }
@@ -109,16 +111,16 @@ impl Jobs {
         event_tx: broadcast::Sender<Event>,
         db: sled::Db,
     ) -> Result<(Self, thread::JoinHandle<()>), Error> {
-        let list = JobList {
+        let job_list = JobList {
             db: db.open_tree("jobs")?,
         };
 
         let (waker_tx, waker_rx) = mpsc::channel();
-        let waker_db_copy = list.clone();
+        let waker_db_copy = job_list.clone();
         let waker_thread =
             thread::spawn(move || waker(waker_db_copy, event_tx, waker_rx));
 
-        Ok((Self { list, waker_tx }, waker_thread))
+        Ok((Self { list: job_list, waker_tx }, waker_thread))
     }
 
     // we decrease the time till the job until there is a place in the database
