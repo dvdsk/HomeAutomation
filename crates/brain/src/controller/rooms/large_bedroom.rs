@@ -60,10 +60,10 @@ fn filter(event: Event) -> Option<RelevantEvent> {
     use protocol::large_bedroom::desk::Reading as D;
     use protocol::large_bedroom::Reading as R;
     use protocol::Reading::LargeBedroom as LB;
-    use Event::{Sensor, WakeUp};
+    use Event::{Sensor, WakeupLB};
 
     Some(match event {
-        WakeUp => RelevantEvent::WakeUp,
+        WakeupLB => RelevantEvent::WakeUp,
         Sensor(LB(R::Desk(D::Button(b)))) => RelevantEvent::DeskButton(b),
         Sensor(LB(R::Bed(B::Button(b)))) => RelevantEvent::BedButton(b),
         // Sensor(LB(R::Bed(B::Brightness(l)))) => RelevantEvent::Brightness(l),

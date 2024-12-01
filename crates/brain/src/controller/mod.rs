@@ -11,7 +11,8 @@ use zigbee_bridge::lights::{mired_to_kelvin, normalize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Event {
     Sensor(Reading),
-    WakeUp,
+    WakeupLB,
+    WakeupSB,
 }
 
 #[derive(Clone)]

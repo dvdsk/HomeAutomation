@@ -27,7 +27,7 @@ async fn reset_on_wakeup(
 ) {
     loop {
         match event_rx.recv().await {
-            Ok(Event::WakeUp) => {
+            Ok(Event::WakeupLB) => {
                 if let Err(e) = wake_up.reset() {
                     /* TODO: this should make more "noise" then this <28-04-24, dvdsk> */
                     error!("Could not reset wakeup system for next wake: {e}");
@@ -193,7 +193,7 @@ fn wakeup_at_next(hour: i8, min: i8) -> Job {
     Job::at_next(
         hour,
         min,
-        Event::WakeUp,
+        Event::WakeupLB,
         Some(Duration::from_secs(3 * 60 * 60)),
     )
 }

@@ -13,17 +13,19 @@ use tracing::warn;
 use zigbee_bridge::lights::{denormalize, kelvin_to_mired};
 
 use crate::controller::{Event, RestrictedSystem};
+use crate::input::jobs::Job;
 
-#[derive(PartialEq, Eq, Debug)]
-enum State {
+const UPDATE_INTERVAL: Duration = Duration::from_secs(5);
+const OFF_DELAY: Duration = Duration::from_secs(60);
+const WAKEUP_EXPIRATION: Duration = Duration::from_secs(60 * 60);
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub(crate) enum State {
     Sleep,
     Wakeup,
     Normal,
     Override,
 }
-
-const UPDATE_INTERVAL: Duration = Duration::from_secs(5);
-const OFF_DELAY: Duration = Duration::from_secs(60);
 
 trait RecvFiltered {
     async fn recv_filter_mapped<T>(
@@ -64,6 +66,7 @@ fn event_filter(event: Event) -> Option<RelevantEvent> {
         Event::Sensor(Reading::SmallBedroom(
             small_bedroom::Reading::ButtonPanel(button),
         )) => Some(RelevantEvent::Button(button)),
+        Event::WakeupSB => Some(RelevantEvent::Wakeup),
         _ => None,
     }
 }
@@ -82,6 +85,18 @@ pub async fn run(
 ) {
     let room_state = Arc::new(Mutex::new(State::Normal));
     let mut next_update = Instant::now() + UPDATE_INTERVAL;
+
+    let _ = system
+        .system
+        .jobs
+        .add_job(Job::at_next(
+            9,
+            0,
+            Event::WakeupSB,
+            Some(WAKEUP_EXPIRATION),
+        ))
+        .await;
+
     loop {
         let get_event = event_rx
             .recv_filter_mapped(event_filter)
@@ -127,7 +142,7 @@ async fn run_wakeup(
     system.one_lamp_on(light_name).await;
 
     for minute in 1..=20 {
-        sleep(Duration::from_secs(1)).await;
+        sleep(Duration::from_secs(60)).await;
         // room state has changed, thus wakeup should be aborted
         if *room_state.lock().await != State::Wakeup {
             return;
@@ -146,6 +161,8 @@ async fn run_wakeup(
     }
 
     *room_state.lock().await = State::Normal;
+    set_time_color(&mut system, room_state).await;
+    system.all_lamps_on().await;
 }
 
 async fn delayed_off(
@@ -179,14 +196,15 @@ async fn handle_buttonpress(
             {
                 *room_state.lock().await = State::Normal;
             }
-            system.all_lamps_on().await;
             set_time_color(&mut system, room_state).await;
+            system.all_lamps_on().await;
         }
         ButtonPanel::BOttomRight(_) => {
-            task::spawn(run_wakeup(system.clone(), room_state.clone()));
-            // *room_state = State::Override;
-            // system.all_lamps_on().await;
-            // system.all_lamps_ct(2000, 254).await;
+            {
+                *room_state.lock().await = State::Override;
+            }
+            system.all_lamps_on().await;
+            system.all_lamps_ct(2000, 254).await;
         }
         _ => (),
     }
