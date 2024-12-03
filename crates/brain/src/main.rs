@@ -28,10 +28,6 @@ struct Opt {
     /// a loadbalancer/reverse proxy to get traffic to this
     #[clap(short, long)]
     port: u16,
-
-    /// ip address of the hue bridge, format as: 127.0.0.1
-    #[clap(short = 'b', long)]
-    hue_bridge_ip: String,
 }
 
 #[tokio::main]
@@ -58,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         event_rx,
     )?;
 
-    let system = System::init(jobs, opt.hue_bridge_ip);
+    let system = System::init(jobs);
     let _tasks = controller::start(subscribed_rxs, event_tx.clone(), system);
 
     tokio::task::spawn(input::sensors::subscribe(event_tx, opt.data_server));

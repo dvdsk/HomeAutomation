@@ -18,17 +18,12 @@ pub enum Event {
 #[derive(Clone)]
 pub(crate) struct RestrictedSystem {
     allowed_lights: Vec<&'static str>,
-    allowed_lights_new: Vec<&'static str>,
     system: System,
 }
 
 impl RestrictedSystem {
     async fn one_lamp_ct(&mut self, name: &'static str, ct: u16, bri: u8) {
         if self.allowed_lights.contains(&name) {
-            self.system.lights.set_ct(name, bri, ct).await.unwrap();
-        }
-
-        if self.allowed_lights_new.contains(&name) {
             self.system
                 .lights_new
                 .set_color_temp(name, mired_to_kelvin(ct.into()));
@@ -38,30 +33,18 @@ impl RestrictedSystem {
 
     async fn one_lamp_on(&mut self, name: &'static str) {
         if self.allowed_lights.contains(&name) {
-            self.system.lights.single_on(name).await.unwrap();
-        }
-
-        if self.allowed_lights_new.contains(&name) {
             self.system.lights_new.set_on(name);
         }
     }
 
     async fn one_lamp_off(&mut self, name: &'static str) {
         if self.allowed_lights.contains(&name) {
-            self.system.lights.single_off(name).await.unwrap();
-        }
-
-        if self.allowed_lights_new.contains(&name) {
             self.system.lights_new.set_off(name);
         }
     }
 
     async fn all_lamps_ct(&mut self, ct: u16, bri: u8) {
         for name in &self.allowed_lights {
-            self.system.lights.set_ct(name, bri, ct).await.unwrap();
-        }
-
-        for name in &self.allowed_lights_new {
             self.system
                 .lights_new
                 .set_color_temp(name, mired_to_kelvin(ct.into()));
@@ -71,20 +54,12 @@ impl RestrictedSystem {
 
     async fn all_lamps_off(&mut self) {
         for name in &self.allowed_lights {
-            self.system.lights.single_off(name).await.unwrap();
-        }
-
-        for name in &self.allowed_lights_new {
             self.system.lights_new.set_off(name);
         }
     }
 
     async fn all_lamps_on(&mut self) {
         for name in &self.allowed_lights {
-            self.system.lights.single_on(name).await.unwrap();
-        }
-
-        for name in &self.allowed_lights_new {
             self.system.lights_new.set_on(name);
         }
     }
@@ -101,32 +76,29 @@ pub fn start(
 
     let restricted = RestrictedSystem {
         system: system.clone(),
-        allowed_lights_new: vec![
+        allowed_lights: vec![
             "large_bedroom:cabinet",
             "large_bedroom:ceiling",
             "large_bedroom:desk",
             "large_bedroom:wardrobe",
             "large_bedroom:bed",
         ],
-        allowed_lights: vec![],
     };
     tasks.spawn(rooms::large_bedroom::run(rx1, sender.clone(), restricted));
 
     let restricted = RestrictedSystem {
         system: system.clone(),
-        allowed_lights_new: vec![
+        allowed_lights: vec![
             "small_bedroom:ceiling",
             "small_bedroom:bureau",
             "small_bedroom:piano",
         ],
-        allowed_lights: vec![],
     };
     tasks.spawn(rooms::small_bedroom::run(rx2, sender.clone(), restricted));
 
     let restricted = RestrictedSystem {
         system: system.clone(),
-        allowed_lights: vec![],
-        allowed_lights_new: vec![
+        allowed_lights: vec![
             "kitchen:ceiling",
             "kitchen:hood_left",
             "kitchen:hood_right",

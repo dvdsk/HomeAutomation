@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use serde::{Serialize, Deserialize};
 use futures_concurrency::future::Race;
 use futures_util::FutureExt;
 use protocol::small_bedroom::ButtonPanel;
