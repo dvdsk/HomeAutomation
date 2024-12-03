@@ -1,41 +1,61 @@
 mod rooms;
+pub(crate) use rooms::large_bedroom;
 
 use crate::system::System;
 pub use protocol::Reading;
 use serde::{Deserialize, Serialize};
-use time::{OffsetDateTime, UtcOffset};
 use tokio::sync::broadcast;
 use tokio::task::JoinSet;
 use zigbee_bridge::lights::{mired_to_kelvin, normalize};
 
-// now_local works some of the time only... this replaces it with.......
-// horrible hard coded time stuff. Chrono does provide reliable now_local
-// however it has disadvantages (unsound + other flaws)
-pub fn local_now() -> OffsetDateTime {
-    let utc = OffsetDateTime::now_utc();
-    let offset = tz::TimeZone::local()
-        .unwrap()
-        .find_current_local_time_type()
-        .unwrap()
-        .ut_offset();
-
-    let offset = UtcOffset::from_whole_seconds(offset).unwrap();
-    utc.to_offset(offset)
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Event {
     Sensor(Reading),
-    WakeUp,
+    WakeupLB,
+    WakeupSB,
 }
 
-struct RestrictedSystem {
+#[derive(Clone)]
+pub(crate) struct RestrictedSystem {
     allowed_lights: Vec<&'static str>,
     allowed_lights_new: Vec<&'static str>,
     system: System,
 }
 
 impl RestrictedSystem {
+    async fn one_lamp_ct(&mut self, name: &'static str, ct: u16, bri: u8) {
+        if self.allowed_lights.contains(&name) {
+            self.system.lights.set_ct(name, bri, ct).await.unwrap();
+        }
+
+        if self.allowed_lights_new.contains(&name) {
+            self.system
+                .lights_new
+                .set_color_temp(name, mired_to_kelvin(ct.into()));
+            self.system.lights_new.set_brightness(name, normalize(bri));
+        }
+    }
+
+    async fn one_lamp_on(&mut self, name: &'static str) {
+        if self.allowed_lights.contains(&name) {
+            self.system.lights.single_on(name).await.unwrap();
+        }
+
+        if self.allowed_lights_new.contains(&name) {
+            self.system.lights_new.set_on(name);
+        }
+    }
+
+    async fn one_lamp_off(&mut self, name: &'static str) {
+        if self.allowed_lights.contains(&name) {
+            self.system.lights.single_off(name).await.unwrap();
+        }
+
+        if self.allowed_lights_new.contains(&name) {
+            self.system.lights_new.set_off(name);
+        }
+    }
+
     async fn all_lamps_ct(&mut self, ct: u16, bri: u8) {
         for name in &self.allowed_lights {
             self.system.lights.set_ct(name, bri, ct).await.unwrap();

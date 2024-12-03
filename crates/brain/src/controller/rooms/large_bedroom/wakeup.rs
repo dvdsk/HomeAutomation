@@ -1,7 +1,6 @@
 use crate::controller::Event;
+use crate::input::jobs::{self, Job, Jobs};
 
-use super::{Job, Jobs};
-use chrono::{DateTime, Local, Timelike, Utc};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
@@ -19,13 +18,16 @@ pub enum Error {
     #[error("Error modifying wakeup alarms: {0}")]
     DbError(#[from] sled::Error),
     #[error("Could not create/edit wakeup job")]
-    JobError(#[from] super::Error),
+    JobError(#[from] jobs::Error),
 }
 
-async fn reset_on_wakeup(wake_up: WakeUp, mut event_rx: broadcast::Receiver<Event>) {
+async fn reset_on_wakeup(
+    wake_up: WakeUp,
+    mut event_rx: broadcast::Receiver<Event>,
+) {
     loop {
         match event_rx.recv().await {
-            Ok(Event::WakeUp) => {
+            Ok(Event::WakeupLB) => {
                 if let Err(e) = wake_up.reset() {
                     /* TODO: this should make more "noise" then this <28-04-24, dvdsk> */
                     error!("Could not reset wakeup system for next wake: {e}");
@@ -55,10 +57,10 @@ impl WakeUp {
 
         Ok(Self(inner))
     }
-    pub async fn tomorrow(&self) -> Option<(u8, u8)> {
+    pub async fn tomorrow(&self) -> Option<(i8, i8)> {
         self.0.lock().await.tomorrow
     }
-    pub async fn usually(&self) -> Option<(u8, u8)> {
+    pub async fn usually(&self) -> Option<(i8, i8)> {
         self.0.lock().await.usually
     }
     pub fn reset(&self) -> Result<(), Error> {
@@ -78,12 +80,12 @@ impl WakeUp {
     }
 }
 
-type Time = Option<(u8, u8)>;
+type Time = Option<(i8, i8)>;
 struct Inner {
     db: sled::Tree,
     pub tomorrow: Time,
     pub usually: Time,
-    job_id: Option<u64>,
+    job_id: Option<i64>,
     jobs: Jobs,
 }
 
@@ -93,15 +95,15 @@ impl Inner {
 
         let usually = db
             .get("usually")?
-            // we want bincode to deserialize to Option<(u8,u8)> not (u8,u8)
+            // we want bincode to deserialize to Option<(i8,i8)> not (i8,i8)
             .and_then(|b| bincode::deserialize(&b).unwrap());
-        let job_id = db.get("job_id")?.map(|b| bincode::deserialize(&b).unwrap());
+        let job_id =
+            db.get("job_id")?.map(|b| bincode::deserialize(&b).unwrap());
         let next_alarm = job_id
             .as_ref()
             .and_then(|id| jobs.get(*id).unwrap())
-            .map(|job| job.time.into())
-            .map(|t: DateTime<Local>| t)
-            .map(|t| (t.hour() as u8, t.minute() as u8));
+            .map(|job| job.time)
+            .map(|t| (t.hour() as i8, t.minute() as i8));
         let tomorrow = next_alarm.filter(|tomorrow| Some(*tomorrow) != usually);
 
         Ok(Self {
@@ -114,12 +116,12 @@ impl Inner {
     }
 
     /// stores a new job
-    fn save_job_id(&mut self, id: u64) -> Result<(), Error> {
+    fn save_job_id(&mut self, id: i64) -> Result<(), Error> {
         self.job_id = Some(id);
         let bytes = bincode::serialize(&id).unwrap();
         if let Some(bytes) = self.db.insert("job_id", bytes)? {
             let old_job_id = bincode::deserialize(&bytes).unwrap();
-            self.jobs.remove_alarm(old_job_id)?;
+            self.jobs.remove_job(old_job_id)?;
         }
         self.db.flush().unwrap();
         Ok(())
@@ -133,13 +135,13 @@ impl Inner {
     }
 
     async fn replace_job(&mut self, job: Job) -> Result<(), Error> {
-        let id = self.jobs.add_alarm(job).await?;
+        let id = self.jobs.add_job(job).await?;
         self.save_job_id(id)?;
         Ok(())
     }
 
     fn remove_job(&mut self) -> Result<(), Error> {
-        self.jobs.remove_alarm(self.job_id.unwrap())?;
+        self.jobs.remove_job(self.job_id.unwrap())?;
         self.job_id = None;
         Ok(())
     }
@@ -148,7 +150,7 @@ impl Inner {
     /// time we set that, otherwise remove all
     pub fn reset(&mut self) -> Result<(), Error> {
         if let Some((hour, min)) = self.usually {
-            let job = job_from(hour, min);
+            let job = wakeup_at_next(hour, min);
             let add = self.replace_job(job);
             let rt = Runtime::new().unwrap();
             rt.block_on(add)?;
@@ -161,7 +163,7 @@ impl Inner {
         match time {
             None => self.reset()?,
             Some((hour, min)) => {
-                let job = job_from(hour, min);
+                let job = wakeup_at_next(hour, min);
                 self.replace_job(job).await?;
             }
         }
@@ -173,7 +175,7 @@ impl Inner {
         self.save_usually(&time)?;
         match time {
             Some((hour, min)) => {
-                let job = job_from(hour, min);
+                let job = wakeup_at_next(hour, min);
                 self.replace_job(job).await?;
             }
             None => {
@@ -187,29 +189,11 @@ impl Inner {
     }
 }
 
-fn job_from(hour: u8, min: u8) -> Job {
-    Job {
-        time: to_datetime(hour, min),
-        event: Event::WakeUp,
-        expiration: Some(Duration::from_secs(3 * 60 * 60)),
-    }
-}
-
-fn to_datetime(hour: u8, min: u8) -> DateTime<Utc> {
-    let (hour, min) = (hour as u32, min as u32);
-    let now = Local::now();
-    let today = now.date_naive();
-    let alarm = today.and_hms_opt(hour, min, 0).unwrap();
-
-    if alarm < now.naive_local() {
-        let tomorrow = now.date_naive().succ_opt().unwrap();
-        tomorrow
-            .and_hms_opt(hour, min, 0)
-            .unwrap()
-            .and_local_timezone(Local)
-            .unwrap()
-            .with_timezone(&Utc)
-    } else {
-        alarm.and_local_timezone(Local).unwrap().with_timezone(&Utc)
-    }
+fn wakeup_at_next(hour: i8, min: i8) -> Job {
+    Job::at_next(
+        hour,
+        min,
+        Event::WakeupLB,
+        Some(Duration::from_secs(3 * 60 * 60)),
+    )
 }

@@ -6,7 +6,9 @@ use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
 use tracing::{info, warn};
 
-use crate::controller::{local_now, Event, RestrictedSystem};
+use crate::controller::{Event, RestrictedSystem};
+
+pub(crate) mod wakeup;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum State {
@@ -22,11 +24,17 @@ enum State {
 const INTERVAL: Duration = Duration::from_secs(5);
 
 trait RecvFiltered {
-    async fn recv_filter_mapped<T>(&mut self, filter_map: impl Fn(Event) -> Option<T>) -> T;
+    async fn recv_filter_mapped<T>(
+        &mut self,
+        filter_map: impl Fn(Event) -> Option<T>,
+    ) -> T;
 }
 
 impl RecvFiltered for broadcast::Receiver<Event> {
-    async fn recv_filter_mapped<T>(&mut self, filter_map: impl Fn(Event) -> Option<T>) -> T {
+    async fn recv_filter_mapped<T>(
+        &mut self,
+        filter_map: impl Fn(Event) -> Option<T>,
+    ) -> T {
         loop {
             let event = self.recv().await.unwrap();
             if let Some(relevant) = filter_map(event) {
@@ -52,10 +60,10 @@ fn filter(event: Event) -> Option<RelevantEvent> {
     use protocol::large_bedroom::desk::Reading as D;
     use protocol::large_bedroom::Reading as R;
     use protocol::Reading::LargeBedroom as LB;
-    use Event::{Sensor, WakeUp};
+    use Event::{Sensor, WakeupLB};
 
     Some(match event {
-        WakeUp => RelevantEvent::WakeUp,
+        WakeupLB => RelevantEvent::WakeUp,
         Sensor(LB(R::Desk(D::Button(b)))) => RelevantEvent::DeskButton(b),
         Sensor(LB(R::Bed(B::Button(b)))) => RelevantEvent::BedButton(b),
         // Sensor(LB(R::Bed(B::Brightness(l)))) => RelevantEvent::Brightness(l),
@@ -65,7 +73,7 @@ fn filter(event: Event) -> Option<RelevantEvent> {
     })
 }
 
-pub async fn run(
+pub(crate) async fn run(
     mut event_rx: broadcast::Receiver<Event>,
     // todo if state change message everyone using this
     _event_tx: broadcast::Sender<Event>,
@@ -130,12 +138,13 @@ async fn update(system: &mut RestrictedSystem, state: &State) -> Option<State> {
 }
 
 fn optimal_ct_bri() -> (u16, u8) {
-    let now = local_now();
+    let now = crate::time::now();
     match now.hour() {
         0..=5 | 22.. => (500, 170),
         6..=16 => (254, u8::MAX),
         17..=19 => (320, u8::MAX),
         20..=21 => (320, 220),
+        _ => (320, u8::MAX),
     }
 }
 
@@ -154,7 +163,9 @@ fn handle_event(e: RelevantEvent) -> Option<State> {
     }
 }
 
-fn handle_desk_button(b: protocol::large_bedroom::desk::Button) -> Option<State> {
+fn handle_desk_button(
+    b: protocol::large_bedroom::desk::Button,
+) -> Option<State> {
     use protocol::large_bedroom::desk::Button;
 
     println!("button pressed: {b:?}");

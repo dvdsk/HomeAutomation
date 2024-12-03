@@ -3,11 +3,15 @@ use std::net::{IpAddr, SocketAddr};
 
 use clap::Parser;
 use tokio::sync::broadcast;
-mod controller;
-mod system;
 
+use self::input::jobs::Jobs;
+use self::system::System;
+
+mod controller;
 mod errors;
 mod input;
+mod system;
+mod time;
 
 #[derive(Parser)]
 #[command(version, about, long_about=None)]
@@ -46,12 +50,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (event_tx, event_rx) = broadcast::channel(250);
     let subscribed_rxs = array::from_fn(|_| event_tx.subscribe());
 
-    let (jobs, _waker_thread) = input::jobs::Jobs::setup(event_tx.clone(), db.clone())?;
-    let wakeup = input::jobs::WakeUp::setup(db.clone(), jobs.clone(), event_rx)?;
-    // let (_mpd_status, _mpd_watcher_thread, _updater_tx) =
-    //     input::MpdStatus::start_updating(opt.mpd_ip)?;
+    let jobs = Jobs::setup(event_tx.clone(), db.clone())?;
+    // TODO: untangle the large bedroom wakeup logic from everything else
+    let wakeup = controller::large_bedroom::wakeup::WakeUp::setup(
+        db.clone(),
+        jobs.clone(),
+        event_rx,
+    )?;
 
-    let system = system::System::init(jobs, opt.hue_bridge_ip);
+    let system = System::init(jobs, opt.hue_bridge_ip);
     let _tasks = controller::start(subscribed_rxs, event_tx.clone(), system);
 
     tokio::task::spawn(input::sensors::subscribe(event_tx, opt.data_server));
