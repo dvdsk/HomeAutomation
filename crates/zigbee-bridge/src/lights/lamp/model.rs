@@ -6,9 +6,17 @@ use crate::LIGHT_MODELS;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Model {
+    /// LED2107C4 TRADFRI bulb E14, white spectrum, candle, opal, 470 lm
     TradfriCandle,
+    /// LED2109G6 TRADFRI bulb E26/E27, color/white spectrum, globe, opal, 800/806/810 lm
     TradfriE27,
-    TradfriE14,
+    /// LED1923R5 TRADFRI bulb GU10, color/white spectrum, 345/380 lm
+    TradfriGU10,
+    /// LED2111G6 TRADFRI bulb E14, color/white spectrum, globe, opal, 806 lm
+    TradfriE14Color,
+    /// LED2101G4 TRADFRI bulb E12/E14, white spectrum, globe, opal, 450/470 lm
+    TradfriE14White,
+    /// 9290012573A Hue white and color ambiance E26/E27/E14
     HueGen4,
     #[allow(unused)]
     TradfriOther(String),
@@ -32,8 +40,11 @@ impl Model {
     pub(super) fn supports_xy(&self) -> bool {
         #[allow(clippy::match_same_arms)] // clearer comment
         match self {
-            Model::TradfriE27 | Model::TradfriE14 | Model::HueGen4 => true,
-            Model::TradfriCandle => false,
+            Model::TradfriE27
+            | Model::TradfriE14Color
+            | Model::HueGen4
+            | Model::TradfriGU10 => true,
+            Model::TradfriCandle | Model::TradfriE14White => false,
             // We assume no so that things at least don't break
             Model::TradfriOther(_) | Model::HueOther(_) | Model::Other(_) => {
                 false
@@ -43,8 +54,9 @@ impl Model {
 
     pub(super) fn temp_k_range(&self) -> Range<usize> {
         match self {
-            Model::TradfriCandle => 2200..4000,
-            Model::TradfriE27 | Model::TradfriE14 => 1780..4000,
+            Model::TradfriCandle | Model::TradfriGU10 => 2200..4000,
+            Model::TradfriE27 | Model::TradfriE14Color => 1780..4000,
+            Model::TradfriE14White => 2000..4000,
             Model::HueGen4 => 2000..6500,
             Model::TradfriOther(_) => 2200..4000,
             Model::HueOther(_) => 2200..6500,
@@ -57,11 +69,13 @@ impl Model {
         match self {
             Model::TradfriCandle => todo!(),
             Model::TradfriE27 => todo!(),
-            Model::TradfriE14 => todo!(),
+            Model::TradfriE14Color => todo!(),
             Model::HueGen4 => todo!(),
             Model::TradfriOther(_) => todo!(),
             Model::HueOther(_) => todo!(),
             Model::Other(_) => todo!(),
+            Model::TradfriGU10 => todo!(),
+            Model::TradfriE14White => todo!(),
         }
     }
 
@@ -93,7 +107,7 @@ impl Model {
                 (4250, 0.0007),
             ],
             // 204.391.94 data
-            Model::TradfriE14 => vec![
+            Model::TradfriE14Color => vec![
                 (1841, -0.0032),
                 (2055, -0.0034),
                 (2120, 0.0012),
@@ -119,6 +133,8 @@ impl Model {
             ],
             Model::TradfriOther(_) => todo!(),
             Model::Other(_) => todo!(),
+            Model::TradfriGU10 => todo!(),
+            Model::TradfriE14White => todo!(),
         }
         .into_iter()
         .collect()
@@ -132,12 +148,14 @@ impl Model {
                 vec![(2200, 30), (2700, 20), (4000, 50)]
             }
             Model::TradfriE27 => vec![(2200, 110), (2700, 30), (4000, -110)],
-            Model::TradfriE14 => vec![(2200, 70), (2700, -40), (4000, 20)],
+            Model::TradfriE14Color => vec![(2200, 70), (2700, -40), (4000, 20)],
             Model::HueGen4 | Model::HueOther(_) => {
                 vec![(2200, 2), (2700, 5), (4000, -10), (5500, 45), (6500, 5)]
             }
             Model::TradfriOther(_) => todo!(),
             Model::Other(_) => todo!(),
+            Model::TradfriGU10 => todo!(),
+            Model::TradfriE14White => todo!(),
         }
         .into_iter()
         .collect()

@@ -10,12 +10,23 @@ pub mod lights;
 
 const MQTT_IP: &str = "192.168.1.43";
 const MQTT_PORT: u16 = 1883;
-const LIGHT_MODELS: [(&str, Model); 5] = [
-    ("kitchen:fridge", Model::TradfriE14),
+const LIGHT_MODELS: [(&str, Model); 16] = [
+    ("kitchen:fridge", Model::TradfriE14Color),
     ("kitchen:hallway", Model::TradfriE27),
     ("kitchen:hood_left", Model::TradfriCandle),
     ("kitchen:hood_right", Model::TradfriCandle),
     ("kitchen:ceiling", Model::HueGen4),
+    ("large_bedroom:cabinet", Model::TradfriGU10),
+    ("large_bedroom:ceiling", Model::TradfriE27),
+    ("large_bedroom:desk", Model::TradfriE27),
+    ("large_bedroom:wardrobe", Model::TradfriE27),
+    ("large_bedroom:bed", Model::TradfriE14White),
+    ("small_bedroom:ceiling", Model::HueGen4),
+    ("small_bedroom:bureau", Model::HueGen4),
+    ("small_bedroom:piano", Model::HueGen4),
+    ("bathroom:ceiling", Model::HueGen4),
+    ("hallway:ceiling", Model::TradfriE27),
+    ("toilet:ceiling", Model::HueGen4),
 ];
 
 #[cfg(test)]

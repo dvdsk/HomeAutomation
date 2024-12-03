@@ -81,25 +81,25 @@ pub fn start(
 
     let restricted = RestrictedSystem {
         system: system.clone(),
-        allowed_lights: vec![
+        allowed_lights_new: vec![
             "large_bedroom:cabinet",
             "large_bedroom:ceiling",
             "large_bedroom:desk",
             "large_bedroom:wardrobe",
             "large_bedroom:bed",
         ],
-        allowed_lights_new: vec![],
+        allowed_lights: vec![],
     };
     tasks.spawn(rooms::large_bedroom::run(rx1, sender.clone(), restricted));
 
     let restricted = RestrictedSystem {
         system: system.clone(),
-        allowed_lights: vec![
+        allowed_lights_new: vec![
             "small_bedroom:ceiling",
             "small_bedroom:bureau",
             "small_bedroom:piano",
         ],
-        allowed_lights_new: vec![],
+        allowed_lights: vec![],
     };
     tasks.spawn(rooms::small_bedroom::run(rx2, sender.clone(), restricted));
 
@@ -115,6 +115,10 @@ pub fn start(
         ],
     };
     tasks.spawn(rooms::kitchen::run(rx3, sender, restricted));
+
+    // "hallway:ceiling"
+    // "bathroom:ceiling"
+    // "toilet:ceiling"
 
     tasks
 }
