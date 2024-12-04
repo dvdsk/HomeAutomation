@@ -77,15 +77,18 @@ pub async fn run(
         match res {
             Res::Event(RelevantEvent::Sleep) => {
                 state = State::Sleep;
-                system.all_lamps_off().await;
+                system.all_lamps_but_one_off("kitchen:hallway").await;
             }
             Res::Event(RelevantEvent::Daylight) => {
                 state = State::Daylight;
                 update(&mut system).await;
-                system.all_lamps_but_one_on("kitchen:hallway").await;
+                // TODO: only when LB also awake
+                // then turn all lamps off when SB sleep
+                system.all_lamps_on().await;
             },
             Res::ShouldUpdate if state == State::Daylight => {
                 update(&mut system).await;
+                system.all_lamps_on().await;
                 next_update = Instant::now() + INTERVAL;
             }
             _ => (),

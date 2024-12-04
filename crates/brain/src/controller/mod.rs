@@ -65,10 +65,10 @@ impl RestrictedSystem {
         }
     }
 
-    async fn all_lamps_but_one_on(&mut self, leave_this_off: &str) {
+    async fn all_lamps_but_one_off(&mut self, leave_this_on: &str) {
         for name in &self.allowed_lights {
-            if *name != leave_this_off {
-                self.system.lights_new.set_on(name);
+            if *name != leave_this_on {
+                self.system.lights_new.set_off(name);
             }
         }
     }
