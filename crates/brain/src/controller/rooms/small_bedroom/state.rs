@@ -87,24 +87,36 @@ impl Room {
     }
 
     async fn run_wakeup_then_daylight(mut self) {
-        let light_name = "small_bedroom:piano";
-        let bri = 1. / 254.;
-        let ct = 2000;
-        let bri_growth: f64 = 1.32;
-        let ct_growth: f64 = 1.028;
+        const LIGHT_NAME: &str = "small_bedroom:piano";
+        const RUNTIME_MINS: i32 = 7;
+        const STEP_SIZE_SECS: i32 = 30;
+        const N_STEPS: i32 = RUNTIME_MINS / STEP_SIZE_SECS;
 
-        self.system.one_lamp_ct(light_name, ct, bri).await;
-        // Make sure the light is the right ct and bri before turning it on
-        sleep(Duration::from_secs(1)).await;
-        self.system.one_lamp_on(light_name).await;
+        const START_BRI: f64 = 1. / 254.;
+        const START_CT: usize = 2000;
+        const END_BRI: f64 = 1.0;
+        const END_CT: usize = 3500;
 
-        for minute in 1..=20 {
-            sleep(Duration::from_secs(60)).await;
+        let bri_growth = (END_BRI / START_BRI).powf(1. / N_STEPS as f64);
+        let ct_growth =
+            (END_CT as f64 / START_CT as f64).powf(1. / N_STEPS as f64);
 
-            let new_bri = bri * bri_growth.powi(minute);
-            let new_ct = (ct as f64 * ct_growth.powi(minute)).round() as usize;
+        self.system
+            .one_lamp_ct(LIGHT_NAME, START_CT, START_BRI)
+            .await;
+        self.system.one_lamp_on(LIGHT_NAME).await;
 
-            self.system.one_lamp_ct(light_name, new_ct, new_bri).await;
+        for step in 1..=N_STEPS {
+            sleep(Duration::from_secs(
+                STEP_SIZE_SECS.try_into().expect("Should be positive"),
+            ))
+            .await;
+
+            let new_bri = START_BRI * bri_growth.powi(step);
+            let new_ct =
+                (START_CT as f64 * ct_growth.powi(step)).round() as usize;
+
+            self.system.one_lamp_ct(LIGHT_NAME, new_ct, new_bri).await;
         }
 
         *self.state.write().await = State::Daylight;
