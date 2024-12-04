@@ -71,7 +71,12 @@ impl Room {
     async fn to_state_cancel_prev(&mut self, state: State) {
         self.cancel_task().await;
         *self.state.write().await = state.clone();
-        let _ = self.event_tx.send(Event::StateChangeSB(state));
+        let _ = dbg!(self.event_tx.send(Event::StateChangeSB(state)));
+    }
+
+    async fn to_state(&mut self, state: State) {
+        *self.state.write().await = state.clone();
+        let _ = dbg!(self.event_tx.send(Event::StateChangeSB(state)));
     }
 
     async fn cancel_task(&mut self) {
@@ -83,7 +88,7 @@ impl Room {
     async fn delayed_off_then_sleep(mut self) {
         sleep(OFF_DELAY).await;
         self.system.all_lamps_off().await;
-        *self.state.write().await = State::Sleep;
+        self.to_state(State::Sleep).await;
     }
 
     async fn run_wakeup_then_daylight(mut self) {
@@ -119,7 +124,7 @@ impl Room {
             self.system.one_lamp_ct(LIGHT_NAME, new_ct, new_bri).await;
         }
 
-        *self.state.write().await = State::Daylight;
+        self.to_state(State::Daylight).await;
         self.all_lights_daylight().await;
         self.system.all_lamps_on().await;
     }

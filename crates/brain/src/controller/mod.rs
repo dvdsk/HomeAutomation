@@ -22,11 +22,14 @@ pub(crate) struct RestrictedSystem {
 }
 
 impl RestrictedSystem {
-    async fn one_lamp_ct(&mut self, name: &'static str, kelvin: usize, bri: f64) {
+    async fn one_lamp_ct(
+        &mut self,
+        name: &'static str,
+        kelvin: usize,
+        bri: f64,
+    ) {
         if self.allowed_lights.contains(&name) {
-            self.system
-                .lights_new
-                .set_color_temp(name, kelvin);
+            self.system.lights_new.set_color_temp(name, kelvin);
             self.system.lights_new.set_brightness(name, bri);
         }
     }
@@ -45,9 +48,7 @@ impl RestrictedSystem {
 
     async fn all_lamps_ct(&mut self, kelvin: usize, bri: f64) {
         for name in &self.allowed_lights {
-            self.system
-                .lights_new
-                .set_color_temp(name, kelvin);
+            self.system.lights_new.set_color_temp(name, kelvin);
             self.system.lights_new.set_brightness(name, bri);
         }
     }
@@ -61,6 +62,14 @@ impl RestrictedSystem {
     async fn all_lamps_on(&mut self) {
         for name in &self.allowed_lights {
             self.system.lights_new.set_on(name);
+        }
+    }
+
+    async fn all_lamps_but_one_on(&mut self, leave_this_off: &str) {
+        for name in &self.allowed_lights {
+            if *name != leave_this_off {
+                self.system.lights_new.set_on(name);
+            }
         }
     }
 }
