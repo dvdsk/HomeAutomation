@@ -2,8 +2,7 @@ use serde_json::json;
 use strum::EnumDiscriminants;
 use tracing::error;
 
-use crate::lights::{denormalize, kelvin_to_mired};
-
+use crate::lights::conversion::{denormalize, kelvin_to_mired};
 use super::Color;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

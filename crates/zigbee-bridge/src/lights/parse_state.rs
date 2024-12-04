@@ -2,7 +2,7 @@ use color_eyre::eyre::{bail, Context, OptionExt, Report};
 use color_eyre::Section;
 use serde_json::Value;
 
-use crate::lights::{mired_to_kelvin, normalize};
+use crate::lights::conversion::{mired_to_kelvin, normalize};
 
 use super::lamp;
 
