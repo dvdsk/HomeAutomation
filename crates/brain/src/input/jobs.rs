@@ -1,7 +1,7 @@
 use std::{sync::mpsc, thread, time::Duration};
 
 use byteorder::{BigEndian, ReadBytesExt};
-use jiff::{Span, Zoned};
+use jiff::{Span, ToSpan, Zoned};
 use mpsc::RecvTimeoutError::*;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
@@ -21,6 +21,7 @@ pub(crate) enum Error {
 pub(crate) struct Job {
     pub(crate) time: Zoned,
     pub(crate) event: Event,
+    pub(crate) every_day: bool,
     /// how long after the time was missed the job
     /// should still be executed
     pub(crate) expiration: Option<Duration>,
@@ -35,9 +36,29 @@ impl Job {
     ) -> Job {
         Job {
             time: to_datetime(hour, min),
+            every_day: false,
             event,
             expiration,
         }
+    }
+
+    pub(crate) fn every_day_at(
+        hour: i8,
+        min: i8,
+        event: Event,
+        expiration: Option<Duration>,
+    ) -> Job {
+        Job {
+            time: to_datetime(hour, min),
+            every_day: true,
+            event,
+            expiration,
+        }
+    }
+
+    pub(crate) fn add_one_day(mut self) -> Self {
+        self.time = self.time.checked_add(1.day()).unwrap();
+        self
     }
 }
 
@@ -80,7 +101,10 @@ impl Jobs {
         self.job_change_tx.send(())?;
         Ok(id)
     }
-    pub(crate) fn remove_job(&self, to_remove: i64) -> Result<Option<Job>, Error> {
+    pub(crate) fn remove_job(
+        &self,
+        to_remove: i64,
+    ) -> Result<Option<Job>, Error> {
         let removed_job = self.list.remove_job(to_remove)?;
         //signal event timer to update its next job
         self.job_change_tx.send(())?;
@@ -160,7 +184,7 @@ impl JobList {
     }
 }
 
-fn event_timer(
+async fn event_timer(
     mut job_list: JobList,
     event_tx: broadcast::Sender<Event>,
     job_change_rx: mpsc::Receiver<()>,
@@ -190,8 +214,14 @@ fn event_timer(
                 Err(Timeout) => {
                     // time to send the job event
                     event_tx
-                        .send(current_job.event)
+                        .send(current_job.event.clone())
                         .expect("controller should listen on this");
+                    if current_job.every_day {
+                        job_list
+                            .add_job(current_job.add_one_day())
+                            .await
+                            .unwrap();
+                    }
                     job_list.remove_job(id).unwrap();
                     continue; //get next job
                 }
