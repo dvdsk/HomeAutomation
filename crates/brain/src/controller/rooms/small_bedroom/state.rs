@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, Mutex, RwLock};
 use tokio::task::{self, JoinHandle};
 use tokio::time::sleep;
+use tracing::warn;
 
 use super::{daylight_now, OFF_DELAY};
 use crate::controller::{Event, RestrictedSystem};
@@ -50,6 +51,7 @@ impl Room {
     }
 
     pub(super) async fn to_wakeup(&mut self) {
+        warn!("Starting wakeup");
         self.to_state_cancel_prev(State::Wakeup).await;
 
         let task_handle = task::spawn(self.clone().run_wakeup_then_daylight());
@@ -110,6 +112,7 @@ impl Room {
             .one_lamp_ct(LIGHT_NAME, START_CT, START_BRI)
             .await;
         self.system.one_lamp_on(LIGHT_NAME).await;
+        warn!("Wakeup lamp should be on now");
 
         for step in 1..=N_STEPS {
             sleep(Duration::from_secs(
@@ -127,6 +130,7 @@ impl Room {
         self.to_state(State::Daylight).await;
         self.all_lights_daylight().await;
         self.system.all_lamps_on().await;
+        warn!("Wakeup done");
     }
 
     // TODO: make private once updates are in job system
