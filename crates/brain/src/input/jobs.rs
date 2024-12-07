@@ -22,7 +22,7 @@ pub(crate) enum Error {
     // DbStructDoubleError(#[from] dbstruct::Error<dbstruct::Error<sled::Error>>),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub(crate) struct Job {
     pub(crate) time: Zoned,
     pub(crate) event: Event,
@@ -134,17 +134,20 @@ impl JobList {
     // we decrease the id for the job until there is a place in the database
     // after a job gets an id it is never changed
     /// return the id for the job
-    async fn add_job(&self, to_add: Job) -> Result<i64, Error> {
-        let mut new_id = to_add.time.timestamp().as_millisecond();
+    async fn add_job(&self, new_job: Job) -> Result<i64, Error> {
+        let mut new_id = new_job.time.timestamp().as_millisecond();
 
         // create job entry if there is no job at this timestamp yet
-        // if there is already a job scheduled, change the id for this one
-        // until there is a spot free
-        while let Some(_old_job) = self.jobs().get(&new_id)? {
+        // if there is already a job scheduled, and it is not exactly the same,
+        // change the id for this one until there is a spot free
+        while let Some(old_job) = self.jobs().get(&new_id)? {
+            if old_job == new_job {
+                return Ok(new_id)
+            }
             // create unique key
             new_id -= 1;
         }
-        self.jobs().insert(&new_id, &to_add)?;
+        self.jobs().insert(&new_id, &new_job)?;
         Ok(new_id)
     }
 
