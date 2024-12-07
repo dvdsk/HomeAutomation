@@ -5,6 +5,7 @@ use futures_util::FutureExt;
 use protocol::small_bedroom::ButtonPanel;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
+use tracing::warn;
 
 use self::filter::{recv_filtered, RelevantEvent, Trigger};
 use self::state::Room;
@@ -30,8 +31,9 @@ pub async fn run(
     let _ = system
         .system
         .jobs
-        .add_job(Job::at_next(9, 0, Event::WakeupSB, Some(WAKEUP_EXPIRATION)))
+        .add(Job::at_next(9, 0, Event::WakeupSB, Some(WAKEUP_EXPIRATION)))
         .await;
+    warn!("Added job for SB wakeup");
 
     loop {
         let get_event = recv_filtered(&mut event_rx);

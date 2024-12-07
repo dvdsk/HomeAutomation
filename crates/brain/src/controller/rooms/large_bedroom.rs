@@ -8,8 +8,6 @@ use tracing::{info, warn};
 
 use crate::controller::{Event, RestrictedSystem};
 
-pub(crate) mod wakeup;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum State {
     // Sleep,

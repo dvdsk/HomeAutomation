@@ -1,10 +1,11 @@
-use std::{sync::mpsc, thread, time::Duration};
+use std::{
+    fmt, sync::{mpsc, Arc}, thread, time::Duration
+};
 
-use byteorder::{BigEndian, ReadBytesExt};
 use jiff::{Span, ToSpan, Zoned};
 use mpsc::RecvTimeoutError::*;
 use serde::{Deserialize, Serialize};
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, Mutex};
 use tracing::{error, info};
 
 use crate::{controller::Event, time::to_datetime};
@@ -15,9 +16,13 @@ pub(crate) enum Error {
     DbError(#[from] sled::Error),
     #[error("Could not inform event timer about new job")]
     CommError(#[from] mpsc::SendError<()>),
+    #[error("Dbstruct error")]
+    DbStructError(#[from] dbstruct::Error<sled::Error>),
+    // #[error("Dbstruct error")]
+    // DbStructDoubleError(#[from] dbstruct::Error<dbstruct::Error<sled::Error>>),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct Job {
     pub(crate) time: Zoned,
     pub(crate) event: Event,
@@ -62,23 +67,29 @@ impl Job {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) struct Jobs {
     job_change_tx: mpsc::Sender<()>,
-    list: JobList,
+    list: Arc<Mutex<JobList>>,
 }
 
-#[derive(Debug, Clone)]
+impl fmt::Debug for Jobs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Jobs db and manager")
+    }
+}
+
+#[dbstruct::dbstruct(db=sled)]
 struct JobList {
-    db: sled::Tree,
+    jobs: HashMap<i64, Job>,
 }
 
 impl Jobs {
     pub(crate) fn setup(
         event_tx: broadcast::Sender<Event>,
-        db: sled::Db,
+        db_path: &str,
     ) -> Result<Self, Error> {
-        let job_list = JobList::new(db)?;
+        let job_list = Arc::new(Mutex::new(JobList::new(db_path)?));
 
         let (job_change_tx, job_change_rx) = mpsc::channel();
         let job_list_clone = job_list.clone();
@@ -95,111 +106,75 @@ impl Jobs {
     // we decrease the time till the job until there is a place in the database
     // as only one job can fire at the time, after a job gets a timeslot
     // it is never changed
-    pub(crate) async fn add_job(&self, to_add: Job) -> Result<i64, Error> {
-        let id = self.list.add_job(to_add).await?;
+    pub(crate) async fn add(&self, to_add: Job) -> Result<i64, Error> {
+        let id = self.list.lock().await.add_job(to_add).await?;
         //signal event timer to update its next job
         self.job_change_tx.send(())?;
         Ok(id)
     }
-    pub(crate) fn remove_job(
+    pub(crate) async fn remove(
         &self,
         to_remove: i64,
     ) -> Result<Option<Job>, Error> {
-        let removed_job = self.list.remove_job(to_remove)?;
+        let removed_job = self.list.lock().await.remove_job(to_remove)?;
         //signal event timer to update its next job
         self.job_change_tx.send(())?;
         Ok(removed_job)
     }
-    pub(crate) fn get(&self, id: i64) -> Result<Option<Job>, Error> {
-        self.list.get_job(id)
+    pub(crate) async fn get(&self, id: i64) -> Result<Option<Job>, Error> {
+        self.list.lock().await.get_job(id)
     }
 }
 
 impl JobList {
-    fn new(db: sled::Db) -> Result<Self, Error> {
-        Ok(JobList {
-            db: db.open_tree("jobs")?,
-        })
-    }
-
     fn get_job(&self, id: i64) -> Result<Option<Job>, Error> {
-        Ok(self
-            .db
-            .get(id.to_be_bytes())?
-            .map(|k| bincode::deserialize::<Job>(&k).unwrap()))
+        Ok(self.jobs().get(&id)?)
     }
 
-    // we decrease the time till the job until there is a place in the database
-    // as only one job can fire at the time, after a job gets a timeslot
-    // it is never changed
-    /// return the key for the job
+    // we decrease the id for the job until there is a place in the database
+    // after a job gets an id it is never changed
+    /// return the id for the job
     async fn add_job(&self, to_add: Job) -> Result<i64, Error> {
-        let mut timestamp = to_add.time.timestamp().as_millisecond();
-        let job = bincode::serialize(&to_add).unwrap();
+        let mut new_id = to_add.time.timestamp().as_millisecond();
 
         // create job entry if there is no job at this timestamp yet
-        // if there is already a job scheduled, change the key for this one
+        // if there is already a job scheduled, change the id for this one
         // until there is a spot free
-        // TODO check how this works and expand sled documentation for fail cases
-        while let Err(_old_event) = self.db.compare_and_swap(
-            timestamp.to_be_bytes(),
-            None as Option<&[u8]>,
-            Some(job.clone()),
-        )? {
+        while let Some(_old_job) = self.jobs().get(&new_id)? {
             // create unique key
-            timestamp -= 1;
+            new_id -= 1;
         }
-        self.db.flush_async().await?;
-        Ok(timestamp)
+        self.jobs().insert(&new_id, &to_add)?;
+        Ok(new_id)
     }
 
     fn remove_job(&self, to_remove: i64) -> Result<Option<Job>, Error> {
-        let old_job = self
-            .db
-            .remove(to_remove.to_be_bytes())?
-            .map(|k| bincode::deserialize::<Job>(&k).unwrap());
-        self.db.flush()?;
+        let old_job = self.jobs().remove(&to_remove)?;
         Ok(old_job)
     }
 
-    /// calculate time to the earliest job, remove it from the list if the
-    /// current time is later than the job
     fn peek_next(&mut self) -> Option<(i64, Job)> {
-        // get earliest job time in db
-        match self.db.get_gt(0u64.to_be_bytes()) {
-            Ok(entry) => {
-                if let Some((id, job)) = entry {
-                    let id = id.as_ref().read_i64::<BigEndian>().unwrap();
-                    let job = bincode::deserialize(&job).unwrap();
-                    Some((id, job))
-                } else {
-                    None
-                }
-            }
-            Err(error) => {
-                error!("Could not retrieve next job: {:?}", error);
-                None
-            }
-        }
+        let list: Vec<_> = self.jobs().iter().filter_map(|r| r.ok()).collect();
+        list.get(0).cloned()
     }
 }
 
 async fn event_timer(
-    mut job_list: JobList,
+    job_list: Arc<Mutex<JobList>>,
     event_tx: broadcast::Sender<Event>,
     job_change_rx: mpsc::Receiver<()>,
 ) {
     loop {
         // This can fail
         // TODO make sure an non waking error alarm is send to the user
-        if let Some((id, current_job)) = job_list.peek_next() {
+        if let Some((id, current_job)) = job_list.lock().await.peek_next() {
             let now = crate::time::now();
             let timeout = &current_job.time - &now;
             if let Some(expiration) = current_job.expiration {
                 if now > &current_job.time + Span::try_from(expiration).unwrap()
                 {
                     error!("skipping job too far in the past");
-                    job_list.remove_job(id).unwrap();
+                    job_list.lock().await.remove_job(id).unwrap();
                     continue; // job too far in the past, skip and get next
                 }
             }
@@ -218,11 +193,13 @@ async fn event_timer(
                         .expect("controller should listen on this");
                     if current_job.every_day {
                         job_list
+                            .lock()
+                            .await
                             .add_job(current_job.add_one_day())
                             .await
                             .unwrap();
                     }
-                    job_list.remove_job(id).unwrap();
+                    job_list.lock().await.remove_job(id).unwrap();
                     continue; //get next job
                 }
             }

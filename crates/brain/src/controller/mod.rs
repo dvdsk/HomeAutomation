@@ -1,5 +1,4 @@
 mod rooms;
-pub(crate) use rooms::large_bedroom;
 
 use crate::system::System;
 pub use protocol::Reading;
