@@ -6,7 +6,9 @@ use tokio::time::{sleep, timeout};
 use tracing::{debug, instrument, trace};
 
 use super::mqtt::Mqtt;
-use super::{MQTT_MIGHT_BE_DOWN_TIMEOUT, WAIT_FOR_INIT_STATES};
+use super::{
+    CHANGE_ACCUMULATION_TIME, MQTT_MIGHT_BE_DOWN_TIMEOUT, WAIT_FOR_INIT_STATES,
+};
 use crate::lights::lamp::{self, Lamp};
 
 pub(super) async fn handle(
@@ -22,26 +24,37 @@ pub(super) async fn handle(
 
     loop {
         debug!("timeout: {call_at_least_in:?}");
-        if let Ok(update) =
-            timeout(call_at_least_in, change_receiver.recv()).await
-        {
-            let (light_name, change) =
-                update.expect("Channel should never close");
+        match timeout(call_at_least_in, change_receiver.recv()).await {
+            // On change, update needed, but only actually send the changes
+            // after a timeout
+            Ok(update) => {
+                let (light_name, change) =
+                    update.expect("Channel should never close");
 
-            trace!("Received change: {change:?} for lamp {light_name}");
-            apply_change_to_needed(
-                light_name,
-                change,
-                known_states,
-                &mut needed_states,
-            )
-            .await;
-        };
+                trace!("Received change: {change:?} for lamp {light_name}");
+                apply_change_to_needed(
+                    light_name,
+                    change,
+                    known_states,
+                    &mut needed_states,
+                )
+                .await;
 
-        call_at_least_in =
-            send_diff_get_timeout(known_states, &mut needed_states, mqtt)
+                // When there hasn't been a new change in 100 ms, we will timeout
+                // and send the accumulated changes
+                call_at_least_in = CHANGE_ACCUMULATION_TIME;
+            }
+            _ => {
+                // Send the accumulated changes and get the timeout for resending
+                call_at_least_in = send_diff_get_timeout(
+                    known_states,
+                    &mut needed_states,
+                    mqtt,
+                )
                 .await
                 .min(MQTT_MIGHT_BE_DOWN_TIMEOUT);
+            }
+        };
     }
 }
 
