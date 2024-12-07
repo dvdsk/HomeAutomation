@@ -2,10 +2,6 @@
 use tokio::sync::mpsc;
 use tracing::trace;
 
-// TODO: make private once system is ported
-pub use conversion::{
-    denormalize, kelvin_to_mired, mired_to_kelvin, normalize,
-};
 pub(crate) use lamp::Model;
 
 mod cached_bridge;

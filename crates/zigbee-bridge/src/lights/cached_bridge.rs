@@ -16,6 +16,7 @@ const WAIT_FOR_INIT_STATES: Duration = Duration::from_millis(500);
 // unfortunately we have to use the zigbee-herdsman timeout to prevent
 // the z2m queue from getting filled up
 const TIME_IT_TAKES_TO_APPLY_CHANGE: Duration = Duration::from_secs(10);
+const CHANGE_ACCUMULATION_TIME: Duration = Duration::from_millis(100);
 
 pub(super) async fn run(
     change_receiver: mpsc::UnboundedReceiver<(String, lamp::Property)>,

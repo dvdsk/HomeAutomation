@@ -2,9 +2,8 @@ use serde_json::json;
 use strum::EnumDiscriminants;
 use tracing::error;
 
-use crate::lights::{denormalize, kelvin_to_mired};
-
 use super::Color;
+use crate::lights::conversion::{denormalize, kelvin_to_mired};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ColorTempStartup {
@@ -47,7 +46,7 @@ impl PartialEq for Property {
 impl Eq for Property {}
 
 impl Property {
-    pub(crate) fn payload(&self) -> String {
+    pub(crate) fn payload(&self) -> serde_json::Value {
         match *self {
             Property::Brightness(bri) => {
                 json!({ "brightness": denormalize(bri) })
@@ -69,7 +68,6 @@ impl Property {
                 json!({"state": ""})
             }
         }
-        .to_string()
     }
 }
 

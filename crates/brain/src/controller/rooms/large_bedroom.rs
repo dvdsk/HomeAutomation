@@ -8,8 +8,6 @@ use tracing::{info, warn};
 
 use crate::controller::{Event, RestrictedSystem};
 
-pub(crate) mod wakeup;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum State {
     // Sleep,
@@ -124,11 +122,13 @@ async fn update(system: &mut RestrictedSystem, state: &State) -> Option<State> {
         }
         State::Bright => {
             system.all_lamps_on().await;
-            system.all_lamps_ct(254, u8::MAX).await;
+            system.all_lamps_ct(3900, 1.0).await;
         }
         State::FadeOut(started) => {
             system.all_lamps_on().await;
-            system.all_lamps_ct(1, u8::MAX).await;
+            // TODO: this was set to 1 mired (= 1M(!!) Kelvin) and 100% brightness
+            // not sure that is the intended behaviour
+            system.all_lamps_ct(3900, 1.0).await;
             if started.elapsed() > Duration::from_secs(40) {
                 return Some(State::Off);
             }
@@ -137,14 +137,14 @@ async fn update(system: &mut RestrictedSystem, state: &State) -> Option<State> {
     None
 }
 
-fn optimal_ct_bri() -> (u16, u8) {
+fn optimal_ct_bri() -> (usize, f64) {
     let now = crate::time::now();
     match now.hour() {
-        0..=5 | 22.. => (500, 170),
-        6..=16 => (254, u8::MAX),
-        17..=19 => (320, u8::MAX),
-        20..=21 => (320, 220),
-        _ => (320, u8::MAX),
+        0..=5 | 22.. => (2000, 0.67),
+        6..=16 => (3900, 1.0),
+        17..=19 => (3100, 1.0),
+        20..=21 => (3100, 0.87),
+        _ => (3100, 1.0),
     }
 }
 

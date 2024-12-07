@@ -474,6 +474,7 @@ dependencies = [
  "bytes",
  "clap",
  "data-server",
+ "dbstruct",
  "futures",
  "futures-concurrency",
  "futures-util",
@@ -531,7 +532,7 @@ version = "0.7.1"
 source = "git+https://github.com/dvdsk/byteseries#eb057c6363548fa1fc2fbe5a89395b81238152f5"
 dependencies = [
  "arraydeque",
- "itertools",
+ "itertools 0.13.0",
  "num-traits",
  "ron",
  "serde",
@@ -958,6 +959,33 @@ dependencies = [
  "tracing",
  "tracing-error",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "dbstruct"
+version = "0.4.1"
+source = "git+https://github.com/dvdsk/dbstruct#e2f1147accff6a4d71d307d2311c7f493b31606e"
+dependencies = [
+ "bincode",
+ "dbstruct-derive",
+ "serde",
+ "sled",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "dbstruct-derive"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "393042992e6516cf869ab7148ac3507ae1b9ce15d50b8f9bf43c8b05567b8acd"
+dependencies = [
+ "itertools 0.11.0",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.89",
+ "thiserror",
 ]
 
 [[package]]
@@ -2077,7 +2105,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "477e2e7ec7379407656293ff74902caea786a1dda427ca1f84b923c4fdeb7659"
 dependencies = [
  "either",
- "itertools",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "strum",
@@ -2141,6 +2169,15 @@ name = "is_terminal_polyfill"
 version = "1.70.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
+
+[[package]]
+name = "itertools"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
+dependencies = [
+ "either",
+]
 
 [[package]]
 name = "itertools"
@@ -3136,7 +3173,7 @@ dependencies = [
  "compact_str",
  "crossterm",
  "instability",
- "itertools",
+ "itertools 0.13.0",
  "lru",
  "paste",
  "strum",
@@ -3425,7 +3462,7 @@ dependencies = [
  "gethostname",
  "hdrhistogram",
  "indextree",
- "itertools",
+ "itertools 0.13.0",
  "jiff",
  "log-store",
  "logger",
@@ -4125,7 +4162,7 @@ version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3644627a5af5fa321c95b9b235a72fd24cd29c648c2c379431e6628655627bf"
 dependencies = [
- "itertools",
+ "itertools 0.13.0",
  "unicode-segmentation",
  "unicode-width",
 ]
@@ -4683,7 +4720,7 @@ dependencies = [
  "colorimetry",
  "futures",
  "futures-concurrency",
- "itertools",
+ "itertools 0.13.0",
  "logger",
  "regex",
  "rumqttc",

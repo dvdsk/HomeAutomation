@@ -9,11 +9,10 @@ use tracing::warn;
 use crate::controller::rooms::small_bedroom;
 use crate::controller::{Event, RestrictedSystem};
 
+#[derive(PartialEq, Eq)]
 enum State {
-    // Sleep,
-    // Wakeup,
-    Normal,
-    // Away,
+    Sleep,
+    Daylight,
 }
 
 const INTERVAL: Duration = Duration::from_secs(5);
@@ -41,17 +40,20 @@ impl RecvFiltered for broadcast::Receiver<Event> {
 
 #[derive(Debug)]
 enum RelevantEvent {
-    // DeskButton(protocol::large_bedroom::DeskButton),
+    Sleep,
+    Daylight,
 }
 
-fn filter(_event: Event) -> Option<RelevantEvent> {
-    // match event {
-    //     // Event::Sensor(SensorValue::ButtonPress(Button::LargeBedroomDesk(desk))) => {
-    //     //     Some(RelevantEvent::DeskButton(desk))
-    //     // }
-    //     _ => None,
-    // }
-    None
+fn filter(event: Event) -> Option<RelevantEvent> {
+    match event {
+        Event::StateChangeSB(small_bedroom::State::Sleep) => {
+            Some(RelevantEvent::Sleep)
+        }
+        Event::StateChangeSB(small_bedroom::State::Daylight) => {
+            Some(RelevantEvent::Daylight)
+        }
+        _ => None,
+    }
 }
 
 pub async fn run(
@@ -65,7 +67,7 @@ pub async fn run(
         ShouldUpdate,
     }
 
-    let _state = State::Normal;
+    let mut state = State::Daylight;
     let mut next_update = Instant::now() + INTERVAL;
     loop {
         let get_event = event_rx.recv_filter_mapped(filter).map(Res::Event);
@@ -73,29 +75,41 @@ pub async fn run(
 
         let res = (get_event, tick).race().await;
         match res {
-            Res::Event(_) => (), // handle_event(e),
-            Res::ShouldUpdate => {
+            Res::Event(RelevantEvent::Sleep) => {
+                state = State::Sleep;
+                system.all_lamps_but_one_off("kitchen:hallway").await;
+            }
+            Res::Event(RelevantEvent::Daylight) => {
+                state = State::Daylight;
                 update(&mut system).await;
+                // TODO: only when LB also awake
+                // then turn all lamps off when SB sleep
+                system.all_lamps_on().await;
+            },
+            Res::ShouldUpdate if state == State::Daylight => {
+                update(&mut system).await;
+                system.all_lamps_on().await;
                 next_update = Instant::now() + INTERVAL;
             }
+            _ => (),
         }
     }
 }
 
 async fn update(system: &mut RestrictedSystem) {
-    let (new_ct, new_bri) = small_bedroom::optimal_ct_bri();
+    let (new_ct, new_bri) = small_bedroom::daylight_now();
     // let (new_ct, new_bri) = _testing_ct_bri();
     system.all_lamps_ct(new_ct, new_bri).await;
     tracing::trace!("updated lamps");
 }
 
-fn _testing_ct_bri() -> (u16, u8) {
+fn _testing_ct_bri() -> (usize, f64) {
     let now = crate::time::now();
     // let optimal = match now.hour() {
     let optimal = match now.minute() {
-        min if min % 2 == 0 => (400, u8::MAX), // Even hour: orange
-        min if min % 2 == 1 => (250, u8::MAX), // Odd hour: blue
-        _ => (400, u8::MAX),
+        min if min % 2 == 0 => (2000, 1.0), // Even hour: orange
+        min if min % 2 == 1 => (4000, 1.0), // Odd hour: blue
+        _ => (2000, 1.0),
     };
     // if now.minute() == 0 && now.second() <= 9 {
     if now.second() <= 9 {

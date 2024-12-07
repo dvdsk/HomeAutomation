@@ -1,18 +1,17 @@
 mod rooms;
-pub(crate) use rooms::large_bedroom;
 
 use crate::system::System;
 pub use protocol::Reading;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use tokio::task::JoinSet;
-use zigbee_bridge::lights::{mired_to_kelvin, normalize};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Event {
     Sensor(Reading),
     WakeupLB,
     WakeupSB,
+    StateChangeSB(rooms::small_bedroom::State),
 }
 
 #[derive(Clone)]
@@ -22,12 +21,15 @@ pub(crate) struct RestrictedSystem {
 }
 
 impl RestrictedSystem {
-    async fn one_lamp_ct(&mut self, name: &'static str, ct: u16, bri: u8) {
+    async fn one_lamp_ct(
+        &mut self,
+        name: &'static str,
+        kelvin: usize,
+        bri: f64,
+    ) {
         if self.allowed_lights.contains(&name) {
-            self.system
-                .lights_new
-                .set_color_temp(name, mired_to_kelvin(ct.into()));
-            self.system.lights_new.set_brightness(name, normalize(bri));
+            self.system.lights_new.set_color_temp(name, kelvin);
+            self.system.lights_new.set_brightness(name, bri);
         }
     }
 
@@ -43,12 +45,10 @@ impl RestrictedSystem {
         }
     }
 
-    async fn all_lamps_ct(&mut self, ct: u16, bri: u8) {
+    async fn all_lamps_ct(&mut self, kelvin: usize, bri: f64) {
         for name in &self.allowed_lights {
-            self.system
-                .lights_new
-                .set_color_temp(name, mired_to_kelvin(ct.into()));
-            self.system.lights_new.set_brightness(name, normalize(bri));
+            self.system.lights_new.set_color_temp(name, kelvin);
+            self.system.lights_new.set_brightness(name, bri);
         }
     }
 
@@ -61,6 +61,14 @@ impl RestrictedSystem {
     async fn all_lamps_on(&mut self) {
         for name in &self.allowed_lights {
             self.system.lights_new.set_on(name);
+        }
+    }
+
+    async fn all_lamps_but_one_off(&mut self, leave_this_on: &str) {
+        for name in &self.allowed_lights {
+            if *name != leave_this_on {
+                self.system.lights_new.set_off(name);
+            }
         }
     }
 }

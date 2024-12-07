@@ -8,6 +8,4 @@ pub enum Error {
     DataBase(#[from] sled::Error),
     #[error("Error contacting mpd")]
     Mpd(#[from] mpd::error::Error),
-    #[error("Error in the wakeup alarm system")]
-    SetWakeUp(#[from] crate::controller::large_bedroom::wakeup::Error),
 }
