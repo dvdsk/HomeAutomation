@@ -74,7 +74,10 @@ async fn send_diff_get_timeout(
         };
 
         if is_online {
-            let _ = mqtt.send_diff_where_due(light_name, &diff).await;
+            let merged_payloads = needed.is_hue_lamp();
+            let _ = mqtt
+                .send_diff_where_due(light_name, merged_payloads, &diff)
+                .await;
         }
 
         if let Some(deadline) = mqtt.next_deadline(light_name, &diff) {

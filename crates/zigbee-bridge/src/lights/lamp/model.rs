@@ -160,4 +160,18 @@ impl Model {
         .into_iter()
         .collect()
     }
+
+    pub(crate) fn is_hue(&self) -> bool {
+        match self {
+            Model::TradfriCandle
+            | Model::TradfriE27
+            | Model::TradfriGU10
+            | Model::TradfriE14Color
+            | Model::TradfriE14White
+            | Model::TradfriOther(_) => false,
+            Model::HueGen4 | Model::HueOther(_) => true,
+            // I guess we default to sending payloads separately
+            Model::Other(_) => false,
+        }
+    }
 }

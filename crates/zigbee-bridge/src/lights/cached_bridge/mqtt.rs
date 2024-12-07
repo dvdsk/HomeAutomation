@@ -4,7 +4,7 @@ use std::time::Instant;
 use rumqttc::v5::mqttbytes::QoS;
 use rumqttc::v5::{AsyncClient, ClientError};
 use serde_json::json;
-use tracing::{instrument, trace, warn};
+use tracing::{trace, warn};
 
 use crate::lights::lamp;
 
@@ -89,20 +89,33 @@ impl Mqtt {
         deadline < Instant::now()
     }
 
-    #[instrument(skip(self))]
     pub(super) async fn send_diff_where_due(
         &mut self,
         light_name: &str,
+        merged_payloads: bool,
         diff: &[lamp::Property],
     ) -> Result<(), ClientError> {
+        let mut due_changes = Vec::new();
+
         for change in diff {
             if self.is_due(&light_name, change) {
-                self.set(&light_name, change.payload()).await?;
+                due_changes.push(change);
 
                 let light_send_record =
                     self.last_sent.entry(light_name.to_owned()).or_default();
                 light_send_record
                     .insert(change.into(), (Instant::now(), *change));
+            }
+        }
+
+        if !due_changes.is_empty() {
+            if merged_payloads {
+                let payload = merge_payloads(due_changes);
+                self.set(&light_name, payload.to_string()).await?;
+            } else {
+                for change in due_changes {
+                    self.set(&light_name, change.payload().to_string()).await?;
+                }
             }
         }
 
@@ -155,4 +168,17 @@ impl Mqtt {
             )
             .await
     }
+}
+
+fn merge_payloads(mut changes: Vec<&lamp::Property>) -> serde_json::Value {
+    let payload = changes
+        .iter_mut()
+        .map(|c| c.payload())
+        .map(|p| p.as_object().expect("Should be a map").to_owned())
+        .reduce(|mut acc, mut e| {
+            acc.append(&mut e);
+            acc
+        })
+        .unwrap();
+    serde_json::Value::Object(payload.clone())
 }

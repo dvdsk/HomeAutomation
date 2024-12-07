@@ -45,6 +45,10 @@ impl Lamp {
         }
     }
 
+    pub(super) fn is_hue_lamp(&self) -> bool {
+        self.model.is_hue()
+    }
+
     #[instrument]
     pub(super) fn changes_relative_to(&self, other: &Self) -> Vec<Property> {
         let mut res = Vec::new();
