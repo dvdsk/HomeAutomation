@@ -59,7 +59,6 @@ pub async fn run(
 }
 
 async fn handle_buttonpress(room: &mut Room, button: ButtonPanel) {
-    dbg!(button);
     match button {
         ButtonPanel::BottomLeft(_) => {
             room.to_sleep().await;

@@ -73,12 +73,12 @@ impl Room {
     async fn to_state_cancel_prev(&mut self, state: State) {
         self.cancel_task().await;
         *self.state.write().await = state.clone();
-        let _ = dbg!(self.event_tx.send(Event::StateChangeSB(state)));
+        let _ = self.event_tx.send(Event::StateChangeSB(state));
     }
 
     async fn to_state(&mut self, state: State) {
         *self.state.write().await = state.clone();
-        let _ = dbg!(self.event_tx.send(Event::StateChangeSB(state)));
+        let _ = self.event_tx.send(Event::StateChangeSB(state));
     }
 
     async fn cancel_task(&mut self) {
