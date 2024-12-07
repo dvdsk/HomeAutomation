@@ -47,7 +47,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let system = System::init(jobs);
     let _tasks = controller::start(subscribed_rxs, event_tx.clone(), system);
 
-    tokio::task::spawn(input::sensors::subscribe(event_tx, opt.data_server));
+    // This never returns, should be replaced by an endless loop if (re)moved
+    input::sensors::subscribe(event_tx, opt.data_server).await;
 
     unreachable!();
 }
