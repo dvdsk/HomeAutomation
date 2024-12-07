@@ -31,7 +31,12 @@ pub async fn run(
     let _ = system
         .system
         .jobs
-        .add(Job::at_next(9, 0, Event::WakeupSB, Some(WAKEUP_EXPIRATION)))
+        .add(Job::every_day_at(
+            9,
+            0,
+            Event::WakeupSB,
+            Some(WAKEUP_EXPIRATION),
+        ))
         .await;
     warn!("Added job for SB wakeup");
 
