@@ -1,12 +1,14 @@
 #![no_std]
 
 mod drivers;
+pub mod measurements;
 pub mod errors;
 
 pub use drivers::{
     Bme680Driver, Max44Driver, Nau7802Driver, Sps30Driver, Sht31Driver, MhzDriver,
     SPS30_DRIVER_BUF_SIZE, SPS30_UART_BUF_SIZE,
 };
+
 pub use errors::Error;
 use errors::SensorError;
 

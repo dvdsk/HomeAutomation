@@ -1207,7 +1207,6 @@ dependencies = [
 name = "small-bedroom-sensor-node"
 version = "0.2.0"
 dependencies = [
- "bosch-bme680",
  "cortex-m",
  "cortex-m-rt",
  "defmt",
@@ -1225,17 +1224,9 @@ dependencies = [
  "embedded-io-async",
  "futures",
  "heapless 0.8.0 (git+https://github.com/rust-embedded/heapless?rev=0ebca23)",
- "max44009",
- "mhzx",
- "nau7802-async",
- "nb 1.1.0",
  "panic-probe",
  "protocol",
- "rand",
  "sensors",
- "sht31",
- "sps30-async",
- "static_cell",
 ]
 
 [[package]]

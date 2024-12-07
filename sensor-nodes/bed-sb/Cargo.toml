@@ -7,6 +7,9 @@ license = "GPLv3"
 authors = ["David Kleingeld & Eva van Houten"]
 
 [dependencies]
+cortex-m.workspace = true
+cortex-m-rt.workspace = true
+
 embassy-stm32.workspace = true
 embassy-sync.workspace = true
 embassy-executor.workspace = true
@@ -16,29 +19,19 @@ embassy-futures.workspace = true
 embassy-usb = { version = "0.3.0", features = ["defmt"] }
 
 defmt.workspace = true
-defmt-rtt = "0.4"
+defmt-rtt.workspace = true
 
-cortex-m = { version = "0.7.6", features = ["inline-asm", "critical-section-single-core"] }
-cortex-m-rt = "0.7.0"
-embedded-hal = "1.0.0"
-embedded-hal-async = "1.0"
-embedded-hal-bus = { version = "0.2", features = ["async", "defmt-03"] }
-embedded-io-async = { version = "0.6.1", features = ["defmt-03"] }
-panic-probe = { version = "0.3", features = ["print-defmt"] }
-futures = { version = "0.3.17", default-features = false, features = ["async-await"] }
+embedded-hal.workspace = true
+embedded-hal-async.workspace = true
+embedded-hal-bus.workspace = true
+embedded-io-async.workspace = true
+
+panic-probe.workspace = true
+futures.workspace = true
 heapless = { git = "https://github.com/rust-embedded/heapless", version = "0.8", rev = "0ebca23", default-features = false }
-nb = "1.0.0"
-rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
-static_cell = "2.0.0"
 
 # sensors
 sensors = { path = "../sensors" }
-bosch-bme680 = { version = "1.0.2", path = "/home/david/Documents/async-bosch-bme680" }
-max44009 = { version = "0.2", git = "https://github.com/dvdsk/max44009-rs" }
-sht31 = { version = "0.3.0", git = "https://github.com/dvdsk/SHT31-rs", features = ["postcard"] }
-mhzx = { version = "0.3.0", path = "/home/david/tmp/mh-zx-driver", features = ["serde", "postcard"] }
-sps30-async = { version = "0.3.0", path = "/home/david/tmp/sps30", features = ["serde", "postcard"] }
-nau7802-async = { path = "/home/david/tmp/nau7802-rs", features = ["serde", "postcard", "defmt"] }
 
 # encoding
 protocol = { workspace = true }
