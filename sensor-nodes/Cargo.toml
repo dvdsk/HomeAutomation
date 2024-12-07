@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bed-sb", "bed-lb"]
+members = ["bed-sb", "bed-lb", "sensors"]
 
 [workspace.dependencies]
 protocol = { path = "../crates/protocol" }
@@ -16,6 +16,8 @@ embassy-embedded-hal = { version = "0.2.0" }
 embassy-time = { version = "0.3.2", features = ["defmt",
 "defmt-timestamp-uptime-ms", "tick-hz-32_768"] }
 embassy-futures = { version = "0.1.0"}
+
+defmt = "0.3"
 
 [patch.crates-io]
 embassy-stm32 = {git = "https://github.com/embassy-rs/embassy", rev = "0349a8d" }

@@ -7,18 +7,16 @@ use embassy_time::{Duration, Instant};
 use heapless::HistoryBuffer;
 use protocol::small_bedroom::bed::Reading;
 
-use crate::error_cache;
-
 pub struct Queues {
     sensor_queue: PriorityChannel<NoopRawMutex, PriorityValue, priority_channel::Max, 20>,
-    error_queue: Channel<NoopRawMutex, error_cache::Error, 20>,
-    recent_errors: Mutex<NoopRawMutex, HistoryBuffer<error_cache::Error, 20>>,
+    error_queue: Channel<NoopRawMutex, sensors::Error, 20>,
+    recent_errors: Mutex<NoopRawMutex, HistoryBuffer<sensors::Error, 20>>,
     recent_is_since: Instant,
 }
 
 pub enum QueueItem {
     Reading(PriorityValue),
-    Error(error_cache::Error),
+    Error(sensors::Error),
 }
 
 impl Queues {
@@ -56,7 +54,7 @@ impl Queues {
         self.sensor_queue.try_receive().ok()
     }
 
-    pub fn queue_error(&self, error: error_cache::Error) {
+    pub fn queue_error(&self, error: sensors::Error) {
         // unwrap safe: is not used in interrupts
         let mut recent_errors = defmt::unwrap!(self.recent_errors.try_lock());
         if self.recent_is_since.elapsed() > Duration::from_secs(60 * 5) {

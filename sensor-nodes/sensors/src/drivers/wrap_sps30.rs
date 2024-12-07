@@ -1,24 +1,32 @@
 use embassy_time::Delay;
 use sps30_async::Sps30;
 
-use crate::error_cache::{Error, SensorError};
-use crate::sensors::concrete_types::{ConcreteRx, ConcreteTx};
-use crate::sensors::SPS30_DRIVER_BUF_SIZE;
+use crate::errors::{Error, SensorError};
+use crate::Driver;
 
-use super::Driver;
+use super::{ConcreteRx, ConcreteTx};
+
+pub const SPS30_UART_BUF_SIZE: usize = 150;
+pub const SPS30_DRIVER_BUF_SIZE: usize = 2 * SPS30_UART_BUF_SIZE;
 
 /// reset the device when an error occurs
 pub struct Sps30Driver<'a> {
     is_init: bool,
     driver: Sps30<SPS30_DRIVER_BUF_SIZE, ConcreteTx<'a>, ConcreteRx<'a>, Delay>,
+    device: protocol::Device,
 }
 
 impl<'a> Sps30Driver<'a> {
-    pub fn init(tx: ConcreteTx<'a>, rx: ConcreteRx<'a>) -> Self {
+    pub fn init(
+        tx: ConcreteTx<'a>,
+        rx: ConcreteRx<'a>,
+        device: protocol::Device,
+    ) -> Self {
         let driver = Sps30::from_tx_rx_uninit(tx, rx, Delay);
         Self {
             is_init: false,
             driver,
+            device,
         }
     }
 
@@ -61,11 +69,11 @@ impl<'a> Driver for Sps30Driver<'a> {
     type Measurement = sps30_async::Measurement;
     type Affector = ();
 
-    async fn try_measure(&mut self) -> Result<Self::Measurement, crate::error_cache::Error> {
+    async fn try_measure(&mut self) -> Result<Self::Measurement, Error> {
         self.measure().await
     }
 
-    async fn affect(&mut self, _: Self::Affector) -> Result<(), crate::error_cache::Error> {
+    async fn affect(&mut self, _: Self::Affector) -> Result<(), Error> {
         self.driver
             .start_fan_cleaning()
             .await
@@ -77,7 +85,7 @@ impl<'a> Driver for Sps30Driver<'a> {
         Ok(())
     }
 
-    fn device(&self) -> protocol::small_bedroom::bed::Device {
-        protocol::small_bedroom::bed::Device::Sps30
+    fn device(&self) -> protocol::Device {
+        self.device.clone()
     }
 }

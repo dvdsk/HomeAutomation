@@ -6,19 +6,15 @@ use embassy_sync::channel::Channel;
 use embassy_time::Timer;
 use embassy_time::{with_timeout, Duration};
 
-use mhzx::MHZ;
 use protocol::small_bedroom::bed::Reading;
 
 use bosch_bme680::MeasurementData;
 use sps30_async as sps30;
 
 use crate::channel::Queues;
-use crate::error_cache::Error;
+use sensors::{Error, MhzDriver};
 
-use super::retry::{Bme680Driver, Driver, Sht31Driver, Sps30Driver};
-
-use super::concrete_types::ConcreteRx as Rx;
-use super::concrete_types::ConcreteTx as Tx;
+use sensors::{Bme680Driver, Driver, Sht31Driver, Sps30Driver};
 
 type Signal = embassy_sync::signal::Signal<NoopRawMutex, ()>;
 
@@ -70,7 +66,7 @@ async fn order_measurements_every_period(signals: &[Signal]) {
 pub(crate) struct Drivers<'a> {
     pub sht: Sht31Driver<'a>,
     pub bme: Bme680Driver<'a>,
-    pub mhz: MHZ<Tx<'a>, Rx<'a>>,
+    pub mhz: MhzDriver<'a>,
     pub sps: Sps30Driver<'a>,
 }
 

@@ -5,8 +5,8 @@ use embassy_time::{Duration, Instant, Timer};
 
 use protocol::small_bedroom::{bed::Button, bed::Reading};
 
-use super::retry::{Max44Driver, Nau7802Driver};
 use crate::channel::Queues;
+use sensors::{Max44Driver, Nau7802Driver};
 
 fn sig_lux_diff(old: f32, new: f32) -> bool {
     let diff = old - new;
@@ -51,16 +51,20 @@ async fn report_lux(mut max44: Max44Driver<'_>, publish: &Queues) {
 }
 
 trait Nau {
-    async fn try_measure(&mut self) -> Result<u32, crate::error_cache::Error>;
+    async fn try_measure(&mut self) -> Result<u32, sensors::Error>;
 }
 
 impl Nau for Nau7802Driver<'_> {
-    async fn try_measure(&mut self) -> Result<u32, crate::error_cache::Error> {
+    async fn try_measure(&mut self) -> Result<u32, sensors::Error> {
         Nau7802Driver::try_measure(self).await
     }
 }
 
-async fn report_weight(mut nau: impl Nau, wrap: impl Fn(u32) -> Reading, publish: &Queues) {
+async fn report_weight(
+    mut nau: impl Nau,
+    wrap: impl Fn(u32) -> Reading,
+    publish: &Queues,
+) {
     const MAX_INTERVAL: Duration = Duration::from_secs(5);
 
     let mut prev_weight = u32::MAX;
@@ -96,7 +100,7 @@ async fn watch_button(
     event: impl Fn(protocol::button::Press) -> Button,
     channel: &Queues,
 ) {
-    use crate::error_cache::{Error, PressTooLong, SensorError};
+    use sensors::{errors::PressTooLong, errors::SensorError, Error};
 
     let mut went_high_at: Option<Instant> = None;
     loop {
@@ -106,9 +110,9 @@ async fn watch_button(
             let Ok(press) = press.as_millis().try_into() else {
                 let event_for_printing = (event)(protocol::button::Press(0));
                 let name = event_for_printing.variant_name();
-                channel.queue_error(Error::Running(SensorError::Button(PressTooLong {
-                    button: name,
-                })));
+                channel.queue_error(Error::Running(SensorError::Button(
+                    PressTooLong { button: name },
+                )));
                 continue;
             };
             let event = (event)(protocol::button::Press(press));
@@ -156,10 +160,5 @@ pub(crate) async fn read(
     let watch_lux = report_lux(max44, publish);
     let report_weight = report_weight(nau, Reading::Weight, publish);
 
-    join::join3(
-        report_weight,
-        watch_lux,
-        watch_buttons,
-    )
-    .await;
+    join::join3(report_weight, watch_lux, watch_buttons).await;
 }

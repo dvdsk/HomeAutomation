@@ -1155,6 +1155,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
+name = "sensors"
+version = "0.1.0"
+dependencies = [
+ "bosch-bme680",
+ "defmt",
+ "embassy-embedded-hal",
+ "embassy-stm32",
+ "embassy-sync 0.6.1",
+ "embassy-time",
+ "max44009",
+ "mhzx",
+ "nau7802-async",
+ "protocol",
+ "sht31",
+ "sps30-async",
+]
+
+[[package]]
 name = "serde"
 version = "1.0.215"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1214,6 +1232,7 @@ dependencies = [
  "panic-probe",
  "protocol",
  "rand",
+ "sensors",
  "sht31",
  "sps30-async",
  "static_cell",

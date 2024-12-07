@@ -25,7 +25,6 @@ use {defmt_rtt as _, panic_probe as _};
 
 mod channel;
 mod comms;
-mod error_cache;
 mod sensors;
 mod usb_wrapper;
 use crate::channel::Queues;
