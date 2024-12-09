@@ -17,6 +17,7 @@ pub(crate) enum State {
     Daylight,
     Override,
     DelayedOff,
+    Nightlight,
 }
 
 #[derive(Clone)]
@@ -62,6 +63,12 @@ impl Room {
         self.to_state_cancel_prev(State::Daylight).await;
         self.all_lights_daylight().await;
         self.system.all_lamps_on().await;
+    }
+
+    pub(super) async fn to_nightlight(&mut self) {
+        self.to_state_cancel_prev(State::Nightlight).await;
+        self.system.one_lamp_ct("small_bedroom:ceiling", 1800, 0.1).await;
+        self.system.one_lamp_on("small_bedroom:ceiling").await;
     }
 
     pub(super) async fn to_override(&mut self) {
