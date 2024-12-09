@@ -6,7 +6,7 @@ pub(crate) fn now() -> Zoned {
     Timestamp::now().to_zoned(local)
 }
 
-pub(crate) fn to_datetime(hour: i8, min: i8) -> Zoned {
+pub(crate) fn to_next_datetime(hour: i8, min: i8) -> Zoned {
     let now = crate::time::now();
     let job_time = now.with().hour(hour).minute(min).second(0).build().unwrap();
 

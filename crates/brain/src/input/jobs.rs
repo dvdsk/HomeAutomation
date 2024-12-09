@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, Mutex};
 use tracing::{error, info};
 
-use crate::{controller::Event, time::to_datetime};
+use crate::{controller::Event, time::to_next_datetime};
 
 #[derive(thiserror::Error, Debug)]
 pub(crate) enum Error {
@@ -40,7 +40,7 @@ impl Job {
         expiration: Option<Duration>,
     ) -> Job {
         Job {
-            time: to_datetime(hour, min),
+            time: to_next_datetime(hour, min),
             every_day: false,
             event,
             expiration,
@@ -54,7 +54,7 @@ impl Job {
         expiration: Option<Duration>,
     ) -> Job {
         Job {
-            time: to_datetime(hour, min),
+            time: to_next_datetime(hour, min),
             every_day: true,
             event,
             expiration,
