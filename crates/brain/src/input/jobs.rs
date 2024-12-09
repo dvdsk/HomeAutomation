@@ -1,12 +1,15 @@
 use std::{
-    fmt, sync::{mpsc, Arc}, thread, time::Duration
+    fmt,
+    sync::{mpsc, Arc},
+    thread,
+    time::Duration,
 };
 
 use jiff::{Span, ToSpan, Zoned};
 use mpsc::RecvTimeoutError::*;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, Mutex};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use crate::{controller::Event, time::to_next_datetime};
 
@@ -142,7 +145,7 @@ impl JobList {
         // change the id for this one until there is a spot free
         while let Some(old_job) = self.jobs().get(&new_id)? {
             if old_job == new_job {
-                return Ok(new_id)
+                return Ok(new_id);
             }
             // create unique key
             new_id -= 1;
@@ -190,19 +193,23 @@ async fn event_timer(
                 Ok(_) => continue, // new job entered, restart loop
                 Err(Disconnected) => return,
                 Err(Timeout) => {
+                    warn!("Sending out event for job {current_job:#?}");
                     // time to send the job event
                     event_tx
                         .send(current_job.event.clone())
                         .expect("controller should listen on this");
+
+                    job_list.lock().await.remove_job(id).unwrap();
                     if current_job.every_day {
-                        job_list
+                        let new_job = current_job.add_one_day();
+                        let new_id = job_list
                             .lock()
                             .await
-                            .add_job(current_job.add_one_day())
+                            .add_job(new_job.clone())
                             .await
                             .unwrap();
+                        warn!("Added repeat job {new_job:#?} with id {new_id}");
                     }
-                    job_list.lock().await.remove_job(id).unwrap();
                     continue; //get next job
                 }
             }
