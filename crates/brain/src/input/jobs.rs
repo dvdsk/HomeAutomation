@@ -1,14 +1,9 @@
-use std::{
-    fmt,
-    sync::{mpsc, Arc},
-    thread,
-    time::Duration,
-};
+use std::{fmt, sync::Arc, time::Duration};
 
 use jiff::{Span, ToSpan, Zoned};
-use mpsc::RecvTimeoutError::*;
 use serde::{Deserialize, Serialize};
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::{broadcast, mpsc, Mutex};
+use tokio::{task, time};
 use tracing::{error, info, warn};
 
 use crate::{controller::Event, time::to_next_datetime};
@@ -18,7 +13,7 @@ pub(crate) enum Error {
     #[error("Could not store/edit job on disk")]
     DbError(#[from] sled::Error),
     #[error("Could not inform event timer about new job")]
-    CommError(#[from] mpsc::SendError<()>),
+    CommError(#[from] mpsc::error::SendError<()>),
     #[error("Dbstruct error")]
     DbStructError(#[from] dbstruct::Error<sled::Error>),
     // #[error("Dbstruct error")]
@@ -87,16 +82,6 @@ struct JobList {
     jobs: HashMap<i64, Job>,
 }
 
-struct DropNotifier {
-    job_change_rx: mpsc::Receiver<()>,
-}
-
-impl Drop for DropNotifier {
-    fn drop(&mut self) {
-        eprintln!("Dropping queue rx!");
-    }
-}
-
 impl Jobs {
     pub(crate) fn setup(
         event_tx: broadcast::Sender<Event>,
@@ -104,12 +89,9 @@ impl Jobs {
     ) -> Result<Self, Error> {
         let job_list = Arc::new(Mutex::new(JobList::new(db_path)?));
 
-        let (job_change_tx, job_change_rx) = mpsc::channel();
+        let (job_change_tx, job_change_rx) = mpsc::channel(250);
         let job_list_clone = job_list.clone();
-        let drop_notifier = DropNotifier { job_change_rx };
-        thread::spawn(move || {
-            event_timer(job_list_clone, event_tx, drop_notifier)
-        });
+        task::spawn(event_timer(job_list_clone, event_tx, job_change_rx));
 
         Ok(Self {
             list: job_list,
@@ -121,18 +103,21 @@ impl Jobs {
     // as only one job can fire at the time, after a job gets a timeslot
     // it is never changed
     pub(crate) async fn add(&self, to_add: Job) -> Result<i64, Error> {
-        let id = self.list.lock().await.add_job(to_add).await?;
+        let id = {
+            let list = self.list.lock().await;
+            list.add_job(to_add).await?
+        };
         //signal event timer to update its next job
-        self.job_change_tx.send(())?;
+        self.job_change_tx.send(()).await?;
         Ok(id)
     }
     pub(crate) async fn remove(
         &self,
         to_remove: i64,
     ) -> Result<Option<Job>, Error> {
-        let removed_job = self.list.lock().await.remove_job(to_remove)?;
+        let removed_job = { self.list.lock().await.remove_job(to_remove)? };
         //signal event timer to update its next job
-        self.job_change_tx.send(())?;
+        self.job_change_tx.send(()).await?;
         Ok(removed_job)
     }
     pub(crate) async fn get(&self, id: i64) -> Result<Option<Job>, Error> {
@@ -179,70 +164,71 @@ impl JobList {
 async fn event_timer(
     job_list: Arc<Mutex<JobList>>,
     event_tx: broadcast::Sender<Event>,
-    drop_notifier: DropNotifier,
-    // job_change_rx: mpsc::Receiver<()>,
+    mut job_change_rx: mpsc::Receiver<()>,
 ) {
-    loop {}
-    // loop {
-    //     // This can fail
-    //     // TODO make sure an non waking error alarm is send to the user
-    //     if let Some((id, current_job)) = job_list.lock().await.peek_next() {
-    //         let now = crate::time::now();
-    //         let timeout = &current_job.time - &now;
-    //         if let Some(expiration) = current_job.expiration {
-    //             if now > &current_job.time + Span::try_from(expiration).unwrap()
-    //             {
-    //                 error!("skipping job too far in the past");
-    //                 job_list.lock().await.remove_job(id).unwrap();
-    //                 continue; // job too far in the past, skip and get next
-    //             }
-    //         }
-    //         let timeout =
-    //             Duration::try_from(timeout).unwrap_or(Duration::from_secs(0));
-    //         info!("next job is in: {} seconds", timeout.as_secs());
-    //
-    //         // do we send out the event or should we add or remove a job?
-    //         match job_change_rx.recv_timeout(timeout) {
-    //             Ok(_) => continue, // new job entered, restart loop
-    //             Err(Disconnected) => {
-    //                 error!("1 job_change_rx disconnected");
-    //                 return;
-    //             }
-    //             Err(Timeout) => {
-    //                 warn!("Sending out event for job {current_job:#?}");
-    //                 // time to send the job event
-    //                 event_tx
-    //                     .send(current_job.event.clone())
-    //                     .expect("controller should listen on this");
-    //
-    //                 job_list.lock().await.remove_job(id).unwrap();
-    //                 if current_job.every_day {
-    //                     let new_job = current_job.add_one_day();
-    //                     let new_id = job_list
-    //                         .lock()
-    //                         .await
-    //                         .add_job(new_job.clone())
-    //                         .await
-    //                         .unwrap();
-    //                     warn!("Added repeat job {new_job:#?} with id {new_id}");
-    //                 }
-    //                 continue; //get next job
-    //             }
-    //         }
-    //     } else {
-    //         //no job to wait on, wait for instructions
-    //         info!("no job in the future");
-    //         //A message through the mpsc signals a job has been added
-    //         match job_change_rx.recv() {
-    //             // jobs were added or removed, go back and start waiting on them
-    //             Ok(_) => break,
-    //             // can't have timed out thus program should exit
-    //             Err(_) => {
-    //                 error!("2 job_change_rx disconnected");
-    //                 return;
-    //             }
-    //         }
-    //     }
-    // }
-    unreachable!()
+    loop {
+        // This can fail
+        // TODO make sure an non waking error alarm is send to the user
+        let peeked = {
+            let mut job_list = job_list.lock().await;
+            job_list.peek_next()
+        };
+        if let Some((id, current_job)) = peeked {
+            let now = crate::time::now();
+            let timeout = &current_job.time - &now;
+            if let Some(expiration) = current_job.expiration {
+                if now > &current_job.time + Span::try_from(expiration).unwrap()
+                {
+                    error!("skipping job too far in the past");
+                    job_list.lock().await.remove_job(id).unwrap();
+                    continue; // job too far in the past, skip and get next
+                }
+            }
+            let timeout =
+                Duration::try_from(timeout).unwrap_or(Duration::from_secs(0));
+            info!("next job is in: {} seconds", timeout.as_secs());
+
+            // do we send out the event or should we add or remove a job?
+            match time::timeout(timeout, job_change_rx.recv()).await {
+                Ok(Some(_)) => continue, // new job entered, restart loop
+                Ok(None) => {
+                    error!("1 job_change_rx disconnected");
+                    return;
+                }
+                Err(_) => {
+                    warn!("Sending out event for job {current_job:#?}");
+                    // time to send the job event
+                    event_tx
+                        .send(current_job.event.clone())
+                        .expect("controller should listen on this");
+
+                    job_list.lock().await.remove_job(id).unwrap();
+                    if current_job.every_day {
+                        let new_job = current_job.add_one_day();
+                        let new_id = job_list
+                            .lock()
+                            .await
+                            .add_job(new_job.clone())
+                            .await
+                            .unwrap();
+                        warn!("Added repeat job {new_job:#?} with id {new_id}");
+                    }
+                    continue; //get next job
+                }
+            }
+        } else {
+            //no job to wait on, wait for instructions
+            info!("no job in the future");
+            //A message through the mpsc signals a job has been added
+            match job_change_rx.recv().await {
+                // jobs were added or removed, go back and start waiting on them
+                Some(_) => (),
+                // can't have timed out thus program should exit
+                None => {
+                    error!("2 job_change_rx disconnected");
+                    return;
+                }
+            }
+        }
+    }
 }

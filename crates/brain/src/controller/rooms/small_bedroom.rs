@@ -41,12 +41,12 @@ pub async fn run(
     let mut room = Room::new(event_tx, system.clone());
     let mut next_update = Instant::now() + UPDATE_INTERVAL;
 
-    let soon = crate::time::now().checked_add(5.minutes()).unwrap();
-    let wakeup_job = Job::at_next(
-        soon.hour(),
-        soon.minute(),
+    // let soon = crate::time::now().checked_add(1.minutes()).unwrap();
+    let wakeup_job = Job::every_day_at(
+        9,
+        0,
         Event::WakeupSB,
-        Some(WAKEUP_EXPIRATION),
+        Some(Duration::from_secs(0)),
     );
     let res = system.system.jobs.add(wakeup_job.clone()).await;
     warn!("Tried to add job for SB wakeup: {wakeup_job:#?}");

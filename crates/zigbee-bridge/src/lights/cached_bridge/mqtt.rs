@@ -155,8 +155,8 @@ impl Mqtt {
             ..Default::default()
         };
 
-        if topic.contains("small_bedroom:bureau") {
-            warn!("ZB to MQTT (bureau): {payload}");
+        if topic.contains("small_bedroom:piano") {
+            warn!("ZB to MQTT (piano): {payload}");
         }
         self.client
             .publish_with_properties(
