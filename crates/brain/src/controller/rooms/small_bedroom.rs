@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use futures_concurrency::future::Race;
 use futures_util::FutureExt;
+use jiff::ToSpan;
 use protocol::small_bedroom::ButtonPanel;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
@@ -40,17 +41,16 @@ pub async fn run(
     let mut room = Room::new(event_tx, system.clone());
     let mut next_update = Instant::now() + UPDATE_INTERVAL;
 
-    let _ = system
-        .system
-        .jobs
-        .add(Job::every_day_at(
-            9,
-            0,
-            Event::WakeupSB,
-            Some(WAKEUP_EXPIRATION),
-        ))
-        .await;
-    warn!("Added job for SB wakeup");
+    let soon = crate::time::now().checked_add(5.minutes()).unwrap();
+    let wakeup_job = Job::at_next(
+        soon.hour(),
+        soon.minute(),
+        Event::WakeupSB,
+        Some(WAKEUP_EXPIRATION),
+    );
+    let res = system.system.jobs.add(wakeup_job.clone()).await;
+    warn!("Tried to add job for SB wakeup: {wakeup_job:#?}");
+    warn!("Jobs returned: {res:#?}");
 
     loop {
         let get_event = recv_filtered(&mut event_rx);

@@ -87,6 +87,16 @@ struct JobList {
     jobs: HashMap<i64, Job>,
 }
 
+struct DropNotifier {
+    job_change_rx: mpsc::Receiver<()>,
+}
+
+impl Drop for DropNotifier {
+    fn drop(&mut self) {
+        eprintln!("Dropping queue rx!");
+    }
+}
+
 impl Jobs {
     pub(crate) fn setup(
         event_tx: broadcast::Sender<Event>,
@@ -96,8 +106,9 @@ impl Jobs {
 
         let (job_change_tx, job_change_rx) = mpsc::channel();
         let job_list_clone = job_list.clone();
+        let drop_notifier = DropNotifier { job_change_rx };
         thread::spawn(move || {
-            event_timer(job_list_clone, event_tx, job_change_rx)
+            event_timer(job_list_clone, event_tx, drop_notifier)
         });
 
         Ok(Self {
@@ -168,61 +179,70 @@ impl JobList {
 async fn event_timer(
     job_list: Arc<Mutex<JobList>>,
     event_tx: broadcast::Sender<Event>,
-    job_change_rx: mpsc::Receiver<()>,
+    drop_notifier: DropNotifier,
+    // job_change_rx: mpsc::Receiver<()>,
 ) {
-    loop {
-        // This can fail
-        // TODO make sure an non waking error alarm is send to the user
-        if let Some((id, current_job)) = job_list.lock().await.peek_next() {
-            let now = crate::time::now();
-            let timeout = &current_job.time - &now;
-            if let Some(expiration) = current_job.expiration {
-                if now > &current_job.time + Span::try_from(expiration).unwrap()
-                {
-                    error!("skipping job too far in the past");
-                    job_list.lock().await.remove_job(id).unwrap();
-                    continue; // job too far in the past, skip and get next
-                }
-            }
-            let timeout =
-                Duration::try_from(timeout).unwrap_or(Duration::from_secs(0));
-            info!("next job is in: {} seconds", timeout.as_secs());
-
-            // do we send out the event or should we add or remove a job?
-            match job_change_rx.recv_timeout(timeout) {
-                Ok(_) => continue, // new job entered, restart loop
-                Err(Disconnected) => return,
-                Err(Timeout) => {
-                    warn!("Sending out event for job {current_job:#?}");
-                    // time to send the job event
-                    event_tx
-                        .send(current_job.event.clone())
-                        .expect("controller should listen on this");
-
-                    job_list.lock().await.remove_job(id).unwrap();
-                    if current_job.every_day {
-                        let new_job = current_job.add_one_day();
-                        let new_id = job_list
-                            .lock()
-                            .await
-                            .add_job(new_job.clone())
-                            .await
-                            .unwrap();
-                        warn!("Added repeat job {new_job:#?} with id {new_id}");
-                    }
-                    continue; //get next job
-                }
-            }
-        } else {
-            //no job to wait on, wait for instructions
-            info!("no job in the future");
-            //A message through the mpsc signals a job has been added
-            match job_change_rx.recv() {
-                // jobs were added or removed, go back and start waiting on them
-                Ok(_) => break,
-                // can't have timed out thus program should exit
-                Err(_) => return,
-            }
-        }
-    }
+    loop {}
+    // loop {
+    //     // This can fail
+    //     // TODO make sure an non waking error alarm is send to the user
+    //     if let Some((id, current_job)) = job_list.lock().await.peek_next() {
+    //         let now = crate::time::now();
+    //         let timeout = &current_job.time - &now;
+    //         if let Some(expiration) = current_job.expiration {
+    //             if now > &current_job.time + Span::try_from(expiration).unwrap()
+    //             {
+    //                 error!("skipping job too far in the past");
+    //                 job_list.lock().await.remove_job(id).unwrap();
+    //                 continue; // job too far in the past, skip and get next
+    //             }
+    //         }
+    //         let timeout =
+    //             Duration::try_from(timeout).unwrap_or(Duration::from_secs(0));
+    //         info!("next job is in: {} seconds", timeout.as_secs());
+    //
+    //         // do we send out the event or should we add or remove a job?
+    //         match job_change_rx.recv_timeout(timeout) {
+    //             Ok(_) => continue, // new job entered, restart loop
+    //             Err(Disconnected) => {
+    //                 error!("1 job_change_rx disconnected");
+    //                 return;
+    //             }
+    //             Err(Timeout) => {
+    //                 warn!("Sending out event for job {current_job:#?}");
+    //                 // time to send the job event
+    //                 event_tx
+    //                     .send(current_job.event.clone())
+    //                     .expect("controller should listen on this");
+    //
+    //                 job_list.lock().await.remove_job(id).unwrap();
+    //                 if current_job.every_day {
+    //                     let new_job = current_job.add_one_day();
+    //                     let new_id = job_list
+    //                         .lock()
+    //                         .await
+    //                         .add_job(new_job.clone())
+    //                         .await
+    //                         .unwrap();
+    //                     warn!("Added repeat job {new_job:#?} with id {new_id}");
+    //                 }
+    //                 continue; //get next job
+    //             }
+    //         }
+    //     } else {
+    //         //no job to wait on, wait for instructions
+    //         info!("no job in the future");
+    //         //A message through the mpsc signals a job has been added
+    //         match job_change_rx.recv() {
+    //             // jobs were added or removed, go back and start waiting on them
+    //             Ok(_) => break,
+    //             // can't have timed out thus program should exit
+    //             Err(_) => {
+    //                 error!("2 job_change_rx disconnected");
+    //                 return;
+    //             }
+    //         }
+    //     }
+    // }
+    unreachable!()
 }

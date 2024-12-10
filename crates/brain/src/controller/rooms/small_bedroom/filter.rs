@@ -27,6 +27,7 @@ pub(super) async fn recv_filtered(event_rx: &mut Receiver<Event>) -> Trigger {
             Err(err) => panic!("{err}"),
         };
         if let Some(relevant) = event_filter(event) {
+            warn!("SB received relevant event: {relevant:?}");
             return Trigger::Event(relevant);
         }
     }
