@@ -1,13 +1,15 @@
-pub(crate) use model::Model;
-pub(super) use property::{Property, PropertyDiscriminants};
+use std::collections::HashMap;
 
-use self::property::{bri_is_close, color_is_close};
-use tracing::{error, instrument};
+use strum::IntoEnumIterator;
+use tracing::instrument;
 
 use super::conversion::temp_to_xy;
+use crate::device::Device;
+pub(crate) use model::Model;
+pub(super) use property::{LampProperty, LampPropertyDiscriminants};
 
 mod model;
-mod property;
+pub(crate) mod property;
 
 #[derive(Clone, Copy, Debug)]
 enum Color {
@@ -23,7 +25,7 @@ impl Color {
 
 // TODO: some way to enforce read-only (thus known-updatable-only) fields?
 #[derive(Clone, Debug)]
-pub(super) struct Lamp {
+pub(crate) struct Lamp {
     model: Model,
     pub(super) is_online: bool,
     brightness: Option<f64>,
@@ -32,8 +34,8 @@ pub(super) struct Lamp {
     color_temp_startup: property::ColorTempStartup,
 }
 
-impl Lamp {
-    pub(super) fn new(name: &str) -> Self {
+impl Device for Lamp {
+    fn new(name: &str) -> Self {
         Self {
             model: Model::from_light(name),
             // we assume the lamp is online so that init messages get sent
@@ -45,65 +47,52 @@ impl Lamp {
         }
     }
 
-    pub(super) fn is_hue_lamp(&self) -> bool {
+    fn clone_dyn(&self) -> Box<dyn Device> {
+        Box::new(self.clone())
+    }
+
+    fn needs_merged_payloads(&self) -> bool {
         self.model.is_hue()
     }
 
+    fn is_online(&self) -> bool {
+        self.is_online
+    }
+
     #[instrument]
-    pub(super) fn changes_relative_to(&self, other: &Self) -> Vec<Property> {
+    fn changes_relative_to(
+        &self,
+        other: &Box<dyn Device>,
+    ) -> Vec<LampProperty> {
         let mut res = Vec::new();
 
-        // Ignore model and is_online, because they are read-only
+        let self_properties = self.all_set_properties();
+        let other_properties = other.all_set_properties();
 
-        if let Some(bri_self) = self.brightness {
-            if other
-                .brightness
-                .is_none_or(|bri_other| !bri_is_close(bri_other, bri_self))
-            {
-                res.push(Property::Brightness(bri_self));
+        for property in LampProperty::iter() {
+            let self_prop = self_properties.get(&property.into());
+            let other_prop = other_properties.get(&property.into());
+
+            // Ignore model (not a prop) and online, because they are read-only
+            if let Some(LampProperty::Online(_)) = self_prop {
+                continue;
             }
-        }
 
-        if let Some(color_self) = self.color {
-            let log_err = |err| {
-                error!("Comparing incompatible lamp states, defaulting to same\nSelf: {self:?}\nOther: {other:?}\nErr: {err}");
-            };
-
-            let color_is_close = match other.color {
-                None => false,
-                Some(color_other) => color_is_close(color_other, color_self)
-                    .unwrap_or_else(|err| {
-                        log_err(err);
-                        true
-                    }),
-            };
-
-            if !color_is_close {
-                match color_self {
-                    Color::XY(xy) => res.push(Property::ColorXY(xy)),
-                    Color::TempK(temp) => res.push(Property::ColorTempK(temp)),
+            if let Some(self_prop) = self_prop {
+                if other_prop.is_none_or(|other_prop| self_prop != other_prop) {
+                    res.push(*self_prop);
                 }
             }
-        }
-
-        if let Some(on_self) = self.is_on {
-            if other.is_on.is_none_or(|on_other| on_other != on_self) {
-                res.push(Property::On(on_self));
-            }
-        }
-
-        if self.color_temp_startup != other.color_temp_startup {
-            res.push(Property::ColorTempStartup(self.color_temp_startup));
         }
 
         res
     }
 
-    pub(super) fn apply(&mut self, change: Property) {
+    fn apply(&mut self, change: LampProperty) {
         match change {
-            Property::On(is_on) => self.is_on = Some(is_on),
-            Property::Brightness(bri) => self.brightness = Some(bri),
-            Property::ColorTempK(temp) => {
+            LampProperty::On(is_on) => self.is_on = Some(is_on),
+            LampProperty::Brightness(bri) => self.brightness = Some(bri),
+            LampProperty::ColorTempK(temp) => {
                 // if we know the model, we know how to apply temp
                 if self.model.supports_xy() {
                     self.color = Some(Color::xy_from_temp(temp));
@@ -113,37 +102,46 @@ impl Lamp {
                     self.color = Some(Color::TempK(temp))
                 }
             }
-            Property::ColorXY(xy) => {
+            LampProperty::ColorXY(xy) => {
                 // don't apply xy to unknown or non-color lamp
                 if self.model.supports_xy() {
                     self.color = Some(Color::XY(xy))
                 }
             }
-            Property::ColorTempStartup(behaviour) => {
+            LampProperty::ColorTempStartup(behaviour) => {
                 self.color_temp_startup = behaviour
             }
-            Property::Online(is_online) => self.is_online = is_online,
+            LampProperty::Online(is_online) => self.is_online = is_online,
         }
     }
 
-    pub(crate) fn all_as_changes(&self) -> Vec<Property> {
-        let mut list = Vec::new();
+    fn all_set_properties(
+        &self,
+    ) -> HashMap<LampPropertyDiscriminants, LampProperty> {
+        let mut properties = HashMap::new();
+
+        let mut insert_prop =
+            |prop: LampProperty| properties.insert(prop.into(), prop);
 
         // Ignore model and is_online, because they are read-only
 
         if let Some(val) = (&self).brightness {
-            list.push(Property::Brightness(val));
+            insert_prop(LampProperty::Brightness(val));
         }
         if let Some(val) = &self.color {
             match val {
-                Color::XY(xy) => list.push(Property::ColorXY(*xy)),
-                Color::TempK(temp) => list.push(Property::ColorTempK(*temp)),
+                Color::XY(xy) => {
+                    insert_prop(LampProperty::ColorXY(*xy));
+                }
+                Color::TempK(temp) => {
+                    insert_prop(LampProperty::ColorTempK(*temp));
+                }
             }
         }
         if let Some(val) = (&self).is_on {
-            list.push(Property::On(val));
+            insert_prop(LampProperty::On(val));
         }
-        list.push(Property::ColorTempStartup((&self).color_temp_startup));
-        list
+        insert_prop(LampProperty::ColorTempStartup((&self).color_temp_startup));
+        properties
     }
 }

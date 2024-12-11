@@ -6,14 +6,15 @@ use regex::Regex;
 use rumqttc::v5::{Event, EventLoop, Incoming};
 use serde_json::Value;
 use tokio::{sync::RwLock, time::sleep};
-use tracing::{instrument, trace, warn};
+use tracing::{error, instrument, trace, warn};
 
-use crate::lights::lamp::{self, Lamp};
+use crate::device::Device;
+use crate::lights::lamp::{self, LampProperty};
 use crate::lights::parse_state::parse_lamp_properties;
 
 pub(super) async fn poll_mqtt(
     mut eventloop: EventLoop,
-    known_states: &RwLock<HashMap<String, Lamp>>,
+    known_states: &RwLock<HashMap<String, Box<dyn Device>>>,
 ) -> ! {
     loop {
         let message = match eventloop.poll().await {
@@ -44,28 +45,27 @@ pub(super) async fn poll_mqtt(
 }
 
 async fn update_state(
-    known_states: &RwLock<HashMap<String, Lamp>>,
+    known_states: &RwLock<HashMap<String, Box<dyn Device>>>,
     light_name: &str,
-    new: Vec<lamp::Property>,
+    new: Vec<LampProperty>,
 ) {
     let mut known_states = known_states.write().await;
-    let current_lamp = known_states
-        .entry(light_name.to_owned())
-        .or_insert_with(|| Lamp::new(light_name));
+    let Some(current_lamp) = known_states.get_mut(light_name) else {
+        error!("Trying to update state for unknown device: {light_name}, ignoring!");
+        return;
+    };
     for property in new {
         if light_name == "small_bedroom:piano" {
             match property {
-                lamp::Property::Brightness(bri) => {
+                LampProperty::Brightness(bri) => {
                     warn!("ZB received piano brightness change: {bri}");
                 }
-                lamp::Property::ColorXY(xy) => {
+                LampProperty::ColorXY(xy) => {
                     warn!("ZB received piano color change: {xy:?}");
                 }
-                lamp::Property::Online(new_online) => {
-                    if new_online != current_lamp.is_online {
-                        warn!(
-                            "ZB received piano online change: {new_online}"
-                        );
+                LampProperty::Online(new_online) => {
+                    if new_online != current_lamp.is_online() {
+                        warn!("ZB received piano online change: {new_online}");
                     }
                 }
                 _ => (),
@@ -145,7 +145,7 @@ fn parse_bridge_event(
         _ => return Ok(Message::Other),
     };
 
-    let update = (light_name, vec![lamp::Property::Online(is_online)]);
+    let update = (light_name, vec![lamp::LampProperty::Online(is_online)]);
     Ok(Message::StateUpdate(update))
 }
 
@@ -168,7 +168,7 @@ fn parse_log_message(
     if level == "error" {
         if let Some(caps) = regex.captures(message) {
             let light_name = caps[1].to_string();
-            let update = (light_name, vec![lamp::Property::Online(false)]);
+            let update = (light_name, vec![lamp::LampProperty::Online(false)]);
             return Ok(Message::StateUpdate(update));
         }
     }
@@ -178,6 +178,6 @@ fn parse_log_message(
 
 #[derive(Debug)]
 enum Message {
-    StateUpdate((String, Vec<lamp::Property>)),
+    StateUpdate((String, Vec<LampProperty>)),
     Other,
 }

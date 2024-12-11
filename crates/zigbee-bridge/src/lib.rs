@@ -7,6 +7,7 @@
 use lights::Model;
 
 pub mod lights;
+mod device;
 
 const MQTT_PORT: u16 = 1883;
 const LIGHT_MODELS: [(&str, Model); 16] = [

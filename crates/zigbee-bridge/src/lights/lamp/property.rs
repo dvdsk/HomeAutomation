@@ -1,8 +1,7 @@
 use serde_json::json;
-use strum::EnumDiscriminants;
+use strum::{EnumDiscriminants, EnumIter};
 use tracing::error;
 
-use super::Color;
 use crate::lights::conversion::{denormalize, kelvin_to_mired};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -11,9 +10,9 @@ pub(crate) enum ColorTempStartup {
     Previous,
 }
 
-#[derive(Debug, EnumDiscriminants, Clone, Copy)]
+#[derive(Debug, EnumDiscriminants, EnumIter, Clone, Copy)]
 #[strum_discriminants(derive(Hash))]
-pub(crate) enum Property {
+pub(crate) enum LampProperty {
     Online(bool),
     Brightness(f64),
     ColorTempK(usize),
@@ -22,48 +21,51 @@ pub(crate) enum Property {
     ColorTempStartup(ColorTempStartup),
 }
 
-impl PartialEq for Property {
+impl PartialEq for LampProperty {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Property::Brightness(a), Property::Brightness(b)) => {
+            (LampProperty::Brightness(a), LampProperty::Brightness(b)) => {
                 bri_is_close(*a, *b)
             }
-            (Property::ColorTempK(a), Property::ColorTempK(b)) => {
+            (LampProperty::ColorTempK(a), LampProperty::ColorTempK(b)) => {
                 temp_is_close(*a, *b)
             }
-            (Property::ColorXY(a), Property::ColorXY(b)) => xy_is_close(*a, *b),
-            (Property::On(a), Property::On(b)) => a == b,
-            (Property::ColorTempStartup(a), Property::ColorTempStartup(b)) => {
-                a == b
+            (LampProperty::ColorXY(a), LampProperty::ColorXY(b)) => {
+                xy_is_close(*a, *b)
             }
+            (LampProperty::On(a), LampProperty::On(b)) => a == b,
+            (
+                LampProperty::ColorTempStartup(a),
+                LampProperty::ColorTempStartup(b),
+            ) => a == b,
             // we never need to update this, thus we always consider it the same
-            (Property::Online(_), Property::Online(_)) => true,
+            (LampProperty::Online(_), LampProperty::Online(_)) => true,
             (_, _) => false,
         }
     }
 }
 
-impl Eq for Property {}
+impl Eq for LampProperty {}
 
-impl Property {
+impl LampProperty {
     pub(crate) fn payload(&self) -> serde_json::Value {
         match *self {
-            Property::Brightness(bri) => {
+            LampProperty::Brightness(bri) => {
                 json!({ "brightness": denormalize(bri) })
             }
-            Property::ColorTempK(k) => {
+            LampProperty::ColorTempK(k) => {
                 json!({ "color_temp": kelvin_to_mired(k) })
             }
-            Property::ColorXY((x, y)) => {
+            LampProperty::ColorXY((x, y)) => {
                 json!({ "color": {"x": x, "y": y} })
             }
-            Property::On(lamp_on) if lamp_on => json!({"state": "ON"}),
-            Property::On(_) => json!({"state": "OFF"}),
-            Property::ColorTempStartup(ColorTempStartup::Previous) => {
+            LampProperty::On(lamp_on) if lamp_on => json!({"state": "ON"}),
+            LampProperty::On(_) => json!({"state": "OFF"}),
+            LampProperty::ColorTempStartup(ColorTempStartup::Previous) => {
                 json!({"color_temp_startup": "previous"})
             }
             // read-only, shouldn't be called, safe default
-            Property::Online(_) => {
+            LampProperty::Online(_) => {
                 error!("Tried to convert Online to payload");
                 json!({"state": ""})
             }
@@ -73,14 +75,6 @@ impl Property {
 
 pub(super) fn bri_is_close(a: f64, b: f64) -> bool {
     (a - b).abs() < 1. / 250.
-}
-
-pub(super) fn color_is_close(a: Color, b: Color) -> Result<bool, String> {
-    match (a, b) {
-        (Color::XY(a), Color::XY(b)) => Ok(xy_is_close(a, b)),
-        (Color::TempK(a), Color::TempK(b)) => Ok(temp_is_close(a, b)),
-        (_, _) => Err("Comparing XY and Temp".to_owned()),
-    }
 }
 
 fn temp_is_close(a: usize, b: usize) -> bool {

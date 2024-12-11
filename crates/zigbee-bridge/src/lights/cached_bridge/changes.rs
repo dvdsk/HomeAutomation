@@ -3,18 +3,19 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::{sleep, timeout};
-use tracing::{debug, instrument, trace};
+use tracing::{debug, error, instrument, trace};
 
 use super::mqtt::Mqtt;
 use super::{
     CHANGE_ACCUMULATION_TIME, MQTT_MIGHT_BE_DOWN_TIMEOUT, WAIT_FOR_INIT_STATES,
 };
-use crate::lights::lamp::{self, Lamp};
+use crate::device::Device;
+use crate::lights::lamp::LampProperty;
 
 pub(super) async fn handle(
-    mut change_receiver: mpsc::UnboundedReceiver<(String, lamp::Property)>,
+    mut change_receiver: mpsc::UnboundedReceiver<(String, LampProperty)>,
     mqtt: &mut Mqtt,
-    known_states: &RwLock<HashMap<String, Lamp>>,
+    known_states: &RwLock<HashMap<String, Box<dyn Device>>>,
 ) -> ! {
     // Give the initial known states a chance to be fetched
     sleep(WAIT_FOR_INIT_STATES).await;
@@ -65,8 +66,8 @@ pub(super) async fn handle(
 /// to do so we return Duration::MAX.
 #[instrument(skip_all)]
 async fn send_diff_get_timeout(
-    known_states: &RwLock<HashMap<String, Lamp>>,
-    needed_states: &mut HashMap<String, Lamp>,
+    known_states: &RwLock<HashMap<String, Box<dyn Device>>>,
+    needed_states: &mut HashMap<String, Box<dyn Device>>,
     mqtt: &mut Mqtt,
 ) -> Duration {
     let known_states = known_states.read().await;
@@ -77,17 +78,17 @@ async fn send_diff_get_timeout(
 
         let diff = match known_states.get(light_name) {
             Some(known) => needed.changes_relative_to(known),
-            None => needed.all_as_changes(),
+            None => needed.all_set_properties().values().cloned().collect(),
         };
 
         let is_online = match known_states.get(light_name) {
-            Some(known) => known.is_online,
+            Some(known) => known.is_online(),
             // we assume the lamp is online so that init messages get sent
             None => true,
         };
 
         if is_online {
-            let merged_payloads = needed.is_hue_lamp();
+            let merged_payloads = needed.needs_merged_payloads();
             let _ = mqtt
                 .send_diff_where_due(light_name, merged_payloads, &diff)
                 .await;
@@ -108,21 +109,24 @@ async fn send_diff_get_timeout(
 #[instrument(skip_all)]
 async fn apply_change_to_needed(
     light_name: String,
-    change: lamp::Property,
-    known_states: &RwLock<HashMap<String, Lamp>>,
-    needed_states: &mut HashMap<String, Lamp>,
+    change: LampProperty,
+    known_states: &RwLock<HashMap<String, Box<dyn Device>>>,
+    needed_states: &mut HashMap<String, Box<dyn Device>>,
 ) {
     let known_states = known_states.read().await;
 
-    let known = known_states
-        .get(&light_name)
-        .map(|l| l.to_owned())
-        .unwrap_or_else(|| Lamp::new(&light_name));
+    let Some(known) = known_states.get(&light_name) else {
+        error!(
+            "Unknown device name {light_name}, not applying change {change:?}!"
+        );
+        return;
+    };
+
     let mut needed = match needed_states.get(&light_name) {
         Some(needed) => needed.clone(),
-        None => known,
+        None => known.clone(),
     };
 
     needed.apply(change);
-    needed_states.insert(light_name, needed);
+    needed_states.insert(light_name, needed.clone());
 }

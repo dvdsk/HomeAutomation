@@ -6,7 +6,7 @@ use rumqttc::v5::{AsyncClient, ClientError};
 use serde_json::json;
 use tracing::{trace, warn};
 
-use crate::lights::lamp;
+use crate::lights::lamp::{self, LampPropertyDiscriminants};
 
 use super::TIME_IT_TAKES_TO_APPLY_CHANGE;
 
@@ -15,7 +15,7 @@ pub(super) struct Mqtt {
     // TODO: extract into SendTracker struct?
     last_sent: HashMap<
         String,
-        HashMap<lamp::PropertyDiscriminants, (Instant, lamp::Property)>,
+        HashMap<LampPropertyDiscriminants, (Instant, lamp::LampProperty)>,
     >,
 }
 
@@ -47,7 +47,7 @@ impl Mqtt {
     pub(super) fn next_deadline(
         &self,
         light_name: &str,
-        diff: &[lamp::Property],
+        diff: &[lamp::LampProperty],
     ) -> Option<Instant> {
         diff.into_iter()
             .map(|change| self.change_next_due(light_name, &change))
@@ -57,7 +57,7 @@ impl Mqtt {
     fn change_next_due(
         &self,
         light_name: &str,
-        change: &lamp::Property,
+        change: &lamp::LampProperty,
     ) -> Instant {
         let Some(light_send_record) = self.last_sent.get(light_name) else {
             // lamp has never been sent before
@@ -84,7 +84,7 @@ impl Mqtt {
         *sent_at + TIME_IT_TAKES_TO_APPLY_CHANGE
     }
 
-    fn is_due(&self, light_name: &str, change: &lamp::Property) -> bool {
+    fn is_due(&self, light_name: &str, change: &lamp::LampProperty) -> bool {
         let deadline = self.change_next_due(light_name, change);
         deadline < Instant::now()
     }
@@ -93,7 +93,7 @@ impl Mqtt {
         &mut self,
         light_name: &str,
         merged_payloads: bool,
-        diff: &[lamp::Property],
+        diff: &[lamp::LampProperty],
     ) -> Result<(), ClientError> {
         let mut due_changes = Vec::new();
 
@@ -170,7 +170,7 @@ impl Mqtt {
     }
 }
 
-fn merge_payloads(mut changes: Vec<&lamp::Property>) -> serde_json::Value {
+fn merge_payloads(mut changes: Vec<&lamp::LampProperty>) -> serde_json::Value {
     let payload = changes
         .iter_mut()
         .map(|c| c.payload())

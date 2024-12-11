@@ -1,11 +1,11 @@
-use std::{collections::HashMap, net::IpAddr, time::Duration};
+use std::{net::IpAddr, time::Duration};
 
 use rumqttc::v5::{AsyncClient, MqttOptions};
 use tokio::sync::{mpsc, RwLock};
 use tracing::trace;
 
 use self::mqtt::Mqtt;
-use crate::{lights::lamp, LIGHT_MODELS, MQTT_PORT};
+use crate::{device::init_states, lights::lamp::LampProperty, LIGHT_MODELS, MQTT_PORT};
 
 mod changes;
 mod mqtt;
@@ -20,7 +20,7 @@ const CHANGE_ACCUMULATION_TIME: Duration = Duration::from_millis(100);
 
 pub(super) async fn run(
     mqtt_ip: IpAddr,
-    change_receiver: mpsc::UnboundedReceiver<(String, lamp::Property)>,
+    change_receiver: mpsc::UnboundedReceiver<(String, LampProperty)>,
 ) -> ! {
     let mut options =
         MqttOptions::new("ha-lightcontroller", mqtt_ip.to_string(), MQTT_PORT);
@@ -29,7 +29,7 @@ pub(super) async fn run(
     // Keep subscriptions when reconnecting!!!!
     options.set_clean_start(false);
 
-    let known_states = RwLock::new(HashMap::new());
+    let known_states = RwLock::new(init_states());
 
     // Reconnecting to broker is handled by Eventloop::poll
     let channel_capacity = 128;
