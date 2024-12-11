@@ -29,12 +29,12 @@ pub(super) async fn handle(
             // On change, update needed, but only actually send the changes
             // after a timeout
             Ok(update) => {
-                let (light_name, change) =
+                let (device_name, change) =
                     update.expect("Channel should never close");
 
-                trace!("Received change: {change:?} for lamp {light_name}");
+                trace!("Received change: {change:?} for device {device_name}");
                 apply_change_to_needed(
-                    light_name,
+                    device_name,
                     change,
                     known_states,
                     &mut needed_states,
@@ -59,7 +59,7 @@ pub(super) async fn handle(
     }
 }
 
-/// Might not be done in case a light property in needed does not match known
+/// Might not be done in case a device property in needed does not match known
 /// however has recently been set/send. Needs a recheck in the near future to
 /// make sure the set/send takes effect. We do not send it again now as that
 /// would be a little spammy. Returns when we need to recheck. If we do not need
@@ -71,35 +71,35 @@ async fn send_diff_get_timeout(
     mqtt: &mut Mqtt,
 ) -> Duration {
     let known_states = known_states.read().await;
-    let mut light_deadlines = Vec::new();
+    let mut device_deadlines = Vec::new();
 
-    for (light_name, needed) in needed_states {
-        tracing::Span::current().record("light_name", light_name);
+    for (device_name, needed) in needed_states {
+        tracing::Span::current().record("device_name", device_name);
 
-        let diff = match known_states.get(light_name) {
+        let diff = match known_states.get(device_name) {
             Some(known) => needed.changes_relative_to(known),
             None => needed.all_set_properties().values().cloned().collect(),
         };
 
-        let is_online = match known_states.get(light_name) {
+        let is_online = match known_states.get(device_name) {
             Some(known) => known.is_online(),
-            // we assume the lamp is online so that init messages get sent
+            // we assume the device is online so that init messages get sent
             None => true,
         };
 
         if is_online {
             let merged_payloads = needed.needs_merged_payloads();
             let _ = mqtt
-                .send_diff_where_due(light_name, merged_payloads, &diff)
+                .send_diff_where_due(device_name, merged_payloads, &diff)
                 .await;
         }
 
-        if let Some(deadline) = mqtt.next_deadline(light_name, &diff) {
-            light_deadlines.push(deadline);
+        if let Some(deadline) = mqtt.next_deadline(device_name, &diff) {
+            device_deadlines.push(deadline);
         }
     }
 
-    light_deadlines
+    device_deadlines
         .into_iter()
         .min()
         .map(|deadline| deadline.saturating_duration_since(Instant::now()))
@@ -108,25 +108,25 @@ async fn send_diff_get_timeout(
 
 #[instrument(skip_all)]
 async fn apply_change_to_needed(
-    light_name: String,
+    device_name: String,
     change: LampProperty,
     known_states: &RwLock<HashMap<String, Box<dyn Device>>>,
     needed_states: &mut HashMap<String, Box<dyn Device>>,
 ) {
     let known_states = known_states.read().await;
 
-    let Some(known) = known_states.get(&light_name) else {
+    let Some(known) = known_states.get(&device_name) else {
         error!(
-            "Unknown device name {light_name}, not applying change {change:?}!"
+            "Unknown device name {device_name}, not applying change {change:?}!"
         );
         return;
     };
 
-    let mut needed = match needed_states.get(&light_name) {
+    let mut needed = match needed_states.get(&device_name) {
         Some(needed) => needed.clone(),
         None => known.clone(),
     };
 
     needed.apply(change);
-    needed_states.insert(light_name, needed.clone());
+    needed_states.insert(device_name, needed.clone());
 }

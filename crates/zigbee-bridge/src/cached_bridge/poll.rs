@@ -9,7 +9,7 @@ use tokio::{sync::RwLock, time::sleep};
 use tracing::{error, instrument, trace, warn};
 
 use crate::device::Device;
-use crate::lamp::{self, LampProperty};
+use crate::lamp::LampProperty;
 use crate::parse_state::parse_lamp_properties;
 
 pub(super) async fn poll_mqtt(
@@ -35,8 +35,8 @@ pub(super) async fn poll_mqtt(
         };
 
         match message {
-            Message::StateUpdate((light_name, changed_properties)) => {
-                update_state(known_states, &light_name, changed_properties)
+            Message::StateUpdate((device_name, changed_properties)) => {
+                update_state(known_states, &device_name, changed_properties)
                     .await;
             }
             Message::Other => (),
@@ -46,16 +46,16 @@ pub(super) async fn poll_mqtt(
 
 async fn update_state(
     known_states: &RwLock<HashMap<String, Box<dyn Device>>>,
-    light_name: &str,
+    device_name: &str,
     new: Vec<LampProperty>,
 ) {
     let mut known_states = known_states.write().await;
-    let Some(current_lamp) = known_states.get_mut(light_name) else {
-        error!("Trying to update state for unknown device: {light_name}, ignoring!");
+    let Some(current_device) = known_states.get_mut(device_name) else {
+        error!("Trying to update state for unknown device: {device_name}, ignoring!");
         return;
     };
     for property in new {
-        if light_name == "small_bedroom:piano" {
+        if device_name == "small_bedroom:piano" {
             match property {
                 LampProperty::Brightness(bri) => {
                     warn!("ZB received piano brightness change: {bri}");
@@ -64,7 +64,7 @@ async fn update_state(
                     warn!("ZB received piano color change: {xy:?}");
                 }
                 LampProperty::Online(new_online) => {
-                    if new_online != current_lamp.is_online() {
+                    if new_online != current_device.is_online() {
                         warn!("ZB received piano online change: {new_online}");
                     }
                 }
@@ -72,7 +72,7 @@ async fn update_state(
             }
         }
 
-        current_lamp.apply(property);
+        current_device.apply(property);
     }
 }
 
@@ -132,7 +132,7 @@ fn parse_bridge_event(
         .ok_or_eyre("no data in bridge event")?
         .as_object()
         .ok_or_eyre("bridge event data is not a map")?;
-    let light_name = data
+    let device_name = data
         .get("friendly_name")
         .ok_or_eyre("no name in bridge event data")?
         .as_str()
@@ -145,7 +145,7 @@ fn parse_bridge_event(
         _ => return Ok(Message::Other),
     };
 
-    let update = (light_name, vec![lamp::LampProperty::Online(is_online)]);
+    let update = (device_name, vec![LampProperty::Online(is_online)]);
     Ok(Message::StateUpdate(update))
 }
 
@@ -167,8 +167,8 @@ fn parse_log_message(
 
     if level == "error" {
         if let Some(caps) = regex.captures(message) {
-            let light_name = caps[1].to_string();
-            let update = (light_name, vec![lamp::LampProperty::Online(false)]);
+            let device_name = caps[1].to_string();
+            let update = (device_name, vec![LampProperty::Online(false)]);
             return Ok(Message::StateUpdate(update));
         }
     }

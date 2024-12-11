@@ -6,6 +6,8 @@ use tracing::trace;
 
 pub(crate) use lamp::Model;
 
+use self::lamp::LampProperty;
+
 mod cached_bridge;
 mod conversion;
 mod device;
@@ -36,7 +38,7 @@ const LIGHT_MODELS: [(&str, Model); 16] = [
 
 #[derive(Debug, Clone)]
 pub struct Controller {
-    change_sender: mpsc::UnboundedSender<(String, lamp::LampProperty)>,
+    change_sender: mpsc::UnboundedSender<(String, LampProperty)>,
 }
 
 impl Controller {
@@ -51,40 +53,40 @@ impl Controller {
         Self { change_sender }
     }
 
-    pub fn set_on(&self, friendly_name: &str) {
+    pub fn set_on(&self, light_name: &str) {
         self.change_sender
-            .send((friendly_name.to_string(), lamp::LampProperty::On(true)))
+            .send((light_name.to_string(), LampProperty::On(true)))
             .expect("Sender should never be dropped");
     }
 
-    pub fn set_off(&self, friendly_name: &str) {
+    pub fn set_off(&self, light_name: &str) {
         self.change_sender
-            .send((friendly_name.to_string(), lamp::LampProperty::On(false)))
+            .send((light_name.to_string(), LampProperty::On(false)))
             .expect("Sender should never be dropped");
     }
 
     /// Brightness from 0 to 1
-    pub fn set_brightness(&self, friendly_name: &str, brightness: f64) {
+    pub fn set_brightness(&self, light_name: &str, brightness: f64) {
         self.change_sender
             .send((
-                friendly_name.to_string(),
-                lamp::LampProperty::Brightness(brightness),
+                light_name.to_string(),
+                LampProperty::Brightness(brightness),
             ))
             .expect("Sender should never be dropped");
     }
 
-    pub fn set_color_temp(&self, friendly_name: &str, kelvin: usize) {
+    pub fn set_color_temp(&self, light_name: &str, kelvin: usize) {
         self.change_sender
             .send((
-                friendly_name.to_string(),
-                lamp::LampProperty::ColorTempK(kelvin),
+                light_name.to_string(),
+                LampProperty::ColorTempK(kelvin),
             ))
             .expect("Sender should never be dropped");
     }
 
-    pub fn set_color_xy(&self, friendly_name: &str, xy: (f64, f64)) {
+    pub fn set_color_xy(&self, light_name: &str, xy: (f64, f64)) {
         self.change_sender
-            .send((friendly_name.to_string(), lamp::LampProperty::ColorXY(xy)))
+            .send((light_name.to_string(), LampProperty::ColorXY(xy)))
             .expect("Sender should never be dropped");
     }
 }

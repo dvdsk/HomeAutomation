@@ -3,12 +3,11 @@ use color_eyre::Section;
 use serde_json::Value;
 
 use crate::conversion::{mired_to_kelvin, normalize};
-
-use super::lamp;
+use crate::lamp::LampProperty;
 
 pub(super) fn parse_lamp_properties(
     bytes: &[u8],
-) -> color_eyre::Result<Vec<lamp::LampProperty>> {
+) -> color_eyre::Result<Vec<LampProperty>> {
     let mut list = Vec::new();
 
     let json: Value =
@@ -23,7 +22,7 @@ pub(super) fn parse_lamp_properties(
         .transpose()?
         .map(mired_to_kelvin)
     {
-        list.push(lamp::LampProperty::ColorTempK(kelvin));
+        list.push(LampProperty::ColorTempK(kelvin));
     }
 
     if let Some(xy) = map
@@ -40,7 +39,7 @@ pub(super) fn parse_lamp_properties(
         })
         .transpose()?
     {
-        list.push(lamp::LampProperty::ColorXY(xy));
+        list.push(LampProperty::ColorXY(xy));
     }
 
     if let Some(brightness) = map
@@ -49,7 +48,7 @@ pub(super) fn parse_lamp_properties(
         .transpose()?
         .map(normalize)
     {
-        list.push(lamp::LampProperty::Brightness(brightness));
+        list.push(LampProperty::Brightness(brightness));
     }
 
     if let Some(on) = map
@@ -65,11 +64,11 @@ pub(super) fn parse_lamp_properties(
         })
         .transpose()?
     {
-        list.push(lamp::LampProperty::On(on));
+        list.push(LampProperty::On(on));
     }
 
     // we have just received a state message, so the lamp must be online
-    list.push(lamp::LampProperty::Online(true));
+    list.push(LampProperty::Online(true));
 
     Ok(list)
 }

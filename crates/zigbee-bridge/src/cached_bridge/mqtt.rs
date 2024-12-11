@@ -6,7 +6,7 @@ use rumqttc::v5::{AsyncClient, ClientError};
 use serde_json::json;
 use tracing::{trace, warn};
 
-use crate::lamp::{self, LampPropertyDiscriminants};
+use crate::lamp::{LampProperty, LampPropertyDiscriminants};
 
 use super::TIME_IT_TAKES_TO_APPLY_CHANGE;
 
@@ -15,7 +15,7 @@ pub(super) struct Mqtt {
     // TODO: extract into SendTracker struct?
     last_sent: HashMap<
         String,
-        HashMap<LampPropertyDiscriminants, (Instant, lamp::LampProperty)>,
+        HashMap<LampPropertyDiscriminants, (Instant, LampProperty)>,
     >,
 }
 
@@ -33,12 +33,12 @@ impl Mqtt {
     ) -> Result<(), ClientError> {
         // Its okay for messages to arrive twice or more. MQTT guarantees
         // ordering and we only do something if the cached bridge indicates we
-        // need to so light states arriving twice is not an issue.
+        // need to so device states arriving twice is not an issue.
         self.client.subscribe(topic, QoS::AtLeastOnce).await
     }
 
     pub(super) async fn request_state(&self, name: &str) {
-        trace!("Requesting state for light {name}");
+        trace!("Requesting state for device {name}");
         let payload = json!({"state": ""});
 
         self.get(name, payload.to_string()).await.unwrap();
@@ -46,26 +46,26 @@ impl Mqtt {
 
     pub(super) fn next_deadline(
         &self,
-        light_name: &str,
-        diff: &[lamp::LampProperty],
+        device_name: &str,
+        diff: &[LampProperty],
     ) -> Option<Instant> {
         diff.into_iter()
-            .map(|change| self.change_next_due(light_name, &change))
+            .map(|change| self.change_next_due(device_name, &change))
             .min()
     }
 
     fn change_next_due(
         &self,
-        light_name: &str,
-        change: &lamp::LampProperty,
+        device_name: &str,
+        change: &LampProperty,
     ) -> Instant {
-        let Some(light_send_record) = self.last_sent.get(light_name) else {
+        let Some(device_send_record) = self.last_sent.get(device_name) else {
             // lamp has never been sent before
             return Instant::now();
         };
 
         let Some((sent_at, prev_change)) =
-            light_send_record.get(&change.into())
+            device_send_record.get(&change.into())
         else {
             // property has never been sent before
             return Instant::now();
@@ -84,26 +84,26 @@ impl Mqtt {
         *sent_at + TIME_IT_TAKES_TO_APPLY_CHANGE
     }
 
-    fn is_due(&self, light_name: &str, change: &lamp::LampProperty) -> bool {
-        let deadline = self.change_next_due(light_name, change);
+    fn is_due(&self, device_name: &str, change: &LampProperty) -> bool {
+        let deadline = self.change_next_due(device_name, change);
         deadline < Instant::now()
     }
 
     pub(super) async fn send_diff_where_due(
         &mut self,
-        light_name: &str,
+        device_name: &str,
         merged_payloads: bool,
-        diff: &[lamp::LampProperty],
+        diff: &[LampProperty],
     ) -> Result<(), ClientError> {
         let mut due_changes = Vec::new();
 
         for change in diff {
-            if self.is_due(&light_name, change) {
+            if self.is_due(&device_name, change) {
                 due_changes.push(change);
 
-                let light_send_record =
-                    self.last_sent.entry(light_name.to_owned()).or_default();
-                light_send_record
+                let device_send_record =
+                    self.last_sent.entry(device_name.to_owned()).or_default();
+                device_send_record
                     .insert(change.into(), (Instant::now(), *change));
             }
         }
@@ -111,10 +111,10 @@ impl Mqtt {
         if !due_changes.is_empty() {
             if merged_payloads {
                 let payload = merge_payloads(due_changes);
-                self.set(&light_name, payload.to_string()).await?;
+                self.set(&device_name, payload.to_string()).await?;
             } else {
                 for change in due_changes {
-                    self.set(&light_name, change.payload().to_string()).await?;
+                    self.set(&device_name, change.payload().to_string()).await?;
                 }
             }
         }
@@ -129,7 +129,7 @@ impl Mqtt {
     ) -> Result<(), ClientError> {
         let topic = format!("zigbee2mqtt/{friendly_name}/set");
 
-        trace!("Sending payload {payload} to lamp {friendly_name}");
+        trace!("Sending payload {payload} to device {friendly_name}");
         self.publish(&topic, payload).await?;
         Ok(())
     }
@@ -170,7 +170,7 @@ impl Mqtt {
     }
 }
 
-fn merge_payloads(mut changes: Vec<&lamp::LampProperty>) -> serde_json::Value {
+fn merge_payloads(mut changes: Vec<&LampProperty>) -> serde_json::Value {
     let payload = changes
         .iter_mut()
         .map(|c| c.payload())
