@@ -15,6 +15,9 @@ embassy-embedded-hal.workspace = true
 
 defmt.workspace = true
 
+embedded-hal = "1.0.0"
+embedded-hal-async = "1.0"
+
 # sensors
 bosch-bme680 = { version = "1.0.2", path = "/home/david/Documents/async-bosch-bme680" }
 max44009 = { version = "0.2", git = "https://github.com/dvdsk/max44009-rs" }

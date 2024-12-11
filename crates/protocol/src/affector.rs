@@ -94,7 +94,7 @@ impl Default for Decoder {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, defmt::Format)]
 pub struct DeserializeError;
 
 impl Decoder {

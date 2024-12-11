@@ -30,7 +30,6 @@ use defmt::{error, trace, unwrap};
 use {defmt_rtt as _, panic_probe as _};
 
 mod channel;
-mod error_cache;
 mod network;
 mod rgb_led;
 mod rng;
@@ -49,21 +48,29 @@ embassy_stm32::bind_interrupts!(struct Irqs {
 type EthernetSPI = ExclusiveDevice<Spi<'static, Async>, Output<'static>, Delay>;
 #[embassy_executor::task]
 async fn ethernet_task(
-    runner: Runner<'static, W5500, EthernetSPI, ExtiInput<'static>, Output<'static>>,
+    runner: Runner<
+        'static,
+        W5500,
+        EthernetSPI,
+        ExtiInput<'static>,
+        Output<'static>,
+    >,
 ) -> ! {
     runner.run().await
 }
 
 #[embassy_executor::task]
-async fn net_task(mut runner: embassy_net::Runner<'static, Device<'static>>) -> ! {
+async fn net_task(
+    mut runner: embassy_net::Runner<'static, Device<'static>>,
+) -> ! {
     runner.run().await
 }
 
 // 84 Mhz clock stm32f401
 fn config() -> Config {
     use embassy_stm32::rcc::{
-        AHBPrescaler, APBPrescaler, Hse, HseMode, Pll, PllMul, PllPDiv, PllPreDiv, PllSource,
-        Sysclk,
+        AHBPrescaler, APBPrescaler, Hse, HseMode, Pll, PllMul, PllPDiv,
+        PllPreDiv, PllSource, Sysclk,
     };
 
     let mut config = Config::default();
@@ -122,7 +129,7 @@ async fn main(spawner: Spawner) {
     ));
 
     // We are out of DMA, so we need to use a blocking interface
-    // these sensors are only read once every 5s
+    // these sensors are only read once every 5 seconds
     let i2c_1 = I2c::new(
         p.I2C1,
         p.PB8,
@@ -174,7 +181,8 @@ async fn main(spawner: Spawner) {
     let mut spi_cfg = SpiConfig::default();
     spi_cfg.frequency = Hertz(5_000_000); // Up to 50m works
     let (miso, mosi, clk) = (p.PA6, p.PA7, p.PA5);
-    let spi = Spi::new(p.SPI1, clk, mosi, miso, p.DMA2_CH3, p.DMA2_CH0, spi_cfg);
+    let spi =
+        Spi::new(p.SPI1, clk, mosi, miso, p.DMA2_CH3, p.DMA2_CH0, spi_cfg);
     let cs = Output::new(p.PA4, Level::High, Speed::VeryHigh);
     let spi = unwrap!(ExclusiveDevice::new(spi, cs, Delay));
 
@@ -184,23 +192,26 @@ async fn main(spawner: Spawner) {
     let mac_addr = [0x02, 234, 3, 4, 82, 231];
     static STATE: StaticCell<State<3, 2>> = StaticCell::new();
     let state = STATE.init(State::<3, 2>::new());
-    let (device, runner) =
-        unwrap!(embassy_net_wiznet::new(mac_addr, state, spi, w5500_int, w5500_reset).await);
+    let (device, runner) = unwrap!(
+        embassy_net_wiznet::new(mac_addr, state, spi, w5500_int, w5500_reset)
+            .await
+    );
     unwrap!(spawner.spawn(ethernet_task(runner)));
 
     // Init network stack
-    let mut dns_servers: Vec<_, 3> = Vec::new();
-    unwrap!(dns_servers.push(Ipv4Address::new(192, 168, 1, 1)));
-    unwrap!(dns_servers.push(Ipv4Address::new(192, 168, 1, 1)));
-    unwrap!(dns_servers.push(Ipv4Address::new(192, 168, 1, 1)));
     static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
-    let config = embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
-        address: Ipv4Cidr::new(Ipv4Address::new(192, 168, 1, 7), 24),
-        gateway: Some(Ipv4Address::new(192, 168, 1, 1)),
-        dns_servers,
-    });
-    let (stack, runner) =
-        embassy_net::new(device, config, RESOURCES.init(StackResources::new()), seed);
+    let config =
+        embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
+            address: Ipv4Cidr::new(Ipv4Address::new(192, 168, 1, 7), 24),
+            gateway: Some(Ipv4Address::new(192, 168, 1, 1)),
+            dns_servers: Vec::new(),
+        });
+    let (stack, runner) = embassy_net::new(
+        device,
+        config,
+        RESOURCES.init(StackResources::new()),
+        seed,
+    );
 
     // Launch network task
     unwrap!(spawner.spawn(net_task(runner)));
@@ -211,7 +222,8 @@ async fn main(spawner: Spawner) {
 
     let driver_orderers = slow::DriverOrderers::new();
     let publish = Queues::new();
-    let handle_network = network::handle(&stack, &publish, led_handle.clone(), &driver_orderers);
+    let handle_network =
+        network::handle(&stack, &publish, led_handle.clone(), &driver_orderers);
     pin_mut!(handle_network);
 
     let init_then_measure = sensors::init_then_measure(
@@ -233,7 +245,9 @@ async fn main(spawner: Spawner) {
     )
     .await;
     let unrecoverable_err = match res {
-        Either3::First(()) | Either3::Third(()) | Either3::Second(Ok(())) => defmt::unreachable!(),
+        Either3::First(()) | Either3::Third(()) | Either3::Second(Ok(())) => {
+            defmt::unreachable!()
+        }
         Either3::Second(Err(err)) => err,
     };
 

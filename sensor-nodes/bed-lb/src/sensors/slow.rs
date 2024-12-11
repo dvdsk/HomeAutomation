@@ -6,19 +6,12 @@ use embassy_sync::channel::Channel;
 use embassy_time::Timer;
 use embassy_time::{with_timeout, Duration};
 
-use mhzx::MHZ;
 use protocol::large_bedroom::bed::Reading;
 
-use bosch_bme680::MeasurementData;
-use sps30_async as sps30;
-
 use crate::channel::Queues;
-use crate::error_cache::Error;
-
-use super::retry::{Bme680Driver, Driver, Sht31Driver, Sps30Driver};
-
-use super::concrete_types::ConcreteRx as Rx;
-use super::concrete_types::ConcreteTx as Tx;
+use sensors::measurements;
+use sensors::{Bme680Driver, Driver, Sht31Driver, Sps30Driver};
+use sensors::{Error, MhzDriver};
 
 type Signal = embassy_sync::signal::Signal<NoopRawMutex, ()>;
 
@@ -70,7 +63,7 @@ async fn order_measurements_every_period(signals: &[Signal]) {
 pub(crate) struct Drivers<'a> {
     pub sht: Sht31Driver<'a>,
     pub bme: Bme680Driver<'a>,
-    pub mhz: MHZ<Tx<'a>, Rx<'a>>,
+    pub mhz: MhzDriver<'a>,
     pub sps: Sps30Driver<'a>,
 }
 
@@ -92,7 +85,11 @@ impl DriverOrderers {
 }
 
 #[inline(always)]
-pub async fn read(drivers: Drivers<'_>, orderers: &DriverOrderers, publish: &'_ Queues) {
+pub async fn read(
+    drivers: Drivers<'_>,
+    orderers: &DriverOrderers,
+    publish: &'_ Queues,
+) {
     let signals = [const { Signal::new() }; 4];
 
     join5(
@@ -125,9 +122,12 @@ pub async fn read(drivers: Drivers<'_>, orderers: &DriverOrderers, publish: &'_ 
     .await;
 }
 
-fn publish_sps_result(sps_res: Result<sps30::Measurement, Error>, publish: &Queues) {
+fn publish_sps_result(
+    sps_res: Result<measurements::Sps30, Error>,
+    publish: &Queues,
+) {
     match sps_res {
-        Ok(sps30::Measurement {
+        Ok(measurements::Sps30 {
             mass_pm1_0,
             mass_pm2_5,
             mass_pm4_0,
@@ -149,15 +149,19 @@ fn publish_sps_result(sps_res: Result<sps30::Measurement, Error>, publish: &Queu
             publish.send_p0(Reading::NumberPm2_5(number_pm2_5));
             publish.send_p0(Reading::NumberPm4_0(number_pm4_0));
             publish.send_p0(Reading::NumberPm10(number_pm10));
-            publish.send_p0(Reading::TypicalParticleSize(typical_particle_size));
+            publish
+                .send_p0(Reading::TypicalParticleSize(typical_particle_size));
         }
         Err(err) => publish.queue_error(err),
     }
 }
 
-fn publish_mhz_result(mhz_res: Result<mhzx::Measurement, Error>, publish: &Queues) {
+fn publish_mhz_result(
+    mhz_res: Result<measurements::Mhz, Error>,
+    publish: &Queues,
+) {
     match mhz_res {
-        Ok(mhzx::Measurement { co2, .. }) => {
+        Ok(measurements::Mhz { co2, .. }) => {
             publish.send_p0(Reading::Co2(co2));
         }
         Err(err) => {
@@ -166,9 +170,12 @@ fn publish_mhz_result(mhz_res: Result<mhzx::Measurement, Error>, publish: &Queue
     }
 }
 
-fn publish_sht_result(sht_res: Result<sht31::prelude::Reading, Error>, publish: &Queues) {
+fn publish_sht_result(
+    sht_res: Result<measurements::Sht31, Error>,
+    publish: &Queues,
+) {
     match sht_res {
-        Ok(sht31::Reading {
+        Ok(measurements::Sht31 {
             temperature,
             humidity,
         }) => {
@@ -179,9 +186,12 @@ fn publish_sht_result(sht_res: Result<sht31::prelude::Reading, Error>, publish: 
     }
 }
 
-fn publish_bme_result(bme_res: Result<MeasurementData, Error>, publish: &Queues) {
+fn publish_bme_result(
+    bme_res: Result<measurements::Bme, Error>,
+    publish: &Queues,
+) {
     match bme_res {
-        Ok(MeasurementData {
+        Ok(measurements::Bme {
             pressure,
             gas_resistance,
             ..

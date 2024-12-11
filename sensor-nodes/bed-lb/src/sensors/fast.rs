@@ -1,13 +1,14 @@
-use embassy_futures::join::{join3, join4};
-use embassy_futures::{join, yield_now};
+use embassy_futures::{
+    join::{self, join3, join4},
+    yield_now,
+};
 use embassy_stm32::exti::ExtiInput;
 use embassy_time::{Duration, Instant, Timer};
 
 use protocol::large_bedroom::{bed::Button, bed::Reading};
 
-use super::retry::{Max44Driver, Nau7802Driver, Nau7802DriverBlocking};
-use crate::channel::Queues;
-use crate::rgb_led;
+use crate::{channel::Queues, rgb_led};
+use sensors::{Max44Driver, Nau7802Driver, Nau7802DriverBlocking};
 
 fn sig_lux_diff(old: f32, new: f32) -> bool {
     let diff = old - new;
@@ -20,7 +21,11 @@ fn sig_weight_diff(old: u32, new: u32) -> bool {
     diff > 2000
 }
 
-async fn report_lux(mut max44: Max44Driver<'_>, publish: &Queues, rgb_led: rgb_led::LedHandle<'_>) {
+async fn report_lux(
+    mut max44: Max44Driver<'_>,
+    publish: &Queues,
+    rgb_led: rgb_led::LedHandle<'_>,
+) {
     const MAX_INTERVAL: Duration = Duration::from_secs(5);
 
     let mut prev_lux = f32::MAX;
@@ -53,22 +58,32 @@ async fn report_lux(mut max44: Max44Driver<'_>, publish: &Queues, rgb_led: rgb_l
 }
 
 trait Nau {
-    async fn try_measure(&mut self) -> Result<u32, crate::error_cache::Error>;
+    async fn try_measure(&mut self) -> Result<u32, sensors::Error>;
 }
 
 impl Nau for Nau7802Driver<'_> {
-    async fn try_measure(&mut self) -> Result<u32, crate::error_cache::Error> {
+    async fn try_measure(&mut self) -> Result<u32, sensors::Error> {
         Nau7802Driver::try_measure(self).await
     }
 }
 
 impl Nau for Nau7802DriverBlocking<'_> {
-    async fn try_measure(&mut self) -> Result<u32, crate::error_cache::Error> {
+    async fn try_measure(&mut self) -> Result<u32, sensors::Error> {
         Nau7802DriverBlocking::try_measure(self).await
     }
 }
 
-async fn report_weight(mut nau: impl Nau, wrap: impl Fn(u32) -> Reading, publish: &Queues) {
+enum Position {
+    Left,
+    Right,
+}
+
+async fn report_weight(
+    mut nau: impl Nau,
+    wrap_reading: impl Fn(u32) -> Reading,
+    position: Position,
+    publish: &Queues,
+) {
     const MAX_INTERVAL: Duration = Duration::from_secs(5);
 
     let mut prev_weight = u32::MAX;
@@ -79,6 +94,11 @@ async fn report_weight(mut nau: impl Nau, wrap: impl Fn(u32) -> Reading, publish
         let weight = match nau.try_measure().await {
             Ok(lux) => lux,
             Err(err) if reported_at.elapsed() > MAX_INTERVAL => {
+                let err = if matches!(position, Position::Right) {
+                    err.into_right()
+                } else {
+                    err // default is left
+                };
                 publish.queue_error(err);
                 continue;
             }
@@ -86,9 +106,9 @@ async fn report_weight(mut nau: impl Nau, wrap: impl Fn(u32) -> Reading, publish
         };
 
         if sig_weight_diff(prev_weight, weight) {
-            publish.send_p2(wrap(weight));
+            publish.send_p2(wrap_reading(weight));
         } else if reported_at.elapsed() > MAX_INTERVAL {
-            publish.send_p1(wrap(weight));
+            publish.send_p1(wrap_reading(weight));
         } else {
             yield_now().await;
             continue;
@@ -104,7 +124,7 @@ async fn watch_button(
     event: impl Fn(protocol::button::Press) -> Button,
     channel: &Queues,
 ) {
-    use crate::error_cache::{Error, PressTooLong, SensorError};
+    use sensors::{errors::PressTooLong, errors::SensorError, Error};
 
     let mut went_high_at: Option<Instant> = None;
     loop {
@@ -114,9 +134,9 @@ async fn watch_button(
             let Ok(press) = press.as_millis().try_into() else {
                 let event_for_printing = (event)(protocol::button::Press(0));
                 let name = event_for_printing.variant_name();
-                channel.queue_error(Error::Running(SensorError::Button(PressTooLong {
-                    button: name,
-                })));
+                channel.queue_error(Error::Running(SensorError::Button(
+                    PressTooLong { button: name },
+                )));
                 continue;
             };
             let event = (event)(protocol::button::Press(press));
@@ -172,17 +192,22 @@ pub(crate) async fn read(
         watch_button(inputs.lower_outer, Button::LowerOuter, publish),
     );
 
-    let watch_buttons = join::join(watch_buttons_1, watch_buttons_2);
-
     let watch_lux = report_lux(max44, publish, rgb_led);
-    let report_right_weight = report_weight(nau_right, Reading::WeightRight, publish);
-    let report_left_weight = report_weight(nau_left, Reading::WeightLeft, publish);
+    let report_right_weight = report_weight(
+        nau_right,
+        Reading::WeightRight,
+        Position::Right,
+        publish,
+    );
+    let report_left_weight =
+        report_weight(nau_left, Reading::WeightLeft, Position::Left, publish);
 
-    join::join4(
+    join::join5(
         report_left_weight,
         report_right_weight,
         watch_lux,
-        watch_buttons,
+        watch_buttons_1,
+        watch_buttons_2,
     )
     .await;
 }

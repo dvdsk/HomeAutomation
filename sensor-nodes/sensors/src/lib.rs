@@ -1,12 +1,13 @@
 #![no_std]
 
 mod drivers;
-pub mod measurements;
 pub mod errors;
+pub mod measurements;
 
+pub use drivers::I2cWrapper;
 pub use drivers::{
-    Bme680Driver, Max44Driver, Nau7802Driver, Sps30Driver, Sht31Driver, MhzDriver,
-    SPS30_DRIVER_BUF_SIZE, SPS30_UART_BUF_SIZE,
+    Bme680Driver, Max44Driver, MhzDriver, Nau7802Driver, Nau7802DriverBlocking,
+    Sht31Driver, Sps30Driver, SPS30_DRIVER_BUF_SIZE, SPS30_UART_BUF_SIZE,
 };
 
 pub use errors::Error;
