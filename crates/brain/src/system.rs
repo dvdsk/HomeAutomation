@@ -1,3 +1,5 @@
+use std::net::IpAddr;
+
 // pub mod mpd_control;
 use zigbee_bridge::lights;
 // pub use mpd_control::Mpd;
@@ -13,10 +15,10 @@ pub struct System {
 }
 
 impl System {
-    pub fn init(jobs: Jobs) -> Self {
+    pub fn init(mqtt_ip: IpAddr, jobs: Jobs) -> Self {
         Self {
             jobs,
-            lights_new: lights::Controller::start_bridge(),
+            lights_new: lights::Controller::start_bridge(mqtt_ip),
             // mpd: Mpd,
         }
     }
