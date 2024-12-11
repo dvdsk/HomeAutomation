@@ -1,13 +1,18 @@
-// hue_power_on_behavior: "recover" / power_on_behavior: "previous"
-// color_temp_startup
-// color_xy
-// Set to on, off after 30s
-// on_time: 30, off_wait_time: 30
+#![allow(clippy::missing_panics_doc)]
+use std::net::IpAddr;
 
-use lights::Model;
+use tokio::sync::mpsc;
+use tracing::trace;
 
-pub mod lights;
+pub(crate) use lamp::Model;
+
+mod cached_bridge;
+mod conversion;
 mod device;
+pub(crate) mod lamp;
+mod parse_state;
+#[cfg(test)]
+mod tests;
 
 const MQTT_PORT: u16 = 1883;
 const LIGHT_MODELS: [(&str, Model); 16] = [
@@ -29,40 +34,57 @@ const LIGHT_MODELS: [(&str, Model); 16] = [
     ("toilet:ceiling", Model::HueGen4),
 ];
 
-#[cfg(test)]
-mod tests {
-    use crate::lights::Controller;
-    use std::time::Duration;
+#[derive(Debug, Clone)]
+pub struct Controller {
+    change_sender: mpsc::UnboundedSender<(String, lamp::LampProperty)>,
+}
 
-    #[ignore]
-    #[tokio::test]
-    async fn change_fridge_light() {
-        std::env::set_var("RUST_LOG", "brain=trace,zigbee_bridge=trace,info");
-        let controller =
-            Controller::start_bridge("192.168.1.43".parse().unwrap());
-        let light = "kitchen:fridge";
+impl Controller {
+    #[must_use]
+    pub fn start_bridge(mqtt_ip: IpAddr) -> Self {
+        let (change_sender, change_receiver) = mpsc::unbounded_channel();
 
-        println!("Setting to on, 2200");
-        controller.set_on(light);
-        controller.set_color_temp(light, 2200);
+        let run_bridge = cached_bridge::run(mqtt_ip, change_receiver);
+        trace!("Spawning zigbee bridge task");
+        tokio::task::spawn(run_bridge);
 
-        tokio::time::sleep(Duration::from_secs(1)).await;
+        Self { change_sender }
+    }
 
-        println!("Turning off");
-        controller.set_off(light);
+    pub fn set_on(&self, friendly_name: &str) {
+        self.change_sender
+            .send((friendly_name.to_string(), lamp::LampProperty::On(true)))
+            .expect("Sender should never be dropped");
+    }
 
-        tokio::time::sleep(Duration::from_secs(1)).await;
+    pub fn set_off(&self, friendly_name: &str) {
+        self.change_sender
+            .send((friendly_name.to_string(), lamp::LampProperty::On(false)))
+            .expect("Sender should never be dropped");
+    }
 
-        println!("Turning on to 4000");
-        controller.set_on(light);
-        controller.set_color_temp(light, 4000);
+    /// Brightness from 0 to 1
+    pub fn set_brightness(&self, friendly_name: &str, brightness: f64) {
+        self.change_sender
+            .send((
+                friendly_name.to_string(),
+                lamp::LampProperty::Brightness(brightness),
+            ))
+            .expect("Sender should never be dropped");
+    }
 
-        tokio::time::sleep(Duration::from_secs(1)).await;
+    pub fn set_color_temp(&self, friendly_name: &str, kelvin: usize) {
+        self.change_sender
+            .send((
+                friendly_name.to_string(),
+                lamp::LampProperty::ColorTempK(kelvin),
+            ))
+            .expect("Sender should never be dropped");
+    }
 
-        println!("Setting bri to 1.0");
-        controller.set_brightness(light, 1.0);
-
-        let () = std::future::pending().await;
-        unreachable!();
+    pub fn set_color_xy(&self, friendly_name: &str, xy: (f64, f64)) {
+        self.change_sender
+            .send((friendly_name.to_string(), lamp::LampProperty::ColorXY(xy)))
+            .expect("Sender should never be dropped");
     }
 }

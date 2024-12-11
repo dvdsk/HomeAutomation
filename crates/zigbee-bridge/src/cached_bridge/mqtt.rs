@@ -6,7 +6,7 @@ use rumqttc::v5::{AsyncClient, ClientError};
 use serde_json::json;
 use tracing::{trace, warn};
 
-use crate::lights::lamp::{self, LampPropertyDiscriminants};
+use crate::lamp::{self, LampPropertyDiscriminants};
 
 use super::TIME_IT_TAKES_TO_APPLY_CHANGE;
 

@@ -9,8 +9,8 @@ use tokio::{sync::RwLock, time::sleep};
 use tracing::{error, instrument, trace, warn};
 
 use crate::device::Device;
-use crate::lights::lamp::{self, LampProperty};
-use crate::lights::parse_state::parse_lamp_properties;
+use crate::lamp::{self, LampProperty};
+use crate::parse_state::parse_lamp_properties;
 
 pub(super) async fn poll_mqtt(
     mut eventloop: EventLoop,

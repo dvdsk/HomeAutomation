@@ -10,7 +10,7 @@ use super::{
     CHANGE_ACCUMULATION_TIME, MQTT_MIGHT_BE_DOWN_TIMEOUT, WAIT_FOR_INIT_STATES,
 };
 use crate::device::Device;
-use crate::lights::lamp::LampProperty;
+use crate::lamp::LampProperty;
 
 pub(super) async fn handle(
     mut change_receiver: mpsc::UnboundedReceiver<(String, LampProperty)>,

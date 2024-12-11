@@ -5,7 +5,7 @@ use tokio::sync::{mpsc, RwLock};
 use tracing::trace;
 
 use self::mqtt::Mqtt;
-use crate::{device::init_states, lights::lamp::LampProperty, LIGHT_MODELS, MQTT_PORT};
+use crate::{device::init_states, lamp::LampProperty, LIGHT_MODELS, MQTT_PORT};
 
 mod changes;
 mod mqtt;

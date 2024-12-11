@@ -2,7 +2,7 @@ use serde_json::json;
 use strum::{EnumDiscriminants, EnumIter};
 use tracing::error;
 
-use crate::lights::conversion::{denormalize, kelvin_to_mired};
+use crate::conversion::{denormalize, kelvin_to_mired};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ColorTempStartup {
