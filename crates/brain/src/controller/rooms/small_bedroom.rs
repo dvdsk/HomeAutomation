@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use futures_concurrency::future::Race;
 use futures_util::FutureExt;
-use jiff::ToSpan;
 use protocol::small_bedroom::ButtonPanel;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
@@ -19,7 +18,7 @@ mod state;
 
 const UPDATE_INTERVAL: Duration = Duration::from_secs(5);
 const OFF_DELAY: Duration = Duration::from_secs(60);
-const WAKEUP_EXPIRATION: Duration = Duration::from_secs(60 * 60);
+const WAKEUP_EXPIRATION: Duration = Duration::from_secs(60);
 
 const fn time(hour: i8, minute: i8) -> f64 {
     hour as f64 + minute as f64 / 60.
@@ -46,7 +45,7 @@ pub async fn run(
         9,
         0,
         Event::WakeupSB,
-        Some(Duration::from_secs(0)),
+        Some(WAKEUP_EXPIRATION),
     );
     let res = system.system.jobs.add(wakeup_job.clone()).await;
     warn!("Tried to add job for SB wakeup: {wakeup_job:#?}");

@@ -104,7 +104,7 @@ impl Room {
         const LIGHT_NAME: &str = "small_bedroom:piano";
         const RUNTIME_MINS: i32 = 7;
         const STEP_SIZE_SECS: i32 = 30;
-        const N_STEPS: i32 = RUNTIME_MINS / STEP_SIZE_SECS;
+        const N_STEPS: i32 = RUNTIME_MINS * 60 / STEP_SIZE_SECS;
 
         const START_BRI: f64 = 1. / 254.;
         const START_CT: usize = 2000;
