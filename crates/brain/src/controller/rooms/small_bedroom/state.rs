@@ -17,6 +17,7 @@ pub(crate) enum State {
     Daylight,
     Override,
     DelayedOff,
+    Nightlight,
 }
 
 #[derive(Clone)]
@@ -64,6 +65,12 @@ impl Room {
         self.system.all_lamps_on().await;
     }
 
+    pub(super) async fn to_nightlight(&mut self) {
+        self.to_state_cancel_prev(State::Nightlight).await;
+        self.system.one_lamp_ct("small_bedroom:ceiling", 1800, 0.1).await;
+        self.system.one_lamp_on("small_bedroom:ceiling").await;
+    }
+
     pub(super) async fn to_override(&mut self) {
         self.to_state_cancel_prev(State::Override).await;
         self.system.all_lamps_ct(2000, 1.0).await;
@@ -97,7 +104,7 @@ impl Room {
         const LIGHT_NAME: &str = "small_bedroom:piano";
         const RUNTIME_MINS: i32 = 7;
         const STEP_SIZE_SECS: i32 = 30;
-        const N_STEPS: i32 = RUNTIME_MINS / STEP_SIZE_SECS;
+        const N_STEPS: i32 = RUNTIME_MINS * 60 / STEP_SIZE_SECS;
 
         const START_BRI: f64 = 1. / 254.;
         const START_CT: usize = 2000;

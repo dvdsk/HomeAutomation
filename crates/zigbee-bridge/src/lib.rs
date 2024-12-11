@@ -8,7 +8,6 @@ use lights::Model;
 
 pub mod lights;
 
-const MQTT_IP: &str = "192.168.1.43";
 const MQTT_PORT: u16 = 1883;
 const LIGHT_MODELS: [(&str, Model); 16] = [
     ("kitchen:fridge", Model::TradfriE14Color),
@@ -38,7 +37,8 @@ mod tests {
     #[tokio::test]
     async fn change_fridge_light() {
         std::env::set_var("RUST_LOG", "brain=trace,zigbee_bridge=trace,info");
-        let controller = Controller::start_bridge();
+        let controller =
+            Controller::start_bridge("192.168.1.43".parse().unwrap());
         let light = "kitchen:fridge";
 
         println!("Setting to on, 2200");

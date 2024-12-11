@@ -1,4 +1,6 @@
 #![allow(clippy::missing_panics_doc)]
+use std::net::IpAddr;
+
 use tokio::sync::mpsc;
 use tracing::trace;
 
@@ -16,10 +18,10 @@ pub struct Controller {
 
 impl Controller {
     #[must_use]
-    pub fn start_bridge() -> Self {
+    pub fn start_bridge(mqtt_ip: IpAddr) -> Self {
         let (change_sender, change_receiver) = mpsc::unbounded_channel();
 
-        let run_bridge = cached_bridge::run(change_receiver);
+        let run_bridge = cached_bridge::run(mqtt_ip, change_receiver);
         trace!("Spawning zigbee bridge task");
         tokio::task::spawn(run_bridge);
 

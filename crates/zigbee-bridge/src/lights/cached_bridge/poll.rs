@@ -53,18 +53,18 @@ async fn update_state(
         .entry(light_name.to_owned())
         .or_insert_with(|| Lamp::new(light_name));
     for property in new {
-        if light_name == "small_bedroom:bureau" {
+        if light_name == "small_bedroom:piano" {
             match property {
                 lamp::Property::Brightness(bri) => {
-                    warn!("ZB received bureau brightness change: {bri}");
+                    warn!("ZB received piano brightness change: {bri}");
                 }
                 lamp::Property::ColorXY(xy) => {
-                    warn!("ZB received bureau color change: {xy:?}");
+                    warn!("ZB received piano color change: {xy:?}");
                 }
                 lamp::Property::Online(new_online) => {
                     if new_online != current_lamp.is_online {
                         warn!(
-                            "ZB received bureau online change: {new_online}"
+                            "ZB received piano online change: {new_online}"
                         );
                     }
                 }

@@ -1,11 +1,11 @@
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, net::IpAddr, time::Duration};
 
 use rumqttc::v5::{AsyncClient, MqttOptions};
 use tokio::sync::{mpsc, RwLock};
 use tracing::trace;
 
 use self::mqtt::Mqtt;
-use crate::{lights::lamp, LIGHT_MODELS, MQTT_IP, MQTT_PORT};
+use crate::{lights::lamp, LIGHT_MODELS, MQTT_PORT};
 
 mod changes;
 mod mqtt;
@@ -19,10 +19,11 @@ const TIME_IT_TAKES_TO_APPLY_CHANGE: Duration = Duration::from_secs(10);
 const CHANGE_ACCUMULATION_TIME: Duration = Duration::from_millis(100);
 
 pub(super) async fn run(
+    mqtt_ip: IpAddr,
     change_receiver: mpsc::UnboundedReceiver<(String, lamp::Property)>,
 ) -> ! {
     let mut options =
-        MqttOptions::new("ha-lightcontroller", MQTT_IP, MQTT_PORT);
+        MqttOptions::new("ha-lightcontroller", mqtt_ip.to_string(), MQTT_PORT);
     // Set max mqtt packet size to 4kB
     options.set_max_packet_size(Some(4096));
     // Keep subscriptions when reconnecting!!!!
