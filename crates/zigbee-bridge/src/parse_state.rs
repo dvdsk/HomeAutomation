@@ -1,13 +1,35 @@
 use color_eyre::eyre::{bail, Context, OptionExt, Report};
 use color_eyre::Section;
 use serde_json::Value;
+use tracing::error;
 
 use crate::conversion::{mired_to_kelvin, normalize};
+use crate::device::Property;
 use crate::lamp::LampProperty;
+use crate::{light_names, RADIATOR_NAMES};
 
-pub(super) fn parse_lamp_properties(
+pub(super) fn parse_properties(
+    device_name: &str,
     bytes: &[u8],
-) -> color_eyre::Result<Vec<LampProperty>> {
+) -> color_eyre::Result<Vec<Property>> {
+    if light_names().contains(&device_name) {
+        parse_lamp_properties(bytes)
+    } else if RADIATOR_NAMES.contains(&device_name) {
+        parse_radiator_properties(bytes)
+    } else {
+        error!("Unknown device name {device_name}, could not parse properties");
+        // TODO make actual error
+        return Ok(Vec::new());
+    }
+}
+
+fn parse_radiator_properties(bytes: &[u8]) -> Result<Vec<Property>, Report> {
+    Ok(Vec::new())
+}
+
+fn parse_lamp_properties(
+    bytes: &[u8],
+) -> color_eyre::Result<Vec<Property>> {
     let mut list = Vec::new();
 
     let json: Value =
@@ -22,7 +44,7 @@ pub(super) fn parse_lamp_properties(
         .transpose()?
         .map(mired_to_kelvin)
     {
-        list.push(LampProperty::ColorTempK(kelvin));
+        list.push(LampProperty::ColorTempK(kelvin).into());
     }
 
     if let Some(xy) = map
@@ -39,7 +61,7 @@ pub(super) fn parse_lamp_properties(
         })
         .transpose()?
     {
-        list.push(LampProperty::ColorXY(xy));
+        list.push(LampProperty::ColorXY(xy).into());
     }
 
     if let Some(brightness) = map
@@ -48,7 +70,7 @@ pub(super) fn parse_lamp_properties(
         .transpose()?
         .map(normalize)
     {
-        list.push(LampProperty::Brightness(brightness));
+        list.push(LampProperty::Brightness(brightness).into());
     }
 
     if let Some(on) = map
@@ -64,11 +86,11 @@ pub(super) fn parse_lamp_properties(
         })
         .transpose()?
     {
-        list.push(LampProperty::On(on));
+        list.push(LampProperty::On(on).into());
     }
 
     // we have just received a state message, so the lamp must be online
-    list.push(LampProperty::Online(true));
+    list.push(LampProperty::Online(true).into());
 
     Ok(list)
 }

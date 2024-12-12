@@ -9,11 +9,10 @@ use super::mqtt::Mqtt;
 use super::{
     CHANGE_ACCUMULATION_TIME, MQTT_MIGHT_BE_DOWN_TIMEOUT, WAIT_FOR_INIT_STATES,
 };
-use crate::device::Device;
-use crate::lamp::LampProperty;
+use crate::device::{Device, Property};
 
 pub(super) async fn handle(
-    mut change_receiver: mpsc::UnboundedReceiver<(String, LampProperty)>,
+    mut change_receiver: mpsc::UnboundedReceiver<(String, Property)>,
     mqtt: &mut Mqtt,
     known_states: &RwLock<HashMap<String, Box<dyn Device>>>,
 ) -> ! {
@@ -109,7 +108,7 @@ async fn send_diff_get_timeout(
 #[instrument(skip_all)]
 async fn apply_change_to_needed(
     device_name: String,
-    change: LampProperty,
+    change: Property,
     known_states: &RwLock<HashMap<String, Box<dyn Device>>>,
     needed_states: &mut HashMap<String, Box<dyn Device>>,
 ) {

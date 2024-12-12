@@ -5,7 +5,8 @@ use tokio::sync::{mpsc, RwLock};
 use tracing::trace;
 
 use self::mqtt::Mqtt;
-use crate::{device::init_states, lamp::LampProperty, LIGHT_MODELS, MQTT_PORT};
+use crate::device::{init_states, Property};
+use crate::{LIGHT_MODELS, MQTT_PORT};
 
 mod changes;
 mod mqtt;
@@ -20,7 +21,7 @@ const CHANGE_ACCUMULATION_TIME: Duration = Duration::from_millis(100);
 
 pub(super) async fn run(
     mqtt_ip: IpAddr,
-    change_receiver: mpsc::UnboundedReceiver<(String, LampProperty)>,
+    change_receiver: mpsc::UnboundedReceiver<(String, Property)>,
 ) -> ! {
     let mut options =
         MqttOptions::new("ha-lightcontroller", mqtt_ip.to_string(), MQTT_PORT);

@@ -6,13 +6,14 @@ use tracing::trace;
 
 pub(crate) use lamp::Model;
 
-use self::lamp::LampProperty;
+use self::{device::Property, lamp::LampProperty};
 
 mod cached_bridge;
 mod conversion;
 mod device;
 pub(crate) mod lamp;
 mod parse_state;
+mod radiator;
 #[cfg(test)]
 mod tests;
 
@@ -35,10 +36,16 @@ const LIGHT_MODELS: [(&str, Model); 16] = [
     ("hallway:ceiling", Model::TradfriE27),
     ("toilet:ceiling", Model::HueGen4),
 ];
+const RADIATOR_NAMES: [&str; 2] =
+    ["small_bedroom:radiator", "large_bedroom:radiator"];
+
+fn light_names() -> Vec<&'static str> {
+    LIGHT_MODELS.into_iter().map(|(k, _)| k).collect()
+}
 
 #[derive(Debug, Clone)]
 pub struct Controller {
-    change_sender: mpsc::UnboundedSender<(String, LampProperty)>,
+    change_sender: mpsc::UnboundedSender<(String, Property)>,
 }
 
 impl Controller {
@@ -54,39 +61,29 @@ impl Controller {
     }
 
     pub fn set_on(&self, light_name: &str) {
-        self.change_sender
-            .send((light_name.to_string(), LampProperty::On(true)))
-            .expect("Sender should never be dropped");
+        self.send_to_light(light_name, LampProperty::On(true));
     }
 
     pub fn set_off(&self, light_name: &str) {
-        self.change_sender
-            .send((light_name.to_string(), LampProperty::On(false)))
-            .expect("Sender should never be dropped");
+        self.send_to_light(light_name, LampProperty::On(false));
     }
 
     /// Brightness from 0 to 1
     pub fn set_brightness(&self, light_name: &str, brightness: f64) {
-        self.change_sender
-            .send((
-                light_name.to_string(),
-                LampProperty::Brightness(brightness),
-            ))
-            .expect("Sender should never be dropped");
+        self.send_to_light(light_name, LampProperty::Brightness(brightness));
     }
 
     pub fn set_color_temp(&self, light_name: &str, kelvin: usize) {
-        self.change_sender
-            .send((
-                light_name.to_string(),
-                LampProperty::ColorTempK(kelvin),
-            ))
-            .expect("Sender should never be dropped");
+        self.send_to_light(light_name, LampProperty::ColorTempK(kelvin));
     }
 
     pub fn set_color_xy(&self, light_name: &str, xy: (f64, f64)) {
+        self.send_to_light(light_name, LampProperty::ColorXY(xy));
+    }
+
+    fn send_to_light(&self, light_name: &str, lamp_property: LampProperty) {
         self.change_sender
-            .send((light_name.to_string(), LampProperty::ColorXY(xy)))
+            .send((light_name.to_string(), lamp_property.into()))
             .expect("Sender should never be dropped");
     }
 }

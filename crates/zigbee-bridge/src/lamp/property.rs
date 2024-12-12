@@ -2,7 +2,10 @@ use serde_json::json;
 use strum::{EnumDiscriminants, EnumIter};
 use tracing::error;
 
-use crate::conversion::{denormalize, kelvin_to_mired};
+use crate::{
+    conversion::{denormalize, kelvin_to_mired},
+    device::{Property, PropertyDiscriminants},
+};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ColorTempStartup {
@@ -19,6 +22,30 @@ pub(crate) enum LampProperty {
     ColorXY((f64, f64)),
     On(bool),
     ColorTempStartup(ColorTempStartup),
+}
+
+impl From<LampProperty> for Property {
+    fn from(value: LampProperty) -> Self {
+        Self::Lamp(value)
+    }
+}
+
+impl From<LampProperty> for PropertyDiscriminants {
+    fn from(value: LampProperty) -> Self {
+        Self::Lamp(value.into())
+    }
+}
+
+impl TryFrom<Property> for LampProperty {
+    type Error = String;
+
+    fn try_from(value: Property) -> Result<Self, Self::Error> {
+        match value {
+            Property::Lamp(lamp_prop) => Ok(lamp_prop),
+            _ => Err("Tried to interpret non-lamp property as lamp property"
+                .to_owned()),
+        }
+    }
 }
 
 impl PartialEq for LampProperty {

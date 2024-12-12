@@ -6,7 +6,7 @@ use rumqttc::v5::{AsyncClient, ClientError};
 use serde_json::json;
 use tracing::{trace, warn};
 
-use crate::lamp::{LampProperty, LampPropertyDiscriminants};
+use crate::device::{Property, PropertyDiscriminants};
 
 use super::TIME_IT_TAKES_TO_APPLY_CHANGE;
 
@@ -15,7 +15,7 @@ pub(super) struct Mqtt {
     // TODO: extract into SendTracker struct?
     last_sent: HashMap<
         String,
-        HashMap<LampPropertyDiscriminants, (Instant, LampProperty)>,
+        HashMap<PropertyDiscriminants, (Instant, Property)>,
     >,
 }
 
@@ -47,7 +47,7 @@ impl Mqtt {
     pub(super) fn next_deadline(
         &self,
         device_name: &str,
-        diff: &[LampProperty],
+        diff: &[Property],
     ) -> Option<Instant> {
         diff.into_iter()
             .map(|change| self.change_next_due(device_name, &change))
@@ -57,7 +57,7 @@ impl Mqtt {
     fn change_next_due(
         &self,
         device_name: &str,
-        change: &LampProperty,
+        change: &Property,
     ) -> Instant {
         let Some(device_send_record) = self.last_sent.get(device_name) else {
             // lamp has never been sent before
@@ -65,7 +65,7 @@ impl Mqtt {
         };
 
         let Some((sent_at, prev_change)) =
-            device_send_record.get(&change.into())
+            device_send_record.get(&(*change).into())
         else {
             // property has never been sent before
             return Instant::now();
@@ -84,7 +84,7 @@ impl Mqtt {
         *sent_at + TIME_IT_TAKES_TO_APPLY_CHANGE
     }
 
-    fn is_due(&self, device_name: &str, change: &LampProperty) -> bool {
+    fn is_due(&self, device_name: &str, change: &Property) -> bool {
         let deadline = self.change_next_due(device_name, change);
         deadline < Instant::now()
     }
@@ -93,7 +93,7 @@ impl Mqtt {
         &mut self,
         device_name: &str,
         merged_payloads: bool,
-        diff: &[LampProperty],
+        diff: &[Property],
     ) -> Result<(), ClientError> {
         let mut due_changes = Vec::new();
 
@@ -104,7 +104,7 @@ impl Mqtt {
                 let device_send_record =
                     self.last_sent.entry(device_name.to_owned()).or_default();
                 device_send_record
-                    .insert(change.into(), (Instant::now(), *change));
+                    .insert((*change).into(), (Instant::now(), *change));
             }
         }
 
@@ -114,7 +114,8 @@ impl Mqtt {
                 self.set(&device_name, payload.to_string()).await?;
             } else {
                 for change in due_changes {
-                    self.set(&device_name, change.payload().to_string()).await?;
+                    self.set(&device_name, change.payload().to_string())
+                        .await?;
                 }
             }
         }
@@ -170,7 +171,7 @@ impl Mqtt {
     }
 }
 
-fn merge_payloads(mut changes: Vec<&LampProperty>) -> serde_json::Value {
+fn merge_payloads(mut changes: Vec<&Property>) -> serde_json::Value {
     let payload = changes
         .iter_mut()
         .map(|c| c.payload())

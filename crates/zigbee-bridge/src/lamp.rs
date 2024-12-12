@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
 use strum::IntoEnumIterator;
-use tracing::instrument;
+use tracing::{error, instrument};
 
 use super::conversion::temp_to_xy;
-use crate::device::Device;
+use crate::device::{Device, Property, PropertyDiscriminants};
 pub(crate) use model::Model;
-pub(super) use property::{LampProperty, LampPropertyDiscriminants};
+pub(crate) use property::{LampProperty, LampPropertyDiscriminants};
 
 mod model;
-pub(crate) mod property;
+mod property;
 
 #[derive(Clone, Copy, Debug)]
 enum Color {
@@ -60,10 +60,7 @@ impl Device for Lamp {
     }
 
     #[instrument]
-    fn changes_relative_to(
-        &self,
-        other: &Box<dyn Device>,
-    ) -> Vec<LampProperty> {
+    fn changes_relative_to(&self, other: &Box<dyn Device>) -> Vec<Property> {
         let mut res = Vec::new();
 
         let self_properties = self.all_set_properties();
@@ -74,7 +71,7 @@ impl Device for Lamp {
             let other_prop = other_properties.get(&property.into());
 
             // Ignore model (not a prop) and online, because they are read-only
-            if let Some(LampProperty::Online(_)) = self_prop {
+            if let Some(Property::Lamp(LampProperty::Online(_))) = self_prop {
                 continue;
             }
 
@@ -88,7 +85,12 @@ impl Device for Lamp {
         res
     }
 
-    fn apply(&mut self, change: LampProperty) {
+    fn apply(&mut self, change: Property) {
+        let Property::Lamp(change) = change else {
+            error!("Trying to apply non-lamp change {change:?} to lamp!");
+            return;
+        };
+
         match change {
             LampProperty::On(is_on) => self.is_on = Some(is_on),
             LampProperty::Brightness(bri) => self.brightness = Some(bri),
@@ -115,13 +117,12 @@ impl Device for Lamp {
         }
     }
 
-    fn all_set_properties(
-        &self,
-    ) -> HashMap<LampPropertyDiscriminants, LampProperty> {
-        let mut properties = HashMap::new();
+    fn all_set_properties(&self) -> HashMap<PropertyDiscriminants, Property> {
+        let mut properties: HashMap<PropertyDiscriminants, Property> =
+            HashMap::new();
 
         let mut insert_prop =
-            |prop: LampProperty| properties.insert(prop.into(), prop);
+            |prop: LampProperty| properties.insert(prop.into(), prop.into());
 
         // Ignore model and is_online, because they are read-only
 

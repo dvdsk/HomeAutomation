@@ -8,9 +8,11 @@ use serde_json::Value;
 use tokio::{sync::RwLock, time::sleep};
 use tracing::{error, instrument, trace, warn};
 
-use crate::device::Device;
+use crate::device::{Device, Property};
 use crate::lamp::LampProperty;
-use crate::parse_state::parse_lamp_properties;
+use crate::parse_state::parse_properties;
+use crate::radiator::RadiatorProperty;
+use crate::{light_names, RADIATOR_NAMES};
 
 pub(super) async fn poll_mqtt(
     mut eventloop: EventLoop,
@@ -47,7 +49,7 @@ pub(super) async fn poll_mqtt(
 async fn update_state(
     known_states: &RwLock<HashMap<String, Box<dyn Device>>>,
     device_name: &str,
-    new: Vec<LampProperty>,
+    new: Vec<Property>,
 ) {
     let mut known_states = known_states.write().await;
     let Some(current_device) = known_states.get_mut(device_name) else {
@@ -56,19 +58,23 @@ async fn update_state(
     };
     for property in new {
         if device_name == "small_bedroom:piano" {
-            match property {
-                LampProperty::Brightness(bri) => {
-                    warn!("ZB received piano brightness change: {bri}");
-                }
-                LampProperty::ColorXY(xy) => {
-                    warn!("ZB received piano color change: {xy:?}");
-                }
-                LampProperty::Online(new_online) => {
-                    if new_online != current_device.is_online() {
-                        warn!("ZB received piano online change: {new_online}");
+            if let Property::Lamp(lamp_prop) = property {
+                match lamp_prop {
+                    LampProperty::Brightness(bri) => {
+                        warn!("ZB received piano brightness change: {bri}");
                     }
+                    LampProperty::ColorXY(xy) => {
+                        warn!("ZB received piano color change: {xy:?}");
+                    }
+                    LampProperty::Online(new_online) => {
+                        if new_online != current_device.is_online() {
+                            warn!(
+                                "ZB received piano online change: {new_online}"
+                            );
+                        }
+                    }
+                    _ => (),
                 }
-                _ => (),
             }
         }
 
@@ -110,11 +116,11 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
         }
         topic => {
             let topic: Vec<_> = topic.split('/').collect();
-            let name = topic[1].to_string();
-            let state = parse_lamp_properties(&message.payload)
+            let device_name = topic[1].to_string();
+            let state = parse_properties(&device_name, &message.payload)
                 .wrap_err("failed to parse lamp state")
                 .with_note(|| format!("topic: {topic:?}"))?;
-            Ok(Message::StateUpdate((name, state)))
+            Ok(Message::StateUpdate((device_name, state)))
         }
     }
 }
@@ -145,8 +151,7 @@ fn parse_bridge_event(
         _ => return Ok(Message::Other),
     };
 
-    let update = (device_name, vec![LampProperty::Online(is_online)]);
-    Ok(Message::StateUpdate(update))
+    Ok(online_message(device_name, is_online))
 }
 
 fn parse_log_message(
@@ -168,16 +173,33 @@ fn parse_log_message(
     if level == "error" {
         if let Some(caps) = regex.captures(message) {
             let device_name = caps[1].to_string();
-            let update = (device_name, vec![LampProperty::Online(false)]);
-            return Ok(Message::StateUpdate(update));
+
+            return Ok(online_message(device_name, false));
         }
     }
 
     Ok(Message::Other)
 }
 
+fn online_message(device_name: String, is_online: bool) -> Message {
+    if light_names().contains(&device_name.as_str()) {
+        Message::StateUpdate((
+            device_name,
+            vec![LampProperty::Online(is_online).into()],
+        ))
+    } else if RADIATOR_NAMES.contains(&device_name.as_str()) {
+        Message::StateUpdate((
+            device_name,
+            vec![RadiatorProperty::Online(is_online).into()],
+        ))
+    } else {
+        error!("Unknown device name {device_name}, could not parse log");
+        Message::Other
+    }
+}
+
 #[derive(Debug)]
 enum Message {
-    StateUpdate((String, Vec<LampProperty>)),
+    StateUpdate((String, Vec<Property>)),
     Other,
 }
