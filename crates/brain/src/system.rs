@@ -1,7 +1,7 @@
 use std::net::IpAddr;
 
 // pub mod mpd_control;
-use zigbee_bridge::lights;
+use zigbee_bridge::Controller;
 // pub use mpd_control::Mpd;
 
 use crate::input::jobs::Jobs;
@@ -10,7 +10,7 @@ use crate::input::jobs::Jobs;
 pub struct System {
     #[allow(dead_code)]
     pub jobs: Jobs,
-    pub lights_new: lights::Controller,
+    pub lights_new: Controller,
     // pub mpd: Mpd,
 }
 
@@ -18,7 +18,7 @@ impl System {
     pub fn init(mqtt_ip: IpAddr, jobs: Jobs) -> Self {
         Self {
             jobs,
-            lights_new: lights::Controller::start_bridge(mqtt_ip),
+            lights_new: Controller::start_bridge(mqtt_ip),
             // mpd: Mpd,
         }
     }
