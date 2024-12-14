@@ -111,6 +111,34 @@ impl Jobs {
         self.job_change_tx.send(()).await?;
         Ok(id)
     }
+
+    pub(crate) async fn remove_all_with_event(
+        &self,
+        event_to_remove: Event,
+    ) -> Result<Vec<Job>, Error> {
+        let ids_to_remove: Vec<_> = {
+            let list = self.list.lock().await;
+            let jobs = list.jobs();
+
+            jobs.iter()
+                .filter_map(|res| res.ok())
+                .filter(|(_, job)| job.event == event_to_remove)
+                .map(|(id, _)| id)
+                .collect()
+        };
+
+        let mut removed = Vec::new();
+
+        for id in ids_to_remove {
+            let old_job = self.remove(id).await?;
+            if let Some(old_job) = old_job {
+                removed.push(old_job);
+            }
+        }
+
+        Ok(removed)
+    }
+
     pub(crate) async fn remove(
         &self,
         to_remove: i64,
