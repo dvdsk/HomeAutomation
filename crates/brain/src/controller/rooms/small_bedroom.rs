@@ -5,7 +5,7 @@ use futures_util::FutureExt;
 use protocol::small_bedroom::ButtonPanel;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
-use tracing::warn;
+use tracing::{info, trace, warn};
 
 use self::filter::{recv_filtered, RelevantEvent, Trigger};
 use self::state::Room;
@@ -42,14 +42,17 @@ pub async fn run(
 
     // let soon = crate::time::now().checked_add(1.minutes()).unwrap();
     let wakeup_job = Job::every_day_at(
-        9,
-        0,
+        8,
+        57,
         Event::WakeupSB,
         Some(WAKEUP_EXPIRATION),
     );
+
+    let res = system.system.jobs.remove_all_with_event(Event::WakeupSB).await;
+    trace!("Removing old SB wakeup jobs returned: {res:#?}");
     let res = system.system.jobs.add(wakeup_job.clone()).await;
-    warn!("Tried to add job for SB wakeup: {wakeup_job:#?}");
-    warn!("Jobs returned: {res:#?}");
+    trace!("Tried to add job for SB wakeup: {wakeup_job:#?}");
+    trace!("Jobs returned: {res:#?}");
 
     loop {
         let get_event = recv_filtered(&mut event_rx);

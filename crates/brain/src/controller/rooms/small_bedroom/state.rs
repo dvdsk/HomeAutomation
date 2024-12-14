@@ -102,7 +102,7 @@ impl Room {
 
     async fn run_wakeup_then_daylight(mut self) {
         const LIGHT_NAME: &str = "small_bedroom:piano";
-        const RUNTIME_MINS: i32 = 7;
+        const RUNTIME_MINS: i32 = 10;
         const STEP_SIZE_SECS: i32 = 30;
         const N_STEPS: i32 = RUNTIME_MINS * 60 / STEP_SIZE_SECS;
 
