@@ -27,7 +27,7 @@ impl Color {
 #[derive(Clone, Debug)]
 pub(crate) struct Lamp {
     model: Model,
-    pub(super) is_online: bool,
+    is_online: bool,
     brightness: Option<f64>,
     color: Option<Color>,
     is_on: Option<bool>,

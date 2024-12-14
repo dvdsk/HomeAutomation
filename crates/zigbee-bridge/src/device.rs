@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use crate::lamp::{Lamp, LampProperty, LampPropertyDiscriminants};
-use crate::radiator::{RadiatorProperty, RadiatorPropertyDiscriminants};
-use crate::LIGHT_MODELS;
+use crate::radiator::{Radiator, RadiatorProperty, RadiatorPropertyDiscriminants};
+use crate::{LIGHT_MODELS, RADIATOR_NAMES};
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub(crate) enum Property {
@@ -65,6 +65,10 @@ pub(crate) fn init_states() -> HashMap<String, Box<(dyn Device + 'static)>> {
     for (light_name, _) in LIGHT_MODELS {
         let device: Box<dyn Device> = Box::new(Lamp::new(light_name));
         states.insert(light_name.to_owned(), device);
+    }
+    for radiator_name in RADIATOR_NAMES {
+        let device: Box<dyn Device> = Box::new(Radiator::new(radiator_name));
+        states.insert(radiator_name.to_owned(), device);
     }
     states
 }

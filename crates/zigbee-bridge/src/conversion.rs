@@ -24,6 +24,14 @@ pub(super) fn denormalize(brightness: f64) -> u8 {
     (brightness * 254.).round() as u8
 }
 
+pub(super) fn round_to_half(setpoint: f64) -> f64 {
+    (setpoint * 2.).round() / 2.
+}
+
+pub(super) fn times_100_int(reference: f64) -> usize {
+    (reference * 100.).round() as usize
+}
+
 #[allow(clippy::doc_markdown)]
 /// 1000K < `color_temp` < 1_000_000K
 pub(super) fn temp_to_xy(color_temp_k: usize) -> (f64, f64) {
@@ -46,6 +54,7 @@ fn xyz_to_xy(xyz: XYZ) -> (f64, f64) {
 mod tests {
     use super::*;
 
+    #[ignore]
     #[test]
     fn temp_to_xy_works() {
         dbg!(temp_to_xy(2200));

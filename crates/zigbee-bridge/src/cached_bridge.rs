@@ -6,7 +6,7 @@ use tracing::trace;
 
 use self::mqtt::Mqtt;
 use crate::device::{init_states, Property};
-use crate::{LIGHT_MODELS, MQTT_PORT};
+use crate::{LIGHT_MODELS, MQTT_PORT, RADIATOR_NAMES};
 
 mod changes;
 mod mqtt;
@@ -45,6 +45,12 @@ pub(super) async fn run(
             .await
             .unwrap();
         mqtt.request_state(light).await;
+    }
+    for radiator in RADIATOR_NAMES {
+        mqtt.subscribe(&format!("zigbee2mqtt/{radiator}"))
+            .await
+            .unwrap();
+        mqtt.request_state(radiator).await;
     }
 
     trace!("Starting main zigbee management loops");

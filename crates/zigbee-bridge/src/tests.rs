@@ -33,3 +33,15 @@ async fn change_fridge_light() {
     unreachable!();
 }
 
+#[tokio::test]
+async fn change_radiator_temp() {
+    std::env::set_var("RUST_LOG", "brain=trace,zigbee_bridge=trace,info");
+    let controller =
+        Controller::start_bridge("192.168.1.43".parse().unwrap());
+    let radiator = "small_bedroom:radiator";
+
+    controller.set_radiator_setpoint(radiator, 22.);
+
+    let () = std::future::pending().await;
+    unreachable!();
+}

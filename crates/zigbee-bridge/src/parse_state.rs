@@ -6,6 +6,7 @@ use tracing::error;
 use crate::conversion::{mired_to_kelvin, normalize};
 use crate::device::Property;
 use crate::lamp::LampProperty;
+use crate::radiator::RadiatorProperty;
 use crate::{light_names, RADIATOR_NAMES};
 
 pub(super) fn parse_properties(
@@ -24,12 +25,47 @@ pub(super) fn parse_properties(
 }
 
 fn parse_radiator_properties(bytes: &[u8]) -> Result<Vec<Property>, Report> {
-    Ok(Vec::new())
+    let mut list = Vec::new();
+
+    let json: Value =
+        serde_json::from_slice(bytes).wrap_err("Could not deserialize")?;
+    let map = json
+        .as_object()
+        .ok_or_eyre("Top level json must be object")?;
+
+    if let Some(setpoint) = map
+        .get("occupied_heating_setpoint")
+        .map(json_to_f64)
+        .transpose()?
+    {
+        list.push(RadiatorProperty::Setpoint(setpoint).into());
+    }
+
+    if let Some(reference) = map
+        .get("external_measured_room_sensor")
+        .map(json_to_usize)
+        .transpose()?
+        .map(|int| int as f64 / 100.)
+    {
+        list.push(RadiatorProperty::Reference(reference).into());
+    }
+
+    if let Some(set_method) = map
+        .get("setpoint_change_source")
+        .map(|s| {
+            s.as_str()
+                .ok_or_eyre("Setpoint change source not a string")
+                .map(|s| s.parse().unwrap())
+        })
+        .transpose()?
+    {
+        list.push(RadiatorProperty::SetByMethod(set_method).into());
+    }
+
+    Ok(list)
 }
 
-fn parse_lamp_properties(
-    bytes: &[u8],
-) -> color_eyre::Result<Vec<Property>> {
+fn parse_lamp_properties(bytes: &[u8]) -> color_eyre::Result<Vec<Property>> {
     let mut list = Vec::new();
 
     let json: Value =

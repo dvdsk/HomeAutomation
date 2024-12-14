@@ -6,7 +6,7 @@ use tracing::trace;
 
 pub(crate) use lamp::Model;
 
-use self::{device::Property, lamp::LampProperty};
+use self::{device::Property, lamp::LampProperty, radiator::RadiatorProperty};
 
 mod cached_bridge;
 mod conversion;
@@ -79,6 +79,24 @@ impl Controller {
 
     pub fn set_color_xy(&self, light_name: &str, xy: (f64, f64)) {
         self.send_to_light(light_name, LampProperty::ColorXY(xy));
+    }
+
+    pub fn set_radiator_setpoint(&self, radiator_name: &str, setpoint: f64) {
+        self.change_sender
+            .send((
+                radiator_name.to_owned(),
+                RadiatorProperty::Setpoint(setpoint).into(),
+            ))
+            .expect("Sender should never be dropped");
+    }
+
+    pub fn set_radiator_reference(&self, radiator_name: &str, reference: f64) {
+        self.change_sender
+            .send((
+                radiator_name.to_owned(),
+                RadiatorProperty::Reference(reference).into(),
+            ))
+            .expect("Sender should never be dropped");
     }
 
     fn send_to_light(&self, light_name: &str, lamp_property: LampProperty) {
