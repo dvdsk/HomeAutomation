@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::{sleep, timeout};
-use tracing::{debug, error, instrument, trace};
+use tracing::{debug, error, instrument};
 
 use super::mqtt::Mqtt;
 use super::{
@@ -15,11 +15,13 @@ pub(super) async fn handle(
     mut change_receiver: mpsc::UnboundedReceiver<(String, Property)>,
     mqtt: &mut Mqtt,
     known_states: &RwLock<HashMap<String, Box<dyn Device>>>,
+    // Must be passed so it can be statically initialized in cached_bridge
+    // with concrete types
+    mut needed_states: HashMap<String, Box<dyn Device>>,
 ) -> ! {
     // Give the initial known states a chance to be fetched
     sleep(WAIT_FOR_INIT_STATES).await;
 
-    let mut needed_states = HashMap::new();
     let mut call_at_least_in = MQTT_MIGHT_BE_DOWN_TIMEOUT;
 
     loop {
@@ -32,13 +34,7 @@ pub(super) async fn handle(
                     update.expect("Channel should never close");
 
                 tracing::info!("Received change order: {change:?} for device {device_name}");
-                apply_change_to_needed(
-                    device_name,
-                    change,
-                    known_states,
-                    &mut needed_states,
-                )
-                .await;
+                apply_change_to_needed(device_name, change, &mut needed_states);
 
                 // When there hasn't been a new change in 100 ms, we will timeout
                 // and send the accumulated changes
@@ -48,7 +44,7 @@ pub(super) async fn handle(
                 // Send the accumulated changes and get the timeout for resending
                 call_at_least_in = send_diff_get_timeout(
                     known_states,
-                    &mut needed_states,
+                    &needed_states,
                     mqtt,
                 )
                 .await
@@ -66,7 +62,7 @@ pub(super) async fn handle(
 #[instrument(skip_all)]
 async fn send_diff_get_timeout(
     known_states: &RwLock<HashMap<String, Box<dyn Device>>>,
-    needed_states: &mut HashMap<String, Box<dyn Device>>,
+    needed_states: &HashMap<String, Box<dyn Device>>,
     mqtt: &mut Mqtt,
 ) -> Duration {
     let known_states = known_states.read().await;
@@ -105,25 +101,18 @@ async fn send_diff_get_timeout(
         .unwrap_or(Duration::MAX)
 }
 
-#[instrument(skip(known_states, needed_states))]
-async fn apply_change_to_needed(
+#[instrument(skip(needed_states))]
+fn apply_change_to_needed(
     device_name: String,
     change: Property,
-    known_states: &RwLock<HashMap<String, Box<dyn Device>>>,
     needed_states: &mut HashMap<String, Box<dyn Device>>,
 ) {
-    let known_states = known_states.read().await;
-
-    let Some(known) = known_states.get(&device_name) else {
+    let Some(needed) = needed_states.get(&device_name) else {
         error!("Unknown device name, not applying change!");
         return;
     };
 
-    let mut needed = match needed_states.get(&device_name) {
-        Some(needed) => needed.clone(),
-        None => known.clone(),
-    };
-
+    let mut needed = needed.clone();
     needed.apply(change);
     needed_states.insert(device_name, needed.clone());
 }

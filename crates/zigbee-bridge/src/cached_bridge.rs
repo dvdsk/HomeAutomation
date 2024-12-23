@@ -34,6 +34,7 @@ pub(super) async fn run(
     options.set_clean_start(false);
 
     let known_states = RwLock::new(init_states());
+    let needed_states = init_states();
 
     // Reconnecting to broker is handled by Eventloop::poll
     let channel_capacity = 128;
@@ -58,8 +59,12 @@ pub(super) async fn run(
 
     trace!("Starting main zigbee management loops");
     let poll_mqtt = poll::poll_mqtt(eventloop, &known_states);
-    let handle_changes =
-        changes::handle(change_receiver, &mut mqtt, &known_states);
+    let handle_changes = changes::handle(
+        change_receiver,
+        &mut mqtt,
+        &known_states,
+        needed_states,
+    );
 
     tokio::select! {
         () = handle_changes => unreachable!("should not panic"),
