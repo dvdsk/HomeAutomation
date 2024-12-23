@@ -22,11 +22,13 @@ const CHANGE_ACCUMULATION_TIME: Duration = Duration::from_millis(100);
 pub(super) async fn run(
     mqtt_ip: IpAddr,
     change_receiver: mpsc::UnboundedReceiver<(String, Property)>,
+    name: String,
 ) -> ! {
-    let mut options =
-        MqttOptions::new("ha-lightcontroller", mqtt_ip.to_string(), MQTT_PORT);
+    // The id string must be random or subscribe does not work
+    let id = name + " " + &rand::random::<usize>().to_string();
+    let mut options = MqttOptions::new(id, mqtt_ip.to_string(), MQTT_PORT);
     // Set max mqtt packet size to 4kB
-    options.set_max_packet_size(Some(4096));
+    options.set_max_packet_size(Some(8192));
     // Keep subscriptions when reconnecting!!!!
     options.set_clean_start(false);
 

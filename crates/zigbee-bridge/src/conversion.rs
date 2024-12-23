@@ -49,17 +49,3 @@ fn xyz_to_xy(xyz: XYZ) -> (f64, f64) {
     let [x, y, z] = xyz.values();
     (x / (x + y + z), y / (x + y + z))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[ignore]
-    #[test]
-    fn temp_to_xy_works() {
-        dbg!(temp_to_xy(2200));
-        dbg!(temp_to_xy(2500));
-        dbg!(temp_to_xy(3000));
-        dbg!(temp_to_xy(4000));
-    }
-}

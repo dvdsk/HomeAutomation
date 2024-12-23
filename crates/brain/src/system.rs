@@ -18,7 +18,7 @@ impl System {
     pub fn init(mqtt_ip: IpAddr, jobs: Jobs) -> Self {
         Self {
             jobs,
-            lights_new: Controller::start_bridge(mqtt_ip),
+            lights_new: Controller::start_bridge(mqtt_ip, "brain"),
             // mpd: Mpd,
         }
     }

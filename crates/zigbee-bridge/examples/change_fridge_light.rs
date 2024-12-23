@@ -1,12 +1,14 @@
-use crate::Controller;
+use zigbee_bridge::Controller;
 use std::time::Duration;
 
-#[ignore]
-#[tokio::test]
-async fn change_fridge_light() {
-    std::env::set_var("RUST_LOG", "brain=trace,zigbee_bridge=trace,info");
-    let controller =
-        Controller::start_bridge("192.168.1.43".parse().unwrap());
+#[tokio::main]
+async fn main() {
+    logger::tracing::setup_for_tests();
+
+    let controller = Controller::start_bridge(
+        "192.168.1.43".parse().unwrap(),
+        "test change fridge light",
+    );
     let light = "kitchen:fridge";
 
     println!("Setting to on, 2200");
@@ -28,19 +30,6 @@ async fn change_fridge_light() {
 
     println!("Setting bri to 1.0");
     controller.set_brightness(light, 1.0);
-
-    let () = std::future::pending().await;
-    unreachable!();
-}
-
-#[tokio::test]
-async fn change_radiator_temp() {
-    std::env::set_var("RUST_LOG", "brain=trace,zigbee_bridge=trace,info");
-    let controller =
-        Controller::start_bridge("192.168.1.43".parse().unwrap());
-    let radiator = "small_bedroom:radiator";
-
-    controller.set_radiator_setpoint(radiator, 22.);
 
     let () = std::future::pending().await;
     unreachable!();

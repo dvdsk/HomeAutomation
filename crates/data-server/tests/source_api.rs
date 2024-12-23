@@ -22,10 +22,12 @@ enum Done {
     Test,
 }
 
-const TEST_READING: Reading =
-    Reading::LargeBedroom(large_bedroom::Reading::Bed(bed::Reading::NumberPm2_5(0.0)));
-const TEST_AFFECTOR: Affector =
-    Affector::LargeBedroom(large_bedroom::Affector::Bed(bed::Affector::ResetNode));
+const TEST_READING: Reading = Reading::LargeBedroom(
+    large_bedroom::Reading::Bed(bed::Reading::NumberPm2_5(0.0)),
+);
+const TEST_AFFECTOR: Affector = Affector::LargeBedroom(
+    large_bedroom::Affector::Bed(bed::Affector::ResetNode),
+);
 
 async fn run_server(
     client_addr: impl Into<SocketAddr>,
@@ -107,7 +109,7 @@ async fn list_affectors_inner(sub_port: u16) -> Result<Done> {
 
 #[tokio::test]
 async fn subscribe_and_receive() {
-    setup_tracing();
+    logger::tracing::setup_for_tests();
 
     let sub_port = reserve_port::ReservedPort::random().unwrap();
     let data_port = reserve_port::ReservedPort::random().unwrap();
@@ -121,7 +123,7 @@ async fn subscribe_and_receive() {
 
 #[tokio::test]
 async fn list_affectors() {
-    setup_tracing();
+    logger::tracing::setup_for_tests();
 
     let sub_port = reserve_port::ReservedPort::random().unwrap();
     let data_port = reserve_port::ReservedPort::random().unwrap();
@@ -156,10 +158,11 @@ async fn recv_affector_order(data_port: u16) -> Result<Done> {
     .await
     .unwrap();
 
-    let affector_order = tokio::time::timeout(Duration::from_secs(1), rx.recv())
-        .await
-        .unwrap()
-        .unwrap();
+    let affector_order =
+        tokio::time::timeout(Duration::from_secs(1), rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
 
     assert_eq!(affector_order, TEST_AFFECTOR);
 
@@ -168,7 +171,7 @@ async fn recv_affector_order(data_port: u16) -> Result<Done> {
 
 #[tokio::test]
 async fn recv_affector() {
-    setup_tracing();
+    logger::tracing::setup_for_tests();
 
     let sub_port = reserve_port::ReservedPort::random().unwrap();
     let data_port = reserve_port::ReservedPort::random().unwrap();
@@ -178,27 +181,4 @@ async fn recv_affector() {
         e = trigger_affector(sub_port.port()) => e,
     };
     assert_eq!(res.unwrap(), Done::Test);
-}
-
-fn setup_tracing() {
-    // use std::sync::Once;
-    // use tracing_error::ErrorLayer;
-    // use tracing_subscriber::{self, layer::SubscriberExt, util::SubscriberInitExt, Layer};
-    //
-    // static INIT: Once = Once::new();
-    //
-    // INIT.call_once(|| {
-    //     color_eyre::install().unwrap();
-    //
-    //     let file_subscriber = tracing_subscriber::fmt::layer()
-    //         .with_file(true)
-    //         .with_line_number(true)
-    //         .with_target(false)
-    //         .with_ansi(false)
-    //         .with_filter(tracing_subscriber::filter::EnvFilter::from_default_env());
-    //     tracing_subscriber::registry()
-    //         .with(file_subscriber)
-    //         .with(ErrorLayer::default())
-    //         .init();
-    // })
 }

@@ -31,7 +31,7 @@ pub(super) async fn handle(
                 let (device_name, change) =
                     update.expect("Channel should never close");
 
-                trace!("Received change: {change:?} for device {device_name}");
+                tracing::info!("Received change order: {change:?} for device {device_name}");
                 apply_change_to_needed(
                     device_name,
                     change,
@@ -105,7 +105,7 @@ async fn send_diff_get_timeout(
         .unwrap_or(Duration::MAX)
 }
 
-#[instrument(skip_all)]
+#[instrument(skip(known_states, needed_states))]
 async fn apply_change_to_needed(
     device_name: String,
     change: Property,
@@ -115,9 +115,7 @@ async fn apply_change_to_needed(
     let known_states = known_states.read().await;
 
     let Some(known) = known_states.get(&device_name) else {
-        error!(
-            "Unknown device name {device_name}, not applying change {change:?}!"
-        );
+        error!("Unknown device name, not applying change!");
         return;
     };
 

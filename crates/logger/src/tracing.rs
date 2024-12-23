@@ -1,18 +1,36 @@
 use std::time::Duration;
 
-use tracing::level_filters::LevelFilter;
-
 use crate::ratelimited;
+
+use tracing::level_filters::LevelFilter;
+use tracing_error::ErrorLayer;
+use tracing_subscriber::filter;
+use tracing_subscriber::fmt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::Layer;
+use tracing_subscriber::{self, layer::SubscriberExt};
 
 /// # WARNING
 /// part of the filter syntax is broken (sad)
 /// see: https://github.com/tokio-rs/tracing/issues/1181
 ///
 /// ## what does work
-/// Filter directives like: `crate::module::submodule=trace,crate::module=info,error`
+///
+/// ### log everything in module:
+/// Filter directives like:
+/// `RUST_LOG=crate::module::submodule=trace,crate::module=info,error`
 /// which logs everything in `submodule`, in `module` things are logged at level
 /// info, warn or error and for the rest of the crate and all dependencies only
 /// errors are logged
+///
+/// ### log everything in function
+/// RUST_LOG='[function_name]=trace'
+///
+/// ### Print if argument matches regex:
+/// you can do this with: RUST_LOG='[{topic=.*small_bedroom:piano.*}]=trace,info'
+/// that will print every log at trace level or higher that is inside an
+/// instrumented function with an argument topic for which the regex
+/// .*small_bedroom.* evaluates as true
 ///
 /// ## what should work but only does so sporadically
 /// Filter directives allowing you to match field values (values recorded by for
@@ -42,12 +60,6 @@ use crate::ratelimited;
 ///
 /// for full docs see: https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html
 pub fn setup() {
-    use tracing_error::ErrorLayer;
-    use tracing_subscriber::filter;
-    use tracing_subscriber::fmt;
-    use tracing_subscriber::util::SubscriberInitExt;
-    use tracing_subscriber::{self, layer::SubscriberExt};
-
     let env_filter = filter::EnvFilter::builder()
         .with_regex(true)
         .try_from_env()
@@ -75,7 +87,6 @@ pub fn setup() {
 
     let registry =
         tracing_subscriber::Registry::default().with(ErrorLayer::default());
-    use tracing_subscriber::Layer;
 
     if libsystemd::logging::connected_to_journal() {
         match tracing_journald::layer() {
@@ -105,4 +116,57 @@ pub fn setup() {
             .init();
         tracing::info!("Started logging & tracing to stderr");
     }
+}
+
+pub fn setup_unlimited() {
+    let env_filter = filter::EnvFilter::builder()
+        .with_regex(true)
+        .try_from_env()
+        .unwrap_or_else(|_| {
+            filter::EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .parse_lossy("")
+        });
+
+    let fmt = fmt::layer()
+        .pretty()
+        .with_writer(std::io::stderr) // to stderr as to not disrupt TUI's
+        .with_file(true)
+        .with_line_number(true)
+        .with_target(false)
+        .with_ansi(true);
+
+    tracing_subscriber::Registry::default()
+        .with(ErrorLayer::default())
+        .with(fmt.with_filter(env_filter))
+        .init();
+}
+
+pub fn setup_for_tests() {
+    use std::sync::Once;
+    use tracing_error::ErrorLayer;
+    use tracing_subscriber::{
+        self, layer::SubscriberExt, util::SubscriberInitExt, Layer,
+    };
+
+    static INIT: Once = Once::new();
+
+    INIT.call_once(|| {
+        color_eyre::install().unwrap();
+
+        let file_subscriber = tracing_subscriber::fmt::layer()
+            .with_test_writer()
+            .with_file(true)
+            .with_line_number(true)
+            .with_target(false)
+            .with_ansi(true)
+            .pretty()
+            .with_filter(
+                tracing_subscriber::filter::EnvFilter::from_default_env(),
+            );
+        tracing_subscriber::registry()
+            .with(file_subscriber)
+            .with(ErrorLayer::default())
+            .init();
+    })
 }

@@ -22,3 +22,7 @@ logger = { workspace = true }
 color-eyre.workspace = true
 itertools = "0.13.0"
 regex = "1.11.1"
+rand = "0.8.5"
+
+[dev-dependencies]
+logger.workspace = true

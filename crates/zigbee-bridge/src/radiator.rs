@@ -2,7 +2,7 @@ use std::{collections::HashMap, str::FromStr};
 
 use serde_json::json;
 use strum::{EnumDiscriminants, EnumIter, IntoEnumIterator};
-use tracing::error;
+use tracing::{error, instrument};
 
 use crate::{
     conversion::{round_to_half, times_100_int},
@@ -57,6 +57,7 @@ impl Device for Radiator {
         Box::new(self.clone())
     }
 
+    #[instrument]
     fn apply(&mut self, change: Property) {
         let Property::Radiator(change) = change else {
             error!(

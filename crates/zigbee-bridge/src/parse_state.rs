@@ -1,7 +1,7 @@
 use color_eyre::eyre::{bail, Context, OptionExt, Report};
 use color_eyre::Section;
 use serde_json::Value;
-use tracing::error;
+use tracing::instrument;
 
 use crate::conversion::{mired_to_kelvin, normalize};
 use crate::device::Property;
@@ -9,6 +9,7 @@ use crate::lamp::LampProperty;
 use crate::radiator::RadiatorProperty;
 use crate::{light_names, RADIATOR_NAMES};
 
+#[instrument(skip(bytes))]
 pub(super) fn parse_properties(
     device_name: &str,
     bytes: &[u8],
@@ -18,9 +19,7 @@ pub(super) fn parse_properties(
     } else if RADIATOR_NAMES.contains(&device_name) {
         parse_radiator_properties(bytes)
     } else {
-        error!("Unknown device name {device_name}, could not parse properties");
-        // TODO make actual error
-        return Ok(Vec::new());
+        bail!("Unknown device name, could not parse properties");
     }
 }
 
@@ -62,6 +61,7 @@ fn parse_radiator_properties(bytes: &[u8]) -> Result<Vec<Property>, Report> {
         list.push(RadiatorProperty::SetByMethod(set_method).into());
     }
 
+    tracing::info!("list: {list:?}");
     Ok(list)
 }
 

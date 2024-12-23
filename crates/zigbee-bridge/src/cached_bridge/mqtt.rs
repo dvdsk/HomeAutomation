@@ -4,7 +4,7 @@ use std::time::Instant;
 use rumqttc::v5::mqttbytes::QoS;
 use rumqttc::v5::{AsyncClient, ClientError};
 use serde_json::json;
-use tracing::{trace, warn};
+use tracing::{instrument, trace, warn};
 
 use crate::device::{Property, PropertyDiscriminants};
 
@@ -13,10 +13,8 @@ use super::TIME_IT_TAKES_TO_APPLY_CHANGE;
 pub(super) struct Mqtt {
     client: AsyncClient,
     // TODO: extract into SendTracker struct?
-    last_sent: HashMap<
-        String,
-        HashMap<PropertyDiscriminants, (Instant, Property)>,
-    >,
+    last_sent:
+        HashMap<String, HashMap<PropertyDiscriminants, (Instant, Property)>>,
 }
 
 impl Mqtt {
@@ -54,11 +52,7 @@ impl Mqtt {
             .min()
     }
 
-    fn change_next_due(
-        &self,
-        device_name: &str,
-        change: &Property,
-    ) -> Instant {
+    fn change_next_due(&self, device_name: &str, change: &Property) -> Instant {
         let Some(device_send_record) = self.last_sent.get(device_name) else {
             // lamp has never been sent before
             return Instant::now();
@@ -123,6 +117,7 @@ impl Mqtt {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     async fn set(
         &self,
         friendly_name: &str,
@@ -130,7 +125,7 @@ impl Mqtt {
     ) -> Result<(), ClientError> {
         let topic = format!("zigbee2mqtt/{friendly_name}/set");
 
-        trace!("Sending payload {payload} to device {friendly_name}");
+        trace!("Sending");
         self.publish(&topic, payload).await?;
         Ok(())
     }
@@ -146,6 +141,7 @@ impl Mqtt {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     async fn publish(
         &self,
         topic: &str,
@@ -156,9 +152,7 @@ impl Mqtt {
             ..Default::default()
         };
 
-        if topic.contains("small_bedroom:piano") {
-            warn!("ZB to MQTT (piano): {payload}");
-        }
+        trace!("publishing");
         self.client
             .publish_with_properties(
                 topic,

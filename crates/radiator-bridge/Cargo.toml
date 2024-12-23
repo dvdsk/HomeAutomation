@@ -1,0 +1,17 @@
+[package]
+name = "radiator-bridge"
+version = "0.1.0"
+rust-version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+protocol = { workspace = true, features = ["alloc"] }
+data-server = { workspace = true }
+zigbee-bridge = { workspace = true }
+
+tokio = { workspace = true }
+clap = { workspace = true }
+logger = { workspace = true }
+tracing = { workspace = true }

@@ -14,8 +14,6 @@ mod device;
 pub(crate) mod lamp;
 mod parse_state;
 mod radiator;
-#[cfg(test)]
-mod tests;
 
 const MQTT_PORT: u16 = 1883;
 const LIGHT_MODELS: [(&str, Model); 16] = [
@@ -50,10 +48,10 @@ pub struct Controller {
 
 impl Controller {
     #[must_use]
-    pub fn start_bridge(mqtt_ip: IpAddr) -> Self {
+    pub fn start_bridge(mqtt_ip: IpAddr, name: &str) -> Self {
         let (change_sender, change_receiver) = mpsc::unbounded_channel();
 
-        let run_bridge = cached_bridge::run(mqtt_ip, change_receiver);
+        let run_bridge = cached_bridge::run(mqtt_ip, change_receiver, name.to_string());
         trace!("Spawning zigbee bridge task");
         tokio::task::spawn(run_bridge);
 

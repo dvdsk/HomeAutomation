@@ -26,7 +26,7 @@ struct Opt {
     #[clap(long)]
     mpd_ip: IpAddr,
 
-    /// http api listens on this port at 127.0.0.1 use
+    /// http API listens on this port at 127.0.0.1 use
     /// a loadbalancer/reverse proxy to get traffic to this
     #[clap(long)]
     http_port: u16,

@@ -46,6 +46,7 @@ pub(super) async fn poll_mqtt(
     }
 }
 
+#[instrument(skip(known_states))]
 async fn update_state(
     known_states: &RwLock<HashMap<String, Box<dyn Device>>>,
     device_name: &str,
@@ -53,31 +54,11 @@ async fn update_state(
 ) {
     let mut known_states = known_states.write().await;
     let Some(current_device) = known_states.get_mut(device_name) else {
-        error!("Trying to update state for unknown device: {device_name}, ignoring!");
+        error!("Trying to update state for unknown device, ignoring!");
         return;
     };
+    trace!("applying properties");
     for property in new {
-        if device_name == "small_bedroom:piano" {
-            if let Property::Lamp(lamp_prop) = property {
-                match lamp_prop {
-                    LampProperty::Brightness(bri) => {
-                        warn!("ZB received piano brightness change: {bri}");
-                    }
-                    LampProperty::ColorXY(xy) => {
-                        warn!("ZB received piano color change: {xy:?}");
-                    }
-                    LampProperty::Online(new_online) => {
-                        if new_online != current_device.is_online() {
-                            warn!(
-                                "ZB received piano online change: {new_online}"
-                            );
-                        }
-                    }
-                    _ => (),
-                }
-            }
-        }
-
         current_device.apply(property);
     }
 }
@@ -92,9 +73,7 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
         return Ok(Message::Other);
     };
 
-    trace!("message: {message:?}");
     let topic: &str = &String::from_utf8_lossy(&message.topic);
-
     match topic {
         "zigbee2mqtt/bridge/event" => {
             let json: Value = serde_json::from_slice(&message.payload)
