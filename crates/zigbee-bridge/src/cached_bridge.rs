@@ -18,6 +18,7 @@ const WAIT_FOR_INIT_STATES: Duration = Duration::from_millis(500);
 // the z2m queue from getting filled up
 const TIME_IT_TAKES_TO_APPLY_CHANGE: Duration = Duration::from_secs(10);
 const CHANGE_ACCUMULATION_TIME: Duration = Duration::from_millis(100);
+const MIN_TIME_BETWEEN_SENDS: Duration = Duration::from_millis(10);
 
 pub(super) async fn run(
     mqtt_ip: IpAddr,

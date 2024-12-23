@@ -4,11 +4,12 @@ use std::time::Instant;
 use rumqttc::v5::mqttbytes::QoS;
 use rumqttc::v5::{AsyncClient, ClientError};
 use serde_json::json;
+use tokio::time::sleep;
 use tracing::{instrument, trace, warn};
 
 use crate::device::{Property, PropertyDiscriminants};
 
-use super::TIME_IT_TAKES_TO_APPLY_CHANGE;
+use super::{MIN_TIME_BETWEEN_SENDS, TIME_IT_TAKES_TO_APPLY_CHANGE};
 
 pub(super) struct Mqtt {
     client: AsyncClient,
@@ -110,6 +111,7 @@ impl Mqtt {
                 for change in due_changes {
                     self.set(&device_name, change.payload().to_string())
                         .await?;
+                    sleep(MIN_TIME_BETWEEN_SENDS).await;
                 }
             }
         }
