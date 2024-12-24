@@ -31,7 +31,7 @@ pub(super) async fn poll_mqtt(
         let message = match parse_message(message) {
             Ok(message) => message,
             Err(err) => {
-                warn!("ZB error parsing mqtt message: {err}");
+                warn!("ZB error parsing mqtt message: {err:?}");
                 continue;
             }
         };
@@ -54,7 +54,7 @@ async fn update_state(
 ) {
     let mut known_states = known_states.write().await;
     let Some(current_device) = known_states.get_mut(device_name) else {
-        error!("Trying to update state for unknown device, ignoring!");
+        error!("Trying to update state for unknown device {device_name}, ignoring!");
         return;
     };
     trace!("applying properties");
@@ -97,7 +97,7 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
             let topic: Vec<_> = topic.split('/').collect();
             let device_name = topic[1].to_string();
             let state = parse_properties(&device_name, &message.payload)
-                .wrap_err("failed to parse lamp state")
+                .wrap_err("failed to parse device state")
                 .with_note(|| format!("topic: {topic:?}"))?;
             Ok(Message::StateUpdate((device_name, state)))
         }

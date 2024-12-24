@@ -42,11 +42,15 @@ fn parse_radiator_properties(bytes: &[u8]) -> Result<Vec<Property>, Report> {
 
     if let Some(reference) = map
         .get("external_measured_room_sensor")
-        .map(json_to_usize)
+        .map(json_to_i64)
         .transpose()?
-        .map(|int| int as f64 / 100.)
     {
-        list.push(RadiatorProperty::Reference(reference).into());
+        if reference == -8000 {
+            list.push(RadiatorProperty::NoReference.into());
+        } else {
+            let reference = reference as f64 / 100.;
+            list.push(RadiatorProperty::Reference(reference).into());
+        }
     }
 
     if let Some(set_method) = map
@@ -151,6 +155,15 @@ fn json_to_u64(json: &Value) -> color_eyre::Result<u64> {
         .with_note(|| format!("got: {json:?}"))?
         .as_u64()
         .ok_or_eyre("Must be a positive integer")
+        .with_note(|| format!("got: {json:?}"))
+}
+
+fn json_to_i64(json: &Value) -> color_eyre::Result<i64> {
+    json.as_number()
+        .ok_or_eyre("Must be a number")
+        .with_note(|| format!("got: {json:?}"))?
+        .as_i64()
+        .ok_or_eyre("Must be an integer")
         .with_note(|| format!("got: {json:?}"))
 }
 

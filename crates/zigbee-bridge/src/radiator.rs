@@ -74,6 +74,9 @@ impl Device for Radiator {
             RadiatorProperty::Reference(reference) => {
                 self.reference = Some(reference)
             }
+            // Ignore radiator reporting reference expired, so we don't start
+            // sending an old value
+            RadiatorProperty::NoReference => (),
             RadiatorProperty::SetByMethod(set_method) => {
                 self.set_by_method = Some(set_method)
             }
@@ -145,6 +148,7 @@ pub(crate) enum RadiatorProperty {
     Online(bool),
     Setpoint(f64),
     Reference(f64),
+    NoReference,
     SetByMethod(SetMethod),
 }
 
@@ -177,6 +181,11 @@ impl RadiatorProperty {
             }
             RadiatorProperty::Reference(reference) => {
                 json!({"external_measured_room_sensor": times_100_int(reference) })
+            }
+            // read-only, shouldn't be called, safe default
+            RadiatorProperty::NoReference => {
+                error!("Tried to convert NoReference to payload");
+                json!({"state": ""})
             }
             // read-only, shouldn't be called, safe default
             RadiatorProperty::Online(_) => {

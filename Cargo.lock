@@ -473,6 +473,7 @@ dependencies = [
  "byteorder",
  "bytes",
  "clap",
+ "color-eyre",
  "data-server",
  "dbstruct",
  "futures",
