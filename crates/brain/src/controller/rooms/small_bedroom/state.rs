@@ -7,7 +7,7 @@ use tokio::task::{self, JoinHandle};
 use tokio::time::sleep;
 use tracing::warn;
 
-use super::{daylight_now, OFF_DELAY};
+use super::{daylight_now, is_nap_time, NAP_TIME, OFF_DELAY};
 use crate::controller::{Event, RestrictedSystem};
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -67,7 +67,9 @@ impl Room {
 
     pub(super) async fn to_nightlight(&mut self) {
         self.to_state_cancel_prev(State::Nightlight).await;
-        self.system.one_lamp_ct("small_bedroom:ceiling", 1800, 0.1).await;
+        self.system
+            .one_lamp_ct("small_bedroom:ceiling", 1800, 0.1)
+            .await;
         self.system.one_lamp_on("small_bedroom:ceiling").await;
     }
 
@@ -98,11 +100,18 @@ impl Room {
         sleep(OFF_DELAY).await;
         self.system.all_lamps_off().await;
         self.to_state(State::Sleep).await;
+
+        if is_nap_time() {
+            sleep(NAP_TIME).await;
+            self.to_state(State::Daylight).await;
+            self.all_lights_daylight().await;
+            self.system.all_lamps_on().await;
+        }
     }
 
     async fn run_wakeup_then_daylight(mut self) {
         const LIGHT_NAME: &str = "small_bedroom:piano";
-        const RUNTIME_MINS: i32 = 10;
+        const RUNTIME_MINS: i32 = 20;
         const STEP_SIZE_SECS: i32 = 30;
         const N_STEPS: i32 = RUNTIME_MINS * 60 / STEP_SIZE_SECS;
 

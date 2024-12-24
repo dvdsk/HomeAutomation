@@ -2,12 +2,14 @@ use std::time::Duration;
 
 use futures_concurrency::future::Race;
 use futures_util::FutureExt;
+use jiff::civil::Time;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
 use tracing::warn;
 
 use crate::controller::rooms::small_bedroom;
 use crate::controller::{Event, RestrictedSystem};
+use crate::time;
 
 #[derive(PartialEq, Eq)]
 enum State {
@@ -77,7 +79,11 @@ pub async fn run(
         match res {
             Res::Event(RelevantEvent::Sleep) => {
                 state = State::Sleep;
-                system.all_lamps_but_one_off("kitchen:hallway").await;
+                if small_bedroom::is_nap_time() {
+                    system.all_lamps_off().await;
+                } else {
+                    system.all_lamps_but_one_off("kitchen:hallway").await;
+                }
             }
             Res::Event(RelevantEvent::Daylight) => {
                 state = State::Daylight;
@@ -85,7 +91,7 @@ pub async fn run(
                 // TODO: only when LB also awake
                 // then turn all lamps off when SB sleep
                 system.all_lamps_on().await;
-            },
+            }
             Res::ShouldUpdate if state == State::Daylight => {
                 update(&mut system).await;
                 system.all_lamps_on().await;
