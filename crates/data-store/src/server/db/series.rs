@@ -43,18 +43,29 @@ struct Header {
     encoding: Vec<bitspec::Field<f32>>,
 }
 
+impl Header {
+    fn serialized(&self) -> Result<Vec<u8>> {
+        let config = ron::ser::PrettyConfig::new();
+        ron::ser::to_string_pretty(self, config)
+            .map(|s| s.into_bytes())
+            .wrap_err("Could not serialize header")
+    }
+}
+
 impl Series {
     #[instrument]
     fn open_or_create(reading: &protocol::Reading, dir: &Path) -> Result<Self> {
         let readings = reading.device().info().affects_readings;
         let specs = to_speclist(readings);
         let fields = bitspec::speclist_to_fields(specs);
-        let (meta_list, payload_size) = meta_list_and_payload_size(readings, &fields);
+        let (meta_list, payload_size) =
+            meta_list_and_payload_size(readings, &fields);
 
         let expected_header = Header {
             readings: readings.to_vec(),
             encoding: fields.clone(),
-        };
+        }
+        .serialized()?;
 
         let (resampler, configs) = resample_setup(&fields, payload_size);
 
@@ -68,9 +79,10 @@ impl Series {
 
         let byteseries = match res {
             Ok((byteseries, _)) => byteseries,
-            Err(Open(DataOpenError::File(FileOpenError::Io(e))))
-                if e.kind() == io::ErrorKind::NotFound =>
-            {
+            Err(Open(DataOpenError::File {
+                source: FileOpenError::Io(e),
+                ..
+            })) if e.kind() == io::ErrorKind::NotFound => {
                 if let Some(dirs) = path.parent() {
                     create_dir_all(dirs)
                         .wrap_err("Could not create dirs structure for reading")
@@ -87,7 +99,11 @@ impl Series {
                     .with_note(|| format!("path: {}", path.display()))
                     .map(|(db, _)| db)?
             }
-            Err(e) => return Err(e).wrap_err("Could not open existing byteseries")?,
+            Err(e) => {
+                return Err(e)
+                    .wrap_err("Could not open existing byteseries")
+                    .with_note(|| format!("path: {}", path.display()))?
+            }
         };
 
         Ok(Self {
@@ -168,7 +184,8 @@ impl Series {
         start: jiff::Timestamp,
         end: jiff::Timestamp,
         n: usize,
-    ) -> Result<(Vec<jiff::Timestamp>, Vec<Vec<f32>>), byteseries::series::Error> {
+    ) -> Result<(Vec<jiff::Timestamp>, Vec<Vec<f32>>), byteseries::series::Error>
+    {
         let device_info = readings
             .first()
             .expect("There is at least one reading to read")
@@ -224,7 +241,9 @@ impl Series {
             .len();
         let mut data = vec![Vec::new(); len];
         for interleaved in interleaved_data {
-            for (interleaved, data) in interleaved.into_iter().zip(data.iter_mut()) {
+            for (interleaved, data) in
+                interleaved.into_iter().zip(data.iter_mut())
+            {
                 data.push(interleaved);
             }
         }
@@ -257,7 +276,9 @@ fn meta_list_and_payload_size(
 /// Multiplying the time for this sample by this factor
 /// allows you to save the whole number and retain the required
 /// temporal_resolution and min_sample_interval.
-pub fn millis_to_minimal_representation(device_info: protocol::DeviceInfo) -> u64 {
+pub fn millis_to_minimal_representation(
+    device_info: protocol::DeviceInfo,
+) -> u64 {
     let needed_interval = device_info
         .temporal_resolution
         .min(device_info.min_sample_interval)
@@ -268,7 +289,11 @@ pub fn millis_to_minimal_representation(device_info: protocol::DeviceInfo) -> u6
 }
 
 #[instrument(level = "debug", skip(data))]
-pub(crate) async fn store(data: &Data, reading: &protocol::Reading, data_dir: &Path) -> Result<()> {
+pub(crate) async fn store(
+    data: &Data,
+    reading: &protocol::Reading,
+    data_dir: &Path,
+) -> Result<()> {
     let mut data = data.0.lock().await;
 
     let key = reading.device();
@@ -377,28 +402,36 @@ mod test {
 
     #[test]
     fn readings_from_same_device_have_same_path() {
-        let reading_a =
-            Reading::LargeBedroom(large_bedroom::Reading::Bed(bed::Reading::Temperature(0.0)));
-        let reading_b =
-            Reading::LargeBedroom(large_bedroom::Reading::Bed(bed::Reading::Humidity(0.0)));
+        let reading_a = Reading::LargeBedroom(large_bedroom::Reading::Bed(
+            bed::Reading::Temperature(0.0),
+        ));
+        let reading_b = Reading::LargeBedroom(large_bedroom::Reading::Bed(
+            bed::Reading::Humidity(0.0),
+        ));
 
         assert_eq!(base_path(&reading_a), base_path(&reading_b));
     }
 
     #[test]
     fn reading_path_different_between_locations() {
-        let reading_a =
-            Reading::LargeBedroom(large_bedroom::Reading::Bed(bed::Reading::Humidity(0.0)));
-        let reading_b =
-            Reading::LargeBedroom(large_bedroom::Reading::Desk(desk::Reading::Humidity(0.0)));
+        let reading_a = Reading::LargeBedroom(large_bedroom::Reading::Bed(
+            bed::Reading::Humidity(0.0),
+        ));
+        let reading_b = Reading::LargeBedroom(large_bedroom::Reading::Desk(
+            desk::Reading::Humidity(0.0),
+        ));
 
         assert_ne!(base_path(&reading_a), base_path(&reading_b));
     }
 
     #[test]
     fn reading_path_is_expected() {
-        let reading =
-            Reading::LargeBedroom(large_bedroom::Reading::Bed(bed::Reading::Humidity(0.0)));
-        assert_eq!(base_path(&reading), PathBuf::from("largebedroom/bed/sht31"));
+        let reading = Reading::LargeBedroom(large_bedroom::Reading::Bed(
+            bed::Reading::Humidity(0.0),
+        ));
+        assert_eq!(
+            base_path(&reading),
+            PathBuf::from("largebedroom/bed/sht31")
+        );
     }
 }
