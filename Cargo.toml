@@ -12,7 +12,7 @@ zigbee-bridge = { path = "crates/zigbee-bridge" }
 rpc = { path = "crates/rpc" }
 logger = { path = "crates/logger" }
 
-byteseries = { git = "https://github.com/dvdsk/byteseries", rev="90efa57d021d39bc9cb4d9151c3a88acdbe62e25" }
+byteseries = { git = "https://github.com/dvdsk/byteseries", rev="16d410071cb61a8e375183ca3ce0c7fbdefc9e6b" }
 
 tokio = "1.38"
 color-eyre = "0.6.3"

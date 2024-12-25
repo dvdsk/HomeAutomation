@@ -528,7 +528,7 @@ checksum = "325918d6fe32f23b19878fe4b34794ae41fc19ddbe53b10571a4874d44ffd39b"
 [[package]]
 name = "byteseries"
 version = "0.7.1"
-source = "git+https://github.com/dvdsk/byteseries?rev=90efa57d021d39bc9cb4d9151c3a88acdbe62e25#90efa57d021d39bc9cb4d9151c3a88acdbe62e25"
+source = "git+https://github.com/dvdsk/byteseries?rev=16d410071cb61a8e375183ca3ce0c7fbdefc9e6b#16d410071cb61a8e375183ca3ce0c7fbdefc9e6b"
 dependencies = [
  "arraydeque",
  "itertools 0.13.0",
