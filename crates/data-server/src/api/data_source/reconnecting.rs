@@ -1,5 +1,6 @@
 use futures_concurrency::future::Race;
 use protocol::Affector;
+use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, oneshot};
@@ -21,25 +22,56 @@ impl Drop for AbortOnDrop {
     }
 }
 
+enum QueuedItem {
+    Retry { item: SendItem, prev_err: SendError },
+    Fresh(SendItem),
+}
+
+struct SendQueue {
+    rx: mpsc::Receiver<SendItem>,
+    need_retry: VecDeque<(SendItem, SendError)>,
+}
+
+impl SendQueue {
+    async fn next(&mut self) -> QueuedItem {
+        if let Some((item, prev_err)) = self.need_retry.pop_front() {
+            QueuedItem::Retry { item, prev_err }
+        } else {
+            QueuedItem::Fresh(self.rx.recv().await.expect(
+                "this is canceled before the corrosponding sender is dropped",
+            ))
+        }
+    }
+
+    fn push(&mut self, needs_retry: SendItem, error: SendError) {
+        self.need_retry.push_back((needs_retry, error));
+    }
+}
+
+// Not cancel safe, should never be canceled
 async fn handle_conn(
     addr: SocketAddr,
     affectors: Vec<protocol::Affector>,
-    mut msgs_to_send: mpsc::Receiver<SendItem>,
+    msgs_to_send: mpsc::Receiver<SendItem>,
     msgs_recieved: Option<mpsc::Sender<Affector>>,
-) {
+) -> () {
+    let mut to_send = SendQueue {
+        rx: msgs_to_send,
+        need_retry: VecDeque::new(),
+    };
     loop {
         let mut retry_period = Duration::from_millis(200);
         let conn = reconnect(addr, &affectors, &mut retry_period).await;
 
         if let Some(ref msgs_recieved) = msgs_recieved {
             (
-                handle_sending(conn.sender, &mut msgs_to_send),
+                handle_sending(conn.sender, &mut to_send),
                 handle_recieving(conn.receiver, msgs_recieved),
             )
                 .race()
                 .await;
         } else {
-            handle_sending(conn.sender, &mut msgs_to_send).await;
+            handle_sending(conn.sender, &mut to_send).await;
         }
     }
 }
@@ -50,29 +82,34 @@ struct SendItem {
     deadline: Instant,
 }
 
-async fn handle_sending(
-    mut sender: super::Sender,
-    msgs_to_send: &mut mpsc::Receiver<SendItem>,
-) {
+async fn handle_sending(mut sender: super::Sender, to_send: &mut SendQueue) {
     loop {
-        let item = msgs_to_send.recv().await.expect(
-            "this is canceled before the corrosponding sender is dropped",
-        );
-        let res = if item.deadline.elapsed().is_zero() {
-            sender
-                .send_bytes(&item.bytes)
-                .await
-                .map_err(|e| e.to_string())
-                .map_err(SendError::Io)
-        } else {
-            Err(SendError::Outdated)
-        };
-        let _ignore_err = item.feedback.send(res.clone());
-        if let Err(e) = res {
-            tracing::error!("Error sending reading or sensor error: {e}");
-            return;
+        match to_send.next().await {
+            QueuedItem::Fresh(item) if item.deadline.elapsed().is_zero() => {
+                if let Err(err) = sender.send_bytes(&item.bytes).await {
+                    tracing::warn!("Error sending reading or sensor: {err}");
+                    to_send.push(item, SendError::Io(err.to_string()));
+                } else {
+                    let _ = item.feedback.send(Ok(()));
+                }
+            }
+            QueuedItem::Fresh(item) => {
+                let _ = item.feedback.send(Err(SendError::Outdated));
+            }
+            QueuedItem::Retry { item, .. }
+                if item.deadline.elapsed().is_zero() =>
+            {
+                if let Err(err) = sender.send_bytes(&item.bytes).await {
+                    tracing::warn!("Error sending reading or sensor: {err}");
+                    to_send.push(item, SendError::Io(err.to_string()));
+                } else {
+                    let _ = item.feedback.send(Ok(()));
+                }
+            }
+            QueuedItem::Retry { item, prev_err } => {
+                let _ = item.feedback.send(Err(prev_err));
+            }
         }
-        tracing::debug!("send bytes: {}", item.bytes.len());
     }
 }
 
