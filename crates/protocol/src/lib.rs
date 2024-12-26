@@ -58,7 +58,10 @@ impl Display for Unit {
     }
 }
 
-/// Is this the same variant as the other?
+/// Is this the same variant as the other? 
+/// Example:
+/// Temperature(5) is the same as Temperature(6)
 pub trait IsSameAs {
+    /// Is this the same variant as the other?
     fn is_same_as(&self, other: &Self) -> bool;
 }
