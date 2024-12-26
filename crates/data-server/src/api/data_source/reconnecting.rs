@@ -1,17 +1,17 @@
 use futures_concurrency::future::Race;
 use protocol::Affector;
 use std::net::SocketAddr;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, timeout};
 use tracing::{info, warn};
 
-use super::{ReceiveError, SendPreEncodedError};
+use super::SendPreEncodedError;
 
 pub struct Client {
     _conn_handler_task: AbortOnDrop,
-    to_send_tx: mpsc::Sender<(Vec<u8>, SendFeedback)>,
+    to_send_tx: mpsc::Sender<SendItem>,
 }
 
 struct AbortOnDrop(JoinHandle<()>);
@@ -21,11 +21,10 @@ impl Drop for AbortOnDrop {
     }
 }
 
-type SendFeedback = oneshot::Sender<Result<(), String>>;
 async fn handle_conn(
     addr: SocketAddr,
     affectors: Vec<protocol::Affector>,
-    mut msgs_to_send: mpsc::Receiver<(Vec<u8>, SendFeedback)>,
+    mut msgs_to_send: mpsc::Receiver<SendItem>,
     msgs_recieved: Option<mpsc::Sender<Affector>>,
 ) {
     loop {
@@ -33,69 +32,79 @@ async fn handle_conn(
         let conn = reconnect(addr, &affectors, &mut retry_period).await;
 
         if let Some(ref msgs_recieved) = msgs_recieved {
-            let res = (
+            (
                 handle_sending(conn.sender, &mut msgs_to_send),
                 handle_recieving(conn.receiver, msgs_recieved),
             )
                 .race()
                 .await;
-            match res {
-                SendOrRecvError::Sending(e) => tracing::error!("Error sending to data-server: {e}"),
-                SendOrRecvError::Recieving(e) => {
-                    tracing::error!("Error receiving order from data-server: {e}")
-                }
-            }
         } else {
             handle_sending(conn.sender, &mut msgs_to_send).await;
         }
     }
 }
 
-enum SendOrRecvError {
-    Sending(std::io::Error),
-    Recieving(ReceiveError),
+struct SendItem {
+    bytes: Vec<u8>,
+    feedback: oneshot::Sender<Result<(), SendError>>,
+    deadline: Instant,
 }
 
 async fn handle_sending(
     mut sender: super::Sender,
-    msgs_to_send: &mut mpsc::Receiver<(Vec<u8>, SendFeedback)>,
-) -> SendOrRecvError {
+    msgs_to_send: &mut mpsc::Receiver<SendItem>,
+) {
     loop {
-        let (msg, feedback_channel) = msgs_to_send
-            .recv()
-            .await
-            .expect("this is canceled before the corrosponding sender is dropped");
-        let res = sender.send_bytes(&msg).await;
-        let _ignore_err = feedback_channel.send(res.as_ref().map_err(|e| e.to_string()).copied());
+        let item = msgs_to_send.recv().await.expect(
+            "this is canceled before the corrosponding sender is dropped",
+        );
+        let res = if item.deadline.elapsed().is_zero() {
+            sender
+                .send_bytes(&item.bytes)
+                .await
+                .map_err(|e| e.to_string())
+                .map_err(SendError::Io)
+        } else {
+            Err(SendError::Outdated)
+        };
+        let _ignore_err = item.feedback.send(res.clone());
         if let Err(e) = res {
-            return SendOrRecvError::Sending(e);
+            tracing::error!("Error sending reading or sensor error: {e}");
+            return;
         }
-        tracing::debug!("send bytes: {}", msg.len());
+        tracing::debug!("send bytes: {}", item.bytes.len());
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum SendError {
-    #[error("Error while sending data to data-server: {0}")]
-    Sending(String),
+    #[error("Io error while sending data to data-server: {0}")]
+    Io(String),
     #[error(
         "Sending the data was aborted, probably due to \
         reconnect due to failed recieve"
     )]
     Aborted,
     /// returns the encoded message that you tried to send
-    #[error("Sender queue is full, it has probably been disconnected for a while")]
+    #[error(
+        "Sender queue is full, it has probably been disconnected for a while"
+    )]
     Overloaded { bytes: Vec<u8> },
+    #[error("Could not send in time (deadline expired)")]
+    Outdated,
 }
 
 async fn handle_recieving(
     mut receiver: super::Receiver,
     msgs_recieved: &mpsc::Sender<Affector>,
-) -> SendOrRecvError {
+) {
     loop {
         let msg = match receiver.receive().await {
             Ok(msg) => msg,
-            Err(err) => return SendOrRecvError::Recieving(err),
+            Err(err) => {
+                tracing::error!("Error receiving affector orders: {err}");
+                return;
+            }
         };
 
         tracing::debug!("recv item: {msg:?}");
@@ -127,7 +136,9 @@ impl Client {
             .map_err(|e| e.to_string())
             .map_err(InvalidAddress)?
             .next()
-            .ok_or_else(|| InvalidAddress("No address passed in".to_string()))?;
+            .ok_or_else(|| {
+                InvalidAddress("No address passed in".to_string())
+            })?;
 
         let (to_send_tx, to_send_rx) = mpsc::channel(100);
         let task = handle_conn(addr, affectors, to_send_rx, affector_tx);
@@ -138,18 +149,28 @@ impl Client {
         })
     }
 
-    async fn send_bytes(&mut self, bytes: Vec<u8>) -> Result<(), SendError> {
+    async fn send_bytes(
+        &mut self,
+        bytes: Vec<u8>,
+        deadline: Instant,
+    ) -> Result<(), SendError> {
         let (tx, rx) = oneshot::channel();
-        match self.to_send_tx.try_send((bytes, tx)) {
+        match self.to_send_tx.try_send(SendItem {
+            bytes,
+            feedback: tx,
+            deadline,
+        }) {
             Ok(()) => (),
-            Err(mpsc::error::TrySendError::Full((bytes, _))) => {
-                return Err(SendError::Overloaded { bytes })
+            Err(mpsc::error::TrySendError::Full(SendItem {
+                bytes, ..
+            })) => return Err(SendError::Overloaded { bytes }),
+            Err(mpsc::error::TrySendError::Closed(_)) => {
+                panic!("re-connect loop should never end")
             }
-            Err(mpsc::error::TrySendError::Closed(_)) => panic!("re-connect loop should never end"),
         }
         match rx.await {
             Ok(Ok(())) => Ok(()),
-            Ok(Err(send)) => Err(SendError::Sending(send)),
+            Ok(Err(send_error)) => Err(send_error),
             Err(_) => Err(SendError::Aborted),
         }
     }
@@ -158,7 +179,13 @@ impl Client {
     /// This is cancel safe however the connection will need to be re-established
     /// the next time its called. This will retry forever, you should call this
     /// in a timeout future if that is a problem.
-    pub async fn send_reading(&mut self, reading: protocol::Reading) -> Result<(), SendError> {
+    pub async fn send_reading(
+        &mut self,
+        reading: protocol::Reading,
+    ) -> Result<(), SendError> {
+        let deadline =
+            Instant::now() + reading.device().info().temporal_resolution;
+
         let mut readings = protocol::SensorMessage::<1>::default();
         readings
             .values
@@ -167,23 +194,46 @@ impl Client {
         let msg = protocol::Msg::Readings(readings);
         let bytes = msg.encode();
 
-        self.send_bytes(bytes).await
+        self.send_bytes(bytes, deadline).await
     }
 
+    const ERROR_REPORT_SEND_DEADLINE: Duration = Duration::from_secs(60 * 15);
     /// # Cancel safety
     /// This is cancel safe however the connection will need to be re-established
     /// the next time its called. This will retry forever, you should call this
     /// in a timeout future if that is a problem.
-    pub async fn send_error(&mut self, report: protocol::Error) -> Result<(), SendError> {
-        let msg = protocol::Msg::<1>::ErrorReport(protocol::ErrorReport::new(report));
+    ///
+    /// # Warning
+    /// Message is not send if it could not be send within 15 minutes. Client
+    /// should re-send the error then.
+    pub async fn send_error(
+        &mut self,
+        report: protocol::Error,
+    ) -> Result<(), SendError> {
+        let msg =
+            protocol::Msg::<1>::ErrorReport(protocol::ErrorReport::new(report));
         let bytes = msg.encode();
 
-        self.send_bytes(bytes).await
+        self.send_bytes(
+            bytes,
+            Instant::now() + Self::ERROR_REPORT_SEND_DEADLINE,
+        )
+        .await
     }
 
-    pub async fn check_send_encoded(&mut self, msg: Vec<u8>) -> Result<(), SendPreEncodedError> {
-        protocol::Msg::<50>::decode(msg.to_vec()).map_err(SendPreEncodedError::EncodingCheck)?;
-        self.send_bytes(msg)
+    pub async fn check_send_encoded(
+        &mut self,
+        msg: Vec<u8>,
+    ) -> Result<(), SendPreEncodedError> {
+        let decoded = protocol::Msg::<50>::decode(msg.to_vec())
+            .map_err(SendPreEncodedError::EncodingCheck)?;
+        let deadline = match decoded {
+            protocol::Msg::Readings(sensor_message) => sensor_message.values.iter().map(|v| v.device().info().temporal_resolution).min().expect("empty sensormessages are forbidden"),
+            protocol::Msg::ErrorReport(_) => Self::ERROR_REPORT_SEND_DEADLINE,
+            protocol::Msg::AffectorList(_) => unreachable!("send by client on reconnect only, never send by user of client"),
+        };
+
+        self.send_bytes(msg, Instant::now() + deadline)
             .await
             .map_err(SendPreEncodedError::Sending)
     }

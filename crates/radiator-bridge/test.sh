@@ -11,6 +11,9 @@
 # Print if in function:
 # RUST_LOG='[function_name]=trace'
         
-RUST_LOG='[parse_message]=trace,[{device_name=.*:radi.*}]=trace,[{friendly_name=.*:radi.*}]=trace,info' cargo r -- \
-	--data-server=192.168.1.43:1235 \
+# RUST_LOG='[parse_message]=trace,[{device_name=.*:radi.*}]=trace,[{friendly_name=.*:radi.*}]=trace,info' 
+
+RUST_LOG=data_server=trace cargo r -- \
+	--data-server-subscribe=192.168.1.43:1235 \
+	--data-server-update=192.168.1.43:1234 \
 	--mqtt-ip=192.168.1.43

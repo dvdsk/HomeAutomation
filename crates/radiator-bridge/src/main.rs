@@ -14,7 +14,11 @@ use zigbee_bridge::Controller;
 struct Opt {
     /// IP address where to subscribe for updates
     #[clap(long)]
-    data_server: SocketAddr,
+    data_server_subscribe: SocketAddr,
+
+    /// IP address where to send readings
+    #[clap(long)]
+    data_server_update: SocketAddr,
 
     /// IP address for MQTT broker
     #[clap(long)]
@@ -76,13 +80,13 @@ async fn main() {
     logger::tracing::setup_unlimited();
 
     let mut data_subscriber = subscriber::ReconnectingClient::new(
-        args.data_server,
+        args.data_server_subscribe,
         env!("CARGO_PKG_NAME").to_owned(),
     )
     .subscribe();
 
     let mut data_source = data_source::reconnecting::Client::new(
-        args.data_server,
+        args.data_server_update,
         Vec::new(),
         None,
     )

@@ -61,7 +61,7 @@ impl Subscribed {
     pub async fn next(
         &mut self,
     ) -> Result<subscriber::SubMessage, Error<subscriber::SubscribeError>> {
-        let received = self.0 .0.next().await?;
+        let received = self.0.0.next().await?;
 
         if let subscriber::Response::SubUpdate(update) = received {
             Ok(update)
