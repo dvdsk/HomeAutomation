@@ -15,9 +15,14 @@ use series::Series;
 
 use crate::api;
 
-pub(crate) async fn run(data_server_addr: SocketAddr, data: Data, data_dir: &Path) -> Result<()> {
+pub(crate) async fn run(
+    data_server_addr: SocketAddr,
+    data: Data,
+    data_dir: &Path,
+) -> Result<()> {
     let mut sub =
-        ReconnectingClient::new(data_server_addr, "ha-data-store".to_string()).subscribe();
+        ReconnectingClient::new(data_server_addr, "ha-data-store".to_string())
+            .subscribe();
 
     let mut recently_logged = (Instant::now(), String::new());
     loop {
@@ -32,11 +37,12 @@ pub(crate) async fn run(data_server_addr: SocketAddr, data: Data, data_dir: &Pat
 
         const FIVE_MIN: Duration = Duration::from_secs(60 * 5);
         if let Err(report) = res {
-            let e = format!("got error with report: {report:?}");
-            if recently_logged.1 == e && recently_logged.0.elapsed() <= FIVE_MIN {
+            let e = format!("{report:?}");
+            if recently_logged.1 == e && recently_logged.0.elapsed() <= FIVE_MIN
+            {
                 continue;
             } else {
-                tracing::error!("Error processing new reading: {e}");
+                tracing::error!("Error processing new reading {reading:?},\nerror: {e}");
                 recently_logged = (Instant::now(), e);
             }
         }
@@ -44,7 +50,9 @@ pub(crate) async fn run(data_server_addr: SocketAddr, data: Data, data_dir: &Pat
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct Data(pub(crate) Arc<Mutex<HashMap<protocol::Device, Series>>>);
+pub(crate) struct Data(
+    pub(crate) Arc<Mutex<HashMap<protocol::Device, Series>>>,
+);
 
 impl Data {
     pub(crate) async fn list(&self) -> Vec<protocol::Reading> {
@@ -68,21 +76,30 @@ impl Data {
 
         let key = reading.device();
         let mut all_series = self.0.lock().await;
-        let series = all_series
-            .get_mut(&key)
-            .ok_or_else(|| api::GetDataError::NotInStore {
+        let series = all_series.get_mut(&key).ok_or_else(|| {
+            api::GetDataError::NotInStore {
                 reading: reading.clone(),
-            })?;
+            }
+        })?;
 
-        let (time, mut data) = series
-            .read(&[reading], start, end, n)
-            .map_err(|e| match e {
-                Be::InvalidRange(Se::NotFound) => api::GetDataError::NotFound,
-                Be::InvalidRange(Se::EmptyFile) => api::GetDataError::EmptyFile,
-                Be::InvalidRange(Se::StartAfterData) => api::GetDataError::StartAfterData,
-                Be::InvalidRange(Se::StopBeforeData) => api::GetDataError::StopBeforeData,
-                _ => api::GetDataError::ReadingFromStore(e.to_string()),
-            })?;
+        let (time, mut data) =
+            series
+                .read(&[reading], start, end, n)
+                .map_err(|e| match e {
+                    Be::InvalidRange(Se::NotFound) => {
+                        api::GetDataError::NotFound
+                    }
+                    Be::InvalidRange(Se::EmptyFile) => {
+                        api::GetDataError::EmptyFile
+                    }
+                    Be::InvalidRange(Se::StartAfterData { .. }) => {
+                        api::GetDataError::StartAfterData
+                    }
+                    Be::InvalidRange(Se::StopBeforeData) => {
+                        api::GetDataError::StopBeforeData
+                    }
+                    _ => api::GetDataError::ReadingFromStore(e.to_string()),
+                })?;
         Ok(api::Data {
             time,
             values: data.pop().expect("one reading is put in so one comes out"),

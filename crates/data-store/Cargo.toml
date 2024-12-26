@@ -33,6 +33,7 @@ futures = "0.3.30"
 smallvec = "2.0.0-alpha.6"
 num = "0.4.3"
 hdrhistogram = "7.5.4"
+ron = "0.8.1"
 
 [dev-dependencies]
 futures-concurrency = { workspace = true }

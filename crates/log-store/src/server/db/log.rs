@@ -70,15 +70,16 @@ impl CurrentError {
     }
 
     fn take(&mut self) -> Result<Option<(jiff::Timestamp, protocol::Error)>> {
-        self.file
-            .set_len(0)
-            .wrap_err("Could not set on disk backup of current error to None")?;
+        self.file.set_len(0).wrap_err(
+            "Could not set on disk backup of current error to None",
+        )?;
         Ok(self.value.take())
     }
 
     fn set(&mut self, report: protocol::Error) -> Result<()> {
         let value = (jiff::Timestamp::now(), report);
-        let bytes = bincode::serialize(&value).wrap_err("could not serialize current error")?;
+        let bytes = bincode::serialize(&value)
+            .wrap_err("could not serialize current error")?;
         self.file
             .set_len(0)
             .wrap_err("Could not clear file prior to backing up value")?;
@@ -112,14 +113,15 @@ impl Log {
 
         let res = ByteSeries::builder()
             .payload_size(payload_size)
-            .with_header(header.clone())
+            .with_header(header.as_bytes().to_vec())
             .open(&path);
 
         let history = match res {
             Ok((byteseries, _)) => byteseries,
-            Err(Open(DataOpenError::File(FileOpenError::Io(e))))
-                if e.kind() == io::ErrorKind::NotFound =>
-            {
+            Err(Open(DataOpenError::File {
+                source: FileOpenError::Io(e),
+                ..
+            })) if e.kind() == io::ErrorKind::NotFound => {
                 if let Some(dirs) = path.parent() {
                     std::fs::create_dir_all(dirs)
                         .wrap_err("Could not create dirs structure for reading")
@@ -128,7 +130,7 @@ impl Log {
                 info!("creating new byteseries");
                 ByteSeries::builder()
                     .payload_size(payload_size)
-                    .with_header(header)
+                    .with_header(header.into_bytes())
                     .create_new(true)
                     .open(&path)
                     .wrap_err("Could not create new byteseries")
@@ -161,7 +163,8 @@ impl Log {
                 end: jiff::Timestamp::now(),
                 error: report.clone(),
             };
-            let line = bincode::serialize(&line).wrap_err("Could not serialize ErrorEvent")?;
+            let line = bincode::serialize(&line)
+                .wrap_err("Could not serialize ErrorEvent")?;
             let payload_size = protocol::Error::max_size();
             let line: Vec<_> = line
                 .into_iter()
@@ -189,8 +192,11 @@ impl Log {
         Ok(())
     }
 
-    fn get(&mut self, range: RangeInclusive<jiff::Timestamp>) -> GetLogResponse {
-        use byteseries::seek::Error::{EmptyFile, StartAfterData, StopBeforeData};
+    fn get(
+        &mut self,
+        range: RangeInclusive<jiff::Timestamp>,
+    ) -> GetLogResponse {
+        use byteseries::seek::Error::{EmptyFile, StopBeforeData};
         use byteseries::series::Error::InvalidRange;
         const MAX_IN_ONE_READ: usize = 200;
 
@@ -220,7 +226,7 @@ impl Log {
             &mut data,
         ) {
             Ok(()) => (),
-            Err(InvalidRange(StartAfterData | StopBeforeData | EmptyFile)) => {
+            Err(InvalidRange(StopBeforeData | EmptyFile)) => {
                 return GetLogResponse::All(current.collect())
             }
             Err(other) => {
@@ -243,11 +249,9 @@ impl Log {
             .collect();
 
         if res.len() < MAX_IN_ONE_READ {
-            res.extend(
-                current.filter(|ErrorEvent { start, .. }| {
-                    start >= range.start() && start <= range.end()
-                }),
-            );
+            res.extend(current.filter(|ErrorEvent { start, .. }| {
+                start >= range.start() && start <= range.end()
+            }));
 
             GetLogResponse::All(res)
         } else {
@@ -268,7 +272,8 @@ impl byteseries::Decoder for Decoder {
     type Item = StoredErrorEvent;
 
     fn decode_payload(&mut self, payload: &[u8]) -> Self::Item {
-        bincode::deserialize(payload).expect("if its successfully serialized it should deserialize")
+        bincode::deserialize(payload)
+            .expect("if its successfully serialized it should deserialize")
     }
 }
 
@@ -276,7 +281,11 @@ impl byteseries::Decoder for Decoder {
 pub(crate) struct Logs(pub(crate) Arc<Mutex<HashMap<protocol::Device, Log>>>);
 
 impl Logs {
-    pub async fn set_err(&self, report: protocol::Error, log_dir: &Path) -> Result<()> {
+    pub async fn set_err(
+        &self,
+        report: protocol::Error,
+        log_dir: &Path,
+    ) -> Result<()> {
         let device = report.device();
         let mut map = self.0.lock().await;
         if let Some(log) = map.get_mut(&device) {
@@ -303,7 +312,10 @@ impl Logs {
         }
     }
 
-    pub(crate) async fn clear_err(&self, device: protocol::Device) -> Result<()> {
+    pub(crate) async fn clear_err(
+        &self,
+        device: protocol::Device,
+    ) -> Result<()> {
         let mut map = self.0.lock().await;
         if let Some(log) = map.get_mut(&device) {
             log.clear()?;
@@ -327,7 +339,8 @@ fn base_path(device: &protocol::Device) -> PathBuf {
         .info()
         .affects_readings
         .first()
-        .expect("a device has at least one reading it affects") as &dyn Tree;
+        .expect("a device has at least one reading it affects")
+        as &dyn Tree;
     loop {
         match current.inner() {
             Item::Leaf(Info { device, .. }) => {
