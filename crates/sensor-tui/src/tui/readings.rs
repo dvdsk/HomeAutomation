@@ -3,6 +3,7 @@ use std::time::Instant;
 
 use crossterm::event::KeyEvent;
 use log_store::api::Percentile;
+use protocol::IsSameAs;
 use ratatui::layout::Rect;
 use ratatui::widgets::TableState;
 use ratatui::Frame;

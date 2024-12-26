@@ -9,7 +9,7 @@ use color_eyre::eyre::{self, Context, Report};
 use color_eyre::Result;
 use jiff::Timestamp;
 use log_store::api::{ErrorEvent, Percentile};
-use protocol::Reading;
+use protocol::{IsSameAs, Reading};
 use std::sync::Mutex;
 use tokio::time::Instant;
 use tracing::{debug, instrument};

@@ -61,7 +61,7 @@ impl Tree for Reading {
                 )),
                 resolution: 1.0,
                 range: 0.0..100.0,
-                unit: Unit::PercentageOpen,
+                unit: Unit::RelativePower,
                 description: "Heating valve",
                 branch_id: self.branch_id(),
             },

@@ -4,7 +4,7 @@ use data_server::api::subscriber::SubMessage;
 use data_server::api::subscriber::{ReconnectingClient, ReconnectingSubscribedClient};
 use gethostname::gethostname;
 use protocol::reading::tree::Tree;
-use protocol::Reading;
+use protocol::{IsSameAs, Reading};
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::time::timeout;

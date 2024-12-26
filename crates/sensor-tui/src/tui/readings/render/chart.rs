@@ -67,6 +67,7 @@ fn plot_colors(unit: protocol::Unit) -> impl Iterator<Item = Color> {
             &[Green, Cyan] as &'static [Color]
         }
         U::None => &[] as &'static [Color],
+        U::RelativePower => &[Red] as &'static [Color],
     };
     preferred.iter().chain(ALL_COLORS.iter()).copied()
 }

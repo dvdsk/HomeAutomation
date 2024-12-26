@@ -1,6 +1,7 @@
 use color_eyre::eyre::Context;
 use data_server::api::subscriber::ReconnectingSubscribedClient;
 use data_server::api::subscriber::SubMessage;
+use protocol::IsSameAs;
 use std::net::SocketAddr;
 
 use data_store::api::Client;

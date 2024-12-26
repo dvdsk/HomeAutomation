@@ -6,7 +6,7 @@ use std::time::Instant;
 use byteseries::{downsample, series, ByteSeries};
 use color_eyre::eyre::{eyre, WrapErr};
 use color_eyre::{Result, Section};
-use protocol::reading;
+use protocol::{reading, IsSameAs};
 use protocol::reading::tree::{Item, Tree};
 use serde::{Deserialize, Serialize};
 use tracing::{instrument, trace};

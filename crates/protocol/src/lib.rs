@@ -35,7 +35,7 @@ pub enum Unit {
     NumberPerCm3,
     Ohm,
     Pa,
-    PercentageOpen,
+    RelativePower,
     Ppm,
     RH,
 }
@@ -51,13 +51,14 @@ impl Display for Unit {
             Unit::NumberPerCm3 => f.write_str("#/cm³"),
             Unit::Ohm => f.write_str("Ω"),
             Unit::Pa => f.write_str("Pa"),
-            Unit::PercentageOpen => f.write_str("% open"),
+            Unit::RelativePower => f.write_str("% power"),
             Unit::Ppm => f.write_str("ppm"),
             Unit::RH => f.write_str("%RH"),
         }
     }
 }
 
+/// Is this the same variant as the other?
 pub trait IsSameAs {
     fn is_same_as(&self, other: &Self) -> bool;
 }

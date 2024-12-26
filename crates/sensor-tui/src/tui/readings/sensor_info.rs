@@ -3,7 +3,7 @@ use indextree::{Arena, NodeId};
 use itertools::Itertools;
 use jiff::Unit;
 use log_store::api::{self, Percentile};
-use protocol::reading;
+use protocol::{reading, IsSameAs};
 use protocol::reading::tree::{Item, Tree};
 use protocol::Reading;
 use protocol::{Device, Error};
