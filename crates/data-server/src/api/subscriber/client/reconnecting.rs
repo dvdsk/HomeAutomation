@@ -43,13 +43,19 @@ impl Client {
             let mut conn = if let Some(conn) = self.connection.take() {
                 conn
             } else {
-                get_connection_or_reconnect(self.addr, &self.name, &mut self.retry_period).await
+                get_connection_or_reconnect(
+                    self.addr,
+                    &self.name,
+                    &mut self.retry_period,
+                )
+                .await
             };
 
             match conn.actuate_affector(affector).await {
                 Ok(msg) => {
                     self.retry_period /= 2;
-                    self.retry_period = self.retry_period.max(Duration::from_millis(200));
+                    self.retry_period =
+                        self.retry_period.max(Duration::from_millis(200));
                     self.connection = Some(conn);
                     return msg;
                 }
@@ -69,13 +75,19 @@ impl Client {
             let mut conn = if let Some(conn) = self.connection.take() {
                 conn
             } else {
-                get_connection_or_reconnect(self.addr, &self.name, &mut self.retry_period).await
+                get_connection_or_reconnect(
+                    self.addr,
+                    &self.name,
+                    &mut self.retry_period,
+                )
+                .await
             };
 
             match conn.list_affectors().await {
                 Ok(list) => {
                     self.retry_period /= 2;
-                    self.retry_period = self.retry_period.max(Duration::from_millis(200));
+                    self.retry_period =
+                        self.retry_period.max(Duration::from_millis(200));
                     self.connection = Some(conn);
                     return list;
                 }
@@ -93,6 +105,15 @@ enum ConnState {
     Subbed(super::Subscribed),
 }
 
+impl ConnState {
+    fn expect_subbed(&mut self, msg: &str) -> &mut super::Subscribed {
+        match self {
+            ConnState::Connected(_) => panic!("{msg}"),
+            ConnState::Subbed(subscribed) => subscribed,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct SubscribedClient {
     retry_period: Duration,
@@ -102,33 +123,55 @@ pub struct SubscribedClient {
 }
 
 impl SubscribedClient {
+    /// # Cancel safety, 
+    ///
+    /// This is cancel safe
     pub async fn next(&mut self) -> subscriber::SubMessage {
         loop {
             let conn = if let Some(conn) = self.connection.take() {
                 conn
             } else {
                 ConnState::Connected(
-                    get_connection_or_reconnect(self.addr, &self.name, &mut self.retry_period)
-                        .await,
+                    get_connection_or_reconnect(
+                        self.addr,
+                        &self.name,
+                        &mut self.retry_period,
+                    )
+                    .await,
                 )
             };
 
-            let mut subbed = match conn {
+            let subbed = match conn {
                 ConnState::Connected(conn) => match conn.subscribe().await {
                     Ok(subbed) => subbed,
-                    Err(_) => continue,
+                    Err(e) => {
+                        tracing::warn!("Error subscribing to data-server: {e}");
+                        continue;
+                    }
                 },
                 ConnState::Subbed(subbed) => subbed,
             };
 
+            // for the above we want any cancellation to lead to a full reconnect
+            // and resubscribe. Anything below here should resume fine so should
+            // stay connected under cancellation.
+            self.connection = Some(ConnState::Subbed(subbed));
+            let subbed = self
+                .connection
+                .as_mut()
+                .expect("set to Some one line up")
+                .expect_subbed("set to Subbed one line up");
+
             match subbed.next().await {
                 Ok(msg) => {
                     self.retry_period /= 2;
-                    self.retry_period = self.retry_period.max(Duration::from_millis(200));
-                    self.connection = Some(ConnState::Subbed(subbed));
+                    self.retry_period =
+                        self.retry_period.max(Duration::from_millis(200));
+                    dbg!();
                     return msg;
                 }
                 Err(issue) => {
+                    self.connection = None;
                     warn!("Conn issue while getting next_msg: {issue}, reconnecting");
                 }
             };
