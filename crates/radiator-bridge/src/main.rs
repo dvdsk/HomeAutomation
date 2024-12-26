@@ -2,8 +2,12 @@ use std::net::{IpAddr, SocketAddr};
 use std::time::{Duration, Instant};
 
 use clap::Parser;
-use data_server::api::subscriber::ReconnectingClient;
+use data_server::api::data_source;
+use data_server::api::subscriber;
 use data_server::api::subscriber::SubMessage as M;
+use futures::FutureExt;
+use futures_concurrency::future::Race;
+use zigbee_bridge::Controller;
 
 #[derive(Parser)]
 #[command(version, about, long_about=None)]
@@ -71,39 +75,87 @@ async fn main() {
     let args = Opt::parse();
     logger::tracing::setup_unlimited();
 
-    let mut data_server = ReconnectingClient::new(
+    let mut data_subscriber = subscriber::ReconnectingClient::new(
         args.data_server,
         env!("CARGO_PKG_NAME").to_owned(),
     )
     .subscribe();
 
-    let zigbee =
-        zigbee_bridge::Controller::start_bridge(args.mqtt_ip, "temp-bridge");
-    let mut lb_ratiator = RadiatorState::default();
-    let mut sb_ratiator = RadiatorState::default();
+    let mut data_source = data_source::reconnecting::Client::new(
+        args.data_server,
+        Vec::new(),
+        None,
+    )
+    .await
+    .expect("address is correct");
+
+    let (reading_tx, mut reading_rx) = tokio::sync::mpsc::channel(1024);
+    let callback = move |reading| {
+        reading_tx
+            .try_send(reading)
+            .expect("reading_rx should keep up and never drop")
+    };
+    let controller = Controller::start_bridge_with_reading_callback(
+        args.mqtt_ip,
+        "temp-bridge",
+        callback,
+    );
+
+    let mut radiators = Radiators {
+        controller,
+        small_bedroom: RadiatorState::default(),
+        large_bedroom: RadiatorState::default(),
+    };
 
     loop {
-        let msg = data_server.next().await;
+        let get_reading = reading_rx
+            .recv()
+            .map(|r| r.expect("reading_tx should not drop"))
+            .map(Event::ZigbeeReading);
+        let get_msg = data_subscriber.next().map(Event::DataServerMsg);
+        let event = (get_reading, get_msg).race().await;
+
+        match event {
+            Event::ZigbeeReading(reading) => {
+                data_source.send_reading(reading).await.unwrap()
+            }
+            Event::DataServerMsg(msg) => radiators.update_if_relevant(msg),
+        }
+    }
+}
+
+struct Radiators {
+    controller: Controller,
+    small_bedroom: RadiatorState,
+    large_bedroom: RadiatorState,
+}
+
+impl Radiators {
+    fn update_if_relevant(&mut self, msg: M) {
         let Some(relevant_msg) = RelevantMsg::from(msg) else {
-            continue;
+            return;
         };
 
         match relevant_msg {
             RelevantMsg::SmallBedroom(temp) => {
-                if sb_ratiator.should_update_given(temp) {
-                    zigbee
+                if self.small_bedroom.should_update_given(temp) {
+                    self.controller
                         .set_radiator_reference("small_bedroom:radiator", temp)
                 }
             }
             RelevantMsg::LargeBedroom(temp) => {
-                if lb_ratiator.should_update_given(temp) {
-                    tracing::info!("setting temp");
-                    zigbee
+                if self.large_bedroom.should_update_given(temp) {
+                    self.controller
                         .set_radiator_reference("large_bedroom:radiator", temp)
                 }
             }
         }
     }
+}
+
+enum Event {
+    DataServerMsg(data_server::api::subscriber::SubMessage),
+    ZigbeeReading(protocol::Reading),
 }
 
 impl RelevantMsg {

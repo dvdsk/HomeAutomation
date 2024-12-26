@@ -15,3 +15,5 @@ tokio = { workspace = true }
 clap = { workspace = true }
 logger = { workspace = true }
 tracing = { workspace = true }
+futures-concurrency.workspace = true
+futures = "0.3.31"

@@ -114,7 +114,9 @@ impl Client {
     /// Needs a list of the affectors that can be controlled through this
     /// node as an argument. If your node provides not controllable affectors
     /// pass in an empty Vec.
-    #[must_use]
+    ///
+    /// # Errors
+    /// returns an error if the address could not looked up
     pub async fn new<A: tokio::net::ToSocketAddrs>(
         addr: A,
         affectors: Vec<protocol::Affector>,
