@@ -89,9 +89,9 @@ impl Tree for Reading {
     }
 }
 
-impl Reading {
+impl crate::IsSameAs for Reading {
     #[must_use]
-    pub fn is_same_as(&self, other: &Self) -> bool {
+    fn is_same_as(&self, other: &Self) -> bool {
         match (self, other) {
             (Reading::Temperature(_), Self::Temperature(_))
             | (Reading::Humidity(_), Self::Humidity(_))

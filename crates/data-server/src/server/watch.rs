@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use super::{AffectorRegistar, Event};
 use protocol::reading::tree::Tree;
-use protocol::{large_bedroom, small_bedroom, Affector, Reading};
+use protocol::{large_bedroom, small_bedroom, Affector, IsSameAs, Reading};
 use tokio::sync::mpsc;
 use tokio::time::{timeout_at, Instant};
 use tracing::warn;
@@ -56,9 +56,6 @@ impl LastSeen {
                             ),
                         ))
                     }
-                    Reading::LargeBedroom(large_bedroom::Reading::Desk(_)) => {
-                        None
-                    }
                     Reading::SmallBedroom(small_bedroom::Reading::Bed(_)) => {
                         Some(Affector::SmallBedroom(
                             small_bedroom::Affector::Bed(
@@ -66,10 +63,15 @@ impl LastSeen {
                             ),
                         ))
                     }
-                    Reading::SmallBedroom(small_bedroom::Reading::Desk(_)) => {
-                        None
-                    }
-                    Reading::SmallBedroom(
+                    Reading::LargeBedroom(large_bedroom::Reading::Desk(_))
+                    | Reading::LargeBedroom(
+                        large_bedroom::Reading::Radiator(_),
+                    )
+                    | Reading::SmallBedroom(small_bedroom::Reading::Desk(_))
+                    | Reading::SmallBedroom(
+                        small_bedroom::Reading::Radiator(_),
+                    )
+                    | Reading::SmallBedroom(
                         small_bedroom::Reading::ButtonPanel(_),
                     ) => None,
                 }

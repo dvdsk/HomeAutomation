@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use crate::lamp::{Lamp, LampProperty, LampPropertyDiscriminants};
-use crate::radiator::{Radiator, RadiatorProperty, RadiatorPropertyDiscriminants};
+use crate::radiator::{
+    Radiator, RadiatorProperty, RadiatorPropertyDiscriminants,
+};
 use crate::{LIGHT_MODELS, RADIATOR_NAMES};
 
 #[derive(PartialEq, Debug, Clone, Copy)]
@@ -26,9 +28,9 @@ pub(crate) enum PropertyDiscriminants {
     Radiator(RadiatorPropertyDiscriminants),
 }
 
-impl Into<PropertyDiscriminants> for Property {
-    fn into(self) -> PropertyDiscriminants {
-        match self {
+impl From<Property> for PropertyDiscriminants {
+    fn from(val: Property) -> Self {
+        match val {
             Property::Lamp(lamp_prop) => {
                 PropertyDiscriminants::Lamp(lamp_prop.into())
             }
@@ -47,7 +49,7 @@ pub(crate) trait Device: Sync + Send + Debug {
     fn clone_dyn(&self) -> Box<dyn Device>;
 
     fn apply(&mut self, change: Property);
-    fn changes_relative_to(&self, other: &Box<dyn Device>) -> Vec<Property>;
+    fn changes_relative_to(&self, other: &dyn Device) -> Vec<Property>;
     fn all_set_properties(&self) -> HashMap<PropertyDiscriminants, Property>;
 
     fn needs_merged_payloads(&self) -> bool;

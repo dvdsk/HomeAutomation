@@ -3,12 +3,13 @@ use core::time::Duration;
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
-use crate::button::Press;
 #[cfg(feature = "alloc")]
 use crate::affector;
+use crate::button::Press;
 
-pub mod desk;
 pub mod bed;
+pub mod desk;
+pub mod radiator;
 
 crate::button_enum! {
     /// +-----------------------------------------+
@@ -43,10 +44,11 @@ pub enum Reading {
     ButtonPanel(ButtonPanel) = 0,
     Desk(desk::Reading) = 1,
     Bed(bed::Reading) = 2,
+    Radiator(radiator::Reading) = 3,
 }
 
 #[cfg(feature = "alloc")]
-crate::reading::tree::all_nodes!{Reading; ReadingDiscriminants; ButtonPanel, Desk, Bed}
+crate::reading::tree::all_nodes! {Reading; ReadingDiscriminants; ButtonPanel, Desk, Bed, Radiator}
 
 #[derive(
     strum::EnumDiscriminants,
@@ -83,11 +85,22 @@ impl core::fmt::Display for Error {
     }
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Hash, PartialEq, Eq)]
+#[derive(
+    Clone,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    Hash,
+    PartialEq,
+    Eq,
+)]
 pub enum Device {
     Gpio,
     Desk(desk::Device),
     Bed(bed::Device),
+    Radiator(radiator::Device),
 }
 
 macro_rules! tree {
@@ -121,6 +134,7 @@ impl Device {
             },
             Device::Desk(device) => device.info(),
             Device::Bed(device) => device.info(),
+            Device::Radiator(device) => device.info(),
         }
     }
 }

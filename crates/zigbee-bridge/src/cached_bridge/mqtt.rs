@@ -5,7 +5,7 @@ use rumqttc::v5::mqttbytes::QoS;
 use rumqttc::v5::{AsyncClient, ClientError};
 use serde_json::json;
 use tokio::time::sleep;
-use tracing::{instrument, trace, warn};
+use tracing::{instrument, trace};
 
 use crate::device::{Property, PropertyDiscriminants};
 
@@ -48,8 +48,8 @@ impl Mqtt {
         device_name: &str,
         diff: &[Property],
     ) -> Option<Instant> {
-        diff.into_iter()
-            .map(|change| self.change_next_due(device_name, &change))
+        diff.iter()
+            .map(|change| self.change_next_due(device_name, change))
             .min()
     }
 
@@ -93,7 +93,7 @@ impl Mqtt {
         let mut due_changes = Vec::new();
 
         for change in diff {
-            if self.is_due(&device_name, change) {
+            if self.is_due(device_name, change) {
                 due_changes.push(change);
 
                 let device_send_record =
@@ -106,11 +106,10 @@ impl Mqtt {
         if !due_changes.is_empty() {
             if merged_payloads {
                 let payload = merge_payloads(due_changes);
-                self.set(&device_name, payload.to_string()).await?;
+                self.set(device_name, payload.to_string()).await?;
             } else {
                 for change in due_changes {
-                    self.set(&device_name, change.payload().to_string())
-                        .await?;
+                    self.set(device_name, change.payload().to_string()).await?;
                     sleep(MIN_TIME_BETWEEN_SENDS).await;
                 }
             }

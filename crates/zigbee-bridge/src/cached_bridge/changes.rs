@@ -36,19 +36,16 @@ pub(super) async fn handle(
                 tracing::info!("Received change order: {change:?} for device {device_name}");
                 apply_change_to_needed(device_name, change, &mut needed_states);
 
-                // When there hasn't been a new change in 100 ms, we will timeout
-                // and send the accumulated changes
+                // When there hasn't been a new change in 100 milliseconds, we
+                // will timeout and send the accumulated changes
                 call_at_least_in = CHANGE_ACCUMULATION_TIME;
             }
             _ => {
-                // Send the accumulated changes and get the timeout for resending
-                call_at_least_in = send_diff_get_timeout(
-                    known_states,
-                    &needed_states,
-                    mqtt,
-                )
-                .await
-                .min(MQTT_MIGHT_BE_DOWN_TIMEOUT);
+                // Send the accumulated changes and get the timeout for re-sending
+                call_at_least_in =
+                    send_diff_get_timeout(known_states, &needed_states, mqtt)
+                        .await
+                        .min(MQTT_MIGHT_BE_DOWN_TIMEOUT);
             }
         };
     }
@@ -72,7 +69,7 @@ async fn send_diff_get_timeout(
         tracing::Span::current().record("device_name", device_name);
 
         let diff = match known_states.get(device_name) {
-            Some(known) => needed.changes_relative_to(known),
+            Some(known) => needed.changes_relative_to(known.as_ref()),
             None => needed.all_set_properties().values().cloned().collect(),
         };
 

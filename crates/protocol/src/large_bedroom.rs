@@ -6,6 +6,7 @@ use crate::{reading, affector};
 
 pub mod bed;
 pub mod desk;
+pub mod radiator;
 
 #[derive(
     strum::EnumDiscriminants,
@@ -23,10 +24,11 @@ pub mod desk;
 pub enum Reading {
     Bed(bed::Reading) = 0,
     Desk(desk::Reading) = 1,
+    Radiator(radiator::Reading) = 2,
 }
 
 #[cfg(feature = "alloc")]
-reading::tree::all_nodes! {Reading; ReadingDiscriminants; Bed, Desk}
+reading::tree::all_nodes! {Reading; ReadingDiscriminants; Bed, Desk, Radiator}
 
 #[derive(
     strum::EnumDiscriminants,
@@ -67,6 +69,7 @@ impl core::fmt::Display for Error {
 pub enum Device {
     Bed(bed::Device),
     Desk(desk::Device),
+    Radiator(radiator::Device),
 }
 
 impl Device {
@@ -75,6 +78,7 @@ impl Device {
         match self {
             Self::Bed(dev) => dev.info(),
             Self::Desk(dev) => dev.info(),
+            Self::Radiator(dev) => dev.info(),
         }
     }
 }

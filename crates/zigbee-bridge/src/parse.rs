@@ -1,6 +1,6 @@
-use color_eyre::eyre::{bail, Context, OptionExt, Report};
+use color_eyre::eyre::{bail, Context, OptionExt, Report, Result};
 use color_eyre::Section;
-use serde_json::Value;
+use serde_json::{Map, Value};
 use tracing::instrument;
 
 use crate::conversion::{mired_to_kelvin, normalize};
@@ -9,28 +9,65 @@ use crate::lamp::LampProperty;
 use crate::radiator::RadiatorProperty;
 use crate::{light_names, RADIATOR_NAMES};
 
-#[instrument(skip(bytes))]
-pub(super) fn parse_properties(
+#[instrument(skip(map))]
+pub(super) fn properties(
     device_name: &str,
-    bytes: &[u8],
-) -> color_eyre::Result<Vec<Property>> {
+    map: &Map<String, Value>,
+) -> Result<Vec<Property>> {
     if light_names().contains(&device_name) {
-        parse_lamp_properties(bytes)
+        parse_lamp_properties(map)
     } else if RADIATOR_NAMES.contains(&device_name) {
-        parse_radiator_properties(bytes)
+        parse_radiator_properties(map)
     } else {
         bail!("Unknown device name, could not parse properties");
     }
 }
 
-fn parse_radiator_properties(bytes: &[u8]) -> Result<Vec<Property>, Report> {
-    let mut list = Vec::new();
+pub(crate) fn readings(
+    device_name: &str,
+    map: &Map<String, Value>,
+) -> Result<Vec<protocol::Reading>> {
+    use protocol::{large_bedroom, small_bedroom, Reading};
 
-    let json: Value =
-        serde_json::from_slice(bytes).wrap_err("Could not deserialize")?;
-    let map = json
-        .as_object()
-        .ok_or_eyre("Top level json must be object")?;
+    macro_rules! radiator_readings {
+        ($protocol_module:ident, $ReadingVariant:ident) => {
+            Ok(std::iter::empty()
+                .into_iter()
+                .chain(
+                    map.get("local_temperature")
+                        .map(json_to_f32)
+                        .transpose()?
+                        .map($protocol_module::radiator::Reading::Temperature)
+                        .map($protocol_module::Reading::Radiator)
+                        .map(Reading::$ReadingVariant),
+                )
+                .chain(
+                    map.get("pi_heating_demand")
+                        .map(json_to_f32)
+                        .transpose()?
+                        .map($protocol_module::radiator::Reading::Heating)
+                        .map($protocol_module::Reading::Radiator)
+                        .map(Reading::$ReadingVariant),
+                )
+                .collect())
+        };
+    }
+
+    match device_name {
+        "small_bedroom:radiator" => {
+            radiator_readings!(small_bedroom, SmallBedroom)
+        }
+        "large_bedroom:radiator" => {
+            radiator_readings!(large_bedroom, LargeBedroom)
+        }
+        _ => Ok(Vec::new()),
+    }
+}
+
+fn parse_radiator_properties(
+    map: &Map<String, Value>,
+) -> Result<Vec<Property>> {
+    let mut list = Vec::new();
 
     if let Some(setpoint) = map
         .get("occupied_heating_setpoint")
@@ -69,14 +106,8 @@ fn parse_radiator_properties(bytes: &[u8]) -> Result<Vec<Property>, Report> {
     Ok(list)
 }
 
-fn parse_lamp_properties(bytes: &[u8]) -> color_eyre::Result<Vec<Property>> {
+fn parse_lamp_properties(map: &Map<String, Value>) -> Result<Vec<Property>> {
     let mut list = Vec::new();
-
-    let json: Value =
-        serde_json::from_slice(bytes).wrap_err("Could not deserialize")?;
-    let map = json
-        .as_object()
-        .ok_or_eyre("Top level json must be object")?;
 
     if let Some(kelvin) = map
         .get("color_temp")
@@ -135,21 +166,21 @@ fn parse_lamp_properties(bytes: &[u8]) -> color_eyre::Result<Vec<Property>> {
     Ok(list)
 }
 
-fn json_to_usize(json: &Value) -> color_eyre::Result<usize> {
+fn json_to_usize(json: &Value) -> Result<usize> {
     json_to_u64(json)?
         .try_into()
         .wrap_err("Should be a usize integer")
         .with_note(|| format!("got: {json:?}"))
 }
 
-fn json_to_u8(json: &Value) -> color_eyre::Result<u8> {
+fn json_to_u8(json: &Value) -> Result<u8> {
     json_to_u64(json)?
         .try_into()
         .wrap_err("Should be a 8 bit integer")
         .with_note(|| format!("got: {json:?}"))
 }
 
-fn json_to_u64(json: &Value) -> color_eyre::Result<u64> {
+fn json_to_u64(json: &Value) -> Result<u64> {
     json.as_number()
         .ok_or_eyre("Must be a number")
         .with_note(|| format!("got: {json:?}"))?
@@ -158,7 +189,7 @@ fn json_to_u64(json: &Value) -> color_eyre::Result<u64> {
         .with_note(|| format!("got: {json:?}"))
 }
 
-fn json_to_i64(json: &Value) -> color_eyre::Result<i64> {
+fn json_to_i64(json: &Value) -> Result<i64> {
     json.as_number()
         .ok_or_eyre("Must be a number")
         .with_note(|| format!("got: {json:?}"))?
@@ -167,11 +198,15 @@ fn json_to_i64(json: &Value) -> color_eyre::Result<i64> {
         .with_note(|| format!("got: {json:?}"))
 }
 
-fn json_to_f64(json: &Value) -> color_eyre::Result<f64> {
+fn json_to_f64(json: &Value) -> Result<f64> {
     Ok(json
         .as_number()
         .ok_or_eyre("Must be a number")
         .with_note(|| format!("got: {json:?}"))?
         .as_f64()
         .expect("Should be Some if not using arbitrary precision"))
+}
+
+fn json_to_f32(json: &Value) -> Result<f32> {
+    json_to_f64(json).map(|v| v as f32)
 }

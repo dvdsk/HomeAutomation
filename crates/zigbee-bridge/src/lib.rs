@@ -12,7 +12,7 @@ mod cached_bridge;
 mod conversion;
 mod device;
 pub(crate) mod lamp;
-mod parse_state;
+mod parse;
 mod radiator;
 
 const MQTT_PORT: u16 = 1883;
@@ -49,9 +49,22 @@ pub struct Controller {
 impl Controller {
     #[must_use]
     pub fn start_bridge(mqtt_ip: IpAddr, name: &str) -> Self {
+        Self::start_bridge_with_reading_callback(mqtt_ip, name, |_| ())
+    }
+    #[must_use]
+    pub fn start_bridge_with_reading_callback(
+        mqtt_ip: IpAddr,
+        name: &str,
+        on_msg: impl Fn(protocol::Reading) + Send + 'static,
+    ) -> Self {
         let (change_sender, change_receiver) = mpsc::unbounded_channel();
 
-        let run_bridge = cached_bridge::run(mqtt_ip, change_receiver, name.to_string());
+        let run_bridge = cached_bridge::run(
+            mqtt_ip,
+            change_receiver,
+            name.to_string(),
+            on_msg,
+        );
         trace!("Spawning zigbee bridge task");
         tokio::task::spawn(run_bridge);
 

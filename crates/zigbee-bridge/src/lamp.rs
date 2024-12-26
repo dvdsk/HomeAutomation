@@ -60,7 +60,7 @@ impl Device for Lamp {
     }
 
     #[instrument]
-    fn changes_relative_to(&self, other: &Box<dyn Device>) -> Vec<Property> {
+    fn changes_relative_to(&self, other: &dyn Device) -> Vec<Property> {
         let mut res = Vec::new();
 
         let self_properties = self.all_set_properties();
@@ -126,23 +126,23 @@ impl Device for Lamp {
 
         // Ignore model and is_online, because they are read-only
 
-        if let Some(val) = (&self).brightness {
+        if let Some(val) = self.brightness {
             insert_prop(LampProperty::Brightness(val));
         }
-        if let Some(val) = &self.color {
+        if let Some(val) = self.color {
             match val {
                 Color::XY(xy) => {
-                    insert_prop(LampProperty::ColorXY(*xy));
+                    insert_prop(LampProperty::ColorXY(xy));
                 }
                 Color::TempK(temp) => {
-                    insert_prop(LampProperty::ColorTempK(*temp));
+                    insert_prop(LampProperty::ColorTempK(temp));
                 }
             }
         }
-        if let Some(val) = (&self).is_on {
+        if let Some(val) = self.is_on {
             insert_prop(LampProperty::On(val));
         }
-        insert_prop(LampProperty::ColorTempStartup((&self).color_temp_startup));
+        insert_prop(LampProperty::ColorTempStartup(self.color_temp_startup));
         properties
     }
 }

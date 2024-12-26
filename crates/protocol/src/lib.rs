@@ -27,31 +27,37 @@ pub use reading::Reading;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Unit {
-    Pa,
     C,
-    RH,
     Lux,
-    Ohm,
-    Ppm,
     MicrogramPerM3,
-    NumberPerCm3,
     NanoMeter,
     None, // for buttons
+    NumberPerCm3,
+    Ohm,
+    Pa,
+    PercentageOpen,
+    Ppm,
+    RH,
 }
 
 impl Display for Unit {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Unit::Pa => f.write_str("Pa"),
             Unit::C => f.write_str("°C"),
-            Unit::RH => f.write_str("%RH"),
             Unit::Lux => f.write_str("lx"),
-            Unit::Ohm => f.write_str("Ω"),
-            Unit::Ppm => f.write_str("ppm"),
             Unit::MicrogramPerM3 => f.write_str("µg/m³"),
-            Unit::NumberPerCm3 => f.write_str("#/cm³"),
             Unit::NanoMeter => f.write_str("nm"),
             Unit::None => f.write_str(""),
+            Unit::NumberPerCm3 => f.write_str("#/cm³"),
+            Unit::Ohm => f.write_str("Ω"),
+            Unit::Pa => f.write_str("Pa"),
+            Unit::PercentageOpen => f.write_str("% open"),
+            Unit::Ppm => f.write_str("ppm"),
+            Unit::RH => f.write_str("%RH"),
         }
     }
+}
+
+pub trait IsSameAs {
+    fn is_same_as(&self, other: &Self) -> bool;
 }

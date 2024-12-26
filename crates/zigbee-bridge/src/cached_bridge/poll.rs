@@ -1,7 +1,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use color_eyre::eyre::{Context, OptionExt};
-use color_eyre::Section;
+use color_eyre::{Result, Section};
 use regex::Regex;
 use rumqttc::v5::{Event, EventLoop, Incoming};
 use serde_json::Value;
@@ -10,13 +10,14 @@ use tracing::{error, instrument, trace, warn};
 
 use crate::device::{Device, Property};
 use crate::lamp::LampProperty;
-use crate::parse_state::parse_properties;
+use crate::parse;
 use crate::radiator::RadiatorProperty;
 use crate::{light_names, RADIATOR_NAMES};
 
 pub(super) async fn poll_mqtt(
     mut eventloop: EventLoop,
     known_states: &RwLock<HashMap<String, Box<dyn Device>>>,
+    on_msg: impl Fn(protocol::Reading),
 ) -> ! {
     loop {
         let message = match eventloop.poll().await {
@@ -37,11 +38,17 @@ pub(super) async fn poll_mqtt(
         };
 
         match message {
-            Message::StateUpdate((device_name, changed_properties)) => {
-                update_state(known_states, &device_name, changed_properties)
-                    .await;
+            Message::Update {
+                device_name,
+                changed,
+                readings,
+            } => {
+                for reading in readings {
+                    on_msg(reading);
+                }
+                update_state(known_states, &device_name, changed).await;
             }
-            Message::Other => (),
+            Message::Irrelevant => (),
         }
     }
 }
@@ -64,13 +71,13 @@ async fn update_state(
 }
 
 #[instrument(skip_all)]
-fn parse_message(event: Event) -> color_eyre::Result<Message> {
+fn parse_message(event: Event) -> Result<Message> {
     let Event::Incoming(incoming) = event else {
-        return Ok(Message::Other);
+        return Ok(Message::Irrelevant);
     };
 
     let Incoming::Publish(message) = incoming else {
-        return Ok(Message::Other);
+        return Ok(Message::Irrelevant);
     };
 
     let topic: &str = &String::from_utf8_lossy(&message.topic);
@@ -96,17 +103,29 @@ fn parse_message(event: Event) -> color_eyre::Result<Message> {
         topic => {
             let topic: Vec<_> = topic.split('/').collect();
             let device_name = topic[1].to_string();
-            let state = parse_properties(&device_name, &message.payload)
+            let json: Value = serde_json::from_slice(&message.payload)
+                .wrap_err("Could not deserialize")?;
+            let map = json
+                .as_object()
+                .ok_or_eyre("Top level json must be object")?;
+            let changed = parse::properties(&device_name, map)
                 .wrap_err("failed to parse device state")
                 .with_note(|| format!("topic: {topic:?}"))?;
-            Ok(Message::StateUpdate((device_name, state)))
+            let readings = parse::readings(&device_name, map)
+                .wrap_err("failed to parse device readings")
+                .with_note(|| format!("topic: {topic:?}"))?;
+            Ok(Message::Update {
+                device_name,
+                changed,
+                readings,
+            })
         }
     }
 }
 
 fn parse_bridge_event(
     payload: &serde_json::Map<String, Value>,
-) -> color_eyre::Result<Message> {
+) -> Result<Message> {
     let event = payload
         .get("type")
         .ok_or_eyre("no type in bridge event")?
@@ -127,15 +146,13 @@ fn parse_bridge_event(
     let is_online = match event {
         "device_joined" | "device_announce" => true,
         "device_leave" => false,
-        _ => return Ok(Message::Other),
+        _ => return Ok(Message::Irrelevant),
     };
 
     Ok(online_message(device_name, is_online))
 }
 
-fn parse_log_message(
-    log: &serde_json::Map<String, Value>,
-) -> color_eyre::Result<Message> {
+fn parse_log_message(log: &serde_json::Map<String, Value>) -> Result<Message> {
     let level = log.get("level").ok_or_eyre("no level in log message")?;
     let message = log
         .get("message")
@@ -144,7 +161,7 @@ fn parse_log_message(
         .ok_or_eyre("log message is not a string")?;
 
     if level != "error" {
-        return Ok(Message::Other);
+        return Ok(Message::Irrelevant);
     }
 
     let regex = Regex::new(r"Publish.*? to '(.*?)' failed").unwrap();
@@ -157,28 +174,34 @@ fn parse_log_message(
         }
     }
 
-    Ok(Message::Other)
+    Ok(Message::Irrelevant)
 }
 
 fn online_message(device_name: String, is_online: bool) -> Message {
     if light_names().contains(&device_name.as_str()) {
-        Message::StateUpdate((
+        Message::Update {
             device_name,
-            vec![LampProperty::Online(is_online).into()],
-        ))
+            changed: vec![LampProperty::Online(is_online).into()],
+            readings: Vec::new(),
+        }
     } else if RADIATOR_NAMES.contains(&device_name.as_str()) {
-        Message::StateUpdate((
+        Message::Update {
             device_name,
-            vec![RadiatorProperty::Online(is_online).into()],
-        ))
+            changed: vec![RadiatorProperty::Online(is_online).into()],
+            readings: Vec::new(),
+        }
     } else {
         error!("Unknown device name {device_name}, could not parse log");
-        Message::Other
+        Message::Irrelevant
     }
 }
 
 #[derive(Debug)]
 enum Message {
-    StateUpdate((String, Vec<Property>)),
-    Other,
+    Update {
+        device_name: String,
+        changed: Vec<Property>,
+        readings: Vec<protocol::Reading>,
+    },
+    Irrelevant,
 }

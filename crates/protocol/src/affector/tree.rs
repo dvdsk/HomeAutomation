@@ -24,19 +24,17 @@ pub trait Tree: core::fmt::Debug {
     fn name(&self) -> String {
         let dbg_repr = format!("{self:?}");
         let split = dbg_repr.find('(').unwrap_or(dbg_repr.len());
-        dbg_repr
-            .split_at(split).0
-            .to_string()
+        dbg_repr.split_at(split).0.to_string()
     }
     fn branch_id(&self) -> Id;
 }
 
 macro_rules! impl_zero {
     ($name:ident; $($var:ident),*) => {
-        impl $name {
+        impl crate::IsSameAs for $name {
             #[must_use]
             #[allow(unreachable_patterns)]
-            pub fn is_same_as(&self, other: &Self) -> bool {
+            fn is_same_as(&self, other: &Self) -> bool {
                 match (self, other) {
                     $(($name::$var(a), $name::$var(b)) => a.is_same_as(b),)*
                     (_, _) => false,

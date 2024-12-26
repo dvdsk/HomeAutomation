@@ -83,7 +83,7 @@ impl Device for Radiator {
         }
     }
 
-    fn changes_relative_to(&self, other: &Box<dyn Device>) -> Vec<Property> {
+    fn changes_relative_to(&self, other: &dyn Device) -> Vec<Property> {
         let mut res = Vec::new();
 
         let self_properties = self.all_set_properties();
@@ -123,10 +123,10 @@ impl Device for Radiator {
 
         // Ignore set_by_method and online, because they are read-only
 
-        if let Some(val) = (&self).setpoint {
+        if let Some(val) = self.setpoint {
             insert_prop(RadiatorProperty::Setpoint(val));
         }
-        if let Some(val) = (&self).reference {
+        if let Some(val) = self.reference {
             insert_prop(RadiatorProperty::Reference(val));
         }
 

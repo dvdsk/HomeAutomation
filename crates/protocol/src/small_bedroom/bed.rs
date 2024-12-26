@@ -243,9 +243,9 @@ impl Tree for Reading {
     }
 }
 
-impl Reading {
+impl crate::IsSameAs for Reading {
     #[must_use]
-    pub fn is_same_as(&self, other: &Self) -> bool {
+    fn is_same_as(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Brightness(_), Self::Brightness(_))
             | (Self::Temperature(_), Self::Temperature(_))
@@ -503,12 +503,13 @@ pub enum Affector {
     ResetNode,
 }
 
-impl Affector {
+impl crate::IsSameAs for Affector {
     #[must_use]
-    pub fn is_same_as(&self, other: &Self) -> bool {
+    fn is_same_as(&self, other: &Self) -> bool {
         self.eq(other)
     }
-
+}
+impl Affector {
     #[cfg(feature = "alloc")]
     pub fn controls(&mut self) -> Vec<Control> {
         match self {

@@ -71,9 +71,9 @@ impl Tree for Reading {
     }
 }
 
-impl Reading {
+impl crate::IsSameAs for Reading {
     #[must_use]
-    pub fn is_same_as(&self, other: &Self) -> bool {
+    fn is_same_as(&self, other: &Self) -> bool {
         #[allow(clippy::match_like_matches_macro)]
         match (self, other) {
             (Reading::Temperature(_), Self::Temperature(_))

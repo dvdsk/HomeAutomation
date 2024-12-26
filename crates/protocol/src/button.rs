@@ -99,9 +99,9 @@ macro_rules! button_enum {
             }
         }
 
-        impl $name {
+        impl crate::IsSameAs for $name {
             #[must_use]
-            pub fn is_same_as(&self, other: &Self) -> bool {
+            fn is_same_as(&self, other: &Self) -> bool {
                 match (self, other) {
                     $(($name::$variant(_), $name::$variant(_)) => true,)*
                     (_, _) => false,
