@@ -63,5 +63,5 @@ async fn main() {
         .await
         .unwrap();
 
-    dbg!(data);
+    eprintln!("{:?}", data);
 }

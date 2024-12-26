@@ -167,7 +167,6 @@ impl SubscribedClient {
                     self.retry_period /= 2;
                     self.retry_period =
                         self.retry_period.max(Duration::from_millis(200));
-                    dbg!();
                     return msg;
                 }
                 Err(issue) => {

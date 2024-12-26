@@ -36,7 +36,6 @@ async fn main() -> Result<(), color_eyre::Report> {
         .get_affectors()
         .await
         .wrap_err("Could not get affector list")?;
-    dbg!(&affectors);
     let mut server_client = reconnecting::Client::new(
         args.data_server,
         affectors,

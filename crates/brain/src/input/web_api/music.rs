@@ -15,7 +15,6 @@ pub struct SongUrl {
 
 pub async fn add_song_from_url(params: Form<SongUrl>, state: Data<State>) -> HttpResponse {
     let url = params.into_inner().url;
-    dbg!();
 
     if state
         .youtube_dl
@@ -23,7 +22,6 @@ pub async fn add_song_from_url(params: Form<SongUrl>, state: Data<State>) -> Htt
         .await
         .is_ok()
     {
-        dbg!();
 
         HttpResponse::Ok().finish()
     } else {
