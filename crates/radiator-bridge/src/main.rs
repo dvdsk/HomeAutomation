@@ -7,6 +7,7 @@ use data_server::api::subscriber;
 use data_server::api::subscriber::SubMessage as M;
 use futures::FutureExt;
 use futures_concurrency::future::Race;
+use tracing::warn;
 use zigbee_bridge::Controller;
 
 #[derive(Parser)]
@@ -77,7 +78,7 @@ impl RadiatorState {
 #[tokio::main]
 async fn main() {
     let args = Opt::parse();
-    logger::tracing::setup_unlimited();
+    logger::tracing::setup();
 
     let mut data_subscriber = subscriber::ReconnectingClient::new(
         args.data_server_subscribe,
@@ -121,7 +122,9 @@ async fn main() {
 
         match event {
             Event::ZigbeeReading(reading) => {
-                data_source.send_reading(reading).await.unwrap()
+                if let Err(e) = data_source.send_reading(reading).await {
+                    warn!("Error sending new reading to data-store: {e}")
+                }
             }
             Event::DataServerMsg(msg) => radiators.update_if_relevant(msg),
         }

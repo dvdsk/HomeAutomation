@@ -22,6 +22,7 @@ impl Drop for AbortOnDrop {
     }
 }
 
+#[derive(Debug)]
 enum QueuedItem {
     Retry { item: SendItem, prev_err: SendError },
     Fresh(SendItem),
@@ -76,6 +77,7 @@ async fn handle_conn(
     }
 }
 
+#[derive(Debug)]
 struct SendItem {
     bytes: Vec<u8>,
     feedback: oneshot::Sender<Result<(), SendError>>,

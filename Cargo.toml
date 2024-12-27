@@ -30,5 +30,6 @@ edition = "2021"
 license = "GPLv3"
 authors = ["David Kleingeld & Eva van Houten"]
 
-[profile.release]
+[profile.release-with-debug]
+inherits = "release"
 debug = true

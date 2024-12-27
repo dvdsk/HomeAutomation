@@ -3,3 +3,5 @@ rustflags = ["-Clinker=rust-lld"]
 
 [target.armv7-unknown-linux-musleabihf]
 rustflags = ["-Clinker=rust-lld"]
+
+#Note: If you're using lld or mold on Linux, you must use the --no-rosegment flag. Otherwise perf will not be able to generate accurate stack traces (explanation). For example, for lld:
