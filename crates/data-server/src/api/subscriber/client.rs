@@ -48,7 +48,9 @@ impl Client {
         }
     }
 
-    pub async fn subscribe(mut self) -> Result<Subscribed, Error<subscriber::SubscribeError>> {
+    pub async fn subscribe(
+        mut self,
+    ) -> Result<Subscribed, Error<subscriber::SubscribeError>> {
         self.0.subscribe().await?;
         Ok(Subscribed(self))
     }
@@ -61,7 +63,7 @@ impl Subscribed {
     pub async fn next(
         &mut self,
     ) -> Result<subscriber::SubMessage, Error<subscriber::SubscribeError>> {
-        let received = self.0.0.next().await?;
+        let received = self.0 .0.next().await?;
 
         if let subscriber::Response::SubUpdate(update) = received {
             Ok(update)
@@ -76,14 +78,18 @@ impl Subscribed {
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<T: std::error::Error> {
-    #[error("Error while sending request: {0}")]
-    Sending(std::io::Error),
-    #[error("Error while sending request: {0}")]
-    Receiving(std::io::Error),
+    #[error("Error while sending request")]
+    Sending(#[source] std::io::Error),
+    #[error("Error while sending request")]
+    Receiving(#[source] std::io::Error),
     #[error("General error while processing request")]
-    Server(subscriber::ServerError),
-    #[error("Server ran into an specific error with our request: {0}")]
-    Request(T),
-    #[error("Error while communicating with server: {0}")]
-    Comms(#[from] RpcError),
+    Server(#[source] subscriber::ServerError),
+    #[error("Server ran into an specific error with our request")]
+    Request(#[source] T),
+    #[error("Error while communicating with server")]
+    Comms(
+        #[from]
+        #[source]
+        RpcError,
+    ),
 }

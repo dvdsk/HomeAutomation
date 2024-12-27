@@ -38,16 +38,16 @@ impl<T, V: Serialize> fmt::Debug for RpcClient<T, V> {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConnectError {
-    #[error("Error while connecting to server: {0}")]
-    Io(std::io::Error),
-    #[error("Could not send handshake: {0}")]
-    Sending(std::io::Error),
+    #[error("Error while connecting to server")]
+    Io(#[source] std::io::Error),
+    #[error("Could not send handshake")]
+    Sending(#[source] std::io::Error),
     #[error("Timed out waiting for server")]
     Timeout,
     #[error("Server unexpectedly closed the connection")]
     Closed,
-    #[error("Could not receive server response: {0:?}")]
-    Receiving(std::io::Error),
+    #[error("Could not receive server response")]
+    Receiving(#[source] std::io::Error),
     #[error("Client was already connected")]
     AlreadyConnected,
     #[error("Client tried to connected too many times, allowed again in: {0:?}")]
@@ -58,10 +58,10 @@ pub enum ConnectError {
 pub enum RpcError {
     #[error("Got unexpected response response to request.\nRequest was: {request:?},\nGot response: {response:?}")]
     IncorrectResponse { request: String, response: String },
-    #[error("Error while sending request: {0}")]
-    Sending(std::io::Error),
-    #[error("Error while sending request: {0}")]
-    Receiving(std::io::Error),
+    #[error("Error while sending request")]
+    Sending(#[source] std::io::Error),
+    #[error("Error while sending request")]
+    Receiving(#[source] std::io::Error),
     #[error("Server closed connection before it awnserd")]
     ConnectionClosed,
 }

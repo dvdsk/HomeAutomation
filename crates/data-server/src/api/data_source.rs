@@ -8,10 +8,10 @@ pub mod reconnecting;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("Could not connect to data-server: {0}")]
-    Connecting(std::io::Error),
-    #[error("Could not send handshake to data-server: {0}")]
-    Handshake(std::io::Error),
+    #[error("Could not connect to data-server")]
+    Connecting(#[source] std::io::Error),
+    #[error("Could not send handshake to data-server")]
+    Handshake(#[source] std::io::Error),
     #[error("Too many affectors, max: {max}, requires: {requires}")]
     TooManyAffectors { max: usize, requires: usize },
 }
@@ -59,10 +59,10 @@ impl Client {
 
 #[derive(Debug, thiserror::Error)]
 pub enum SendPreEncodedError {
-    #[error("Pre-encoded message, could not be decoded it might be from a previous version: {0}")]
-    EncodingCheck(DecodeMsgError),
-    #[error("Error while sending pre-encoded msg: {0}")]
-    Sending(SendError),
+    #[error("Pre-encoded message, could not be decoded it might be from a previous version")]
+    EncodingCheck(#[source] DecodeMsgError),
+    #[error("Error while sending pre-encoded msg")]
+    Sending(#[source] SendError),
 }
 
 impl Sender {
@@ -93,7 +93,7 @@ impl Sender {
 #[derive(Debug, thiserror::Error)]
 pub enum ReceiveError {
     #[error("General io error while receiving data from data-server")]
-    Io(std::io::Error),
+    Io(#[source] std::io::Error),
     #[error("The connection was closed by the data-server")]
     ConnClosed,
     #[error("Could not deserialize")]
