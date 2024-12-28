@@ -87,26 +87,20 @@ struct SendItem {
 async fn handle_sending(mut sender: super::Sender, to_send: &mut SendQueue) {
     loop {
         match to_send.next().await {
-            QueuedItem::Fresh(item) if item.deadline.elapsed().is_zero() => {
-                if let Err(err) = sender.send_bytes(&item.bytes).await {
-                    tracing::warn!("Error sending reading or sensor: {err}");
-                    to_send.push(item, SendError::Io(err.to_string()));
-                } else {
-                    let _ = item.feedback.send(Ok(()));
-                }
-            }
-            QueuedItem::Fresh(item) => {
-                let _ = item.feedback.send(Err(SendError::Outdated));
-            }
-            QueuedItem::Retry { item, .. }
+            QueuedItem::Retry { item, .. } | QueuedItem::Fresh(item)
                 if item.deadline.elapsed().is_zero() =>
             {
                 if let Err(err) = sender.send_bytes(&item.bytes).await {
                     tracing::warn!("Error sending reading or sensor: {err}");
                     to_send.push(item, SendError::Io(err.to_string()));
+                    return;
                 } else {
                     let _ = item.feedback.send(Ok(()));
                 }
+            }
+            // expired
+            QueuedItem::Fresh(item) => {
+                let _ = item.feedback.send(Err(SendError::Outdated));
             }
             QueuedItem::Retry { item, prev_err } => {
                 let _ = item.feedback.send(Err(prev_err));
