@@ -59,6 +59,19 @@ use tracing_subscriber::{self, layer::SubscriberExt};
 /// ```
 ///
 /// for full docs see: https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html
+///
+/// # Note
+/// If the service runs under systemd it logs to the sysjournal. Then:
+///
+/// The standard journald CODE_LINE and CODE_FILE fields are automatically
+/// emitted. A TARGET field is emitted containing the event’s target. For
+/// events recorded inside spans, an additional SPAN_NAME field is emitted
+/// with the name of each of the event’s parent spans. User-defined fields
+/// other than the event message field have a prefix applied by default to
+/// prevent collision with standard fields.
+///
+/// example: `journalctl -fu desk-sensors
+/// --output-fields=CODE_FILE,CODE_LINE,MESSAGE -o cat`
 pub fn setup() {
     let env_filter = filter::EnvFilter::builder()
         .with_regex(true)
