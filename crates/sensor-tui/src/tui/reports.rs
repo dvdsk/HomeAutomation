@@ -17,19 +17,21 @@ struct Report {
 impl From<eyre::Report> for Report {
     fn from(value: eyre::Report) -> Self {
         let detailed = format!("{value:?}");
-        let detailed = strip_ansi_escapes::strip_str(&detailed);
+        let mut detailed = strip_ansi_escapes::strip_str(&detailed);
         let last_paragraph = detailed
             .find("Location:")
             .expect("Detailed report always lists a location");
-        let backtrace_start = last_paragraph
-            + detailed[last_paragraph..]
-                .find("\n\n")
-                .expect("Should be a double line-end before backtrace");
-        let detailed = &detailed[..backtrace_start];
+        let backtrace_start = detailed[last_paragraph..]
+            .find("\n\n")
+            .map(|pos| pos + last_paragraph);
+
+        if let Some(pos) = backtrace_start {
+            detailed.truncate(pos);
+        }
 
         Self {
             short: value.to_string(),
-            detailed: detailed.to_owned(),
+            detailed,
         }
     }
 }
@@ -57,13 +59,13 @@ impl Reports {
     }
 
     pub(super) fn render(&self, frame: &mut Frame, layout: Rect) {
-        let current = self
-            .current
-            .as_ref()
-            .expect("should only be called when current is Some/needed lines > 0");
+        let current = self.current.as_ref().expect(
+            "should only be called when current is Some/needed lines > 0",
+        );
 
         let [hint, error] =
-            Layout::vertical([Constraint::Max(1), Constraint::Min(1)]).areas(layout);
+            Layout::vertical([Constraint::Max(1), Constraint::Min(1)])
+                .areas(layout);
 
         let error_style = Style::default().on_light_red().fg(Color::White);
 
@@ -87,7 +89,10 @@ impl Reports {
                     .style(error_style),
                 hint,
             );
-            frame.render_widget(Text::raw(&current.short).style(error_style), error);
+            frame.render_widget(
+                Text::raw(&current.short).style(error_style),
+                error,
+            );
         }
     }
 
