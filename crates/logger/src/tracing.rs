@@ -24,6 +24,8 @@ use tracing_subscriber::{self, layer::SubscriberExt};
 /// errors are logged
 ///
 /// ### log everything in function
+/// Note the function must be instrumented for this to work 
+/// (such that a span is created with the functions name)
 /// RUST_LOG='[function_name]=trace'
 ///
 /// ### Print if argument matches regex:

@@ -108,7 +108,7 @@ impl Log {
         let payload_size = protocol::Error::max_size();
         let header = format!(
             "Bincode encoded error logs for {device:?}. \
-            Each line has a size: {payload_size} + 2"
+            Each line has size: {payload_size} + 2"
         );
 
         let res = ByteSeries::builder()

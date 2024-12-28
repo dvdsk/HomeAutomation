@@ -4,6 +4,7 @@ use std::sync::mpsc;
 
 use color_eyre::Result;
 use data_server::api::subscriber;
+use tracing::instrument;
 
 use crate::{client_name, Update};
 
@@ -33,7 +34,7 @@ pub async fn tree(
         ),
         send_result(
             list_from_store(data_store_addr),
-            "COult not get reading list from data-store",
+            "Coult not get reading list from data-store",
             tx.clone()
         ),
         send_result(
@@ -44,22 +45,29 @@ pub async fn tree(
     );
 }
 
+#[instrument]
 async fn list_from_server(data_server_addr: SocketAddr) -> Result<Update> {
-    let mut client = subscriber::Client::connect(data_server_addr, client_name()).await?;
+    let mut client =
+        subscriber::Client::connect(data_server_addr, client_name()).await?;
     let list = client.list_affectors().await?;
     tracing::debug!("affector list: {list:?}");
     Ok(Update::AffectorList(list))
 }
 
+#[instrument]
 async fn list_from_store(data_store_addr: SocketAddr) -> Result<Update> {
-    let mut client = data_store::api::Client::connect(data_store_addr, client_name()).await?;
+    let mut client =
+        data_store::api::Client::connect(data_store_addr, client_name())
+            .await?;
     let list = client.list_data().await?;
     tracing::debug!("data list: {list:?}");
     Ok(Update::ReadingList(list))
 }
 
+#[instrument]
 async fn list_from_logs(log_store_addr: SocketAddr) -> Result<Update> {
-    let mut client = log_store::api::Client::connect(log_store_addr, client_name()).await?;
+    let mut client =
+        log_store::api::Client::connect(log_store_addr, client_name()).await?;
     let list = client.list_devices().await?;
     tracing::debug!("log list: {list:?}");
     Ok(Update::DeviceList(list))

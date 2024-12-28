@@ -55,7 +55,7 @@ impl Controller {
     pub fn start_bridge_with_reading_callback(
         mqtt_ip: IpAddr,
         name: &str,
-        on_msg: impl Fn(protocol::Reading) + Send + 'static,
+        reading_callback: impl Fn(protocol::Reading) + Send + 'static,
     ) -> Self {
         let (change_sender, change_receiver) = mpsc::unbounded_channel();
 
@@ -63,7 +63,7 @@ impl Controller {
             mqtt_ip,
             change_receiver,
             name.to_string(),
-            on_msg,
+            reading_callback,
         );
         trace!("Spawning zigbee bridge task");
         tokio::task::spawn(run_bridge);

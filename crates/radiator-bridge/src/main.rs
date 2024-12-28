@@ -122,6 +122,7 @@ async fn main() {
 
         match event {
             Event::ZigbeeReading(reading) => {
+                tracing::info!("Got new reading from zigbee: {reading:?}");
                 if let Err(e) = data_source.send_reading(reading).await {
                     warn!("Error sending new reading to data-store: {e}")
                 }

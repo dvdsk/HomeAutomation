@@ -24,7 +24,7 @@ pub(super) async fn run(
     mqtt_ip: IpAddr,
     change_receiver: mpsc::UnboundedReceiver<(String, Property)>,
     name: String,
-    on_msg: impl Fn(protocol::Reading),
+    reading_callback: impl Fn(protocol::Reading),
 ) -> ! {
     // The id string must be random or subscribe does not work
     let id = name + " " + &rand::random::<usize>().to_string();
@@ -59,7 +59,7 @@ pub(super) async fn run(
     }
 
     trace!("Starting main zigbee management loops");
-    let poll_mqtt = poll::poll_mqtt(eventloop, &known_states, on_msg);
+    let poll_mqtt = poll::poll_mqtt(eventloop, &known_states, reading_callback);
     let handle_changes = changes::handle(
         change_receiver,
         &mut mqtt,

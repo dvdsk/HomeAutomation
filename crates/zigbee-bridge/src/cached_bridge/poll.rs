@@ -17,7 +17,7 @@ use crate::{light_names, RADIATOR_NAMES};
 pub(super) async fn poll_mqtt(
     mut eventloop: EventLoop,
     known_states: &RwLock<HashMap<String, Box<dyn Device>>>,
-    on_msg: impl Fn(protocol::Reading),
+    reading_callback: impl Fn(protocol::Reading),
 ) -> ! {
     loop {
         let message = match eventloop.poll().await {
@@ -44,7 +44,7 @@ pub(super) async fn poll_mqtt(
                 readings,
             } => {
                 for reading in readings {
-                    on_msg(reading);
+                    reading_callback(reading);
                 }
                 update_state(known_states, &device_name, changed).await;
             }
