@@ -33,7 +33,7 @@ pub(super) async fn handle(
                 let (device_name, change) =
                     update.expect("Channel should never close");
 
-                tracing::info!("Received change order: {change:?} for device {device_name}");
+                tracing::debug!("Received change order: {change:?} for device {device_name}");
                 apply_change_to_needed(device_name, change, &mut needed_states);
 
                 // When there hasn't been a new change in 100 milliseconds, we

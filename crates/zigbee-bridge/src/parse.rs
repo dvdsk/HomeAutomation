@@ -102,7 +102,6 @@ fn parse_radiator_properties(
         list.push(RadiatorProperty::SetByMethod(set_method).into());
     }
 
-    tracing::info!("list: {list:?}");
     Ok(list)
 }
 
