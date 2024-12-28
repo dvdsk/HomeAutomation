@@ -111,7 +111,7 @@ impl Device {
             name: "Radiator",
             affects_readings: &tree![Reading; Reading::Temperature(0.0), Reading::Heating(0.0)],
             temporal_resolution: Duration::from_secs(5), // unknown
-            min_sample_interval: Duration::ZERO, //unknown
+            min_sample_interval: Duration::from_secs(5), // unknown
             max_sample_interval: Duration::MAX,
             affectors: &[],
         }

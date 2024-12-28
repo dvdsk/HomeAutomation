@@ -1,13 +1,13 @@
 use std::fs::create_dir_all;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use byteseries::{downsample, series, ByteSeries};
 use color_eyre::eyre::{eyre, WrapErr};
 use color_eyre::{Result, Section};
-use protocol::{reading, IsSameAs};
 use protocol::reading::tree::{Item, Tree};
+use protocol::{reading, IsSameAs};
 use serde::{Deserialize, Serialize};
 use tracing::{instrument, trace};
 
@@ -273,19 +273,31 @@ fn meta_list_and_payload_size(
     (meta, payload_size)
 }
 
-/// Multiplying the time for this sample by this factor
-/// allows you to save the whole number and retain the required
-/// temporal_resolution and min_sample_interval.
+/// Scaling factor, when applied to milliseconds it returns some other
+/// unit that is the most minimal representation of time for this device.
+///
+/// Example given a device with
+///  - minimal sample interval 5 seconds
+///  - the temporal_resolution 10 seconds
+/// We only need to store something every 5 seconds and we can be up to 5
+/// seconds off in both directions. Thus one 'minimal representation unit' is
+/// 5 seconds
 pub fn millis_to_minimal_representation(
     device_info: protocol::DeviceInfo,
 ) -> u64 {
+    assert!(
+        device_info.min_sample_interval > Duration::ZERO,
+        "min sample interval may not be zero, device info: {device_info:?}"
+    );
     let needed_interval = device_info
         .temporal_resolution
         .min(device_info.min_sample_interval)
         .as_secs_f32();
     let mul_factor = 0.001 / needed_interval;
     let div_factor = 1. / mul_factor;
-    div_factor.round() as u64
+    let factor = div_factor.round() as u64;
+    assert_ne!(factor, 0);
+    factor
 }
 
 #[instrument(level = "debug", skip(data))]
@@ -374,6 +386,20 @@ mod test {
     use super::*;
     use protocol::large_bedroom::{bed, desk};
     use protocol::{large_bedroom, Reading};
+
+    #[test]
+    fn millis_to_minimal_representation_factor_is_not_zero() {
+        let info = protocol::DeviceInfo {
+            name: "test",
+            affects_readings: &[],
+            min_sample_interval: std::time::Duration::ZERO,
+            max_sample_interval: std::time::Duration::MAX,
+            temporal_resolution: std::time::Duration::from_secs(5),
+            affectors: &[],
+        };
+        let factor = millis_to_minimal_representation(info);
+        assert_eq!(5000 / factor, 5);
+    }
 
     #[test]
     fn millis_to_minimal_representation_factor_makes_sense() {
