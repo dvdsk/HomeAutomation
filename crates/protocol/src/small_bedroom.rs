@@ -9,6 +9,7 @@ use crate::button::Press;
 
 pub mod bed;
 pub mod desk;
+pub mod portable_button_panel;
 pub mod radiator;
 
 crate::button_enum! {
@@ -41,6 +42,7 @@ crate::button_enum! {
 )]
 #[repr(u8)]
 pub enum Reading {
+    PortableButtonPanel(portable_button_panel::Reading) = 4,
     ButtonPanel(ButtonPanel) = 0,
     Desk(desk::Reading) = 1,
     Bed(bed::Reading) = 2,
@@ -48,7 +50,7 @@ pub enum Reading {
 }
 
 #[cfg(feature = "alloc")]
-crate::reading::tree::all_nodes! {Reading; ReadingDiscriminants; ButtonPanel, Desk, Bed, Radiator}
+crate::reading::tree::all_nodes! {Reading; ReadingDiscriminants; ButtonPanel, Desk, Bed, Radiator, PortableButtonPanel}
 
 #[derive(
     strum::EnumDiscriminants,
@@ -101,6 +103,7 @@ pub enum Device {
     Desk(desk::Device),
     Bed(bed::Device),
     Radiator(radiator::Device),
+    PortableButtonPanel(portable_button_panel::Device),
 }
 
 macro_rules! tree {
@@ -135,6 +138,7 @@ impl Device {
             Device::Desk(device) => device.info(),
             Device::Bed(device) => device.info(),
             Device::Radiator(device) => device.info(),
+            Device::PortableButtonPanel(device) => device.info(),
         }
     }
 }

@@ -1,5 +1,6 @@
 use color_eyre::eyre::{bail, Context, OptionExt, Report, Result};
 use color_eyre::Section;
+use protocol::small_bedroom;
 use serde_json::{Map, Value};
 use tracing::instrument;
 
@@ -23,7 +24,45 @@ pub(super) fn properties(
     }
 }
 
-pub(crate) fn readings(
+pub(crate) fn media_buttons(
+    device_name: &str,
+    map: &Map<String, Value>,
+) -> Vec<protocol::Reading> {
+    use protocol::small_bedroom::portable_button_panel::Reading as R;
+    let action_reading_mapping = [
+        ("play_pause", R::PlayPause),
+        ("track_next", R::TrackNext),
+        ("track_previous", R::TrackPrevious),
+        ("volume_up", R::VolumeUp),
+        ("volume_up_hold", R::VolumeUpHold),
+        ("volume_down", R::VolumeDown),
+        ("volume_down_hold", R::VolumeDownHold),
+        ("dots_1_initial_press", R::Dots1InitialPress),
+        ("dots_1_short_release", R::Dots1ShortRelease),
+        ("dots_1_double_press", R::Dots1DoublePress),
+        ("dots_1_long_press", R::Dots1LongPress),
+        ("dots_1_long_release", R::Dots1LongRelease),
+        ("dots_2_initial_press", R::Dots2InitialPress),
+        ("dots_2_short_release", R::Dots2ShortRelease),
+        ("dots_2_double_press", R::Dots2DoublePress),
+        ("dots_2_long_press", R::Dots2LongPress),
+        ("dots_2_long_release", R::Dots2LongRelease),
+    ];
+
+    if device_name == "small_bedroom:media_buttons" {
+        action_reading_mapping
+            .iter()
+            .filter(|(action, _)| map.contains_key(*action))
+            .map(|(_, reading)| reading.clone())
+            .map(small_bedroom::Reading::PortableButtonPanel)
+            .map(protocol::Reading::SmallBedroom)
+            .collect()
+    } else {
+        Vec::new()
+    }
+}
+
+pub(crate) fn radiator_readings(
     device_name: &str,
     map: &Map<String, Value>,
 ) -> Result<Vec<protocol::Reading>> {
