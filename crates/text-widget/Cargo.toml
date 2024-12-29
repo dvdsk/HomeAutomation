@@ -21,6 +21,6 @@ tracing.workspace = true
 tracing-error.workspace = true
 tracing-subscriber.workspace = true
 dirs = "5.0.1"
-serde = { version = "1.0.204", features = ["derive"] }
+serde.workspace = true
 promptly = "0.3.1"
 ron = "0.8.1"

@@ -14,7 +14,9 @@ logger = { path = "crates/logger" }
 
 byteseries = { git = "https://github.com/dvdsk/byteseries", rev="325c7823aa2d04bba85d0346077fe999e789f3c9" }
 
+serde = { version = "1", features = ["derive"] }
 tokio = { version = "1.38", features = ["rt-multi-thread"] }
+governor = "0.8"
 color-eyre = "0.6.3"
 tracing = "0.1.40"
 tracing-error = "0.2.0"
@@ -22,7 +24,7 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 futures-concurrency = "7.6.2"
 jiff = "0.1"
 clap = { version = "4", features = ["derive"]} 
-thiserror = "1"
+thiserror = "2"
 
 [workspace.package]
 rust-version = "1.82"

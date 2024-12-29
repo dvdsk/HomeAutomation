@@ -20,17 +20,16 @@ rpc = { workspace = true }
 
 protocol = { workspace = true, features = ["alloc", "thiserror"] }
 tokio = { workspace = true, features = ["rt", "macros", "net", "sync", "io-util"] }
-tokio-stream = { version = "0.1.15", features = ["net"] }
-thiserror = "1.0.61"
+thiserror.workspace = true
 futures = "0.3.30"
 tokio-serde = { version = "0.9.0", features = ["bincode"] }
 tokio-util = { version = "0.7.11", features = ["codec"] }
-serde = { version = "1.0.208", features = ["derive"] }
+serde.workspace = true
 futures-concurrency = { workspace = true }
 slotmap = "1.0.7"
 tracing-futures = "0.2.5"
 socket2 = "0.5.7"
-governor = "0.6.3"
+governor.workspace = true
 
 [dev-dependencies]
 reserve-port = "2"

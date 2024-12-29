@@ -27,12 +27,11 @@ data-server = { workspace = true }
 byteseries = { workspace = true }
 tokio = { workspace = true, features = ["fs", "net", "rt-multi-thread", "sync"] }
 futures-concurrency = { workspace = true }
-serde = { version = "1.0.203", features = ["derive"] }
+serde.workspace = true
 thiserror = { workspace = true }
 futures = "0.3.30"
 smallvec = "2.0.0-alpha.6"
 num = "0.4.3"
-hdrhistogram = "7.5.4"
 ron = "0.8.1"
 
 [dev-dependencies]

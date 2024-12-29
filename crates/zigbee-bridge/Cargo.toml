@@ -14,16 +14,9 @@ colorimetry = { git = "https://github.com/harbik/colorimetry", features = ["cct"
 rumqttc = { version = "0.24.0", default-features = false }
 serde_json = "1.0.132"
 thiserror.workspace = true
-futures-concurrency = { workspace = true } 
 tokio = { workspace = true, features = ["sync"] }
 tracing = { workspace = true }
-futures = "0.3.31"
 strum = { version = "0.26.3", features = ["derive"] }
-logger = { workspace = true }
 color-eyre.workspace = true
-itertools = "0.13.0"
 regex = "1.11.1"
 rand = "0.8.5"
-
-[dev-dependencies]
-logger.workspace = true

@@ -9,7 +9,7 @@ authors.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"], default-features = false }
+serde.workspace = true
 postcard = { version = "1.0.10", features = ["experimental-derive", "use-defmt"] }
 heapless = { version = "0.8.0", features = ["serde", "defmt-03"] }
 strum = { version = "0.26.2", default-features = false, features = ["derive"] }
