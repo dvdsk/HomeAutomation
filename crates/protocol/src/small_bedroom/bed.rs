@@ -558,6 +558,8 @@ mod test {
     #[test]
     #[cfg(feature = "alloc")]
     fn test_is_same_as() {
+        use crate::IsSameAs;
+
         assert!(Reading::Co2(5).is_same_as(&Reading::Co2(0)));
 
         let a = crate::Reading::SmallBedroom(
