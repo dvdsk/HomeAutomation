@@ -18,12 +18,12 @@ set -e
 cargo build --profile=release-with-debug
 echo '1' | sudo tee /proc/sys/kernel/perf_event_paranoid
 
-# samply record ../../target/release/radiator-bridge \
+# samply record ../../target/release-with-debug/radiator-bridge \
 # 	--data-server-subscribe=192.168.1.43:1235 \
 # 	--data-server-update=192.168.1.43:1234 \
 # 	--mqtt-ip=192.168.1.43
 
-flamegraph -- ../../target/release/radiator-bridge \
+flamegraph -- ../../target/release-with-debug/radiator-bridge \
 	--data-server-subscribe=192.168.1.43:1235 \
 	--data-server-update=192.168.1.43:1234 \
 	--mqtt-ip=192.168.1.43
