@@ -24,10 +24,10 @@ pub(super) fn properties(
     }
 }
 
-pub(crate) fn media_buttons(
+pub(crate) fn portable_button_panel(
     device_name: &str,
     map: &Map<String, Value>,
-) -> Vec<protocol::Reading> {
+) -> Result<Option<protocol::Reading>> {
     use protocol::small_bedroom::portable_button_panel::Reading as R;
     let action_reading_mapping = [
         ("play_pause", R::PlayPause),
@@ -49,16 +49,25 @@ pub(crate) fn media_buttons(
         ("dots_2_long_release", R::Dots2LongRelease),
     ];
 
-    if device_name == "small_bedroom:media_buttons" {
-        action_reading_mapping
-            .iter()
-            .filter(|(action, _)| map.contains_key(*action))
-            .map(|(_, reading)| reading.clone())
-            .map(small_bedroom::Reading::PortableButtonPanel)
-            .map(protocol::Reading::SmallBedroom)
-            .collect()
+    if device_name == "small_bedroom:portable_button_panel" {
+        map.get("action")
+            .map(json_to_str)
+            .transpose()?
+            .map(|action| {
+                action_reading_mapping
+                    .iter()
+                    .find(|(a, _)| action == *a)
+                    .map(|(_, reading)| reading.clone())
+                    .map(small_bedroom::Reading::PortableButtonPanel)
+                    .map(protocol::Reading::SmallBedroom)
+                    .ok_or_eyre(
+                        "every action should have a corrosponding reading",
+                    )
+                    .with_note(|| format!("action was: {action}"))
+            })
+            .transpose()
     } else {
-        Vec::new()
+        Ok(None)
     }
 }
 
@@ -243,6 +252,13 @@ fn json_to_f64(json: &Value) -> Result<f64> {
         .with_note(|| format!("got: {json:?}"))?
         .as_f64()
         .expect("Should be Some if not using arbitrary precision"))
+}
+
+fn json_to_str(json: &Value) -> Result<&str> {
+    Ok(json
+        .as_str()
+        .ok_or_eyre("Must be a string")
+        .with_note(|| format!("got: {json:?}"))?)
 }
 
 fn json_to_f32(json: &Value) -> Result<f32> {

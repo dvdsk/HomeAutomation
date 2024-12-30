@@ -111,12 +111,13 @@ fn parse_message(event: Event) -> Result<Message> {
             let changed = parse::properties(&device_name, map)
                 .wrap_err("failed to parse device state")
                 .with_note(|| format!("topic: {topic:?}"))?;
-            let readings = parse::radiator_readings(&device_name, map)
+            let mut readings = parse::radiator_readings(&device_name, map)
                 .wrap_err("failed to parse device readings")
                 .with_note(|| format!("topic: {topic:?}"))?;
-            let readings = parse::media_buttons(&device_name, map)
-                .wrap_err("failed to parse device readings")
+            let button_readings = parse::portable_button_panel(&device_name, map)
+                .wrap_err("failed to parse media buttons")
                 .with_note(|| format!("topic: {topic:?}"))?;
+            readings.extend(button_readings);
             Ok(Message::Update {
                 device_name,
                 changed,

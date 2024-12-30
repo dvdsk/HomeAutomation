@@ -73,6 +73,9 @@ impl LastSeen {
                     )
                     | Reading::SmallBedroom(
                         small_bedroom::Reading::ButtonPanel(_),
+                    )
+                    | Reading::SmallBedroom(
+                        small_bedroom::Reading::PortableButtonPanel(_),
                     ) => None,
                 }
                 .map(|reset_cmd| (reading, reset_cmd))
