@@ -3,7 +3,7 @@ use std::time::Duration;
 use futures_concurrency::future::Race;
 use futures_util::FutureExt;
 use jiff::civil::Time;
-use protocol::small_bedroom::ButtonPanel;
+use protocol::small_bedroom::{portable_button_panel, ButtonPanel};
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
 use tracing::trace;
@@ -68,8 +68,11 @@ pub async fn run(
 
         let trigger = (get_event, tick).race().await;
         match trigger {
-            Trigger::Event(RelevantEvent::Button(button)) => {
-                handle_buttonpress(&mut room, button).await;
+            Trigger::Event(
+                event @ RelevantEvent::Button(_)
+                | event @ RelevantEvent::PortableButton(_),
+            ) => {
+                handle_buttonpress(&mut room, event).await;
             }
             Trigger::Event(RelevantEvent::Wakeup) => room.to_wakeup().await,
             Trigger::ShouldUpdate => {
@@ -81,12 +84,20 @@ pub async fn run(
     }
 }
 
-async fn handle_buttonpress(room: &mut Room, button: ButtonPanel) {
-    match button {
-        ButtonPanel::BottomLeft(_) => {
-            room.to_sleep().await;
+async fn handle_buttonpress(room: &mut Room, event: RelevantEvent) {
+    use portable_button_panel::Reading as P;
+    use ButtonPanel as B;
+    use RelevantEvent as E;
+
+    match event {
+        E::Button(B::BottomLeft(_)) => {
+            room.to_sleep_delayed().await;
         }
-        ButtonPanel::BottomMiddle(_) => {
+        E::PortableButton(P::Dots1InitialPress) => {
+            room.to_sleep_immediate().await
+        }
+        E::Button(B::BottomMiddle(_))
+        | E::PortableButton(P::Dots2InitialPress) => {
             use crate::time;
             let now = time::now();
             match time(now.hour(), now.minute()) {
@@ -94,7 +105,7 @@ async fn handle_buttonpress(room: &mut Room, button: ButtonPanel) {
                 _ => room.to_daylight().await,
             }
         }
-        ButtonPanel::BOttomRight(_) => {
+        E::Button(B::BOttomRight(_)) => {
             room.to_override().await;
         }
         _ => (),

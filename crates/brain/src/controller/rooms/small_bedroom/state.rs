@@ -41,7 +41,12 @@ impl Room {
         }
     }
 
-    pub(super) async fn to_sleep(&mut self) {
+    pub(super) async fn to_sleep_immediate(&mut self) {
+        self.system.all_lamps_off().await;
+        self.to_state(State::Sleep).await;
+    }
+
+    pub(super) async fn to_sleep_delayed(&mut self) {
         self.to_state_cancel_prev(State::DelayedOff).await;
 
         self.system.one_lamp_off("small_bedroom:bureau").await;
