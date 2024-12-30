@@ -28,46 +28,46 @@ impl RestrictedSystem {
         bri: f64,
     ) {
         if self.allowed_lights.contains(&name) {
-            self.system.lights_new.set_color_temp(name, kelvin);
-            self.system.lights_new.set_brightness(name, bri);
+            self.system.zigbee.set_color_temp(name, kelvin);
+            self.system.zigbee.set_brightness(name, bri);
         }
     }
 
     async fn one_lamp_on(&mut self, name: &'static str) {
         if self.allowed_lights.contains(&name) {
-            self.system.lights_new.set_on(name);
+            self.system.zigbee.set_on(name);
         }
     }
 
     async fn one_lamp_off(&mut self, name: &'static str) {
         if self.allowed_lights.contains(&name) {
-            self.system.lights_new.set_off(name);
+            self.system.zigbee.set_off(name);
         }
     }
 
     async fn all_lamps_ct(&mut self, kelvin: usize, bri: f64) {
         for name in &self.allowed_lights {
-            self.system.lights_new.set_color_temp(name, kelvin);
-            self.system.lights_new.set_brightness(name, bri);
+            self.system.zigbee.set_color_temp(name, kelvin);
+            self.system.zigbee.set_brightness(name, bri);
         }
     }
 
     async fn all_lamps_off(&mut self) {
         for name in &self.allowed_lights {
-            self.system.lights_new.set_off(name);
+            self.system.zigbee.set_off(name);
         }
     }
 
     async fn all_lamps_on(&mut self) {
         for name in &self.allowed_lights {
-            self.system.lights_new.set_on(name);
+            self.system.zigbee.set_on(name);
         }
     }
 
     async fn all_lamps_but_one_off(&mut self, leave_this_on: &str) {
         for name in &self.allowed_lights {
             if *name != leave_this_on {
-                self.system.lights_new.set_off(name);
+                self.system.zigbee.set_off(name);
             }
         }
     }
