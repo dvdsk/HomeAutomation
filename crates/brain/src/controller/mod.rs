@@ -17,6 +17,7 @@ pub enum Event {
 #[derive(Clone)]
 pub(crate) struct RestrictedSystem {
     allowed_lights: Vec<&'static str>,
+    allowed_radiators: Vec<&'static str>,
     system: System,
 }
 
@@ -71,6 +72,12 @@ impl RestrictedSystem {
             }
         }
     }
+
+    async fn set_radiators_setpoint(&mut self, temperature: f64) {
+        for name in &self.allowed_radiators {
+            self.system.zigbee.set_radiator_setpoint(name, temperature);
+        }
+    }
 }
 
 pub fn start(
@@ -91,6 +98,7 @@ pub fn start(
             "large_bedroom:wardrobe",
             "large_bedroom:bed",
         ],
+        allowed_radiators: vec!["large_bedroom:radiator"],
     };
     tasks.spawn(rooms::large_bedroom::run(rx1, sender.clone(), restricted));
 
@@ -101,6 +109,7 @@ pub fn start(
             "small_bedroom:bureau",
             "small_bedroom:piano",
         ],
+        allowed_radiators: vec!["small_bedroom:radiator"],
     };
     tasks.spawn(rooms::small_bedroom::run(rx2, sender.clone(), restricted));
 
@@ -113,6 +122,7 @@ pub fn start(
             "kitchen:fridge",
             "kitchen:hallway",
         ],
+        allowed_radiators: vec![],
     };
     tasks.spawn(rooms::kitchen::run(rx3, sender, restricted));
 
