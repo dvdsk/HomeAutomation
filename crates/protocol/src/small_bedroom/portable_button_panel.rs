@@ -56,6 +56,11 @@ impl Tree for Reading {
         })
     }
 
+    fn name(&self) -> String {
+        let dbg_repr = format!("{self:?}");
+        dbg_repr
+    }
+
     #[must_use]
     fn branch_id(&self) -> crate::reading::tree::Id {
         ReadingDiscriminants::from(self) as crate::reading::tree::Id

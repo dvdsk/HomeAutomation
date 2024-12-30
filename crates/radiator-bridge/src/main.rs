@@ -78,6 +78,7 @@ impl RadiatorState {
 #[tokio::main]
 async fn main() {
     let args = Opt::parse();
+    color_eyre::install().unwrap();
     logger::tracing::setup();
 
     let mut data_subscriber = subscriber::ReconnectingClient::new(

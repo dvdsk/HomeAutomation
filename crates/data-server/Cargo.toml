@@ -21,7 +21,7 @@ rpc = { workspace = true }
 protocol = { workspace = true, features = ["alloc", "thiserror"] }
 tokio = { workspace = true, features = ["rt", "macros", "net", "sync", "io-util"] }
 thiserror.workspace = true
-futures = "0.3.30"
+futures.workspace = true
 tokio-serde = { version = "0.9.0", features = ["bincode"] }
 tokio-util = { version = "0.7.11", features = ["codec"] }
 serde.workspace = true

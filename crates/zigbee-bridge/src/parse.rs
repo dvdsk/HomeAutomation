@@ -20,7 +20,7 @@ pub(super) fn properties(
     } else if RADIATOR_NAMES.contains(&device_name) {
         parse_radiator_properties(map)
     } else {
-        bail!("Unknown device name, could not parse properties");
+        Ok(Vec::new())
     }
 }
 
@@ -30,7 +30,7 @@ pub(crate) fn portable_button_panel(
 ) -> Result<Option<protocol::Reading>> {
     use protocol::small_bedroom::portable_button_panel::Reading as R;
     let action_reading_mapping = [
-        ("play_pause", R::PlayPause),
+        ("toggle", R::PlayPause),
         ("track_next", R::TrackNext),
         ("track_previous", R::TrackPrevious),
         ("volume_up", R::VolumeUp),

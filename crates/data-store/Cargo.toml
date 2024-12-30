@@ -29,7 +29,7 @@ tokio = { workspace = true, features = ["fs", "net", "rt-multi-thread", "sync"] 
 futures-concurrency = { workspace = true }
 serde.workspace = true
 thiserror = { workspace = true }
-futures = "0.3.30"
+futures.workspace = true
 smallvec = "2.0.0-alpha.6"
 num = "0.4.3"
 ron = "0.8.1"

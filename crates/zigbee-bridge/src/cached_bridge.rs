@@ -57,6 +57,9 @@ pub(super) async fn run(
             .unwrap();
         mqtt.request_state(radiator).await;
     }
+    mqtt.subscribe("zigbee2mqtt/small_bedroom:portable_button_panel")
+        .await
+        .unwrap();
 
     trace!("Starting main zigbee management loops");
     let poll_mqtt = poll::poll_mqtt(eventloop, &known_states, reading_callback);
