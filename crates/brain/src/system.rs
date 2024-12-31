@@ -10,7 +10,7 @@ use crate::input::jobs::Jobs;
 pub struct System {
     #[allow(dead_code)]
     pub jobs: Jobs,
-    pub lights_new: Controller,
+    pub zigbee: Controller,
     // pub mpd: Mpd,
 }
 
@@ -18,7 +18,7 @@ impl System {
     pub fn init(mqtt_ip: IpAddr, jobs: Jobs) -> Self {
         Self {
             jobs,
-            lights_new: Controller::start_bridge(mqtt_ip, "brain"),
+            zigbee: Controller::start_bridge(mqtt_ip, "brain"),
             // mpd: Mpd,
         }
     }

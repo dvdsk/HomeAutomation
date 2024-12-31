@@ -17,6 +17,7 @@ pub enum Event {
 #[derive(Clone)]
 pub(crate) struct RestrictedSystem {
     allowed_lights: Vec<&'static str>,
+    allowed_radiators: Vec<&'static str>,
     system: System,
 }
 
@@ -28,47 +29,53 @@ impl RestrictedSystem {
         bri: f64,
     ) {
         if self.allowed_lights.contains(&name) {
-            self.system.lights_new.set_color_temp(name, kelvin);
-            self.system.lights_new.set_brightness(name, bri);
+            self.system.zigbee.set_color_temp(name, kelvin);
+            self.system.zigbee.set_brightness(name, bri);
         }
     }
 
     async fn one_lamp_on(&mut self, name: &'static str) {
         if self.allowed_lights.contains(&name) {
-            self.system.lights_new.set_on(name);
+            self.system.zigbee.set_on(name);
         }
     }
 
     async fn one_lamp_off(&mut self, name: &'static str) {
         if self.allowed_lights.contains(&name) {
-            self.system.lights_new.set_off(name);
+            self.system.zigbee.set_off(name);
         }
     }
 
     async fn all_lamps_ct(&mut self, kelvin: usize, bri: f64) {
         for name in &self.allowed_lights {
-            self.system.lights_new.set_color_temp(name, kelvin);
-            self.system.lights_new.set_brightness(name, bri);
+            self.system.zigbee.set_color_temp(name, kelvin);
+            self.system.zigbee.set_brightness(name, bri);
         }
     }
 
     async fn all_lamps_off(&mut self) {
         for name in &self.allowed_lights {
-            self.system.lights_new.set_off(name);
+            self.system.zigbee.set_off(name);
         }
     }
 
     async fn all_lamps_on(&mut self) {
         for name in &self.allowed_lights {
-            self.system.lights_new.set_on(name);
+            self.system.zigbee.set_on(name);
         }
     }
 
     async fn all_lamps_but_one_off(&mut self, leave_this_on: &str) {
         for name in &self.allowed_lights {
             if *name != leave_this_on {
-                self.system.lights_new.set_off(name);
+                self.system.zigbee.set_off(name);
             }
+        }
+    }
+
+    async fn set_radiators_setpoint(&mut self, temperature: f64) {
+        for name in &self.allowed_radiators {
+            self.system.zigbee.set_radiator_setpoint(name, temperature);
         }
     }
 }
@@ -91,6 +98,7 @@ pub fn start(
             "large_bedroom:wardrobe",
             "large_bedroom:bed",
         ],
+        allowed_radiators: vec!["large_bedroom:radiator"],
     };
     tasks.spawn(rooms::large_bedroom::run(rx1, sender.clone(), restricted));
 
@@ -101,6 +109,7 @@ pub fn start(
             "small_bedroom:bureau",
             "small_bedroom:piano",
         ],
+        allowed_radiators: vec!["small_bedroom:radiator"],
     };
     tasks.spawn(rooms::small_bedroom::run(rx2, sender.clone(), restricted));
 
@@ -113,6 +122,7 @@ pub fn start(
             "kitchen:fridge",
             "kitchen:hallway",
         ],
+        allowed_radiators: vec![],
     };
     tasks.spawn(rooms::kitchen::run(rx3, sender, restricted));
 
