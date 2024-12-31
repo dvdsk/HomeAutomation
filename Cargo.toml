@@ -14,7 +14,7 @@ logger = { path = "crates/logger" }
 
 byteseries = { git = "https://github.com/dvdsk/byteseries", rev="325c7823aa2d04bba85d0346077fe999e789f3c9" }
 
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive"], default-features = false }
 tokio = { version = "1.38", features = ["rt-multi-thread"] }
 governor = "0.8"
 color-eyre = "0.6.3"

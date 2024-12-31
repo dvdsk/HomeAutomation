@@ -13,10 +13,10 @@ embassy-stm32 = { version = "0.1.0", features = [ "defmt", "stm32f401cc",
 embassy-net = { version = "0.5.0", features = ["defmt", "proto-ipv4", "tcp", "dhcpv4","medium-ethernet"] }
 embassy-net-wiznet = { version = "0.1.0", features = ["defmt"] }
 embassy-sync = { version = "0.6.1", features = ["defmt"] }
-embassy-executor = { version = "0.6.3", features = ["arch-cortex-m",
-"executor-thread", "defmt", "integrated-timers", "executor-interrupt"] }
+embassy-executor = { version = "0.7", features = ["arch-cortex-m",
+"executor-thread", "defmt", "executor-interrupt"] }
 embassy-embedded-hal = { version = "0.2.0" }
-embassy-time = { version = "0.3.2", features = ["defmt",
+embassy-time = { version = "0.4", features = ["defmt",
 "defmt-timestamp-uptime-ms", "tick-hz-32_768"] }
 embassy-futures = { version = "0.1.1"}
 
@@ -31,17 +31,17 @@ defmt-rtt = "0.4"
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 
 [patch.crates-io]
-embassy-stm32 = {git = "https://github.com/embassy-rs/embassy", rev = "080900c" }
-embassy-net = {git = "https://github.com/embassy-rs/embassy", rev = "080900c" }
-embassy-net-wiznet = {git = "https://github.com/embassy-rs/embassy", rev = "080900c" }
-embassy-sync = {git = "https://github.com/embassy-rs/embassy", rev = "080900c" }
-embassy-executor = {git = "https://github.com/embassy-rs/embassy", rev = "080900c" }
-embassy-embedded-hal = {git = "https://github.com/embassy-rs/embassy", rev = "080900c" }
-embassy-futures = {git = "https://github.com/embassy-rs/embassy", rev = "080900c" }
-embassy-time = {git = "https://github.com/embassy-rs/embassy", rev = "080900c" }
-embassy-time-driver = {git = "https://github.com/embassy-rs/embassy", rev = "080900c" }
-embassy-time-queue-driver = {git = "https://github.com/embassy-rs/embassy", rev = "080900c" }
-embassy-usb = {git = "https://github.com/embassy-rs/embassy", rev = "080900c" }
+embassy-stm32 = {git = "https://github.com/embassy-rs/embassy", rev = "a4f8fdd" }
+embassy-net = {git = "https://github.com/embassy-rs/embassy", rev = "a4f8fdd" }
+embassy-net-wiznet = {git = "https://github.com/embassy-rs/embassy", rev = "a4f8fdd" }
+embassy-sync = {git = "https://github.com/embassy-rs/embassy", rev = "a4f8fdd" }
+embassy-executor = {git = "https://github.com/embassy-rs/embassy", rev = "a4f8fdd" }
+embassy-embedded-hal = {git = "https://github.com/embassy-rs/embassy", rev = "a4f8fdd" }
+embassy-futures = {git = "https://github.com/embassy-rs/embassy", rev = "a4f8fdd" }
+embassy-time = {git = "https://github.com/embassy-rs/embassy", rev = "a4f8fdd" }
+embassy-time-driver = {git = "https://github.com/embassy-rs/embassy", rev = "a4f8fdd" }
+# embassy-time-queue-driver = {git = "https://github.com/embassy-rs/embassy", rev = "a4f8fdd" }
+embassy-usb = {git = "https://github.com/embassy-rs/embassy", rev = "a4f8fdd" }
 
 [workspace.package]
 rust-version = "1.78"

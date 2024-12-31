@@ -88,7 +88,7 @@ impl LastSeen {
                     .map(|(_, at)| at)
                     .copied();
                 !last_reset.is_some_and(|last_reset| {
-                    last_reset.elapsed() < MIN_RESET_INTERVAL
+                    last_reset.elapsed() > MIN_RESET_INTERVAL
                 })
             })
             .map(|(reading, reset_cmd)| (reading.clone(), reset_cmd))

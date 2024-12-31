@@ -119,8 +119,8 @@ pub async fn handle(
     }
 }
 
-fn affector_list() -> affector::ListMessage<5> {
-    let mut list = affector::ListMessage::<5>::empty();
+fn affector_list() -> affector::ListMessage<6> {
+    let mut list = affector::ListMessage::<6>::empty();
     unwrap!(list.values.push(Affector::LargeBedroom(
         protocol::large_bedroom::Affector::Bed(bed::Affector::RgbLed {
             red: 0,
@@ -143,6 +143,9 @@ fn affector_list() -> affector::ListMessage<5> {
         protocol::large_bedroom::Affector::Bed(
             bed::Affector::Nau7802RightCalib
         ),
+    )));
+    unwrap!(list.values.push(Affector::LargeBedroom(
+        protocol::large_bedroom::Affector::Bed(bed::Affector::ResetNode)
     )));
 
     list
