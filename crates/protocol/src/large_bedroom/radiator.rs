@@ -26,13 +26,34 @@ use crate::Unit;
 pub enum Reading {
     Temperature(f32) = 0,
     Heating(f32) = 1,
+    SetBy(Source) = 2,
+}
+
+#[derive(
+    strum::EnumDiscriminants,
+    Clone,
+    Copy,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    PartialEq,
+)]
+#[strum_discriminants(derive(Hash))]
+#[repr(u8)]
+pub enum Source {
+    Manual,
+    Schedule,
+    External,
 }
 
 impl crate::IsSameAs for Reading {
     fn is_same_as(&self, other: &Self) -> bool {
         match (self, other) {
             (Reading::Temperature(_), Reading::Temperature(_))
-            | (Reading::Heating(_), Reading::Heating(_)) => true,
+            | (Reading::Heating(_), Reading::Heating(_))
+            | (Reading::SetBy(_), Reading::SetBy(_)) => true,
             (_, _) => false,
         }
     }
@@ -63,6 +84,17 @@ impl Tree for Reading {
                 range: 0.0..100.0,
                 unit: Unit::RelativePower,
                 description: "Heating valve",
+                branch_id: self.branch_id(),
+            },
+            Reading::SetBy(val) => Info {
+                val: *val as u8 as f32,
+                device: crate::Device::LargeBedroom(super::Device::Radiator(
+                    Device,
+                )),
+                resolution: 1.0,
+                range: 0.0..3.0,
+                unit: Unit::None,
+                description: "Manual value set",
                 branch_id: self.branch_id(),
             },
         };

@@ -76,7 +76,7 @@ pub async fn run(
             }
             Trigger::Event(RelevantEvent::Wakeup) => room.to_wakeup().await,
             Trigger::ShouldUpdate => {
-                system.set_radiators_setpoint(goal_temp_now()).await;
+                // system.set_radiators_setpoint(goal_temp_now()).await;
                 room.all_lights_daylight().await;
                 next_update = Instant::now() + UPDATE_INTERVAL;
             }

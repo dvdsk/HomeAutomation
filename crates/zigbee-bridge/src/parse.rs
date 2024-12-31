@@ -97,6 +97,27 @@ pub(crate) fn radiator_readings(
                         .map($protocol_module::Reading::Radiator)
                         .map(Reading::$ReadingVariant),
                 )
+                .chain(
+                    map.get("setpoint_change_source")
+                        .map(json_to_usize)
+                        .transpose()?
+                        .map(|num| match num {
+                            0 => Ok($protocol_module::radiator::Source::Manual),
+                            1 => {
+                                Ok($protocol_module::radiator::Source::Schedule)
+                            }
+                            2 => {
+                                Ok($protocol_module::radiator::Source::External)
+                            }
+                            _ => Err(color_eyre::eyre::eyre!(
+                                "Unexpected change source {num}"
+                            )),
+                        })
+                        .transpose()?
+                        .map($protocol_module::radiator::Reading::SetBy)
+                        .map($protocol_module::Reading::Radiator)
+                        .map(Reading::$ReadingVariant),
+                )
                 .collect())
         };
     }
