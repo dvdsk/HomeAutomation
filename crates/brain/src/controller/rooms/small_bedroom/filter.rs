@@ -2,7 +2,10 @@ use tokio::sync::broadcast::{error::RecvError, Receiver};
 use tracing::warn;
 
 use crate::controller::Event;
-use protocol::{small_bedroom::{self, portable_button_panel}, Reading};
+use protocol::{
+    small_bedroom::{self, portable_button_panel},
+    Reading,
+};
 
 #[derive(Debug)]
 pub(super) enum Trigger {
@@ -39,6 +42,9 @@ fn event_filter(event: Event) -> Option<RelevantEvent> {
         Event::Sensor(Reading::SmallBedroom(
             small_bedroom::Reading::ButtonPanel(button),
         )) => Some(RelevantEvent::Button(button)),
+        Event::Sensor(Reading::SmallBedroom(
+            small_bedroom::Reading::PortableButtonPanel(button),
+        )) => Some(RelevantEvent::PortableButton(button)),
         Event::WakeupSB => Some(RelevantEvent::Wakeup),
         _ => None,
     }
