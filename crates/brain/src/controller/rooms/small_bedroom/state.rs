@@ -1,13 +1,17 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use jiff::{ToSpan, Zoned};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, Mutex, RwLock};
 use tokio::task::{self, JoinHandle};
 use tokio::time::sleep;
-use tracing::warn;
+use tracing::{trace, warn};
 
-use super::{daylight_now, is_nap_time, NAP_TIME, OFF_DELAY};
+use super::{
+    daylight_now, goal_temp_now, is_nap_time, NAP_TIME, OFF_DELAY,
+    RADIATOR_OVERRIDE_MINUTES,
+};
 use crate::controller::{Event, RestrictedSystem};
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -23,6 +27,7 @@ pub(crate) enum State {
 #[derive(Clone)]
 pub(super) struct Room {
     state: Arc<RwLock<State>>,
+    radiator_override: Option<Zoned>,
     system: RestrictedSystem,
     event_tx: broadcast::Sender<Event>,
     task_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
@@ -35,9 +40,39 @@ impl Room {
     ) -> Self {
         Self {
             state: Arc::new(RwLock::new(State::Daylight)),
+            radiator_override: None,
             system,
             event_tx,
             task_handle: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    pub(super) async fn update_radiator(&mut self) {
+        trace!("Updating radiator");
+        trace!("Room radiator override state: {:?}", &self.radiator_override);
+        if let Some(override_time) = &self.radiator_override {
+            if crate::time::now()
+                <= override_time
+                    .checked_add(RADIATOR_OVERRIDE_MINUTES.minute())
+                    .unwrap()
+            {
+                trace!("Override is set and not expired, do nothing");
+                return;
+            } else {
+                warn!("Radiator override is expired, resetting");
+            }
+        }
+        trace!("Override is either not set or expired, set to goal temp");
+        self.system.set_radiators_setpoint(goal_temp_now()).await;
+        self.radiator_override = None;
+    }
+
+    pub(crate) fn start_radiator_override(&mut self) {
+        // Don't set if the radiator resends the manual state
+        if self.radiator_override.is_none() {
+            warn!("Setting radiator override to now");
+            let now = crate::time::now();
+            self.radiator_override = Some(now);
         }
     }
 

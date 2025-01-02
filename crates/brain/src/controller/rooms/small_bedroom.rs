@@ -9,8 +9,8 @@ use tokio::time::{sleep_until, Instant};
 use tracing::trace;
 
 use self::filter::{recv_filtered, RelevantEvent, Trigger};
-use self::state::Room;
 pub(crate) use self::state::State;
+use self::state::Room;
 use crate::controller::{Event, RestrictedSystem};
 use crate::input::jobs::Job;
 use crate::time;
@@ -22,6 +22,7 @@ const UPDATE_INTERVAL: Duration = Duration::from_secs(5);
 const OFF_DELAY: Duration = Duration::from_secs(60);
 const WAKEUP_EXPIRATION: Duration = Duration::from_secs(60);
 const NAP_TIME: Duration = Duration::from_secs(30 * 60);
+const RADIATOR_OVERRIDE_MINUTES: i32 = 60;
 
 const fn time(hour: i8, minute: i8) -> f64 {
     hour as f64 + minute as f64 / 60.
@@ -31,6 +32,7 @@ const T8_00: f64 = time(8, 0);
 const T8_30: f64 = time(8, 30);
 const T9_00: f64 = time(9, 0);
 const T10_30: f64 = time(10, 30);
+const T11_00: f64 = time(11, 0);
 const T13_00: f64 = time(13, 0);
 const T16_00: f64 = time(16, 0);
 const T17_00: f64 = time(17, 0);
@@ -44,7 +46,7 @@ const T23_00: f64 = time(23, 0);
 pub async fn run(
     mut event_rx: broadcast::Receiver<Event>,
     event_tx: broadcast::Sender<Event>,
-    mut system: RestrictedSystem,
+    system: RestrictedSystem,
 ) {
     let mut room = Room::new(event_tx, system.clone());
     let mut next_update = Instant::now() + UPDATE_INTERVAL;
@@ -74,9 +76,13 @@ pub async fn run(
             ) => {
                 handle_buttonpress(&mut room, event).await;
             }
+            Trigger::Event(RelevantEvent::RadiatorOverride) => {
+                trace!("Starting radiator override");
+                room.start_radiator_override();
+            }
             Trigger::Event(RelevantEvent::Wakeup) => room.to_wakeup().await,
             Trigger::ShouldUpdate => {
-                // system.set_radiators_setpoint(goal_temp_now()).await;
+                room.update_radiator().await;
                 room.all_lights_daylight().await;
                 next_update = Instant::now() + UPDATE_INTERVAL;
             }
@@ -123,9 +129,8 @@ pub(super) fn goal_temp_now() -> f64 {
     let now = crate::time::now();
 
     match time(now.hour(), now.minute()) {
-        T8_30..T10_30 => 19.5,
-        T10_30..T13_00 => 20.0,
-        T13_00..T21_00 => 21.0,
+        T8_30..T11_00 => 20.0,
+        T11_00..T21_00 => 21.0,
         T21_00..T22_00 => 20.0,
         T22_00.. | T0_00..T8_30 => 18.5,
         _ => 18.5,
