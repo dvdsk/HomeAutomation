@@ -98,7 +98,7 @@ async fn main() {
     let (reading_tx, mut reading_rx) = tokio::sync::mpsc::channel(1024);
     let callback = move |reading| {
         reading_tx
-            .try_send(dbg!(reading))
+            .try_send(reading)
             .expect("reading_rx should keep up and never drop")
     };
     let controller = Controller::start_bridge_with_reading_callback(
