@@ -99,18 +99,20 @@ pub(crate) fn radiator_readings(
                 )
                 .chain(
                     map.get("setpoint_change_source")
-                        .map(json_to_usize)
+                        .map(json_to_str)
                         .transpose()?
-                        .map(|num| match num {
-                            0 => Ok($protocol_module::radiator::Source::Manual),
-                            1 => {
+                        .map(|val| match val.to_lowercase().as_str() {
+                            "manual" => {
+                                Ok($protocol_module::radiator::Source::Manual)
+                            }
+                            "schedule" => {
                                 Ok($protocol_module::radiator::Source::Schedule)
                             }
-                            2 => {
+                            "externally" => {
                                 Ok($protocol_module::radiator::Source::External)
                             }
                             _ => Err(color_eyre::eyre::eyre!(
-                                "Unexpected change source {num}"
+                                "Unexpected change source {val}"
                             )),
                         })
                         .transpose()?
