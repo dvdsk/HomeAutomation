@@ -40,7 +40,6 @@ embassy-embedded-hal = {git = "https://github.com/embassy-rs/embassy", rev = "a4
 embassy-futures = {git = "https://github.com/embassy-rs/embassy", rev = "a4f8fdd" }
 embassy-time = {git = "https://github.com/embassy-rs/embassy", rev = "a4f8fdd" }
 embassy-time-driver = {git = "https://github.com/embassy-rs/embassy", rev = "a4f8fdd" }
-# embassy-time-queue-driver = {git = "https://github.com/embassy-rs/embassy", rev = "a4f8fdd" }
 embassy-usb = {git = "https://github.com/embassy-rs/embassy", rev = "a4f8fdd" }
 
 [workspace.package]
