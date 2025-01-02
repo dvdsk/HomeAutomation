@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use byteseries::{downsample, series, ByteSeries};
-use color_eyre::eyre::{eyre, WrapErr};
+use color_eyre::eyre::{eyre, OptionExt, WrapErr};
 use color_eyre::{Result, Section};
 use protocol::reading::tree::{Item, Tree};
 use protocol::{reading, IsSameAs};
@@ -116,17 +116,14 @@ impl Series {
 
     #[instrument(skip(self))]
     fn append(&mut self, reading: &protocol::Reading) -> Result<()> {
-        let index = reading
+        let res = reading
             .device()
             .info()
             .affects_readings
             .iter()
             .map(|r| r.leaf().branch_id)
-            .position(|id_in_list| id_in_list == reading.leaf().branch_id)
-            .expect(
-                "reading.device.affected_readings() is a list that contains \
-                reading.branch_id()",
-            );
+            .position(|id_in_list| id_in_list == reading.leaf().branch_id);
+        let index = wrap_inder_err(res, reading)?;
 
         let meta = &mut self.meta_list[index];
         if !reading.leaf().range.contains(&reading.leaf().val) {
@@ -249,6 +246,31 @@ impl Series {
         }
         Ok((time, data))
     }
+}
+
+fn wrap_inder_err(
+    res: Option<usize>,
+    reading: &protocol::Reading,
+) -> Result<usize> {
+    res.ok_or_eyre(
+        "Could not find reading index, branch id does not match 
+                any in readings affected by the device",
+    )
+    .suggestion("In protocol lib, is every reading variant in the affected readings list?")
+    .with_note(|| format!("reading: {reading:?}"))
+    .with_note(|| format!("reading branch id: {:?}", reading.leaf().branch_id))
+    .with_note(|| {
+        format!(
+            "affected readings: {:?}",
+            reading
+                .device()
+                .info()
+                .affects_readings
+                .into_iter()
+                .map(|r| r.leaf())
+                .collect::<Vec<_>>()
+        )
+    })
 }
 
 fn meta_list_and_payload_size(

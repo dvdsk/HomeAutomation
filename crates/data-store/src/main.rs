@@ -23,6 +23,7 @@ struct Cli {
 #[tokio::main]
 async fn main() -> Result<()> {
     logger::tracing::setup();
+    color_eyre::install().unwrap();
     let cli = Cli::parse();
     tracing::info!("started data-server, args: {cli:?}");
 
