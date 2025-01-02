@@ -165,10 +165,16 @@ async fn send_messages(
     if let Err(e) = tcp.write_all(to_send).await {
         return e;
     }
+    if let Err(e) = tcp.flush().await {
+        return e;
+    }
 
     loop {
         let to_send = get_messages(publish, &mut buf).await;
         if let Err(e) = tcp.write_all(to_send).await {
+            return e;
+        }
+        if let Err(e) = tcp.flush().await {
             return e;
         }
     }

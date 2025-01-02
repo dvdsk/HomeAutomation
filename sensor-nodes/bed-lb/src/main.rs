@@ -2,7 +2,7 @@
 #![no_main]
 
 use embassy_executor::Spawner;
-use embassy_futures::select::{self, Either3};
+use embassy_futures::select::{self, Either4};
 use embassy_net::{Ipv4Address, Ipv4Cidr, StackResources};
 use embassy_net_wiznet::{chip::W5500, Device, Runner, State};
 use embassy_stm32::exti::ExtiInput;
@@ -96,6 +96,10 @@ fn config() -> Config {
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     let p = embassy_stm32::init(config());
+    let mut dog = IndependentWatchdog::new(
+        p.IWDG, 10_000_000, // microseconds
+    );
+    dog.unleash();
     let seed = rng::generate_seed_blocking(p.ADC1).await;
     defmt::info!("random seed: {}", seed);
 
@@ -187,7 +191,7 @@ async fn main(spawner: Spawner) {
     let spi = unwrap!(ExclusiveDevice::new(spi, cs, Delay));
 
     let w5500_int = ExtiInput::new(p.PB0, p.EXTI0, Pull::Up);
-    let w5500_reset = Output::new(p.PB1, Level::High, Speed::VeryHigh);
+    let w5500_reset = Output::new(p.PB1, Level::High, Speed::Medium);
 
     let mac_addr = [0x02, 234, 3, 4, 82, 231];
     static STATE: StaticCell<State<3, 2>> = StaticCell::new();
@@ -238,17 +242,21 @@ async fn main(spawner: Spawner) {
         buttons,
     );
 
-    let res = select::select3(
+    let res = select::select4(
         &mut handle_network,
         init_then_measure,
         led_controller.control(),
+        keep_dog_happy(dog),
     )
     .await;
     let unrecoverable_err = match res {
-        Either3::First(()) | Either3::Third(()) | Either3::Second(Ok(())) => {
+        Either4::First(())
+        | Either4::Third(())
+        | Either4::Fourth(())
+        | Either4::Second(Ok(())) => {
             defmt::unreachable!()
         }
-        Either3::Second(Err(err)) => err,
+        Either4::Second(Err(err)) => err,
     };
 
     // at this point no other errors have occurred
@@ -259,7 +267,6 @@ async fn main(spawner: Spawner) {
 
 async fn keep_dog_happy(mut dog: IndependentWatchdog<'_, IWDG>) {
     loop {
-        dog.unleash();
         Timer::after_secs(8).await;
         trace!("petting dog");
         dog.pet();
