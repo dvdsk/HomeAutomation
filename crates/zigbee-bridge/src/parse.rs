@@ -120,6 +120,14 @@ pub(crate) fn radiator_readings(
                         .map($protocol_module::Reading::Radiator)
                         .map(Reading::$ReadingVariant),
                 )
+                .chain(
+                    map.get("occupied_heating_setpoint")
+                        .map(json_to_f32)
+                        .transpose()?
+                        .map($protocol_module::radiator::Reading::Setpoint)
+                        .map($protocol_module::Reading::Radiator)
+                        .map(Reading::$ReadingVariant),
+                )
                 .collect())
         };
     }

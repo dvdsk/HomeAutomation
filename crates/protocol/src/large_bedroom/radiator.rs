@@ -27,6 +27,7 @@ pub enum Reading {
     Temperature(f32) = 0,
     Heating(f32) = 1,
     SetBy(Source) = 2,
+    Setpoint(f32) = 3,
 }
 
 #[derive(
@@ -54,6 +55,7 @@ impl crate::IsSameAs for Reading {
             (Reading::Temperature(_), Reading::Temperature(_))
             | (Reading::Heating(_), Reading::Heating(_))
             | (Reading::SetBy(_), Reading::SetBy(_)) => true,
+            (Reading::Setpoint(_), Reading::Setpoint(_)) => true,
             (_, _) => false,
         }
     }
@@ -95,6 +97,17 @@ impl Tree for Reading {
                 range: 0.0..3.0,
                 unit: Unit::None,
                 description: "Manual value set",
+                branch_id: self.branch_id(),
+            },
+            Reading::Setpoint(val) => Info {
+                val: *val,
+                device: crate::Device::LargeBedroom(super::Device::Radiator(
+                    Device,
+                )),
+                resolution: 0.5,
+                range: 0.0..30.0,
+                unit: Unit::C,
+                description: "Set point",
                 branch_id: self.branch_id(),
             },
         };
@@ -141,7 +154,7 @@ impl Device {
     pub const fn info(&self) -> crate::DeviceInfo {
         crate::DeviceInfo {
             name: "Radiator",
-            affects_readings: &tree![Reading; Reading::Temperature(0.0), Reading::Heating(0.0), Reading::SetBy(Source::Manual)],
+            affects_readings: &tree![Reading; Reading::Temperature(0.0), Reading::Heating(0.0), Reading::SetBy(Source::Manual), Reading::Setpoint(0.0)],
             temporal_resolution: Duration::from_secs(5), // unknown
             min_sample_interval: Duration::from_secs(5), // unknown
             max_sample_interval: Duration::MAX,
