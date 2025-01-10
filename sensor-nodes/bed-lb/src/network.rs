@@ -88,15 +88,26 @@ pub async fn handle(
     let host_addr = Ipv4Address::new(192, 168, 1, 43);
     let host_port = 1234;
 
+    let mut sequential_errors = 0;
+
     debug!("Configured socket and connecting");
     loop {
         debug!("socket state: {:?}", socket.state());
         if let Err(e) = socket.connect((host_addr, host_port)).await {
+            if sequential_errors > 3 {
+                defmt::info!("failing to reconnect, resetting node");
+                defmt::flush();
+                Timer::after_secs(1).await;
+                cortex_m::peripheral::SCB::sys_reset();
+            }
             warn!("connect error: {}", e);
+            sequential_errors += 1;
             Timer::after_secs(5).await;
             continue;
         }
+
         info!("(re-)connected");
+        sequential_errors = 0;
         // Prevent out-dated data from being send
         publish.clear().await;
 
@@ -213,7 +224,6 @@ async fn receive_orders(
 
             read = remaining;
 
-            #[allow(irrefutable_let_patterns)] // Will change in the future
             let Affector::LargeBedroom(large_bedroom::Affector::Bed(affector)) =
                 item
             else {
