@@ -45,7 +45,7 @@ async fn run_server(
 }
 
 async fn send_sensor_value(data_port: u16) -> Result<Done> {
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    tokio::time::sleep(Duration::from_millis(400)).await;
 
     let mut list = protocol::affector::ListMessage::<50>::empty();
     list.values

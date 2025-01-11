@@ -410,6 +410,7 @@ mod test {
     use protocol::{large_bedroom, Reading};
 
     #[test]
+    #[should_panic(expected = "min sample interval may not be zero")]
     fn millis_to_minimal_representation_factor_is_not_zero() {
         let info = protocol::DeviceInfo {
             name: "test",
