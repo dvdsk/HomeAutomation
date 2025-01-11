@@ -4,18 +4,16 @@ use std::thread;
 
 use clap::Parser;
 use color_eyre::Result;
-use sensor_tui::control;
-use sensor_tui::UserIntent;
 use tokio::task;
+use ui::control;
+use ui::UserIntent;
 
-use sensor_tui::Fetch;
-use sensor_tui::tui;
-use sensor_tui::receive;
-use sensor_tui::populate;
-
+use ui::populate;
+use ui::receive;
+use ui::Fetch;
 
 #[derive(Parser)]
-#[command(name = "sensor tui")]
+#[command(name = "home automation UI")]
 #[command(version = "1.0")]
 #[command(about = "View sensor values")]
 struct Cli {
@@ -51,7 +49,7 @@ async fn main() -> Result<()> {
     let tx1_clone1 = tx1.clone();
     let tx1_clone2 = tx1.clone();
 
-    thread::spawn(move || tui::run(rx1, tx2, tx3, fetcher));
+    thread::spawn(move || ui::tui::run(rx1, tx2, tx3, fetcher));
     task::spawn(receive::receive_data(data_server, tx1_clone1));
     task::spawn(populate::tree(
         data_server,
@@ -65,9 +63,8 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-
 /// Similar to the `std::dbg!` macro, but generates `tracing` events rather
-/// than printing to stdout.
+/// than printing to standard output.
 ///
 /// By default, the verbosity level for the generated events is `DEBUG`, but
 /// this can be customized.

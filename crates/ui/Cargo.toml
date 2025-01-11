@@ -1,5 +1,5 @@
 [package]
-name = "sensor-tui"
+name = "ui"
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
