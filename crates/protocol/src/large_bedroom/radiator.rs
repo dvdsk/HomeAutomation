@@ -6,7 +6,10 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "alloc")]
 use crate::reading::tree::{Item, Tree};
 #[cfg(feature = "alloc")]
+use crate::reading::FloatLabelFormatter;
+#[cfg(feature = "alloc")]
 use crate::reading::Info;
+use crate::shared::{self, impl_is_same_as};
 #[cfg(feature = "alloc")]
 use crate::Unit;
 
@@ -26,40 +29,11 @@ use crate::Unit;
 pub enum Reading {
     Temperature(f32) = 0,
     Heating(f32) = 1,
-    SetBy(Source) = 2,
+    SetBy(shared::radiator::Source) = 2,
     Setpoint(f32) = 3,
 }
 
-#[derive(
-    strum::EnumDiscriminants,
-    Clone,
-    Copy,
-    Debug,
-    defmt::Format,
-    Serialize,
-    Deserialize,
-    MaxSize,
-    PartialEq,
-)]
-#[strum_discriminants(derive(Hash))]
-#[repr(u8)]
-pub enum Source {
-    Manual,
-    Schedule,
-    External,
-}
-
-impl crate::IsSameAs for Reading {
-    fn is_same_as(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Reading::Temperature(_), Reading::Temperature(_))
-            | (Reading::Heating(_), Reading::Heating(_))
-            | (Reading::SetBy(_), Reading::SetBy(_)) => true,
-            (Reading::Setpoint(_), Reading::Setpoint(_)) => true,
-            (_, _) => false,
-        }
-    }
-}
+impl_is_same_as!{Reading; Temperature, Heating, SetBy, Setpoint}
 
 #[cfg(feature = "alloc")]
 impl Tree for Reading {
@@ -76,6 +50,7 @@ impl Tree for Reading {
                 unit: Unit::C,
                 description: "Temperature",
                 branch_id: self.branch_id(),
+                label_formatter: Box::new(FloatLabelFormatter),
             },
             Reading::Heating(val) => Info {
                 val: *val,
@@ -87,6 +62,7 @@ impl Tree for Reading {
                 unit: Unit::RelativePower,
                 description: "Heating valve",
                 branch_id: self.branch_id(),
+                label_formatter: Box::new(FloatLabelFormatter),
             },
             Reading::SetBy(val) => Info {
                 val: *val as u8 as f32,
@@ -98,6 +74,9 @@ impl Tree for Reading {
                 unit: Unit::None,
                 description: "Manual value set",
                 branch_id: self.branch_id(),
+                label_formatter: Box::new(
+                    shared::radiator::SetByLabelFormatter,
+                ),
             },
             Reading::Setpoint(val) => Info {
                 val: *val,
@@ -109,6 +88,7 @@ impl Tree for Reading {
                 unit: Unit::C,
                 description: "Set point",
                 branch_id: self.branch_id(),
+                label_formatter: Box::new(FloatLabelFormatter),
             },
         };
         Item::Leaf(leaf)
@@ -154,7 +134,10 @@ impl Device {
     pub const fn info(&self) -> crate::DeviceInfo {
         crate::DeviceInfo {
             name: "Radiator",
-            affects_readings: &tree![Reading; Reading::Temperature(0.0), Reading::Heating(0.0), Reading::SetBy(Source::Manual), Reading::Setpoint(0.0)],
+            affects_readings: &tree![
+                Reading; Reading::Temperature(0.0), Reading::Heating(0.0), 
+                Reading::SetBy(shared::radiator::Source::Manual), 
+                Reading::Setpoint(0.0)],
             temporal_resolution: Duration::from_secs(5), // unknown
             min_sample_interval: Duration::from_secs(5), // unknown
             max_sample_interval: Duration::MAX,

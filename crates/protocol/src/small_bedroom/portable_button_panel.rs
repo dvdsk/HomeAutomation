@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "alloc")]
 use crate::reading::tree::{Item, Tree};
+#[cfg(feature = "alloc")]
+use crate::reading::FloatLabelFormatter;
 use crate::IsSameAs;
 
 #[derive(
@@ -53,6 +55,7 @@ impl Tree for Reading {
             resolution: 1.0,
             unit: crate::Unit::None,
             branch_id: self.branch_id(),
+            label_formatter: Box::new(FloatLabelFormatter),
         })
     }
 

@@ -1,9 +1,11 @@
 use std::io::stdout;
 
 use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen,
+    LeaveAlternateScreen,
 };
 use crossterm::{event, ExecutableCommand};
+use protocol::reading::FloatLabelFormatter;
 use ratatui::backend::CrosstermBackend;
 use ratatui::{Frame, Terminal};
 use ui::tui::readings::render::chart;
@@ -17,22 +19,27 @@ fn data_with_gap(buffer: &mut Vec<(f64, f64)>) -> ChartParts<'_> {
 
     let info = protocol::reading::Info {
         val: 0.0,
-        device: protocol::Device::SmallBedroom(protocol::small_bedroom::Device::Bed(
-            protocol::small_bedroom::bed::Device::Bme680,
-        )),
+        device: protocol::Device::SmallBedroom(
+            protocol::small_bedroom::Device::Bed(
+                protocol::small_bedroom::bed::Device::Bme680,
+            ),
+        ),
         resolution: 1.0,
         range: 0.0..5.0,
         unit: protocol::Unit::Ohm,
         description: "test data with gaps",
         branch_id: 0,
+        label_formatter: Box::new(FloatLabelFormatter),
     };
 
     ChartParts {
         info,
         data: buffer.as_mut_slice(),
-        reading: protocol::Reading::SmallBedroom(protocol::small_bedroom::Reading::Bed(
-            protocol::small_bedroom::bed::Reading::Temperature(0.0),
-        )),
+        reading: protocol::Reading::SmallBedroom(
+            protocol::small_bedroom::Reading::Bed(
+                protocol::small_bedroom::bed::Reading::Temperature(0.0),
+            ),
+        ),
     }
 }
 

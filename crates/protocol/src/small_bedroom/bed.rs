@@ -6,7 +6,10 @@ use crate::button::Press;
 #[cfg(feature = "alloc")]
 use crate::reading::tree::{Id, Item, Tree};
 #[cfg(feature = "alloc")]
+use crate::reading::FloatLabelFormatter;
+#[cfg(feature = "alloc")]
 use crate::reading::Info;
+use crate::shared::impl_is_same_as;
 #[cfg(feature = "alloc")]
 use crate::{affector, Unit};
 
@@ -234,6 +237,7 @@ impl Tree for Reading {
             unit,
             description,
             branch_id: self.branch_id(),
+            label_formatter: Box::new(FloatLabelFormatter),
         })
     }
 
@@ -243,33 +247,11 @@ impl Tree for Reading {
     }
 }
 
-impl crate::IsSameAs for Reading {
-    #[must_use]
-    fn is_same_as(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Brightness(_), Self::Brightness(_))
-            | (Self::Temperature(_), Self::Temperature(_))
-            | (Self::Humidity(_), Self::Humidity(_))
-            | (Self::GassResistance(_), Self::GassResistance(_))
-            | (Self::Pressure(_), Self::Pressure(_))
-            | (Self::Co2(_), Self::Co2(_))
-            | (Self::Weight(_), Self::Weight(_))
-            | (Self::MassPm1_0(_), Self::MassPm1_0(_))
-            | (Self::MassPm2_5(_), Self::MassPm2_5(_))
-            | (Self::MassPm4_0(_), Self::MassPm4_0(_))
-            | (Self::MassPm10(_), Self::MassPm10(_))
-            | (Self::NumberPm0_5(_), Self::NumberPm0_5(_))
-            | (Self::NumberPm1_0(_), Self::NumberPm1_0(_))
-            | (Self::NumberPm2_5(_), Self::NumberPm2_5(_))
-            | (Self::NumberPm4_0(_), Self::NumberPm4_0(_))
-            | (Self::NumberPm10(_), Self::NumberPm10(_))
-            | (Self::TypicalParticleSize(_), Self::TypicalParticleSize(_)) => {
-                true
-            }
-            (Self::Button(a), Self::Button(b)) => a.is_same_as(b),
-            _ => false,
-        }
-    }
+impl_is_same_as! {Reading;
+    Brightness, Temperature, Humidity, GassResistance, Pressure, Co2, Weight,
+    MassPm1_0, MassPm2_5, MassPm4_0, MassPm10, NumberPm0_5, NumberPm1_0,
+    NumberPm2_5, NumberPm4_0, NumberPm10, TypicalParticleSize;
+    (Self::Button(a), Self::Button(b)) => a.is_same_as(b)
 }
 
 #[derive(

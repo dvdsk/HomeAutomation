@@ -59,8 +59,8 @@ pub struct Control<'a> {
 }
 
 impl Affector {
-    pub const ENCODED_SIZE: usize =
-        Affector::POSTCARD_MAX_SIZE + cobs_overhead(Affector::POSTCARD_MAX_SIZE);
+    pub const ENCODED_SIZE: usize = Affector::POSTCARD_MAX_SIZE
+        + cobs_overhead(Affector::POSTCARD_MAX_SIZE);
 
     #[cfg(feature = "alloc")]
     #[must_use]
@@ -69,7 +69,8 @@ impl Affector {
     }
 
     pub fn decode(mut bytes: impl AsMut<[u8]>) -> Result<Self, DecodeMsgError> {
-        postcard::from_bytes_cobs(bytes.as_mut()).map_err(DecodeMsgError::CorruptEncoding)
+        postcard::from_bytes_cobs(bytes.as_mut())
+            .map_err(DecodeMsgError::CorruptEncoding)
     }
 
     // Info() is explicitly not defined, use the tree impl to get at it
@@ -109,7 +110,9 @@ impl Decoder {
                 FeedResult::Consumed => break,
                 FeedResult::OverFull(new_window) => new_window,
                 FeedResult::DeserError(_) => return Err(DeserializeError),
-                FeedResult::Success { data, remaining } => return Ok(Some((data, remaining))),
+                FeedResult::Success { data, remaining } => {
+                    return Ok(Some((data, remaining)))
+                }
             }
         }
         Ok(None)
@@ -125,7 +128,8 @@ pub struct ListMessage<const MAX_ITEMS: usize> {
 impl<const MAX_ITEMS: usize> ListMessage<MAX_ITEMS> {
     /// +2 is for the version
     /// +4 covers the length of the heapless list
-    pub const HALF_ENCODED_SIZE: usize = (MAX_ITEMS * Affector::POSTCARD_MAX_SIZE + 2 + 4);
+    pub const HALF_ENCODED_SIZE: usize =
+        (MAX_ITEMS * Affector::POSTCARD_MAX_SIZE + 2 + 4);
     /// cobs and postcard encoded
     pub const ENCODED_SIZE: usize =
         Self::HALF_ENCODED_SIZE + cobs_overhead(Self::HALF_ENCODED_SIZE);
@@ -152,7 +156,8 @@ impl<const MAX_ITEMS: usize> ListMessage<MAX_ITEMS> {
     }
 
     pub fn decode(mut bytes: impl AsMut<[u8]>) -> Result<Self, DecodeMsgError> {
-        postcard::from_bytes_cobs(bytes.as_mut()).map_err(DecodeMsgError::CorruptEncoding)
+        postcard::from_bytes_cobs(bytes.as_mut())
+            .map_err(DecodeMsgError::CorruptEncoding)
     }
 }
 
@@ -163,16 +168,18 @@ mod test {
 
     #[test]
     fn decoder_decodes_encoded() {
-        let test_affector =
-            Affector::LargeBedroom(large_bedroom::Affector::Bed(bed::Affector::RgbLed {
+        let test_affector = Affector::LargeBedroom(
+            large_bedroom::Affector::Bed(bed::Affector::RgbLed {
                 red: 0,
                 green: 5,
                 blue: 0,
-            }));
+            }),
+        );
 
         let encoded = test_affector.encode();
         let mut encoded_copy = encoded.clone();
-        let decoded: Affector = postcard::from_bytes_cobs(encoded_copy.as_mut_slice()).unwrap();
+        let decoded: Affector =
+            postcard::from_bytes_cobs(encoded_copy.as_mut_slice()).unwrap();
         assert_eq!(decoded, test_affector);
 
         let mut decoder = Decoder::default();

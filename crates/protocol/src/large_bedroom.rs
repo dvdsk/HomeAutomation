@@ -2,7 +2,7 @@ use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "alloc")]
-use crate::{reading, affector};
+use crate::{affector, reading};
 
 pub mod bed;
 pub mod desk;
@@ -65,7 +65,17 @@ impl core::fmt::Display for Error {
     }
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq, Hash)]
+#[derive(
+    Clone,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    Eq,
+    PartialEq,
+    Hash,
+)]
 pub enum Device {
     Bed(bed::Device),
     Desk(desk::Device),

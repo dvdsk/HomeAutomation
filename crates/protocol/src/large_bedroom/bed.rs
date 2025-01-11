@@ -7,7 +7,10 @@ use crate::button_enum;
 #[cfg(feature = "alloc")]
 use crate::reading::tree::{Id, Item, Tree};
 #[cfg(feature = "alloc")]
+use crate::reading::FloatLabelFormatter;
+#[cfg(feature = "alloc")]
 use crate::reading::Info;
+use crate::shared::impl_is_same_as;
 #[cfg(feature = "alloc")]
 use crate::{affector, Unit};
 
@@ -253,6 +256,7 @@ impl Tree for Reading {
             unit,
             description,
             branch_id: self.branch_id(),
+            label_formatter: Box::new(FloatLabelFormatter),
         })
     }
 
@@ -262,35 +266,14 @@ impl Tree for Reading {
     }
 }
 
-impl crate::IsSameAs for Reading {
-    #[must_use]
-    fn is_same_as(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Brightness(_), Self::Brightness(_))
-            | (Self::Temperature(_), Self::Temperature(_))
-            | (Self::Humidity(_), Self::Humidity(_))
-            | (Self::GassResistance(_), Self::GassResistance(_))
-            | (Self::Pressure(_), Self::Pressure(_))
-            | (Self::Co2(_), Self::Co2(_))
-            | (Self::WeightLeft(_), Self::WeightLeft(_))
-            | (Self::WeightRight(_), Self::WeightRight(_))
-            | (Self::MassPm1_0(_), Self::MassPm1_0(_))
-            | (Self::MassPm2_5(_), Self::MassPm2_5(_))
-            | (Self::MassPm4_0(_), Self::MassPm4_0(_))
-            | (Self::MassPm10(_), Self::MassPm10(_))
-            | (Self::NumberPm0_5(_), Self::NumberPm0_5(_))
-            | (Self::NumberPm1_0(_), Self::NumberPm1_0(_))
-            | (Self::NumberPm2_5(_), Self::NumberPm2_5(_))
-            | (Self::NumberPm4_0(_), Self::NumberPm4_0(_))
-            | (Self::NumberPm10(_), Self::NumberPm10(_))
-            | (Self::TypicalParticleSize(_), Self::TypicalParticleSize(_)) => true,
-            (Self::Button(a), Self::Button(b)) => a.is_same_as(b),
-            _ => false,
-        }
-    }
+impl_is_same_as! {Reading; Brightness, Temperature, Humidity, GassResistance, Pressure,
+    Co2, WeightLeft, WeightRight, MassPm1_0, MassPm2_5, MassPm4_0, MassPm10,
+    TypicalParticleSize; (Self::Button(a), Self::Button(b)) => a.is_same_as(b)
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
+#[derive(
+    Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq,
+)]
 pub enum Error {
     Running(SensorError),
     Setup(SensorError),
@@ -302,8 +285,12 @@ impl Error {
     #[must_use]
     pub(crate) fn device(&self) -> Device {
         match self {
-            Self::Running(sensor_err) | Self::Setup(sensor_err) => sensor_err.device(),
-            Self::SetupTimedOut(device) | Self::Timeout(device) => device.clone(),
+            Self::Running(sensor_err) | Self::Setup(sensor_err) => {
+                sensor_err.device()
+            }
+            Self::SetupTimedOut(device) | Self::Timeout(device) => {
+                device.clone()
+            }
         }
     }
 }
@@ -319,7 +306,9 @@ impl core::fmt::Display for Error {
     }
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(
+    Clone, Debug, defmt::Format, Serialize, Deserialize, Eq, PartialEq,
+)]
 pub enum SensorError {
     Sht31(heapless::String<200>),
     Bme680(heapless::String<200>),
@@ -366,7 +355,17 @@ impl SensorError {
     }
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq, Hash)]
+#[derive(
+    Clone,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    Eq,
+    PartialEq,
+    Hash,
+)]
 pub enum Device {
     Sht31,
     Bme680,
@@ -562,7 +561,9 @@ impl Affector {
                     value: ControlValue::SetNum {
                         valid_range: 0..255,
                         value: *red as usize,
-                        setter: Some(Box::new(|input: usize| *red = input as u8)),
+                        setter: Some(Box::new(|input: usize| {
+                            *red = input as u8
+                        })),
                     },
                 },
                 Control {
@@ -570,7 +571,9 @@ impl Affector {
                     value: ControlValue::SetNum {
                         valid_range: 0..255,
                         value: *green as usize,
-                        setter: Some(Box::new(|input: usize| *green = input as u8)),
+                        setter: Some(Box::new(|input: usize| {
+                            *green = input as u8
+                        })),
                     },
                 },
                 Control {
@@ -578,7 +581,9 @@ impl Affector {
                     value: ControlValue::SetNum {
                         valid_range: 0..255,
                         value: *blue as usize,
-                        setter: Some(Box::new(|input: usize| *blue = input as u8)),
+                        setter: Some(Box::new(|input: usize| {
+                            *blue = input as u8
+                        })),
                     },
                 },
             ],

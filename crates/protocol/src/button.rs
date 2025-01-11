@@ -1,3 +1,5 @@
+#[cfg(feature = "alloc")]
+use crate::reading::LabelFormatter;
 use serde::{Deserialize, Serialize};
 
 // Duration of the press in milliseconds
@@ -43,7 +45,7 @@ macro_rules! button_enum {
             Eq,
         )]
         $(#[$outer])* // docs
-        /// SAFETY: must be repr(u8) or id fn will create undefined behaviour
+        /// SAFETY: must be repr(u8) or id `fn` will create undefined behavior
         #[repr(u8)]
         pub enum $name {
             $($variant(crate::button::Press),)*
@@ -84,6 +86,7 @@ macro_rules! button_enum {
                     resolution: 1.0,
                     unit: crate::Unit::None,
                     branch_id: self.branch_id(),
+                    label_formatter: Box::new(crate::button::ButtonLabelFormatter),
                 })
             }
             fn name(&self) -> String {
@@ -111,3 +114,23 @@ macro_rules! button_enum {
     };
 }
 pub(crate) use button_enum;
+
+#[cfg(feature = "alloc")]
+#[derive(Debug)]
+pub struct ButtonLabelFormatter;
+
+#[cfg(feature = "alloc")]
+impl LabelFormatter for ButtonLabelFormatter {
+    fn format(&self, info: &crate::reading::Info) -> String {
+        match info.val {
+            2.0 => "long press",
+            1.0 => "short press",
+            0.0 => "not pressed",
+            _ => "ButtonLabelFormatter error",
+        }
+        .to_string()
+    }
+    fn box_clone(&self) -> Box<dyn LabelFormatter> {
+        Box::new(Self)
+    }
+}

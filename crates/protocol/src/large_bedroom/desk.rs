@@ -7,9 +7,12 @@ use crate::button_enum;
 #[cfg(feature = "alloc")]
 use crate::reading::tree::{Item, Tree};
 #[cfg(feature = "alloc")]
-use crate::Unit;
+use crate::reading::FloatLabelFormatter;
 #[cfg(feature = "alloc")]
 use crate::reading::Info;
+use crate::shared::impl_is_same_as;
+#[cfg(feature = "alloc")]
+use crate::Unit;
 
 button_enum! {
     /// No these are not borg, these are buttons on a string of cat5.
@@ -59,6 +62,7 @@ impl Tree for Reading {
                 unit: Unit::C,
                 description: "Temperature",
                 branch_id: self.branch_id(),
+                label_formatter: Box::new(FloatLabelFormatter),
             },
             Reading::Humidity(val) => Info {
                 val: *val,
@@ -68,6 +72,7 @@ impl Tree for Reading {
                 unit: Unit::RH,
                 description: "Humidity",
                 branch_id: self.branch_id(),
+                label_formatter: Box::new(FloatLabelFormatter),
             },
             Reading::Pressure(val) => Info {
                 val: *val,
@@ -77,6 +82,7 @@ impl Tree for Reading {
                 unit: Unit::Pa,
                 description: "Air pressure",
                 branch_id: self.branch_id(),
+                label_formatter: Box::new(FloatLabelFormatter),
             },
             Reading::Button(val) => return Item::Node(val as &dyn Tree),
         };
@@ -89,20 +95,12 @@ impl Tree for Reading {
     }
 }
 
-impl crate::IsSameAs for Reading {
-    #[must_use]
-    fn is_same_as(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Reading::Temperature(_), Self::Temperature(_))
-            | (Reading::Humidity(_), Self::Humidity(_))
-            | (Reading::Pressure(_), Self::Pressure(_)) => true,
-            (Reading::Button(a), Self::Button(b)) => a.is_same_as(b),
-            _ => false,
-        }
-    }
-}
+impl_is_same_as! {Reading; Temperature, Humidity, Pressure;
+(Reading::Button(a), Self::Button(b)) => a.is_same_as(b)}
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq)]
+#[derive(
+    Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq,
+)]
 pub enum Error {
     Running(SensorError),
     Setup(SensorError),
@@ -114,8 +112,12 @@ impl Error {
     #[must_use]
     pub fn device(&self) -> Device {
         match self {
-            Self::Running(sensor_err) | Self::Setup(sensor_err) => sensor_err.device(),
-            Self::SetupTimedOut(device) | Self::Timeout(device) => device.clone(),
+            Self::Running(sensor_err) | Self::Setup(sensor_err) => {
+                sensor_err.device()
+            }
+            Self::SetupTimedOut(device) | Self::Timeout(device) => {
+                device.clone()
+            }
         }
     }
 }
@@ -123,15 +125,21 @@ impl Error {
 impl core::fmt::Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Error::Running(e) => write!(f, "{} ran into error: {e}", e.device()),
-            Error::Setup(e) => write!(f, "{} errored during setup: {e}", e.device()),
+            Error::Running(e) => {
+                write!(f, "{} ran into error: {e}", e.device())
+            }
+            Error::Setup(e) => {
+                write!(f, "{} errored during setup: {e}", e.device())
+            }
             Error::SetupTimedOut(d) => write!(f, "{d} timed out during setup"),
             Error::Timeout(d) => write!(f, "{d} timed out while running"),
         }
     }
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(
+    Clone, Debug, defmt::Format, Serialize, Deserialize, Eq, PartialEq,
+)]
 pub enum SensorError {
     BmeError(heapless::String<200>),
     Gpio(heapless::String<200>),
@@ -159,7 +167,17 @@ impl core::fmt::Display for SensorError {
     }
 }
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq, Hash)]
+#[derive(
+    Clone,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    Eq,
+    PartialEq,
+    Hash,
+)]
 pub enum Device {
     Bme280,
     Gpio,

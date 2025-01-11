@@ -5,7 +5,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::{large_bedroom, small_bedroom, Affector, Reading};
 
-#[derive(Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, PartialEq, Eq, Hash)]
+#[derive(
+    Clone,
+    Debug,
+    defmt::Format,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    PartialEq,
+    Eq,
+    Hash,
+)]
 pub enum Device {
     LargeBedroom(large_bedroom::Device),
     SmallBedroom(small_bedroom::Device),
@@ -29,4 +39,3 @@ pub struct Info {
     pub max_sample_interval: Duration,
     pub temporal_resolution: Duration,
 }
-

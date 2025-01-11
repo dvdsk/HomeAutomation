@@ -24,7 +24,8 @@ impl<const MAX_ITEMS: usize> Default for SensorMessage<MAX_ITEMS> {
 impl<const MAX_ITEMS: usize> SensorMessage<MAX_ITEMS> {
     /// +2 is for the version
     /// +4 covers the length of the heapless list
-    pub const HALF_ENCODED_SIZE: usize = (MAX_ITEMS * Reading::POSTCARD_MAX_SIZE + 2 + 4);
+    pub const HALF_ENCODED_SIZE: usize =
+        (MAX_ITEMS * Reading::POSTCARD_MAX_SIZE + 2 + 4);
 
     /// cobs and postcard encoded
     pub const ENCODED_SIZE: usize =
@@ -49,7 +50,8 @@ impl<const MAX_ITEMS: usize> SensorMessage<MAX_ITEMS> {
     }
 
     pub fn decode(mut bytes: impl AsMut<[u8]>) -> Result<Self, DecodeMsgError> {
-        postcard::from_bytes_cobs(bytes.as_mut()).map_err(DecodeMsgError::CorruptEncoding)
+        postcard::from_bytes_cobs(bytes.as_mut())
+            .map_err(DecodeMsgError::CorruptEncoding)
     }
 
     #[must_use]

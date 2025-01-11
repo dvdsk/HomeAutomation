@@ -50,7 +50,7 @@ fn event_filter(event: Event) -> Option<RelevantEvent> {
             small_bedroom::Reading::Radiator(radiator::Reading::SetBy(source)),
         )) => {
             trace!("SB received radiator setby event");
-            if source == radiator::Source::Manual {
+            if source == protocol::shared::radiator::Source::Manual {
                 Some(RelevantEvent::RadiatorOverride)
             } else {
                 None

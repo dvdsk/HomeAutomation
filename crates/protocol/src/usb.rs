@@ -1,4 +1,3 @@
-
 pub const GET_QUEUED_MESSAGES: u8 = 101;
 pub const AFFECTOR_ORDER: u8 = 100;
 pub const GET_AFFECTOR_LIST: u8 = 102;

@@ -8,6 +8,7 @@ pub(crate) use button::button_enum;
 
 pub mod large_bedroom;
 pub mod small_bedroom;
+pub mod shared;
 
 pub mod affector;
 mod device;
@@ -58,7 +59,7 @@ impl Display for Unit {
     }
 }
 
-/// Is this the same variant as the other? 
+/// Is this the same variant as the other?
 /// Example:
 /// Temperature(5) is the same as Temperature(6)
 pub trait IsSameAs {

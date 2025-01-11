@@ -103,13 +103,13 @@ pub(crate) fn radiator_readings(
                         .transpose()?
                         .map(|val| match val.to_lowercase().as_str() {
                             "manual" => {
-                                Ok($protocol_module::radiator::Source::Manual)
+                                Ok(protocol::shared::radiator::Source::Manual)
                             }
                             "schedule" => {
-                                Ok($protocol_module::radiator::Source::Schedule)
+                                Ok(protocol::shared::radiator::Source::Schedule)
                             }
                             "externally" => {
-                                Ok($protocol_module::radiator::Source::External)
+                                Ok(protocol::shared::radiator::Source::External)
                             }
                             _ => Err(color_eyre::eyre::eyre!(
                                 "Unexpected change source {val}"

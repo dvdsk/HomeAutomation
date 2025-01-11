@@ -42,7 +42,8 @@ impl ErrorReport {
     }
 
     pub fn decode(mut bytes: impl AsMut<[u8]>) -> Result<Self, DecodeMsgError> {
-        postcard::from_bytes_cobs(bytes.as_mut()).map_err(DecodeMsgError::CorruptEncoding)
+        postcard::from_bytes_cobs(bytes.as_mut())
+            .map_err(DecodeMsgError::CorruptEncoding)
     }
 }
 

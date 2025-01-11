@@ -61,6 +61,33 @@ impl Reading {
 }
 
 #[cfg(feature = "alloc")]
+pub trait LabelFormatter: core::fmt::Debug {
+    fn format(&self, info: &Info) -> String;
+    fn box_clone(&self) -> Box<dyn LabelFormatter>;
+}
+
+#[cfg(feature = "alloc")]
+impl Clone for Box<dyn LabelFormatter> {
+    fn clone(&self) -> Self {
+        self.box_clone()
+    }
+}
+
+#[cfg(feature = "alloc")]
+#[derive(Debug)]
+pub struct FloatLabelFormatter;
+
+#[cfg(feature = "alloc")]
+impl LabelFormatter for FloatLabelFormatter {
+    fn format(&self, info: &Info) -> String {
+        format!("{0:.1$}", info.val, info.precision())
+    }
+    fn box_clone(&self) -> Box<dyn LabelFormatter> {
+        Box::new(Self)
+    }
+}
+
+#[cfg(feature = "alloc")]
 #[derive(Debug, Clone)]
 pub struct Info {
     pub val: f32,
@@ -71,6 +98,7 @@ pub struct Info {
     pub unit: Unit,
     pub description: &'static str,
     pub branch_id: u8,
+    pub label_formatter: Box<dyn LabelFormatter>,
 }
 
 #[cfg(feature = "alloc")]
