@@ -6,9 +6,9 @@ use crossterm::terminal::{
 use crossterm::{event, ExecutableCommand};
 use ratatui::backend::CrosstermBackend;
 use ratatui::{Frame, Terminal};
-use sensor_tui::tui::readings::render::chart;
-use sensor_tui::tui::readings::sensor_info::ChartParts;
-use sensor_tui::tui::readings::UiState;
+use ui::tui::readings::render::chart;
+use ui::tui::readings::sensor_info::ChartParts;
+use ui::tui::readings::UiState;
 
 fn data_with_gap(buffer: &mut Vec<(f64, f64)>) -> ChartParts<'_> {
     buffer.extend((0..10).into_iter().map(|i| (i as f64, 2.0)));

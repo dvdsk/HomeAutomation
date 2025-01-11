@@ -20,3 +20,6 @@ strum = { version = "0.26.3", features = ["derive"] }
 color-eyre.workspace = true
 regex = "1.11.1"
 rand = "0.8.5"
+
+[dev-dependencies]
+logger.workspace = true
