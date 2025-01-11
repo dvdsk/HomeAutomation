@@ -10,8 +10,8 @@ authors.workspace = true
 color-eyre = { workspace = true }
 crossterm = "0.28"
 hdrhistogram = "7.5"
-ratatui = "0.28"
-tui-tree-widget = { version = "0.22.0", git = "https://github.com/dvdsk/tui-rs-tree-widget" }
+ratatui = "0.29"
+tui-tree-widget = { version = "0.23.0", git = "https://github.com/dvdsk/tui-rs-tree-widget" }
 clap = { workspace = true }
 
 tokio =  { workspace = true, features = ["macros"] }
@@ -26,7 +26,7 @@ data-store = { workspace = true }
 log-store = { workspace = true, features = ["api"] }
 jiff = { workspace = true }
 thiserror.workspace = true
-itertools = "0.13.0"
+itertools = "0.14.0"
 gethostname = "0.5.0"
 strip-ansi-escapes = "0.2.0"
 indextree = "4.7.2"

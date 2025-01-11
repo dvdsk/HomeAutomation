@@ -154,7 +154,7 @@ pub fn render_table(
     .header(header)
     .flex(Flex::SpaceAround)
     .column_spacing(1)
-    .highlight_style(selected_style)
+    .row_highlight_style(selected_style)
     .highlight_symbol(Text::from(vec![
         "".into(),
         bar.into(),
