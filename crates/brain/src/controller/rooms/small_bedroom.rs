@@ -9,8 +9,8 @@ use tokio::time::{sleep_until, Instant};
 use tracing::trace;
 
 use self::filter::{recv_filtered, RelevantEvent, Trigger};
-pub(crate) use self::state::State;
 use self::state::Room;
+pub(crate) use self::state::State;
 use crate::controller::{Event, RestrictedSystem};
 use crate::input::jobs::Job;
 use crate::time;
@@ -37,6 +37,9 @@ const T13_00: f64 = time(13, 0);
 const T16_00: f64 = time(16, 0);
 const T17_00: f64 = time(17, 0);
 const T18_00: f64 = time(18, 0);
+const T19_00: f64 = time(19, 0);
+const T19_30: f64 = time(19, 30);
+const T20_00: f64 = time(20, 0);
 const T20_30: f64 = time(20, 30);
 const T21_00: f64 = time(21, 0);
 const T21_30: f64 = time(21, 30);
@@ -131,8 +134,8 @@ pub(super) fn goal_temp_now() -> f64 {
     match time(now.hour(), now.minute()) {
         T8_30..T11_00 => 19.0,
         T11_00..T13_00 => 20.0,
-        T13_00..T21_00 => 21.0,
-        T21_00..T22_00 => 20.0,
+        T13_00..T20_00 => 21.0,
+        T20_00..T22_00 => 20.0,
         T22_00.. | T0_00..T8_30 => 18.0,
         _ => 18.0,
     }
@@ -144,11 +147,11 @@ pub(super) fn daylight_now() -> (usize, f64) {
 
     match time(now.hour(), now.minute()) {
         T8_00..T9_00 => (2000, 0.5),
-        T9_00..T16_00 => (4000, 1.0),
-        T16_00..T17_00 => (3500, 1.0),
-        T17_00..T18_00 => (2800, 1.0),
-        T18_00..T20_30 => (2300, 1.0),
-        T20_30..T21_30 => (2000, 0.7),
+        T9_00..T19_00 => (4000, 1.0),
+        T19_00..T19_30 => (3500, 1.0),
+        T20_00..T20_30 => (2800, 1.0),
+        T20_30..T21_00 => (2300, 1.0),
+        T21_00..T21_30 => (2000, 0.7),
         T21_30..T22_00 => (1900, 0.4),
         T22_00.. | T0_00..T8_00 => (1800, 0.1),
         _ => (2300, 1.0),
