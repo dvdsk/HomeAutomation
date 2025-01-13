@@ -121,8 +121,8 @@ pub struct ButtonLabelFormatter;
 
 #[cfg(feature = "alloc")]
 impl LabelFormatter for ButtonLabelFormatter {
-    fn format(&self, info: &crate::reading::Info) -> String {
-        match info.val {
+    fn format(&self, value: f64, _: &crate::reading::Info) -> String {
+        match value {
             2.0 => "long press",
             1.0 => "short press",
             0.0 => "not pressed",

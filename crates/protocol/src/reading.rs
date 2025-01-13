@@ -60,10 +60,19 @@ impl Reading {
     }
 }
 
+// todo make axis fixed for some info's?
+pub enum LabelPositions {
+    Flexible,
+    Fixed(&'static [f64]),
+}
+
 #[cfg(feature = "alloc")]
 pub trait LabelFormatter: core::fmt::Debug {
-    fn format(&self, info: &Info) -> String;
+    fn format(&self, value: f64, info: &Info) -> String;
     fn box_clone(&self) -> Box<dyn LabelFormatter>;
+    fn positions(&self) -> LabelPositions {
+        LabelPositions::Flexible
+    }
 }
 
 #[cfg(feature = "alloc")]
@@ -79,8 +88,8 @@ pub struct FloatLabelFormatter;
 
 #[cfg(feature = "alloc")]
 impl LabelFormatter for FloatLabelFormatter {
-    fn format(&self, info: &Info) -> String {
-        format!("{0:.1$}", info.val, info.precision())
+    fn format(&self, value: f64, info: &Info) -> String {
+        format!("{0:.1$}", value, info.precision())
     }
     fn box_clone(&self) -> Box<dyn LabelFormatter> {
         Box::new(Self)

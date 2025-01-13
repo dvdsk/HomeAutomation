@@ -34,19 +34,33 @@ pub fn y_and_title(
     (labels, title)
 }
 
-fn y_labels(info: &reading::Info, layout: Rect, y_bounds: Bounds) -> Vec<String> {
+fn y_labels(
+    info: &reading::Info,
+    layout: Rect,
+    y_bounds: Bounds,
+) -> Vec<String> {
+    use reading::LabelPositions as L;
     // Characters are about twice as high as wide
-    evenly_spaced_ylabels(
-        layout.height / Y_LABEL_SPACING,
-        info.resolution as f64,
-        y_bounds,
-    )
-    .map(|y| format!("{0:.1$}", y, info.precision()))
-    .collect()
+    match info.label_formatter.positions() {
+        L::Flexible => evenly_spaced_ylabels(
+            layout.height / Y_LABEL_SPACING,
+            info.resolution as f64,
+            y_bounds,
+        )
+        .map(|y| info.label_formatter.format(y, &info))
+        .collect(),
+        L::Fixed(at) => at
+            .into_iter()
+            .map(|y| info.label_formatter.format(*y, &info))
+            .collect(),
+    }
 }
 
 type Labels = Vec<Span<'static>>;
-pub fn x_and_title(layout: Rect, plot_range: &PlotRange) -> (Labels, String, FmtScale) {
+pub fn x_and_title(
+    layout: Rect,
+    plot_range: &PlotRange,
+) -> (Labels, String, FmtScale) {
     // Characters are about twice as high as wide
     let max_labels = layout.width / Y_LABEL_SPACING / 2;
     let n_labels = max_labels.max(2);
