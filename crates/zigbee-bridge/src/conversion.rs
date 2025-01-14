@@ -34,15 +34,16 @@ pub(super) fn times_100_int(reference: f64) -> usize {
 
 #[allow(clippy::doc_markdown)]
 /// 1000K < `color_temp` < 1_000_000K
-pub(super) fn temp_to_xy(color_temp_k: usize) -> (f64, f64) {
-    // TODO: use table from black body deviation measurements
+pub(super) fn temp_to_xy(
+    color_temp_k: usize,
+    color_deviation: f64,
+) -> (f64, f64) {
     #[allow(clippy::cast_precision_loss)]
-    let cct = CCT::try_new(color_temp_k as f64, DUV_IKEA).unwrap();
+    let cct = CCT::try_new(color_temp_k as f64, color_deviation).unwrap();
     let xyz: XYZ = cct.try_into().unwrap();
 
     let (x, y) = xyz_to_xy(xyz);
     (x.clamp(0.0, 1.0), y.clamp(0.0, 1.0))
-
 }
 
 fn xyz_to_xy(xyz: XYZ) -> (f64, f64) {

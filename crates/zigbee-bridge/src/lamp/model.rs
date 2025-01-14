@@ -1,4 +1,7 @@
-use std::{collections::HashMap, ops::Range};
+use std::{
+    collections::{BTreeMap, HashMap},
+    ops::Range,
+};
 
 use tracing::warn;
 
@@ -64,24 +67,21 @@ impl Model {
         }
     }
 
-    #[allow(unused)]
-    pub(super) fn color_deviation(&self, color_temp: usize) -> (usize, f64) {
-        match self {
-            Model::TradfriCandle => todo!(),
-            Model::TradfriE27 => todo!(),
-            Model::TradfriE14Color => todo!(),
-            Model::HueGen4 => todo!(),
-            Model::TradfriOther(_) => todo!(),
-            Model::HueOther(_) => todo!(),
-            Model::Other(_) => todo!(),
-            Model::TradfriGU10 => todo!(),
-            Model::TradfriE14White => todo!(),
-        }
+    pub(super) fn color_deviation(&self, color_temp: usize) -> f64 {
+        let temp = color_temp + self.temp_correction(color_temp) as usize;
+        self.blackbody_deviation(temp)
     }
 
-    #[allow(unused)]
+    fn temp_correction(&self, color_temp: usize) -> usize {
+        Model::interpolate(color_temp, self.temp_table()).round() as usize
+    }
+
+    fn blackbody_deviation(&self, color_temp: usize) -> f64 {
+        Model::interpolate(color_temp, self.blackbody_table())
+    }
+
     // Value for actual color temp (after temp correction)
-    fn blackbody_table(&self) -> HashMap<usize, f64> {
+    fn blackbody_table(&self) -> BTreeMap<usize, f64> {
         match self {
             // 105.455.00 data
             Model::TradfriCandle => vec![
@@ -140,17 +140,24 @@ impl Model {
         .collect()
     }
 
-    #[allow(unused)]
     // Value to add to requested color temp
-    fn temp_table(&self) -> HashMap<usize, isize> {
+    fn temp_table(&self) -> BTreeMap<usize, f64> {
         match self {
             Model::TradfriCandle => {
-                vec![(2200, 30), (2700, 20), (4000, 50)]
+                vec![(2200, 30.), (2700, 20.), (4000, 50.)]
             }
-            Model::TradfriE27 => vec![(2200, 110), (2700, 30), (4000, -110)],
-            Model::TradfriE14Color => vec![(2200, 70), (2700, -40), (4000, 20)],
+            Model::TradfriE27 => vec![(2200, 110.), (2700, 30.), (4000, -110.)],
+            Model::TradfriE14Color => {
+                vec![(2200, 70.), (2700, -40.), (4000, 20.)]
+            }
             Model::HueGen4 | Model::HueOther(_) => {
-                vec![(2200, 2), (2700, 5), (4000, -10), (5500, 45), (6500, 5)]
+                vec![
+                    (2200, 2.),
+                    (2700, 5.),
+                    (4000, -10.),
+                    (5500, 45.),
+                    (6500, 5.),
+                ]
             }
             Model::TradfriOther(_) => todo!(),
             Model::Other(_) => todo!(),
@@ -159,6 +166,32 @@ impl Model {
         }
         .into_iter()
         .collect()
+    }
+
+    fn interpolate(temp: usize, table: BTreeMap<usize, f64>) -> f64 {
+        if let Some(val) = table.get(&temp) {
+            return *val;
+        }
+
+        let larger = table
+            .iter()
+            .filter(|(k, _)| *k > &temp)
+            .min_by_key(|(k, _)| *k);
+        let smaller = table
+            .iter()
+            .filter(|(k, _)| *k < &temp)
+            .max_by_key(|(k, _)| *k);
+
+        if let (Some(smaller), Some(larger)) = (smaller, larger) {
+            // Linear interpolation
+            return temp as f64 * (larger.1 - smaller.1)
+                / (*larger.0 as f64 - *smaller.0 as f64);
+        }
+
+        match smaller.or(larger) {
+            Some(nearest) => *nearest.1,
+            None => 0.0,
+        }
     }
 
     pub(crate) fn is_hue(&self) -> bool {

@@ -18,8 +18,8 @@ enum Color {
 }
 
 impl Color {
-    fn xy_from_temp(temp: usize) -> Color {
-        Color::XY(temp_to_xy(temp))
+    fn xy_from_temp(temp: usize, model: &Model) -> Color {
+        Color::XY(temp_to_xy(temp, model.color_deviation(temp)))
     }
 }
 
@@ -97,7 +97,7 @@ impl Device for Lamp {
             LampProperty::ColorTempK(temp) => {
                 // if we know the model, we know how to apply temp
                 if self.model.supports_xy() {
-                    self.color = Some(Color::xy_from_temp(temp));
+                    self.color = Some(Color::xy_from_temp(temp, &self.model));
                 } else {
                     let range = self.model.temp_k_range();
                     let temp = temp.clamp(range.start, range.end);
