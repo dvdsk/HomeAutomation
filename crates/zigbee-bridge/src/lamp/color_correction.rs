@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 
+use tracing::error;
+
 use super::Model;
 
 pub(super) fn temp_correction(model: &Model, color_temp: usize) -> usize {
@@ -13,19 +15,8 @@ pub(super) fn blackbody_deviation(model: &Model, color_temp: usize) -> f64 {
 // Value for actual color temp (after temp correction)
 fn blackbody_table(model: &Model) -> BTreeMap<usize, f64> {
     match model {
-        // 105.455.00 data
-        Model::TradfriCandle => vec![
-            (2170, 0.0028),
-            (2391, 0.0018),
-            (2683, 0.0006),
-            (2990, 0.0006),
-            (3193, 0.0012),
-            (3590, 0.003),
-            (3791, 0.0036),
-            (3951, 0.0046),
-        ],
         // 604.391.68 data
-        Model::TradfriE27 => vec![
+        Model::TradfriE27 | Model::TradfriOther(_) => vec![
             (1964, -0.003),
             (2090, 0.0014),
             (2668, 0.0015),
@@ -61,10 +52,21 @@ fn blackbody_table(model: &Model) -> BTreeMap<usize, f64> {
             (5455, -0.0005),
             (6495, 0.0014),
         ],
-        Model::TradfriOther(_) => todo!(),
-        Model::Other(_) => todo!(),
-        Model::TradfriGU10 => todo!(),
-        Model::TradfriE14White => todo!(),
+        Model::TradfriGU10 => vec![
+            (2112, 0.0032),
+            (2354, 0.0003),
+            (2744, -0.0018),
+            (3109, -0.0023),
+            (3352, -0.002),
+            (3826, -0.0002),
+            (4035, 0.0005),
+            (4147, 0.0011),
+        ],
+        Model::Other(_) => vec![(2500, 0.)],
+        Model::TradfriCandle | Model::TradfriE14White => {
+            error!("Trying to color correct for non-color bulb {model:?}");
+            vec![(2500, 0.)]
+        }
     }
     .into_iter()
     .collect()
@@ -73,13 +75,15 @@ fn blackbody_table(model: &Model) -> BTreeMap<usize, f64> {
 // Value to add to requested color temp
 fn temp_table(model: &Model) -> BTreeMap<usize, f64> {
     match model {
-        Model::TradfriCandle => {
-            vec![(2200, 30.), (2700, 20.), (4000, 50.)]
+        // 604.391.68 data
+        Model::TradfriE27 | Model::TradfriOther(_) => {
+            vec![(2200, 110.), (2700, 30.), (4000, -110.)]
         }
-        Model::TradfriE27 => vec![(2200, 110.), (2700, 30.), (4000, -110.)],
+        // 204.391.94 data
         Model::TradfriE14Color => {
             vec![(2200, 70.), (2700, -40.), (4000, 20.)]
         }
+        // A19 Color 9.5W data
         Model::HueGen4 | Model::HueOther(_) => {
             vec![
                 (2200, 2.),
@@ -89,10 +93,12 @@ fn temp_table(model: &Model) -> BTreeMap<usize, f64> {
                 (6500, 5.),
             ]
         }
-        Model::TradfriOther(_) => todo!(),
-        Model::Other(_) => todo!(),
-        Model::TradfriGU10 => todo!(),
-        Model::TradfriE14White => todo!(),
+        Model::TradfriGU10 => vec![(2200, -90.), (2700, 40.), (4000, 40.)],
+        Model::Other(_) => vec![(2500, 0.)],
+        Model::TradfriCandle | Model::TradfriE14White => {
+            error!("Trying to color correct for non-color bulb {model:?}");
+            vec![(2500, 0.)]
+        }
     }
     .into_iter()
     .collect()
