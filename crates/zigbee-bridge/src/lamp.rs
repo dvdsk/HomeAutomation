@@ -10,6 +10,7 @@ pub(crate) use property::{LampProperty, LampPropertyDiscriminants};
 
 mod model;
 mod property;
+mod color_correction;
 
 #[derive(Clone, Copy, Debug)]
 enum Color {
