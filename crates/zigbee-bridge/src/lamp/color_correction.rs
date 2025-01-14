@@ -4,8 +4,8 @@ use tracing::error;
 
 use super::Model;
 
-pub(super) fn temp_correction(model: &Model, color_temp: usize) -> usize {
-    interpolate(color_temp, temp_table(model)).round() as usize
+pub(super) fn temp_correction(model: &Model, color_temp: usize) -> isize {
+    interpolate(color_temp, temp_table(model)).round() as isize
 }
 
 pub(super) fn blackbody_deviation(model: &Model, color_temp: usize) -> f64 {
@@ -39,17 +39,20 @@ fn blackbody_table(model: &Model) -> BTreeMap<usize, f64> {
             (3981, 0.0009),
             (4113, 0.0037),
         ],
-        // A19 Color 9.5W data
-        Model::HueGen4 | Model::HueOther(_) => vec![
+        // LCA005 data
+        Model::HueGen1 | Model::HueGen2 | Model::HueOther(_) => vec![
             (1998, 0.0005),
             (2197, 0.00000),
             (2519, -0.0004),
             (2695, -0.0007),
-            (2849, -0.0011),
-            (3358, -0.0012),
-            (3864, -0.012),
+            (2849, -0.001),
+            (2990, -0.0011),
+            (3155, -0.0012),
+            (3358, -0.0013),
+            (3633, -0.0012),
+            (3864, -0.0011),
             (4010, -0.0009),
-            (5455, -0.0005),
+            (5455, 0.0005),
             (6495, 0.0014),
         ],
         Model::TradfriGU10 => vec![
@@ -84,7 +87,7 @@ fn temp_table(model: &Model) -> BTreeMap<usize, f64> {
             vec![(2200, 70.), (2700, -40.), (4000, 20.)]
         }
         // A19 Color 9.5W data
-        Model::HueGen4 | Model::HueOther(_) => {
+        Model::HueGen1 | Model::HueGen2 | Model::HueOther(_) => {
             vec![
                 (2200, 2.),
                 (2700, 5.),
@@ -120,8 +123,9 @@ fn interpolate(temp: usize, table: BTreeMap<usize, f64>) -> f64 {
 
     if let (Some(smaller), Some(larger)) = (smaller, larger) {
         // Linear interpolation
-        return temp as f64 * (larger.1 - smaller.1)
-            / (*larger.0 as f64 - *smaller.0 as f64);
+        return smaller.1
+                + (temp - smaller.0) as f64 * (larger.1 - smaller.1)
+                    / (*larger.0 as f64 - *smaller.0 as f64);
     }
 
     match smaller.or(larger) {

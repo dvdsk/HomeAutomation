@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    ops::Range,
-};
+use std::{collections::HashMap, ops::Range};
 
 use tracing::warn;
 
@@ -22,7 +19,13 @@ pub(crate) enum Model {
     /// LED2101G4 TRADFRI bulb E12/E14, white spectrum, globe, opal, 450/470 lm
     TradfriE14White,
     /// 9290012573A Hue white and color ambiance E26/E27/E14
-    HueGen4,
+    /// 600 lm
+    /// LCT001
+    HueGen1,
+    /// 9290012573A Hue white and color ambiance E26/E27/E14
+    /// 800 lm
+    /// LCT007
+    HueGen2,
     #[allow(unused)]
     TradfriOther(String),
     #[allow(unused)]
@@ -47,7 +50,8 @@ impl Model {
         match self {
             Model::TradfriE27
             | Model::TradfriE14Color
-            | Model::HueGen4
+            | Model::HueGen1
+            | Model::HueGen2
             | Model::TradfriGU10 => true,
             Model::TradfriCandle | Model::TradfriE14White => false,
             // We assume no so that things at least don't break
@@ -62,7 +66,7 @@ impl Model {
             Model::TradfriCandle | Model::TradfriGU10 => 2200..4000,
             Model::TradfriE27 | Model::TradfriE14Color => 1780..4000,
             Model::TradfriE14White => 2000..4000,
-            Model::HueGen4 => 2000..6500,
+            Model::HueGen1 | Model::HueGen2 => 2000..6500,
             Model::TradfriOther(_) => 2200..4000,
             Model::HueOther(_) => 2200..6500,
             Model::Other(_) => 2200..4000,
@@ -70,8 +74,9 @@ impl Model {
     }
 
     pub(super) fn color_deviation(&self, color_temp: usize) -> f64 {
-        let temp = color_temp
-            + color_correction::temp_correction(&self, color_temp) as usize;
+        let temp = color_temp.saturating_add_signed(
+            color_correction::temp_correction(&self, color_temp),
+        );
         color_correction::blackbody_deviation(&self, temp)
     }
 
@@ -83,7 +88,7 @@ impl Model {
             | Model::TradfriE14Color
             | Model::TradfriE14White
             | Model::TradfriOther(_) => false,
-            Model::HueGen4 | Model::HueOther(_) => true,
+            Model::HueGen1 | Model::HueGen2 | Model::HueOther(_) => true,
             // I guess we default to sending payloads separately
             Model::Other(_) => false,
         }
