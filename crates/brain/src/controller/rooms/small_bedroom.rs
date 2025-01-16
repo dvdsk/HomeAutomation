@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+use std::fmt::Debug;
 use std::time::Duration;
 
 use futures_concurrency::future::Race;
@@ -128,32 +130,54 @@ pub(super) fn is_nap_time() -> bool {
         && now < Time::new(20, 0, 0, 0).unwrap()
 }
 
-pub(super) fn goal_temp_now() -> f64 {
-    let now = crate::time::now();
+pub(crate) fn goal_temp_now() -> f64 {
+    let goals = BTreeMap::from([
+        ((00, 00), 18.0),
+        ((08, 30), 19.0),
+        ((10, 00), 19.5),
+        ((11, 00), 20.0),
+        ((12, 00), 20.5),
+        ((13, 00), 21.0),
+        ((20, 00), 20.0),
+        ((22, 00), 18.0),
+    ]);
 
-    match time(now.hour(), now.minute()) {
-        T8_30..T11_00 => 19.0,
-        T11_00..T13_00 => 20.0,
-        T13_00..T20_00 => 21.0,
-        T20_00..T22_00 => 20.0,
-        T22_00.. | T0_00..T8_30 => 18.0,
-        _ => 18.0,
-    }
+    goal_now(goals, 18.0)
 }
 
 // TODO: move to jobs system and remove update trigger
 pub(super) fn daylight_now() -> (usize, f64) {
-    let now = crate::time::now();
+    let goals = BTreeMap::from([
+        ((08, 00), (2000, 0.5)),
+        ((09, 00), (4000, 1.0)),
+        ((19, 00), (3800, 1.0)),
+        ((19, 30), (3600, 1.0)),
+        ((19, 45), (3300, 1.0)),
+        ((20, 00), (3000, 1.0)),
+        ((20, 15), (2500, 1.0)),
+        ((20, 30), (2000, 1.0)),
+        ((21, 30), (1900, 0.8)),
+        ((21, 00), (1800, 0.5)),
+    ]);
 
-    match time(now.hour(), now.minute()) {
-        T8_00..T9_00 => (2000, 0.5),
-        T9_00..T19_00 => (4000, 1.0),
-        T19_00..T19_30 => (3500, 1.0),
-        T20_00..T20_30 => (2800, 1.0),
-        T20_30..T21_00 => (2300, 1.0),
-        T21_00..T21_30 => (2000, 0.7),
-        T21_30..T22_00 => (1900, 0.4),
-        T22_00.. | T0_00..T8_00 => (1800, 0.1),
-        _ => (2300, 1.0),
+    goal_now(goals, (2300, 1.0))
+}
+
+fn goal_now<T: Debug + Clone>(goals: BTreeMap<(i8, i8), T>, default: T) -> T {
+    let Some(first_goal) = goals.first_key_value() else {
+        return default;
+    };
+    let mut prev_goal_val = first_goal.1.clone();
+
+    for ((h, m), goal_val) in goals {
+        let now = crate::time::now().datetime().time();
+        let time = Time::new(h, m, 0, 0).unwrap();
+
+        if now < time {
+            return prev_goal_val.clone();
+        }
+        prev_goal_val = goal_val
     }
+
+    default
 }
