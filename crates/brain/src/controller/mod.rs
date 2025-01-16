@@ -73,6 +73,14 @@ impl RestrictedSystem {
         }
     }
 
+    async fn all_lamps_but_one_on(&mut self, leave_this_off: &str) {
+        for name in &self.allowed_lights {
+            if *name != leave_this_off {
+                self.system.zigbee.set_on(name);
+            }
+        }
+    }
+
     async fn set_radiators_setpoint(&mut self, temperature: f64) {
         for name in &self.allowed_radiators {
             self.system.zigbee.set_radiator_setpoint(name, temperature);

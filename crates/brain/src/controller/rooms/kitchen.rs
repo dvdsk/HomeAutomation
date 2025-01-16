@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use futures_concurrency::future::Race;
 use futures_util::FutureExt;
+use jiff::civil::Time;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
 use tracing::warn;
@@ -12,6 +13,7 @@ use crate::controller::{Event, RestrictedSystem};
 #[derive(PartialEq, Eq)]
 enum State {
     Sleep,
+    Morning,
     Daylight,
 }
 
@@ -77,20 +79,24 @@ pub async fn run(
         match res {
             Res::Event(RelevantEvent::Sleep) => {
                 state = State::Sleep;
-                if small_bedroom::is_nap_time() {
-                    system.all_lamps_off().await;
-                } else {
-                    system.all_lamps_but_one_off("kitchen:hallway").await;
-                }
+                system.all_lamps_off().await;
             }
             Res::Event(RelevantEvent::Daylight) => {
-                state = State::Daylight;
-                update(&mut system).await;
-                // TODO: only when LB also awake
-                // then turn all lamps off when SB sleep
-                system.all_lamps_on().await;
+                if is_late_morning() {
+                    state = State::Daylight;
+                    update(&mut system).await;
+                    system.all_lamps_on().await;
+                } else {
+                    state = State::Morning;
+                    update(&mut system).await;
+                    system.all_lamps_but_one_on("kitchen:hallway").await;
+                }
             }
-            Res::ShouldUpdate if state == State::Daylight => {
+            Res::ShouldUpdate
+                if state == State::Daylight
+                    || (state == State::Morning && is_late_morning()) =>
+            {
+                state = State::Daylight;
                 update(&mut system).await;
                 system.all_lamps_on().await;
                 next_update = Instant::now() + INTERVAL;
@@ -98,6 +104,10 @@ pub async fn run(
             _ => (),
         }
     }
+}
+
+fn is_late_morning() -> bool {
+    crate::time::now().datetime().time() > Time::new(10, 0, 0, 0).unwrap()
 }
 
 async fn update(system: &mut RestrictedSystem) {

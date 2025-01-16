@@ -30,22 +30,7 @@ const fn time(hour: i8, minute: i8) -> f64 {
     hour as f64 + minute as f64 / 60.
 }
 const T0_00: f64 = time(0, 0);
-const T8_00: f64 = time(8, 0);
-const T8_30: f64 = time(8, 30);
 const T9_00: f64 = time(9, 0);
-const T10_30: f64 = time(10, 30);
-const T11_00: f64 = time(11, 0);
-const T13_00: f64 = time(13, 0);
-const T16_00: f64 = time(16, 0);
-const T17_00: f64 = time(17, 0);
-const T18_00: f64 = time(18, 0);
-const T19_00: f64 = time(19, 0);
-const T19_30: f64 = time(19, 30);
-const T20_00: f64 = time(20, 0);
-const T20_30: f64 = time(20, 30);
-const T21_00: f64 = time(21, 0);
-const T21_30: f64 = time(21, 30);
-const T22_00: f64 = time(22, 0);
 const T23_00: f64 = time(23, 0);
 
 pub async fn run(
