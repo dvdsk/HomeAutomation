@@ -28,9 +28,15 @@ struct Cli {
     #[arg(long, default_value_t = SocketAddr::from(([127,0,0,1], 1235)))]
     server: SocketAddr,
 
-    /// print json format: {"reading description passed in": "reading value"}
+    /// print json format where for each query passed in there are two key value pairs:
+    /// example for the query `temp`:
+    /// { "temp": 23.40, "temp-unit": "C" }
     #[arg(short, long)]
     json: bool,
+
+    /// wipe and redo setup
+    #[arg(short, long)]
+    setup: bool,
 
     /// print a custom separator between multiple printed values
     #[arg(short, long, default_value_t = String::from(" "))]
@@ -176,11 +182,22 @@ impl Entry {
 }
 
 fn update_stdout_json(entries: &[Entry], used_queries: &[String]) {
-    let updates = entries.iter().map(|entry| entry.format());
     let json_body = used_queries
         .iter()
-        .zip(updates)
-        .map(|(query, update)| format!("{query}: {update}"))
+        .zip(entries)
+        .map(|(query, Entry { curr_value, .. })| {
+            let value = curr_value
+                .as_ref()
+                .map(|r| r.leaf())
+                .map(|info| format!("{0:.1$}", info.val, info.precision()))
+                .unwrap_or("X".to_string());
+            let unit = curr_value
+                .as_ref()
+                .map(|r| r.leaf().unit)
+                .unwrap_or(protocol::Unit::None);
+
+            format!("\"{query}\": {}, \"{query}-unit\": \"{}\"", value, unit)
+        })
         .join(", ");
     println!("{{ {json_body} }}")
 }
