@@ -94,6 +94,10 @@ async fn main() -> Result<()> {
         "must provide at least one sensor to display"
     );
 
+    if cli.setup {
+        cache::clear().await.wrap_err("Could not clear cache")?;
+    }
+
     let readings = match cache::load_from_file(&cli.readings).await {
         Ok(readings) if readings.iter().any(Option::is_none) => {
             println!("RunSetup");

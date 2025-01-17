@@ -61,3 +61,12 @@ pub(crate) async fn load_from_file(
 
     Ok(queries.iter().map(|q| entries.remove(q)).collect())
 }
+
+pub(crate) async fn clear() -> Result<()> {
+    let path = path()?;
+    match fs::remove_file(path).await {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e).wrap_err("io error"),
+    }
+}
