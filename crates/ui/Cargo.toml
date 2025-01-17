@@ -26,8 +26,8 @@ data-store = { workspace = true }
 log-store = { workspace = true, features = ["api"] }
 jiff = { workspace = true }
 thiserror.workspace = true
-itertools = "0.14.0"
-gethostname = "0.5.0"
+itertools.workspace = true
+gethostname.workspace = true
 strip-ansi-escapes = "0.2.0"
 indextree = "4.7.2"
 derivative = "2.2.0"

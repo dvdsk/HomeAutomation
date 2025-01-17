@@ -267,8 +267,9 @@ impl Tree for Reading {
 }
 
 impl_is_same_as! {Reading; Brightness, Temperature, Humidity, GassResistance, Pressure,
-    Co2, WeightLeft, WeightRight, MassPm1_0, MassPm2_5, MassPm4_0, MassPm10,
-    TypicalParticleSize; (Self::Button(a), Self::Button(b)) => a.is_same_as(b)
+    Co2, WeightLeft, WeightRight, MassPm1_0, MassPm2_5, MassPm4_0, MassPm10, NumberPm0_5, 
+    NumberPm1_0, NumberPm2_5, NumberPm4_0, NumberPm10, TypicalParticleSize; 
+    (Self::Button(a), Self::Button(b)) => a.is_same_as(b)
 }
 
 #[derive(

@@ -7,15 +7,19 @@ use color_eyre::{Result, Section};
 use protocol::Reading;
 use tokio::fs;
 
-pub(crate) async fn store_to_file(reading: Reading, query: String) -> Result<()> {
+pub(crate) async fn store_to_file(
+    fully_qualified: &[Reading],
+    queries: &[String],
+) -> Result<()> {
     let mut entries = load_entries()
         .await
         .wrap_err("Could not load existing cache")?
         .unwrap_or_default();
 
-    entries.insert(query, reading);
-    let serialized =
-        ron::to_string(&entries).wrap_err("Could not serialize query resolve result")?;
+    entries
+        .extend(queries.iter().cloned().zip(fully_qualified.iter().cloned()));
+    let serialized = ron::to_string(&entries)
+        .wrap_err("Could not serialize query resolve result")?;
 
     let path = path()?;
     fs::write(path, serialized.as_bytes())
@@ -48,10 +52,12 @@ pub(crate) async fn load_entries() -> Result<Option<HashMap<Query, Reading>>> {
     ))
 }
 
-pub(crate) async fn load_from_file(query: &Query) -> Result<Option<Reading>> {
+pub(crate) async fn load_from_file(
+    queries: &Vec<Query>,
+) -> Result<Vec<Option<Reading>>> {
     let Some(mut entries) = load_entries().await? else {
-        return Ok(None);
+        return Ok(queries.iter().map(|_| None).collect());
     };
 
-    Ok(entries.remove(query))
+    Ok(queries.iter().map(|q| entries.remove(q)).collect())
 }
