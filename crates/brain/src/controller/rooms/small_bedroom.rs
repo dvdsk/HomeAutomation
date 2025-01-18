@@ -119,10 +119,9 @@ pub(crate) fn goal_temp_now() -> f64 {
     let goals = BTreeMap::from([
         ((00, 00), 18.0),
         ((08, 30), 19.0),
-        ((10, 00), 19.5),
-        ((11, 00), 20.0),
-        ((12, 00), 20.5),
-        ((13, 00), 21.0),
+        ((10, 00), 20.0),
+        ((11, 00), 20.5),
+        ((12, 00), 21.0),
         ((20, 00), 20.0),
         ((22, 00), 18.0),
     ]);
@@ -133,6 +132,7 @@ pub(crate) fn goal_temp_now() -> f64 {
 // TODO: move to jobs system and remove update trigger
 pub(super) fn daylight_now() -> (usize, f64) {
     let goals = BTreeMap::from([
+        ((00, 00), (1800, 0.5)),
         ((08, 00), (2000, 0.5)),
         ((09, 00), (4000, 1.0)),
         ((19, 00), (3800, 1.0)),
@@ -152,6 +152,7 @@ fn goal_now<T: Debug + Clone>(goals: BTreeMap<(i8, i8), T>, default: T) -> T {
     let Some(first_goal) = goals.first_key_value() else {
         return default;
     };
+
     let mut prev_goal_val = first_goal.1.clone();
 
     for ((h, m), goal_val) in goals {
@@ -164,5 +165,5 @@ fn goal_now<T: Debug + Clone>(goals: BTreeMap<(i8, i8), T>, default: T) -> T {
         prev_goal_val = goal_val
     }
 
-    default
+    prev_goal_val
 }
