@@ -31,7 +31,8 @@ enum Command {
     Export {
         /// export only one dataset
         /// at this path this fails.
-        path: Option<PathBuf>,
+        #[arg(short, long)]
+        only: Option<PathBuf>,
     },
     Import {
         /// which dataset to import
@@ -39,7 +40,8 @@ enum Command {
         /// to be manually removed if you do not want it.
         ///
         /// If the backup already exists this fails
-        path: Option<PathBuf>,
+        #[arg(short, long)]
+        only: Option<PathBuf>,
     },
 }
 
@@ -58,7 +60,7 @@ async fn main() -> Result<()> {
             data_store::server::run(data_server, client_port, &cli.data_dir)
                 .await
         }
-        Command::Export { .. } => todo!(),
+        Command::Export { only } => data_store::export::perform(&cli.data_dir, only),
         Command::Import { .. } => todo!(),
     }
 }

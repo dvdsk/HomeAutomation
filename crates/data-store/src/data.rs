@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use color_eyre::Result;
 use tokio::sync::Mutex;
 
 pub mod series;
@@ -15,7 +14,7 @@ pub(crate) struct Data(
 );
 
 impl Data {
-    pub(crate) async fn list(&self) -> Vec<protocol::Reading> {
+    pub(crate) async fn list_readings(&self) -> Vec<protocol::Reading> {
         self.0
             .lock()
             .await
@@ -65,4 +64,5 @@ impl Data {
             values: data.pop().expect("one reading is put in so one comes out"),
         })
     }
+
 }

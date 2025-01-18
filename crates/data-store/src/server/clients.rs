@@ -24,7 +24,7 @@ async fn perform_request_inner(
     data: Data,
 ) -> Result<api::Response, ServerError> {
     Ok(match request {
-        api::Request::ListData => api::Response::ListData(data.list().await),
+        api::Request::ListData => api::Response::ListData(data.list_readings().await),
         api::Request::GetData {
             reading,
             start,

@@ -15,7 +15,7 @@ use byteseries::file::OpenError as FileOpenError;
 use series::data::OpenError as DataOpenError;
 use series::Error::Open;
 
-mod bitspec;
+pub mod bitspec;
 mod resampler;
 
 use self::resampler::Resampler;
@@ -23,9 +23,9 @@ use self::resampler::Resampler;
 use super::Data;
 
 #[derive(Debug)]
-struct Meta {
+pub(crate) struct Meta {
     reading: protocol::Reading,
-    field: bitspec::Field<f32>,
+    pub(crate) field: bitspec::Field<f32>,
     set_at: Option<Instant>,
 }
 
@@ -38,9 +38,9 @@ pub(crate) struct Series {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-struct Header {
-    readings: Vec<protocol::Reading>,
-    encoding: Vec<bitspec::Field<f32>>,
+pub(crate) struct Header {
+    pub(crate) readings: Vec<protocol::Reading>,
+    pub(crate) encoding: Vec<bitspec::Field<f32>>,
 }
 
 impl Header {
@@ -273,7 +273,7 @@ fn wrap_inder_err(
     })
 }
 
-fn meta_list_and_payload_size(
+pub(crate) fn meta_list_and_payload_size(
     readings: &[protocol::Reading],
     fields: &[bitspec::Field<f32>],
 ) -> (Vec<Meta>, usize) {

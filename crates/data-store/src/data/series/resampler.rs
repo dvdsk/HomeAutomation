@@ -8,7 +8,10 @@ pub(crate) struct Resampler {
 }
 
 impl Resampler {
-    pub(crate) fn from_fields(fields: Vec<bitspec::Field<f32>>, payload_size: usize) -> Self {
+    pub(crate) fn from_fields(
+        fields: Vec<bitspec::Field<f32>>,
+        payload_size: usize,
+    ) -> Self {
         Self {
             fields,
             payload_size,
@@ -58,9 +61,11 @@ mod test {
 
     #[test]
     fn decoded_is_correct() {
-        let reading = protocol::Reading::LargeBedroom(protocol::large_bedroom::Reading::Bed(
-            protocol::large_bedroom::bed::Reading::Temperature(0.5),
-        ));
+        let reading = protocol::Reading::LargeBedroom(
+            protocol::large_bedroom::Reading::Bed(
+                protocol::large_bedroom::bed::Reading::Temperature(0.5),
+            ),
+        );
 
         let readings = reading.device().info().affects_readings;
         let specs = crate::data::series::to_speclist(readings);
@@ -71,7 +76,8 @@ mod test {
             .map(|spec| spec.length as usize)
             .sum::<usize>()
             .div_ceil(8);
-        let mut resampler = Resampler::from_fields(fields.clone(), payload_size);
+        let mut resampler =
+            Resampler::from_fields(fields.clone(), payload_size);
         let mut item: SmallVec<f32, 8> = SmallVec::new();
         item.push(0.5f32);
         item.push(0.5f32);

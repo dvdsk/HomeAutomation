@@ -9,7 +9,8 @@ authors.workspace = true
 [features]
 api = []
 server = []
-default = ["api", "server"]
+export = []
+default = ["api", "server", "export"]
 
 [dependencies]
 clap = { workspace = true }
@@ -33,6 +34,7 @@ futures.workspace = true
 smallvec = "2.0.0-alpha.6"
 num = "0.4.3"
 ron = "0.8.1"
+indicatif = "0.17.9"
 
 [dev-dependencies]
 futures-concurrency = { workspace = true }
