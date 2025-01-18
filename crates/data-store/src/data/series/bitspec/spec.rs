@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::ops::RangeInclusive;
 
 use serde::{Deserialize, Serialize};
 
@@ -6,7 +6,7 @@ use super::field::Field;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct RangeWithRes {
-    pub range: Range<f32>,
+    pub range: RangeInclusive<f32>,
     pub resolution: f32,
 }
 
@@ -20,13 +20,13 @@ pub struct LengthWithOps {
 impl From<RangeWithRes> for LengthWithOps {
     #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
     fn from(field: RangeWithRes) -> Self {
-        let given_range = field.range.end - field.range.start;
+        let given_range = field.range.end() - field.range.start();
         let needed_range = given_range / field.resolution;
         let length = needed_range.log2().ceil() as u32;
         let length = length.try_into().expect("max field length is 256 bits");
         let decode_scale = field.resolution;
 
-        let decode_add = field.range.start;
+        let decode_add = *field.range.start();
         LengthWithOps {
             length,
             decode_scale,

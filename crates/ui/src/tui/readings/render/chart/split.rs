@@ -78,7 +78,7 @@ mod test {
                     large_bedroom::bed::Device::Bme680,
                 )),
                 resolution: 1.0,
-                range: 0.0..200.0,
+                range: 0.0..=200.0,
                 unit: protocol::Unit::C,
                 description: "test",
                 branch_id: 1,
