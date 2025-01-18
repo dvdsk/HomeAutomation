@@ -6,3 +6,5 @@ pub mod api;
 pub mod server;
 #[cfg(feature = "server")]
 pub mod export;
+#[cfg(feature = "server")]
+pub mod data;

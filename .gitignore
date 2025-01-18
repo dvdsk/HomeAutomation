@@ -64,7 +64,6 @@ __pycache__
 debugToRemoteHost.sh
 hueBridgeLogin
 keys/
-data/
 releaseToRemoteHost.sh
 specs/
 userdb.hm
