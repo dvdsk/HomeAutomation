@@ -1,16 +1,12 @@
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::Path;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use data_server::api::subscriber::ReconnectingClient;
 use data_server::api::subscriber::SubMessage;
 
 use color_eyre::{Result, Section};
-use tokio::sync::Mutex;
 
-use crate::api;
 use crate::data::Data;
 
 pub(crate) async fn run(

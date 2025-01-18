@@ -63,7 +63,7 @@ mod test {
         ));
 
         let readings = reading.device().info().affects_readings;
-        let specs = crate::server::db::series::to_speclist(readings);
+        let specs = crate::data::series::to_speclist(readings);
         let fields = bitspec::speclist_to_fields(specs);
 
         let payload_size = fields
