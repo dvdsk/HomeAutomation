@@ -100,7 +100,7 @@ impl Tree for Reading {
             Reading::Brightness(val) => (
                 *val,
                 Device::Max44.rooted(),
-                0.0..188_000.0,
+                0.0..=188_000.0,
                 0.045,
                 Unit::Lux,
                 "Brightness",
@@ -108,7 +108,7 @@ impl Tree for Reading {
             Reading::Temperature(val) => (
                 *val,
                 Device::Sht31.rooted(),
-                -10.0..45.0,
+                -10.0..=45.0,
                 0.01,
                 Unit::C,
                 "Temperature",
@@ -116,7 +116,7 @@ impl Tree for Reading {
             Reading::Humidity(val) => (
                 *val,
                 Device::Sht31.rooted(),
-                0.0..100.0,
+                0.0..=100.0,
                 0.01,
                 Unit::RH,
                 "Relative humidity",
@@ -125,7 +125,7 @@ impl Tree for Reading {
             Reading::GassResistance(val) => (
                 *val,
                 Device::Bme680.rooted(),
-                0.0..1_000_000.0,
+                0.0..=1_000_000.0,
                 1.0,
                 Unit::Ohm,
                 "Gass resistance",
@@ -136,7 +136,7 @@ impl Tree for Reading {
             Reading::Pressure(val) => (
                 *val,
                 Device::Bme680.rooted(),
-                87_000.0..108_100.0,
+                87_000.0..=108_100.0,
                 0.18,
                 Unit::Pa,
                 "Air pressure",
@@ -144,7 +144,7 @@ impl Tree for Reading {
             Reading::Co2(val) => (
                 f32::from(*val),
                 Device::Mhz14.rooted(),
-                400.0..2_000.0,
+                400.0..=2_000.0,
                 1.0,
                 Unit::Ppm,
                 "Co2 concentration",
@@ -152,7 +152,7 @@ impl Tree for Reading {
             Reading::WeightLeft(val) => (
                 *val as f32,
                 Device::Nau7802Left.rooted(),
-                0.0..24.0_f32.exp2(),
+                0.0..=24.0_f32.exp2(),
                 1.0,
                 Unit::Ohm,
                 "Left weight sensor resistance",
@@ -160,7 +160,7 @@ impl Tree for Reading {
             Reading::WeightRight(val) => (
                 *val as f32,
                 Device::Nau7802Right.rooted(),
-                0.0..24.0_f32.exp2(),
+                0.0..=24.0_f32.exp2(),
                 1.0,
                 Unit::Ohm,
                 "Right weight sensor resistance",
@@ -169,7 +169,7 @@ impl Tree for Reading {
             Reading::MassPm1_0(val) => (
                 *val,
                 Device::Sps30.rooted(),
-                0.0..1000.0,
+                0.0..=1000.0,
                 0.1,
                 Unit::MicrogramPerM3,
                 "Mass concentration particles between 0.3 to 1.0 μm",
@@ -177,7 +177,7 @@ impl Tree for Reading {
             Reading::MassPm2_5(val) => (
                 *val,
                 Device::Sps30.rooted(),
-                0.0..1000.0,
+                0.0..=1000.0,
                 0.1,
                 Unit::MicrogramPerM3,
                 "Mass concentration particles between 0.3 to 2.5 μm",
@@ -185,7 +185,7 @@ impl Tree for Reading {
             Reading::MassPm4_0(val) => (
                 *val,
                 Device::Sps30.rooted(),
-                0.0..1000.0,
+                0.0..=1000.0,
                 0.1,
                 Unit::MicrogramPerM3,
                 "Mass concentration particles between 0.3 to 4.0 μm",
@@ -193,7 +193,7 @@ impl Tree for Reading {
             Reading::MassPm10(val) => (
                 *val,
                 Device::Sps30.rooted(),
-                0.0..1000.0,
+                0.0..=1000.0,
                 0.1,
                 Unit::MicrogramPerM3,
                 "Mass concentration particles between 0.3 to 10.0 μm",
@@ -201,7 +201,7 @@ impl Tree for Reading {
             Reading::NumberPm0_5(val) => (
                 *val,
                 Device::Sps30.rooted(),
-                0.0..3000.0,
+                0.0..=3000.0,
                 0.1,
                 Unit::NumberPerCm3,
                 "Concentration of particles between 0.3 to 0.5 μm",
@@ -209,7 +209,7 @@ impl Tree for Reading {
             Reading::NumberPm1_0(val) => (
                 *val,
                 Device::Sps30.rooted(),
-                0.0..3000.0,
+                0.0..=3000.0,
                 0.1,
                 Unit::NumberPerCm3,
                 "Concentration of particles between 0.3 to 1.0 μm",
@@ -217,7 +217,7 @@ impl Tree for Reading {
             Reading::NumberPm2_5(val) => (
                 *val,
                 Device::Sps30.rooted(),
-                0.0..3000.0,
+                0.0..=3000.0,
                 0.1,
                 Unit::NumberPerCm3,
                 "Concentration of particles between 0.3 to 2.5 μm",
@@ -225,7 +225,7 @@ impl Tree for Reading {
             Reading::NumberPm4_0(val) => (
                 *val,
                 Device::Sps30.rooted(),
-                0.0..3000.0,
+                0.0..=3000.0,
                 0.1,
                 Unit::NumberPerCm3,
                 "Concentration of particles between 0.3 to 4.0 μm",
@@ -233,7 +233,7 @@ impl Tree for Reading {
             Reading::NumberPm10(val) => (
                 *val,
                 Device::Sps30.rooted(),
-                0.0..3000.0,
+                0.0..=3000.0,
                 0.1,
                 Unit::NumberPerCm3,
                 "Concentration of particles between 0.3 to 10.5 μm",
@@ -241,7 +241,7 @@ impl Tree for Reading {
             Reading::TypicalParticleSize(val) => (
                 *val,
                 Device::Sps30.rooted(),
-                0.0..10_000.0,
+                0.0..=10_000.0,
                 0.5,
                 Unit::NanoMeter,
                 "Typical particle size",

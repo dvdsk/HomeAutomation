@@ -82,7 +82,7 @@ macro_rules! button_enum {
                     val: (*self).into(),
                     device: $device,
                     description: "button",
-                    range: 0.0..3.0,
+                    range: 0.0..=2.0,
                     resolution: 1.0,
                     unit: crate::Unit::None,
                     branch_id: self.branch_id(),

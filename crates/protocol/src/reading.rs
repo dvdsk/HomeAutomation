@@ -37,7 +37,7 @@ impl Reading {
         self.leaf().from_same_device()
     }
     #[must_use]
-    pub fn range(&self) -> core::ops::Range<f32> {
+    pub fn range(&self) -> core::ops::RangeInclusive<f32> {
         use tree::Tree;
         self.leaf().range
     }
@@ -103,7 +103,7 @@ pub struct Info {
     pub device: Device,
     /// smallest step size the data can make
     pub resolution: f32,
-    pub range: core::ops::Range<f32>,
+    pub range: core::ops::RangeInclusive<f32>,
     pub unit: Unit,
     pub description: &'static str,
     pub branch_id: u8,
