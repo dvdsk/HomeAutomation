@@ -27,6 +27,62 @@ pub fn decode(line: &[u8], bit_offset: u8, length: u8) -> u32 {
 
 #[inline]
 #[allow(clippy::cast_possible_truncation)]
+/// Encode the lower `length` bits of `to_encode` in a zero-ed byte slice
+/// starting at the `bit_offset` bit.
+///
+/// If `bit_offset` mod 8 is not zero this means we skip the that amount of
+/// lower bits in the first byte used for encoding. Inversely
+/// if `bit_offset` + `length` mod 8 is not zero that means we only use
+/// that amount of lower bits of the last byte.
+///
+/// # The first byte
+/// Only using the free bits in the first byte is done by first bitmasking on
+/// the lower 8 bits of `to_encode`. That mask when AND-ed makes the highest
+/// bits zero. Specifically the `bit_offset` mod 8 highest bits are made zero.
+///
+/// Then the remaining bits are shifted up such that they fill out the free
+/// space in the highest bits of the first byte
+///
+/// Example: store 8 bits starting at bit 4:
+///     bit_offset: 4, used: 4 mod 8 = 4
+///     length: 8
+///     bits_in_first: 8 - (4 mod 8) = 4
+///     mask: 0b0000_1111
+///     shift: 4 up
+///
+/// Example mask, store 4 bits starting at bit 5:
+///     bit_offset: 5, used: 5 mod 8 = 5
+///     length: 4
+///     bits_in_first: 8 - (5 mod 8) = 3
+///     mask: 0b0000_0111 # Note how only 3 bits are selected
+///     shift: 5 up
+///
+/// # The last byte
+/// We fit `bit_offest` mod 8 bits in the first byte, lets call that `bits_in_first`.
+/// Then N * 8 more in the bytes in between the first and last byte used. This leaves
+/// (`length` - `bits_in_first`) mod 8 bits to still encode. These are the highest
+/// bits in `to_encode`. We again select them using a mask and AND.
+///
+/// This mask is ones for the `bits_in_last` highest bits from `to_encode` and
+/// zeros otherwise. Then the bits are shifted all the way down so they fit
+/// the lower bits of the last byte in the slice used to store `to_encode`.
+///
+/// Example: store 20 bits starting at bit 4
+///     bit_offset: 4
+///     length: 22
+///     bits_in_first: 4
+///     bits_in_last: (length - bits_in_first) mod 8 = 2
+///     mask: 0b0000_0000__0011_0000__0000_0000__0000_0000
+///     shift: 20 down
+///
+/// Example: store 7 bits starting at bit 13
+///     bit_offset: 13
+///     length: 7
+///     bits_in_first: 8 - (5 mod 8) = 3
+///     bits_in_last: (length - bits_in_first) mod 8 = 4
+///     mask: 0b0000_0000__0000_0000__0000_0000__0111_1000
+///     shift: 7 down
+///
 pub fn encode(to_encode: u32, line: &mut [u8], bit_offset: u8, length: u8) {
     let start_mask = !0 >> (bit_offset % 8);
 
