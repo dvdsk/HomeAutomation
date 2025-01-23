@@ -3,14 +3,16 @@ use std::time::Duration;
 
 use jiff::{ToSpan, Zoned};
 use serde::{Deserialize, Serialize};
+use tokio::io::AsyncWriteExt;
+use tokio::net::TcpStream;
 use tokio::sync::{broadcast, Mutex, RwLock};
 use tokio::task::{self, JoinHandle};
 use tokio::time::sleep;
 use tracing::{trace, warn};
 
 use super::{
-    daylight_now, goal_temp_now, is_nap_time, NAP_TIME, OFF_DELAY,
-    RADIATOR_OVERRIDE_MINUTES,
+    air_filtration_now, daylight_now, goal_temp_now, is_nap_time, NAP_TIME,
+    OFF_DELAY, RADIATOR_OVERRIDE_MINUTES,
 };
 use crate::controller::{Event, RestrictedSystem};
 
@@ -49,7 +51,10 @@ impl Room {
 
     pub(super) async fn update_radiator(&mut self) {
         trace!("Updating radiator");
-        trace!("Room radiator override state: {:?}", &self.radiator_override);
+        trace!(
+            "Room radiator override state: {:?}",
+            &self.radiator_override
+        );
         if let Some(override_time) = &self.radiator_override {
             if crate::time::now()
                 <= override_time
@@ -194,6 +199,13 @@ impl Room {
         if *self.state.read().await == State::Daylight {
             let (new_ct, new_bri) = daylight_now();
             self.system.all_lamps_ct(new_ct, new_bri).await;
+        }
+    }
+
+    pub(crate) async fn update_airbox(&self) {
+        if let Ok(mut stream) = TcpStream::connect("192.168.1.103:4444").await {
+            let message: u16 = 0xDD00 + air_filtration_now();
+            let _ = stream.write(&message.to_le_bytes()).await;
         }
     }
 }

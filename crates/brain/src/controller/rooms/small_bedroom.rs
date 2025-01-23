@@ -72,6 +72,7 @@ pub async fn run(
             }
             Trigger::Event(RelevantEvent::Wakeup) => room.to_wakeup().await,
             Trigger::ShouldUpdate => {
+                room.update_airbox().await;
                 room.update_radiator().await;
                 room.all_lights_daylight().await;
                 next_update = Instant::now() + UPDATE_INTERVAL;
@@ -128,6 +129,16 @@ pub(crate) fn goal_temp_now() -> f64 {
     ]);
 
     goal_now(goals, 18.0)
+}
+
+fn air_filtration_now() -> u16 {
+    let goals = BTreeMap::from([
+        ((00, 00), 70),
+        ((18, 00), 100),
+        ((22, 30), 70),
+    ]);
+
+    goal_now(goals, 80)
 }
 
 // TODO: move to jobs system and remove update trigger
