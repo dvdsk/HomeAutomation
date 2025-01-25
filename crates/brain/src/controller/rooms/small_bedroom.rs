@@ -71,6 +71,9 @@ pub async fn run(
                 room.start_radiator_override();
             }
             Trigger::Event(RelevantEvent::Wakeup) => room.to_wakeup().await,
+            Trigger::Event(RelevantEvent::Pm2_5(val)) => {
+                room.pm2_5 = Some((val, crate::time::now()))
+            }
             Trigger::ShouldUpdate => {
                 room.update_airbox().await;
                 room.update_radiator().await;
@@ -132,11 +135,8 @@ pub(crate) fn goal_temp_now() -> f64 {
 }
 
 fn air_filtration_now() -> u16 {
-    let goals = BTreeMap::from([
-        ((00, 00), 70),
-        ((18, 00), 100),
-        ((22, 30), 70),
-    ]);
+    let goals =
+        BTreeMap::from([((00, 00), 70), ((18, 00), 100), ((22, 30), 70)]);
 
     goal_now(goals, 80)
 }

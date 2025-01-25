@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use jiff::{ToSpan, Zoned};
+use jiff::{Span, ToSpan, Zoned};
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
@@ -30,6 +30,7 @@ pub(crate) enum State {
 pub(super) struct Room {
     state: Arc<RwLock<State>>,
     radiator_override: Option<Zoned>,
+    pub(super) pm2_5: Option<(f32, Zoned)>,
     system: RestrictedSystem,
     event_tx: broadcast::Sender<Event>,
     task_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
@@ -43,6 +44,7 @@ impl Room {
         Self {
             state: Arc::new(RwLock::new(State::Daylight)),
             radiator_override: None,
+            pm2_5: None,
             system,
             event_tx,
             task_handle: Arc::new(Mutex::new(None)),
@@ -203,8 +205,27 @@ impl Room {
     }
 
     pub(crate) async fn update_airbox(&self) {
+        let pm2_5_expiration = 10.minutes();
         if let Ok(mut stream) = TcpStream::connect("192.168.1.103:4444").await {
-            let message: u16 = 0xDD00 + air_filtration_now();
+            let setting = match &self.pm2_5 {
+                Some((pm2_5, measured_time)) => {
+                    let is_expired =
+                        measured_time.checked_add(pm2_5_expiration).unwrap()
+                            < crate::time::now();
+
+                    if is_expired {
+                        air_filtration_now()
+                    } else {
+                        match pm2_5 {
+                            0.0..3.0 => 0,
+                            3.0..4.0 => return,
+                            _ => air_filtration_now(),
+                        }
+                    }
+                }
+                None => air_filtration_now(),
+            };
+            let message: u16 = 0xDD00 + setting;
             let _ = stream.write(&message.to_le_bytes()).await;
         }
     }

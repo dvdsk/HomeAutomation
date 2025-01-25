@@ -3,6 +3,7 @@ use tracing::{trace, warn};
 
 use crate::controller::Event;
 use protocol::{
+    large_bedroom,
     small_bedroom::{self, portable_button_panel, radiator},
     Reading,
 };
@@ -19,6 +20,7 @@ pub(super) enum RelevantEvent {
     PortableButton(portable_button_panel::Reading),
     Wakeup,
     RadiatorOverride,
+    Pm2_5(f32),
 }
 
 pub(super) async fn recv_filtered(event_rx: &mut Receiver<Event>) -> Trigger {
@@ -32,7 +34,7 @@ pub(super) async fn recv_filtered(event_rx: &mut Receiver<Event>) -> Trigger {
             Err(err) => panic!("{err}"),
         };
         if let Some(relevant) = event_filter(event) {
-            warn!("SB received relevant event: {relevant:?}");
+            trace!("SB received relevant event: {relevant:?}");
             return Trigger::Event(relevant);
         }
     }
@@ -56,6 +58,9 @@ fn event_filter(event: Event) -> Option<RelevantEvent> {
                 None
             }
         }
+        Event::Sensor(Reading::LargeBedroom(large_bedroom::Reading::Bed(
+            large_bedroom::bed::Reading::MassPm2_5(val),
+        ))) => Some(RelevantEvent::Pm2_5(val)),
         Event::WakeupSB => Some(RelevantEvent::Wakeup),
         _ => None,
     }
