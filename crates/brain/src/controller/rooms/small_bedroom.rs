@@ -5,6 +5,7 @@ use std::time::Duration;
 use futures_concurrency::future::Race;
 use futures_util::FutureExt;
 use jiff::civil::Time;
+use jiff::{ToSpan, Zoned};
 use protocol::small_bedroom::{portable_button_panel, ButtonPanel};
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
@@ -134,11 +135,29 @@ pub(crate) fn goal_temp_now() -> f64 {
     goal_now(goals, 18.0)
 }
 
-fn air_filtration_now() -> u16 {
+fn air_filtration_now(pm2_5_measurement: &Option<(f32, Zoned)>) -> Option<u16> {
+    let pm2_5_expiration = 10.minutes();
     let goals =
         BTreeMap::from([((00, 00), 70), ((18, 00), 100), ((22, 30), 70)]);
 
-    goal_now(goals, 80)
+    let default = goal_now(goals, 80);
+
+    let Some((pm2_5, measured_time)) = pm2_5_measurement else {
+        return Some(default);
+    };
+
+    let is_expired = measured_time.checked_add(pm2_5_expiration).unwrap()
+        < crate::time::now();
+    if is_expired {
+        Some(default)
+    } else {
+        match pm2_5 {
+            0.0..3.0 => Some(0),
+            // Don't change anything
+            3.0..4.0 => None,
+            _ => Some(default),
+        }
+    }
 }
 
 // TODO: move to jobs system and remove update trigger

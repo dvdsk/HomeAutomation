@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use jiff::{Span, ToSpan, Zoned};
+use jiff::{ToSpan, Zoned};
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
@@ -205,26 +205,11 @@ impl Room {
     }
 
     pub(crate) async fn update_airbox(&self) {
-        let pm2_5_expiration = 10.minutes();
-        if let Ok(mut stream) = TcpStream::connect("192.168.1.103:4444").await {
-            let setting = match &self.pm2_5 {
-                Some((pm2_5, measured_time)) => {
-                    let is_expired =
-                        measured_time.checked_add(pm2_5_expiration).unwrap()
-                            < crate::time::now();
+        let Some(setting) = air_filtration_now(&self.pm2_5) else {
+            return;
+        };
 
-                    if is_expired {
-                        air_filtration_now()
-                    } else {
-                        match pm2_5 {
-                            0.0..3.0 => 0,
-                            3.0..4.0 => return,
-                            _ => air_filtration_now(),
-                        }
-                    }
-                }
-                None => air_filtration_now(),
-            };
+        if let Ok(mut stream) = TcpStream::connect("192.168.1.103:4444").await {
             let message: u16 = 0xDD00 + setting;
             let _ = stream.write(&message.to_le_bytes()).await;
         }
