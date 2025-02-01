@@ -127,9 +127,11 @@ pub(crate) fn goal_temp_now() -> f64 {
         ((10, 00), 20.0),
         ((11, 00), 20.5),
         ((12, 00), 21.0),
+        ((14, 00), 21.5),
+        ((20, 30), 21.0),
         ((21, 00), 20.0),
-        ((22, 00), 19.0),
-        ((22, 30), 18.0),
+        ((21, 30), 19.0),
+        ((22, 00), 18.0),
     ]);
 
     goal_now(goals, 18.0)
@@ -152,9 +154,9 @@ fn air_filtration_now(pm2_5_measurement: &Option<(f32, Zoned)>) -> Option<u16> {
         Some(default)
     } else {
         match pm2_5 {
-            0.0..3.0 => Some(0),
+            0.0..2.0 => Some(0),
             // Don't change anything
-            3.0..4.0 => None,
+            2.0..4.0 => None,
             _ => Some(default),
         }
     }
