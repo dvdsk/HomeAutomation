@@ -69,8 +69,9 @@ impl Room {
                 warn!("Radiator override is expired, resetting");
             }
         }
-        trace!("Override is either not set or expired, set to goal temp");
-        self.system.set_radiators_setpoint(goal_temp_now()).await;
+        let goal_temp = goal_temp_now();
+        trace!("Override is either not set or expired, set to goal temp: {goal_temp}");
+        self.system.set_radiators_setpoint(goal_temp).await;
         self.radiator_override = None;
     }
 

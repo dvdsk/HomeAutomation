@@ -82,9 +82,9 @@ impl RestrictedSystem {
     }
 
     async fn set_radiators_setpoint(&mut self, temperature: f64) {
-        for name in &self.allowed_radiators {
-            self.system.zigbee.set_radiator_setpoint(name, temperature);
-        }
+        // for name in &self.allowed_radiators {
+        //     self.system.zigbee.set_radiator_setpoint(name, temperature);
+        // }
     }
 }
 

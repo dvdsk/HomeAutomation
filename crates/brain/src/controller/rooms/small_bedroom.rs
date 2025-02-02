@@ -9,7 +9,7 @@ use jiff::{ToSpan, Zoned};
 use protocol::small_bedroom::{portable_button_panel, ButtonPanel};
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
-use tracing::trace;
+use tracing::{debug, trace};
 
 use self::filter::{recv_filtered, RelevantEvent, Trigger};
 use self::state::Room;
@@ -102,6 +102,7 @@ async fn handle_buttonpress(room: &mut Room, event: RelevantEvent) {
             use crate::time;
             let now = time::now();
             match time(now.hour(), now.minute()) {
+                // rust analyzer seems to think this illegal, its not
                 T23_00.. | T0_00..T9_00 => room.to_nightlight().await,
                 _ => room.to_daylight().await,
             }
