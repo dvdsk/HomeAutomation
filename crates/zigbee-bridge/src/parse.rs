@@ -50,7 +50,12 @@ pub(crate) fn portable_button_panel(
     ];
 
     if device_name == "small_bedroom:portable_button_panel" {
-        map.get("action")
+        let action = map.get("action");
+        // Ignore when it is Null for some reason
+        if action == Some(&Value::Null) {
+            return Ok(None);
+        }
+        action
             .map(json_to_str)
             .transpose()?
             .map(|action| {
