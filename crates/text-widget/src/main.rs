@@ -39,7 +39,7 @@ struct Cli {
     setup: bool,
 
     /// print a custom separator between multiple printed values
-    #[arg(short, long, default_value_t = String::from(" "))]
+    #[arg(short = 'd', long, default_value_t = String::from(" "))]
     separator: String,
 
     /// String describing the reading. Something like temp can resolve to
