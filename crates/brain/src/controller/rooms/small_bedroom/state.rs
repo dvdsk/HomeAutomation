@@ -53,24 +53,24 @@ impl Room {
 
     pub(super) async fn update_radiator(&mut self) {
         trace!("Updating radiator");
-        trace!(
-            "Room radiator override state: {:?}",
-            &self.radiator_override
-        );
-        if let Some(override_time) = &self.radiator_override {
-            if crate::time::now()
-                <= override_time
-                    .checked_add(RADIATOR_OVERRIDE_MINUTES.minute())
-                    .unwrap()
-            {
-                trace!("Override is set and not expired, do nothing");
-                return;
-            } else {
-                warn!("Radiator override is expired, resetting");
-            }
-        }
+        // trace!(
+        //     "Room radiator override state: {:?}",
+        //     &self.radiator_override
+        // );
+        // if let Some(override_time) = &self.radiator_override {
+        //     if crate::time::now()
+        //         <= override_time
+        //             .checked_add(RADIATOR_OVERRIDE_MINUTES.minute())
+        //             .unwrap()
+        //     {
+        //         trace!("Override is set and not expired, do nothing");
+        //         return;
+        //     } else {
+        //         warn!("Radiator override is expired, resetting");
+        //     }
+        // }
         let goal_temp = goal_temp_now();
-        trace!("Override is either not set or expired, set to goal temp: {goal_temp}");
+        // trace!("Override is either not set or expired, set to goal temp: {goal_temp}");
         self.system.set_radiators_setpoint(goal_temp).await;
         self.radiator_override = None;
     }

@@ -68,8 +68,8 @@ pub async fn run(
                 handle_buttonpress(&mut room, event).await;
             }
             Trigger::Event(RelevantEvent::RadiatorOverride) => {
-                trace!("Starting radiator override");
-                room.start_radiator_override();
+                // trace!("Starting radiator override");
+                // room.start_radiator_override();
             }
             Trigger::Event(RelevantEvent::Wakeup) => room.to_wakeup().await,
             Trigger::Event(RelevantEvent::Pm2_5(val)) => {
@@ -128,8 +128,6 @@ pub(crate) fn goal_temp_now() -> f64 {
         ((10, 00), 20.0),
         ((11, 00), 20.5),
         ((12, 00), 21.0),
-        ((14, 00), 21.5),
-        ((20, 30), 21.0),
         ((21, 00), 20.0),
         ((21, 30), 19.0),
         ((22, 00), 18.0),
