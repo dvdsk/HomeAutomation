@@ -61,7 +61,9 @@ async fn update_state(
 ) {
     let mut known_states = known_states.write().await;
     let Some(current_device) = known_states.get_mut(device_name) else {
-        error!("Trying to update state for unknown device {device_name}, ignoring!");
+        if device_name != "small_bedroom:portable_button_panel" {
+            error!("Trying to update state for unknown device {device_name}, ignoring!");
+        }
         return;
     };
     trace!("applying properties");

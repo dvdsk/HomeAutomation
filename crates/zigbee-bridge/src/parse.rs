@@ -52,7 +52,10 @@ pub(crate) fn portable_button_panel(
     if device_name == "small_bedroom:portable_button_panel" {
         let action = map.get("action");
         // Ignore when it is Null for some reason
-        if action == Some(&Value::Null) {
+        // or an empty string......
+        if action == Some(&Value::Null)
+            || action == Some(&Value::String("".to_string()))
+        {
             return Ok(None);
         }
         action
