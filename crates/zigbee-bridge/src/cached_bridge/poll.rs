@@ -198,7 +198,9 @@ fn online_message(device_name: String, is_online: bool) -> Message {
             readings: Vec::new(),
         }
     } else {
-        error!("Unknown device name {device_name}, could not parse log");
+        if device_name != "small_bedroom:portable_button_panel" {
+            error!("Unknown device name {device_name}, could not parse log");
+        }
         Message::Irrelevant
     }
 }
