@@ -109,6 +109,9 @@ impl Mqtt {
                 self.set(device_name, payload.to_string()).await?;
             } else {
                 for change in due_changes {
+                    // Send twice because... issues
+                    self.set(device_name, change.payload().to_string()).await?;
+                    sleep(MIN_TIME_BETWEEN_SENDS).await;
                     self.set(device_name, change.payload().to_string()).await?;
                     sleep(MIN_TIME_BETWEEN_SENDS).await;
                 }
