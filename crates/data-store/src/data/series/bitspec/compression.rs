@@ -1,17 +1,33 @@
+/// ```txt
+/// array's with bytes in them follow Little Endian byte order
+/// (not relevant) to the algo but might be nice to know. It can
+/// get a little confusing given the lowest bit is printed right most
+/// given these strange bit 1 is next to bit 16 situations. See diagram:
+///
+///      byte 1              byte 2                  byte 3
+/// [ 8|7|6|5|4|3|2|1, 16|15|14|13|12|11|10|9, 24|23|22|21|20|19|18|17 ]
+///          |____________________________________________|
+/// |________|                        encoded B
+///  encoded   lower part of B                    higher part of B
+///   value    stored in lower part               stored in higher
+///     A      of byte 1                          part of byte 3
+/// ```
+
 #[inline]
 #[allow(clippy::cast_possible_truncation)]
+/// Decodes `length` bytes starting at `bit_offset` from `line`.
 pub fn decode(line: &[u8], bit_offset: u8, length: u8) -> u32 {
     let start_byte = (bit_offset / 8) as usize;
-    let stop_byte = ((bit_offset + length) / 8) as usize;
 
+    // build mask to get lowest bits of first byte
     let start_mask: u8 = !0 >> (bit_offset % 8);
-    let used_bits = bit_offset + length - stop_byte as u8 * 8;
-    let stop_mask = !(!0 >> used_bits);
 
     //decode first bit (never needs shifting (lowest part is used))
     let mut decoded: u32 = u32::from(line[start_byte] & start_mask);
     let mut bits_read = 8 - (bit_offset % 8);
+
     //if we have more bits
+    let stop_byte = ((bit_offset + length) / 8) as usize;
     if length > 8 {
         //decode middle bits, no masking needed
         for byte in &line[start_byte + 1..stop_byte] {
@@ -19,8 +35,15 @@ pub fn decode(line: &[u8], bit_offset: u8, length: u8) -> u32 {
             bits_read += 8;
         }
     }
-    let stop_byte = ((bit_offset + length).div_ceil(8) - 1) as usize; //starts at 0
-    decoded |= u32::from(line[stop_byte] & stop_mask) << (bits_read - (8 - used_bits));
+
+    // build mask to get highest bits of last byte
+    let bits_still_needed = length - bits_read;
+    let stop_mask = !(!0 >> bits_still_needed);
+
+    let stop_byte2 = ((bit_offset + length).div_ceil(8) - 1) as usize; //starts at 0
+    assert_eq!(stop_byte2, stop_byte, "{bit_offset}, {length}");
+    decoded |=
+        u32::from(line[stop_byte2] & stop_mask) << (bits_read - (8 - bits_still_needed));
 
     decoded
 }
@@ -31,14 +54,15 @@ pub fn decode(line: &[u8], bit_offset: u8, length: u8) -> u32 {
 /// starting at the `bit_offset` bit.
 ///
 /// If `bit_offset` mod 8 is not zero this means we skip the that amount of
-/// lower bits in the first byte used for encoding. Inversely
+/// higher bits in the first byte used for encoding. Inversely
 /// if `bit_offset` + `length` mod 8 is not zero that means we only use
 /// that amount of lower bits of the last byte.
 ///
 /// # The first byte
-/// Only using the free bits in the first byte is done by first bitmasking on
-/// the lower 8 bits of `to_encode`. That mask when AND-ed makes the highest
-/// bits zero. Specifically the `bit_offset` mod 8 highest bits are made zero.
+/// Only using the free lower bits in the first byte is done by masking off
+/// the higher part of the lower 8 bits of `to_encode`. That mask when AND-ed
+/// makes the highest bits zero. Specifically the `bit_offset` mod 8 highest
+/// bits are made zero.
 ///
 /// Then the remaining bits are shifted up such that they fill out the free
 /// space in the highest bits of the first byte
@@ -104,7 +128,8 @@ pub fn encode(to_encode: u32, line: &mut [u8], bit_offset: u8, length: u8) {
     let used_bits = bit_offset + length - stop_byte as u8 * 8;
     let stop_mask = !(!0 >> used_bits);
     let stop_byte = (bit_offset + length).div_ceil(8) as usize; //starts at 0
-    line[stop_byte - 1] |= (to_encode >> (bits_written - (8 - used_bits))) as u8 & stop_mask;
+    line[stop_byte - 1] |=
+        (to_encode >> (bits_written - (8 - used_bits))) as u8 & stop_mask;
 }
 
 #[cfg(test)]
@@ -193,11 +218,23 @@ mod tests {
                         let mut array = vec![0; 12];
                         let test_numb1 = 2f32.powf(power1) as u32;
                         let test_numb2 = 2f32.powf(power2) as u32;
-                        encode(test_numb1, array.as_mut_slice(), offset, length);
-                        encode(test_numb2, array.as_mut_slice(), offset + length, length);
+                        encode(
+                            test_numb1,
+                            array.as_mut_slice(),
+                            offset,
+                            length,
+                        );
+                        encode(
+                            test_numb2,
+                            array.as_mut_slice(),
+                            offset + length,
+                            length,
+                        );
 
-                        let decoded_test_numb1 = decode(array.as_slice(), offset, length);
-                        let decoded_test_numb2 = decode(array.as_slice(), offset + length, length);
+                        let decoded_test_numb1 =
+                            decode(array.as_slice(), offset, length);
+                        let decoded_test_numb2 =
+                            decode(array.as_slice(), offset + length, length);
                         assert_eq!(
                             test_numb1, decoded_test_numb1,
                             "\n##### numb:1, \noffset: {},\nlength: {}, \nvalue1: {}, \nvalue2: {}",
@@ -237,7 +274,8 @@ mod tests {
                     let test_numb = 2f32.powf(power) as u32;
                     encode(test_numb, array.as_mut_slice(), offset, length);
 
-                    let decoded_test_numb = decode(array.as_slice(), offset, length);
+                    let decoded_test_numb =
+                        decode(array.as_slice(), offset, length);
                     assert_eq!(
                         test_numb,
                         decoded_test_numb,
