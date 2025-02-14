@@ -29,7 +29,7 @@ const LIGHT_MODELS: [(&str, Model); 16] = [
     ("large_bedroom:bed", Model::TradfriE14White),
     ("small_bedroom:ceiling", Model::HueGen1),
     ("small_bedroom:bureau", Model::HueGen1),
-    ("small_bedroom:piano", Model::HueGen1),
+    ("small_bedroom:piano", Model::TradfriE27),
     ("bathroom:ceiling", Model::HueGen1),
     ("hallway:ceiling", Model::TradfriE27),
     ("toilet:ceiling", Model::HueGen1),
