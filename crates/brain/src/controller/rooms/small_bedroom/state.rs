@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use jiff::{ToSpan, Zoned};
+use jiff::Zoned;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
@@ -12,13 +12,14 @@ use tracing::{trace, warn};
 
 use super::{
     air_filtration_now, daylight_now, goal_temp_now, is_nap_time, NAP_TIME,
-    OFF_DELAY, RADIATOR_OVERRIDE_MINUTES,
+    OFF_DELAY,
 };
 use crate::controller::{Event, RestrictedSystem};
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub(crate) enum State {
     Sleep,
+    SleepNoWakeup,
     Wakeup,
     Daylight,
     Override,
@@ -86,7 +87,12 @@ impl Room {
 
     pub(super) async fn to_sleep_immediate(&mut self) {
         self.system.all_lamps_off().await;
-        self.to_state(State::Sleep).await;
+        self.to_state_cancel_prev(State::Sleep).await;
+    }
+
+    pub(super) async fn to_sleep_no_wakeup(&mut self) {
+        self.system.all_lamps_off().await;
+        self.to_state_cancel_prev(State::SleepNoWakeup).await;
     }
 
     pub(super) async fn to_sleep_delayed(&mut self) {
@@ -100,6 +106,10 @@ impl Room {
     }
 
     pub(super) async fn to_wakeup(&mut self) {
+        if *self.state.read().await == State::SleepNoWakeup {
+            warn!("Ignoring wakeup because of override");
+            return;
+        }
         warn!("Starting wakeup");
         self.to_state_cancel_prev(State::Wakeup).await;
 

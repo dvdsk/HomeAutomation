@@ -90,15 +90,18 @@ async fn handle_buttonpress(room: &mut Room, event: RelevantEvent) {
     use ButtonPanel as B;
     use RelevantEvent as E;
 
+    // Dots1 short: to sleep -> lights off
+    // Dots1 long: to nightlight always -> one lamp on
+    //
+    // Dots2 short: to nightlight at night, otherwise daylight -> lamp(s) on
+    // Dots2 long: to sleep, wakeup off -> lights off
     match event {
-        E::Button(B::BottomLeft(_)) => {
-            room.to_sleep_delayed().await;
-        }
-        E::PortableButton(P::Dots1InitialPress) => {
+        E::Button(B::BottomLeft(_)) => room.to_sleep_delayed().await,
+        E::PortableButton(P::Dots1ShortRelease) => {
             room.to_sleep_immediate().await
         }
         E::Button(B::BottomMiddle(_))
-        | E::PortableButton(P::Dots2InitialPress) => {
+        | E::PortableButton(P::Dots2ShortRelease) => {
             use crate::time;
             let now = time::now();
             match time(now.hour(), now.minute()) {
@@ -107,9 +110,9 @@ async fn handle_buttonpress(room: &mut Room, event: RelevantEvent) {
                 _ => room.to_daylight().await,
             }
         }
-        E::Button(B::BOttomRight(_)) => {
-            room.to_override().await;
-        }
+        E::Button(B::BOttomRight(_)) => room.to_override().await,
+        E::PortableButton(P::Dots2LongRelease) => room.to_sleep_no_wakeup().await,
+        E::PortableButton(P::Dots1LongRelease) => room.to_nightlight().await,
         _ => (),
     }
 }
