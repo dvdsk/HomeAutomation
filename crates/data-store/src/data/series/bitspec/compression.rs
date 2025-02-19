@@ -17,20 +17,20 @@
 #[allow(clippy::cast_possible_truncation)]
 /// Decodes `length` bytes starting at `bit_offset` from `line`.
 pub fn decode(line: &[u8], bit_offset: u8, length: u8) -> u32 {
-    let start_byte = (bit_offset / 8) as usize;
+    let first_byte = (bit_offset / 8) as usize;
 
     // build mask to get lowest bits of first byte
     let start_mask: u8 = !0 >> (bit_offset % 8);
 
     //decode first bit (never needs shifting (lowest part is used))
-    let mut decoded: u32 = u32::from(line[start_byte] & start_mask);
+    let mut decoded: u32 = u32::from(line[first_byte] & start_mask);
     let mut bits_read = 8 - (bit_offset % 8);
 
-    //if we have more bits
-    let stop_byte = ((bit_offset + length) / 8) as usize;
+    let last_byte_new = ((bit_offset + length).div_ceil(8)) as usize;
+    let last_byte_idx = last_byte_new - 1;
     if length > 8 {
         //decode middle bits, no masking needed
-        for byte in &line[start_byte + 1..stop_byte] {
+        for byte in &line[first_byte + 1..last_byte_idx] {
             decoded |= u32::from(*byte) << bits_read;
             bits_read += 8;
         }
@@ -38,12 +38,15 @@ pub fn decode(line: &[u8], bit_offset: u8, length: u8) -> u32 {
 
     // build mask to get highest bits of last byte
     let bits_still_needed = length - bits_read;
-    let stop_mask = !(!0 >> bits_still_needed);
+    // shifting 8 bits to get mask 0b1111_1111 panics with `u8`
+    let end_mask = if bits_still_needed == 8 {
+        0b1111_1111
+    } else {
+        !(!0 >> bits_still_needed)
+    };
 
-    let stop_byte2 = ((bit_offset + length).div_ceil(8) - 1) as usize; //starts at 0
-    assert_eq!(stop_byte2, stop_byte, "{bit_offset}, {length}");
-    decoded |=
-        u32::from(line[stop_byte2] & stop_mask) << (bits_read - (8 - bits_still_needed));
+    decoded |= u32::from(line[last_byte_idx] & end_mask)
+        << (bits_read - (8 - bits_still_needed));
 
     decoded
 }
@@ -110,26 +113,28 @@ pub fn decode(line: &[u8], bit_offset: u8, length: u8) -> u32 {
 pub fn encode(to_encode: u32, line: &mut [u8], bit_offset: u8, length: u8) {
     let start_mask = !0 >> (bit_offset % 8);
 
-    let start_byte = (bit_offset / 8) as usize;
-    let stop_byte = ((bit_offset + length) / 8) as usize;
+    let first_byte = (bit_offset / 8) as usize;
 
     //encode first bit (never needs shifting (lowest part is used))
-    line[start_byte] |= (to_encode as u8) & start_mask;
+    line[first_byte] |= (to_encode as u8) & start_mask;
     let mut bits_written = 8 - (bit_offset % 8);
 
+    // this writes the last bit too when the offset + length is a multiple of 8
+    // that is okay since then the byte is full used so no masking is needed.
+    let last_byte = ((bit_offset + length) / 8) as usize;
     if length > 8 {
         //decode middle bits, no masking needed
-        for byte in &mut line[start_byte + 1..stop_byte] {
+        for byte in &mut line[first_byte + 1..last_byte] {
             *byte |= (to_encode >> bits_written) as u8;
             bits_written += 8;
         }
     }
 
-    let used_bits = bit_offset + length - stop_byte as u8 * 8;
-    let stop_mask = !(!0 >> used_bits);
-    let stop_byte = (bit_offset + length).div_ceil(8) as usize; //starts at 0
-    line[stop_byte - 1] |=
-        (to_encode >> (bits_written - (8 - used_bits))) as u8 & stop_mask;
+    let used_bits = bit_offset + length - last_byte as u8 * 8;
+    let end_mask = !(!0 >> used_bits);
+    let last_byte = (bit_offset + length).div_ceil(8) as usize; //starts at 0
+    line[last_byte - 1] |=
+        (to_encode >> (bits_written - (8 - used_bits))) as u8 & end_mask;
 }
 
 #[cfg(test)]
