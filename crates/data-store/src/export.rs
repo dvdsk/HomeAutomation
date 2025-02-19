@@ -6,8 +6,9 @@ use std::path::{Path, PathBuf};
 
 use byteseries::ByteSeries;
 use color_eyre::eyre::{bail, Context, OptionExt, Result};
-use color_eyre::Section;
+use color_eyre::{Report, Section};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use itertools::Itertools;
 
 use crate::data::series;
 
@@ -18,10 +19,22 @@ use decoder::ExportDecoder;
 
 pub fn perform(data_dir: &Path, only: Option<PathBuf>) -> Result<()> {
     let list = files_to_export(data_dir)?;
+    if list.is_empty() {
+        bail!("No files left to export")
+    }
+
     let to_handle: Vec<_> = list
-        .into_iter()
-        .filter(|p| only.as_ref().is_none_or(|allowed| p.ends_with(allowed)))
+        .iter()
+        .filter(|p| {
+            only.as_ref().is_none_or(|allowed| {
+                p.ends_with(allowed) || p.with_extension("").ends_with(allowed)
+            })
+        })
         .collect();
+
+    if to_handle.is_empty() {
+        return no_filter_match_err(list, only);
+    }
 
     let bars = MultiProgress::new();
     let files_bar =
@@ -37,6 +50,27 @@ pub fn perform(data_dir: &Path, only: Option<PathBuf>) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn no_filter_match_err(
+    list: Vec<PathBuf>,
+    only: Option<PathBuf>,
+) -> Result<(), Report> {
+    return Err(Report::msg(
+        "None of the paths ended with required argument",
+    ))
+    .with_note(|| {
+        format!("filter argument (--only) {}", only.unwrap().display())
+    })
+    .with_note(|| {
+        format!(
+            "examples of files: \n\t- {}",
+            list.iter()
+                .map(|p| p.display().to_string())
+                .take(5)
+                .join("\n\t- ")
+        )
+    });
 }
 
 pub fn handle_file(path: &Path, bars: MultiProgress) -> Result<()> {

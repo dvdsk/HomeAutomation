@@ -35,6 +35,7 @@ smallvec = "2.0.0-alpha.6"
 num = "0.4.3"
 ron = "0.8.1"
 indicatif = "0.17.9"
+itertools.workspace = true
 
 [dev-dependencies]
 futures-concurrency = { workspace = true }

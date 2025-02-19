@@ -1,5 +1,6 @@
 use color_eyre::eyre::Context;
 use color_eyre::eyre::Result;
+use color_eyre::Section;
 
 use std::fs;
 use std::io::BufWriter;
@@ -18,8 +19,9 @@ impl Csv {
         let file = fs::OpenOptions::new()
             .create_new(true)
             .write(true)
-            .open(path)
-            .wrap_err("Could not open output csv path")?;
+            .open(&path)
+            .wrap_err("Could not open output csv path")
+            .with_note(|| format!("csv path: {}", path.display()))?;
         let mut file = BufWriter::new(file);
         write!(file, "ts").wrap_err("Could not write header")?;
         for reading in readings {
