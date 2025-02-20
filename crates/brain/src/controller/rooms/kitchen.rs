@@ -10,14 +10,14 @@ use tracing::warn;
 use crate::controller::rooms::small_bedroom;
 use crate::controller::{Event, RestrictedSystem};
 
+const INTERVAL: Duration = Duration::from_secs(5);
+
 #[derive(PartialEq, Eq)]
 enum State {
     Sleep,
     Morning,
     Daylight,
 }
-
-const INTERVAL: Duration = Duration::from_secs(5);
 
 trait RecvFiltered {
     async fn recv_filter_mapped<T>(
