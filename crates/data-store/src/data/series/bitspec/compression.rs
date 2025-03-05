@@ -11,6 +11,8 @@
 ///  encoded   lower part of B                    higher part of B
 ///   value    stored in lower part               stored in higher
 ///     A      of byte 1                          part of byte 3
+///
+/// B: length = 16, offest = 4, at byte 3 bits read = 12
 /// ```
 
 #[inline]
@@ -21,10 +23,16 @@ pub fn decode(line: &[u8], bit_offset: u8, length: u8) -> u32 {
 
     // build mask to get lowest bits of first byte
     let start_mask: u8 = !0 >> (bit_offset % 8);
+    // second mask for sources with length smaller then 8 bits
+    let start_mask = if length < (bit_offset % 8) {
+        start_mask & !(!0 << length)
+    } else {
+        start_mask
+    };
 
     //decode first bit (never needs shifting (lowest part is used))
     let mut decoded: u32 = u32::from(line[first_byte] & start_mask);
-    let mut bits_read = 8 - (bit_offset % 8);
+    let mut bits_read = (8 - (bit_offset % 8)).min(length);
 
     let last_byte_new = ((bit_offset + length).div_ceil(8)) as usize;
     let last_byte_idx = last_byte_new - 1;
@@ -45,8 +53,12 @@ pub fn decode(line: &[u8], bit_offset: u8, length: u8) -> u32 {
         !(!0 >> bits_still_needed)
     };
 
-    decoded |= u32::from(line[last_byte_idx] & end_mask)
-        << (bits_read - (8 - bits_still_needed));
+    // let bits_in_last_byte = bits_still_needed;
+    let shift_back = 8 - bits_still_needed;
+    let shift_in_position = bits_read;
+
+    decoded |= u32::from(line[last_byte_idx] & end_mask) >> shift_back
+        << shift_in_position;
 
     decoded
 }
@@ -117,7 +129,7 @@ pub fn encode(to_encode: u32, line: &mut [u8], bit_offset: u8, length: u8) {
 
     //encode first bit (never needs shifting (lowest part is used))
     line[first_byte] |= (to_encode as u8) & start_mask;
-    let mut bits_written = 8 - (bit_offset % 8);
+    let mut bits_written = (8 - (bit_offset % 8)).min(length);
 
     // this writes the last bit too when the offset + length is a multiple of 8
     // that is okay since then the byte is full used so no masking is needed.
@@ -133,12 +145,34 @@ pub fn encode(to_encode: u32, line: &mut [u8], bit_offset: u8, length: u8) {
     let used_bits = bit_offset + length - last_byte as u8 * 8;
     let end_mask = !(!0 >> used_bits);
     let last_byte = (bit_offset + length).div_ceil(8) as usize; //starts at 0
-    line[last_byte - 1] |=
-        (to_encode >> (bits_written - (8 - used_bits))) as u8 & end_mask;
+
+    if bits_written < length {
+        // lets say to_encode is: 1100_0000_0000
+        // and that 11 still needs to be encoded (bits written = 10, length = 12)
+        // then we should shift them all the way down (shift 10) and then up into
+        // the place where they are stored in the last byte. In this case the upper
+        // 2 bits. So shift back up 6. Total shift is 4 down/right or:
+        //
+        // bits_written 10 - (8 - bits to use in last byte)
+        //
+        // now if we encode is: 11
+        // and only the left most (higher) 1 still needs to be encoded. But it
+        // will need to be encoded in the highest bit in the next byte. So it
+        // must be shifted 7 up/left.
+        let to_shift = bits_written as i16 - (8 - used_bits as i16);
+        if to_shift > 0 {
+            line[last_byte - 1] |= (to_encode >> to_shift) as u8 & end_mask;
+        } else {
+            line[last_byte - 1] |=
+                (to_encode << to_shift.abs()) as u8 & end_mask;
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
+
     use super::*;
 
     #[test]
@@ -211,52 +245,21 @@ mod tests {
         assert_eq!(decoded1, test_case);
     }
 
-    #[test]
-    #[ignore = "takes 10 secs to run"]
-    fn encode_and_decode_multiple() {
-        for length in 8..33 {
-            for offset in 0..16 {
-                for _power1 in 0..length as u16 * 10 {
-                    for _power2 in 0..length as u16 * 10 {
-                        let power1 = _power1 as f32 * 0.1;
-                        let power2 = _power2 as f32 * 0.1;
-                        let mut array = vec![0; 12];
-                        let test_numb1 = 2f32.powf(power1) as u32;
-                        let test_numb2 = 2f32.powf(power2) as u32;
-                        encode(
-                            test_numb1,
-                            array.as_mut_slice(),
-                            offset,
-                            length,
-                        );
-                        encode(
-                            test_numb2,
-                            array.as_mut_slice(),
-                            offset + length,
-                            length,
-                        );
+    #[rstest]
+    fn encode_and_decode_max(
+        #[values(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)]
+        length: u8,
+    ) {
+        // > 2 bytes
+        for offset in 0..=16 {
+            let max_we_can_store = 2u32.pow(length as u32 - 1);
 
-                        let decoded_test_numb1 =
-                            decode(array.as_slice(), offset, length);
-                        let decoded_test_numb2 =
-                            decode(array.as_slice(), offset + length, length);
-                        assert_eq!(
-                            test_numb1, decoded_test_numb1,
-                            "\n##### numb:1, \noffset: {},\nlength: {}, \nvalue1: {}, \nvalue2: {}",
-                            offset, length, test_numb1, test_numb2
-                        );
-                        assert_eq!(
-                            test_numb2,
-                            decoded_test_numb2,
-                            "\n##### numb:2, \noffset: {},\nlength: {}, \nvalue1: {}, \nvalue2: {}",
-                            offset + length,
-                            length,
-                            test_numb1,
-                            test_numb2
-                        );
-                    }
-                }
-            }
+            let mut array = vec![0; 12];
+            encode(max_we_can_store, array.as_mut_slice(), offset, length);
+            let decoded = decode(array.as_slice(), offset, length);
+
+            assert_eq!(max_we_can_store, decoded, "should decode {max_we_can_store}, got {decoded}, \noffset: {offset},\nlength: {length}"
+                );
         }
     }
 
@@ -270,7 +273,7 @@ mod tests {
     }
 
     #[test]
-    fn encode_and_decode() {
+    fn encode_and_decode_various_numbers() {
         for length in 8..32 {
             for offset in 0..16 {
                 for _power in 0..length as u16 * 10 {
@@ -292,5 +295,21 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn edge_case_1() {
+        let line = [206, 84, 2, 0];
+        let offset = 13;
+        let length = 7;
+        decode(&line, offset, length);
+    }
+
+    #[test]
+    fn edge_case_2() {
+        let line = [206, 84, 2, 0];
+        let offset = 20;
+        let length = 2;
+        decode(&line, offset, length);
     }
 }

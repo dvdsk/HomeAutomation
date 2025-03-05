@@ -149,11 +149,12 @@ fn read_metadata(path: &Path) -> Result<String> {
     const HEADER_END: &'static str = "In the case the creator of this \
     file wanted to store metadata in it that\n    follows now:";
 
-    let mut file = fs::File::open(path)
+    let file = fs::File::open(path)
         .wrap_err("Could not open file for reading metadata")?;
-    let mut buf = [0u8; 4000];
-    file.read_exact(&mut buf)
-        .wrap_err("Could not read first 2x bytes")?;
+    let mut buf = Vec::with_capacity(12_000);
+    file.take(12_000)
+        .read_to_end(&mut buf)
+        .wrap_err("Could not read first 12_000 bytes or end")?;
     let header = String::from_utf8_lossy(&buf);
     let Some((_, metadata_and_rest)) = header.split_once(HEADER_END) else {
         bail!("Could not find end of byteseries header")

@@ -221,6 +221,7 @@ impl Series {
             &mut resampler,
             &mut timestamps,
             &mut interleaved_data,
+            false,
         )?;
 
         let time = timestamps
