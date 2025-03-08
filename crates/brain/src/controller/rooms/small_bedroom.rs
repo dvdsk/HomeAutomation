@@ -143,7 +143,7 @@ pub(crate) fn goal_temp_now() -> f64 {
 fn air_filtration_now(pm2_5_measurement: &Option<(f32, Zoned)>) -> Option<u16> {
     let pm2_5_expiration = 10.minutes();
     let goals =
-        BTreeMap::from([((00, 00), 70), ((18, 00), 100), ((22, 30), 70)]);
+        BTreeMap::from([((00, 00), 80), ((18, 00), 100), ((22, 30), 80)]);
 
     let default = goal_now(goals, 80);
 
@@ -157,9 +157,9 @@ fn air_filtration_now(pm2_5_measurement: &Option<(f32, Zoned)>) -> Option<u16> {
         Some(default)
     } else {
         match pm2_5 {
-            0.0..2.0 => Some(0),
-            // Don't change anything
-            2.0..4.0 => None,
+            // 0.0..2.0 => Some(0),
+            // // Don't change anything
+            // 2.0..4.0 => None,
             _ => Some(default),
         }
     }
