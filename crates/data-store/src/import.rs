@@ -15,9 +15,9 @@ pub fn perform(
     only: Option<PathBuf>,
     allow_corrupt: bool,
 ) -> Result<()> {
-    let list = files_to_export(data_dir)?;
+    let list = files_to_import(data_dir)?;
     if list.is_empty() {
-        bail!("No files left to export")
+        bail!("No files left to import")
     }
 
     let to_handle: Vec<_> = list
@@ -41,14 +41,14 @@ pub fn perform(
 
     for path in &to_handle {
         handle_file(&path, bars.clone(), allow_corrupt)
-            .wrap_err("Failed to export data")
+            .wrap_err("Failed to import data")
             .with_note(|| format!("Input file: {}", path.display()))?;
         files_bar.inc(1);
     }
 
     drop(bars);
     tracing::info!(
-        "Done, exported {} files to {}",
+        "Done, imported {} files to {}",
         to_handle.len(),
         data_dir.display()
     );
@@ -56,7 +56,7 @@ pub fn perform(
     Ok(())
 }
 
-fn files_to_export(
+fn files_to_import(
     data_dir: &Path,
 ) -> Result<Vec<PathBuf>, color_eyre::eyre::Error> {
     let mut buf = [0u8; 3];
