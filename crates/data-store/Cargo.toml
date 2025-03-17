@@ -25,8 +25,7 @@ rpc = { workspace = true }
 protocol = { workspace = true, features = ["alloc", "thiserror"] }
 data-server = { workspace = true }
 
-# byteseries = { workspace = true }
-byteseries = { path = "/home/david/Documents/byteseries" }
+byteseries = { workspace = true }
 tokio = { workspace = true, features = ["fs", "net", "rt-multi-thread", "sync"] }
 futures-concurrency = { workspace = true }
 serde.workspace = true

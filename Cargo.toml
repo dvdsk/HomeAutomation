@@ -12,7 +12,7 @@ zigbee-bridge = { path = "crates/zigbee-bridge" }
 rpc = { path = "crates/rpc" }
 logger = { path = "crates/logger" }
 
-byteseries = { git = "https://github.com/dvdsk/byteseries", rev="325c7823aa2d04bba85d0346077fe999e789f3c9" }
+byteseries = { git = "https://github.com/dvdsk/byteseries", rev="a9da72e9585e5f5a8cc3cf543d6ca2561ad7007a" }
 
 serde = { version = "1", features = ["derive"], default-features = false }
 tokio = { version = "1.38", features = ["rt-multi-thread"] }
