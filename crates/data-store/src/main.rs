@@ -29,19 +29,19 @@ enum Command {
         client_port: u16,
     },
     Export {
-        /// export only one dataset
-        /// at this path this fails.
+        /// export only one dataset at this path
+        /// `largebedroom/bed/nau7802right`
         #[arg(short, long)]
         only: Option<PathBuf>,
     },
     Import {
-        /// which dataset to import
-        /// note a backup is made automatically and needs
-        /// to be manually removed if you do not want it.
-        ///
-        /// If the backup already exists this fails
+        /// import a dataset at this path for example:
+        /// `largebedroom/bed/nau7802right`
         #[arg(short, long)]
         only: Option<PathBuf>,
+        /// skip data that is out of order, this is useful as it fixes an
+        /// issue caused by a bug in Byteseries.
+        skip_corrupt: bool,
     },
 }
 
@@ -60,7 +60,11 @@ async fn main() -> Result<()> {
             data_store::server::run(data_server, client_port, &cli.data_dir)
                 .await
         }
-        Command::Export { only } => data_store::export::perform(&cli.data_dir, only),
-        Command::Import { .. } => todo!(),
+        Command::Export { only } => {
+            data_store::export::perform(&cli.data_dir, only)
+        }
+        Command::Import { only, skip_corrupt } => {
+            data_store::import::perform(&cli.data_dir, only, skip_corrupt)
+        }
     }
 }

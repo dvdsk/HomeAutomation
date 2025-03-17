@@ -7,6 +7,7 @@ use std::io::BufWriter;
 use std::io::Write;
 use std::path::PathBuf;
 
+/// https://www.rfc-editor.org/rfc/rfc4180
 pub(crate) struct Csv {
     pub(crate) file: BufWriter<std::fs::File>,
 }
@@ -25,19 +26,27 @@ impl Csv {
         let mut file = BufWriter::new(file);
         write!(file, "ts").wrap_err("Could not write header")?;
         for reading in readings {
-            write!(file, "{reading:?},").wrap_err("Could not write header")?;
+            let encoded = ron::to_string(reading).expect("can be encoded");
+            write!(file, ",{encoded}").wrap_err("Could not write header")?;
         }
+        write!(file, "\r\n").wrap_err("Could not write header")?;
 
         Ok(Self { file })
     }
 
-    pub(crate) fn write_line(&mut self, ts: u64, line: &[f32]) -> Result<()> {
+    pub(crate) fn write_line(
+        &mut self,
+        ts: u64,
+        line: &[f32],
+        precisions: &[usize],
+    ) -> Result<()> {
         write!(self.file, "{ts}").wrap_err("Could not write ts to file")?;
-        for val in line {
-            write!(self.file, "{val}")
+        for (val, precision) in line.into_iter().zip(precisions) {
+            write!(self.file, ",{0:.1$}", val, precision)
                 .wrap_err("Could not write float value to file")?;
         }
-        write!(self.file, "\n").wrap_err("Could not write lineend to file")?;
+        write!(self.file, "\r\n")
+            .wrap_err("Could not write lineend to file")?;
 
         Ok(())
     }

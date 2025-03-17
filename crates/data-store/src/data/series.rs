@@ -24,7 +24,7 @@ use super::Data;
 
 #[derive(Debug)]
 pub(crate) struct Meta {
-    reading: protocol::Reading,
+    pub(crate) reading: protocol::Reading,
     pub(crate) field: bitspec::Field<f32>,
     set_at: Option<Instant>,
 }
@@ -44,7 +44,7 @@ pub(crate) struct Header {
 }
 
 impl Header {
-    fn serialized(&self) -> Result<Vec<u8>> {
+    pub(crate) fn serialized(&self) -> Result<Vec<u8>> {
         let config = ron::ser::PrettyConfig::new();
         ron::ser::to_string_pretty(self, config)
             .map(|s| s.into_bytes())
@@ -351,7 +351,7 @@ pub(crate) async fn store(
     Ok(())
 }
 
-fn to_speclist(readings: &[protocol::Reading]) -> Vec<bitspec::LengthWithOps> {
+pub(crate) fn to_speclist(readings: &[protocol::Reading]) -> Vec<bitspec::LengthWithOps> {
     readings
         .iter()
         .map(|r| bitspec::RangeWithRes {

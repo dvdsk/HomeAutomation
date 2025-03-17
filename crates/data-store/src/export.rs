@@ -3,12 +3,17 @@ use std::fs;
 use std::fs::DirEntry;
 use std::io::{ErrorKind, Read};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 use byteseries::ByteSeries;
 use color_eyre::eyre::{bail, Context, OptionExt, Result};
-use color_eyre::{Report, Section};
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use color_eyre::Section;
+use indicatif::{MultiProgress, ProgressBar};
 use itertools::Itertools;
+use protocol::reading::tree::Tree;
+use protocol::Reading;
+use tracing::warn;
 
 use crate::data::series;
 
@@ -33,44 +38,30 @@ pub fn perform(data_dir: &Path, only: Option<PathBuf>) -> Result<()> {
         .collect();
 
     if to_handle.is_empty() {
-        return no_filter_match_err(list, only);
+        return crate::no_filter_match_err(list, only);
     }
 
     let bars = MultiProgress::new();
     let files_bar =
-        ProgressBar::new(to_handle.len() as u64).with_style(bar_style());
+        ProgressBar::new(to_handle.len() as u64).with_style(crate::bar_style());
     let files_bar = bars.insert(0, files_bar);
     files_bar.inc(0); // make the bar appear
 
-    for path in to_handle {
+    for path in &to_handle {
         handle_file(&path, bars.clone())
             .wrap_err("Failed to export data")
             .with_note(|| format!("Input file: {}", path.display()))?;
         files_bar.inc(1);
     }
 
-    Ok(())
-}
+    drop(bars);
+    tracing::info!(
+        "Done, exported {} files to {}",
+        to_handle.len(),
+        data_dir.display()
+    );
 
-fn no_filter_match_err(
-    list: Vec<PathBuf>,
-    only: Option<PathBuf>,
-) -> Result<(), Report> {
-    return Err(Report::msg(
-        "None of the paths ended with required argument",
-    ))
-    .with_note(|| {
-        format!("filter argument (--only) {}", only.unwrap().display())
-    })
-    .with_note(|| {
-        format!(
-            "examples of files: \n\t- {}",
-            list.iter()
-                .map(|p| p.display().to_string())
-                .take(5)
-                .join("\n\t- ")
-        )
-    });
+    Ok(())
 }
 
 pub fn handle_file(path: &Path, bars: MultiProgress) -> Result<()> {
@@ -81,9 +72,18 @@ pub fn handle_file(path: &Path, bars: MultiProgress) -> Result<()> {
     let (meta, payload_size) =
         series::meta_list_and_payload_size(&readings, &encoding);
 
+    let corrupt_sections_skipped = Arc::new(AtomicUsize::new(0));
+    let callback = {
+        let corrupt_sections_skipped = corrupt_sections_skipped.clone();
+        Box::new(move || {
+            corrupt_sections_skipped.fetch_add(1, Ordering::Relaxed);
+            true
+        })
+    };
     let (input_series, _) = ByteSeries::builder()
         .payload_size(payload_size)
         .with_header(metadata.as_bytes().to_vec())
+        .with_callback_on_recoverable_corruption(callback)
         .open(path)
         .wrap_err("Could not open byteseries")?;
 
@@ -95,25 +95,47 @@ pub fn handle_file(path: &Path, bars: MultiProgress) -> Result<()> {
         .suggestion("If the file already exists remove it")?;
 
     let copy_bar = ProgressBar::new(input_series.len())
-        .with_style(bar_style())
+        .with_style(crate::bar_style())
         .with_message(format!(
             "{:?}",
             path.file_name().expect("we only handle files with names")
         ));
     let copy_bar = bars.insert(1, copy_bar);
-    copy_over_content(input_series, decoder, output, copy_bar.clone())
-        .wrap_err("Failed to copy over content")?;
+    copy_over_content(
+        input_series,
+        decoder,
+        readings,
+        output,
+        copy_bar.clone(),
+    )
+    .wrap_err("Failed to copy over content")?;
     bars.remove(&copy_bar);
+
+    let skipped = corrupt_sections_skipped.load(Ordering::Relaxed);
+    if skipped > 0 {
+        bars.suspend(|| {
+            warn!(
+                "Skipped {skipped} corrupt meta data sections and data from \
+            that section until the next intact metadata section"
+            )
+        })
+    }
     Ok(())
 }
 
 fn copy_over_content(
     mut input_series: ByteSeries,
     mut decoder: ExportDecoder,
+    readings: Vec<Reading>,
     mut output: Csv,
     copy_bar: ProgressBar,
 ) -> Result<()> {
     let mut read_start = 0;
+    let precisions = readings
+        .into_iter()
+        .map(|r| r.leaf().precision())
+        .collect_vec();
+
     loop {
         let mut timestamps = Vec::new();
         let mut data = Vec::new();
@@ -139,7 +161,7 @@ fn copy_over_content(
         for (ts, line) in timestamps.into_iter().zip(data.into_iter()) {
             copy_bar.inc(1);
             output
-                .write_line(ts, &line)
+                .write_line(ts, &line, &precisions)
                 .wrap_err("failed to write line to csv")?;
         }
     }
@@ -209,7 +231,7 @@ fn files_to_export(
 
     let mut buf = [0u8; 300];
     let mut res = Vec::new();
-    visit_dirs(data_dir, &mut |entry: &DirEntry| {
+    crate::visit_dirs(data_dir, &mut |entry: &DirEntry| {
         if entry.path().extension() == Some(OsStr::new("byteseries")) {
             let mut file =
                 fs::File::open(entry.path()).wrap_err("Could not open file")?;
@@ -229,34 +251,4 @@ fn files_to_export(
     })
     .wrap_err("Could not search for byteseries files")?;
     Ok(res)
-}
-
-fn visit_dirs(
-    dir: &Path,
-    mut cb: &mut dyn FnMut(&DirEntry) -> Result<()>,
-) -> Result<()> {
-    if dir.is_dir() {
-        for entry in fs::read_dir(dir).wrap_err("Could not read dir")? {
-            let entry = entry.wrap_err("Error walking dir")?;
-            let path = entry.path();
-            if path.is_dir() {
-                visit_dirs(&path, &mut cb)?;
-            } else {
-                cb(&entry)
-                    .wrap_err("Could not check file header")
-                    .with_note(|| {
-                        format!("file: {}", entry.path().display())
-                    })?;
-            }
-        }
-    }
-    Ok(())
-}
-
-fn bar_style() -> ProgressStyle {
-    ProgressStyle::with_template(
-        "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg} [{eta}]",
-    )
-    .unwrap()
-    .progress_chars("##-")
 }
