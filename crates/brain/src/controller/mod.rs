@@ -89,13 +89,13 @@ impl RestrictedSystem {
 }
 
 pub fn start(
-    subscribed: [broadcast::Receiver<Event>; 3],
+    subscribed: [broadcast::Receiver<Event>; 4],
     sender: broadcast::Sender<Event>,
     system: System,
 ) -> JoinSet<()> {
     tracing::info!("starting");
     let mut tasks = JoinSet::new();
-    let [rx1, rx2, rx3] = subscribed;
+    let [rx1, rx2, rx3, rx4] = subscribed;
 
     let restricted = RestrictedSystem {
         system: system.clone(),
@@ -132,11 +132,18 @@ pub fn start(
         ],
         allowed_radiators: vec![],
     };
-    tasks.spawn(rooms::kitchen::run(rx3, sender, restricted));
+    tasks.spawn(rooms::kitchen::run(rx3, sender.clone(), restricted));
 
-    // "hallway:ceiling"
-    // "bathroom:ceiling"
-    // "toilet:ceiling"
+    let restricted = RestrictedSystem {
+        system: system.clone(),
+        allowed_lights: vec![
+            "hallway:ceiling",
+            "bathroom:ceiling",
+            "toilet:ceiling",
+        ],
+        allowed_radiators: vec![],
+    };
+    tasks.spawn(rooms::entrance::run(rx4, sender, restricted));
 
     tasks
 }

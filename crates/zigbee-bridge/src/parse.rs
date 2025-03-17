@@ -182,6 +182,7 @@ fn parse_radiator_properties(
         .map(|s| {
             s.as_str()
                 .ok_or_eyre("Setpoint change source not a string")
+                .with_note(|| format!("Received: {s}"))
                 .map(|s| s.parse().unwrap())
         })
         .transpose()?

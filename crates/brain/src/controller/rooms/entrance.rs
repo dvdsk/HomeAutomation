@@ -1,11 +1,9 @@
 use std::time::Duration;
 
+use futures::FutureExt;
 use futures_concurrency::future::Race;
-use futures_util::FutureExt;
-use jiff::civil::Time;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
-use tracing::warn;
 
 use crate::controller::rooms::small_bedroom;
 use crate::controller::{Event, RestrictedSystem};
@@ -15,10 +13,10 @@ const INTERVAL: Duration = Duration::from_secs(5);
 #[derive(PartialEq, Eq)]
 enum State {
     Sleep,
-    Morning,
     Daylight,
 }
 
+// TODO: deduplicate filter code with kitchen
 trait RecvFiltered {
     async fn recv_filter_mapped<T>(
         &mut self,
@@ -79,65 +77,29 @@ pub async fn run(
         match res {
             Res::Event(RelevantEvent::Sleep) => {
                 state = State::Sleep;
-                system.all_lamps_off().await;
+                system.one_lamp_off("hallway:ceiling").await;
             }
             Res::Event(RelevantEvent::Daylight) => {
-                if is_late_morning() {
-                    state = State::Daylight;
-                    update(&mut system).await;
-                    system.all_lamps_on().await;
-                } else {
-                    state = State::Morning;
-                    update(&mut system).await;
-                    system.all_lamps_but_one_on("kitchen:hallway").await;
-                }
-            }
-            Res::ShouldUpdate
-                if state == State::Daylight
-                    || (state == State::Morning && is_late_morning()) =>
-            {
                 state = State::Daylight;
+
                 update(&mut system).await;
                 system.all_lamps_on().await;
-                next_update = Instant::now() + INTERVAL;
             }
-            _ => (),
+            Res::ShouldUpdate => {
+                if state == State::Daylight {
+                    update(&mut system).await;
+                    system.all_lamps_on().await;
+
+                    next_update = Instant::now() + INTERVAL;
+                }
+            }
         }
     }
 }
 
-fn is_late_morning() -> bool {
-    crate::time::now().datetime().time() > Time::new(10, 0, 0, 0).unwrap()
-}
-
 async fn update(system: &mut RestrictedSystem) {
     let (new_ct, new_bri) = small_bedroom::daylight_now();
-    // let (new_ct, new_bri) = _testing_ct_bri();
+    let new_bri = new_bri.clamp(0.8, 1.0);
     system.all_lamps_ct(new_ct, new_bri).await;
     tracing::trace!("updated lamps");
 }
-
-fn _testing_ct_bri() -> (usize, f64) {
-    let now = crate::time::now();
-    // let optimal = match now.hour() {
-    let optimal = match now.minute() {
-        min if min % 2 == 0 => (2000, 1.0), // Even hour: orange
-        min if min % 2 == 1 => (4000, 1.0), // Odd hour: blue
-        _ => (2000, 1.0),
-    };
-    // if now.minute() == 0 && now.second() <= 9 {
-    if now.second() <= 9 {
-        warn!("B: correct color temp is now {}", optimal.0);
-    }
-    optimal
-}
-
-// fn handle_event(e: RelevantEvent) {
-//     use protocol::large_bedroom::DeskButton as D;
-//     use RelevantEvent as R;
-//
-//     match e {
-//         R::DeskButton(D::OneOfFour(p)) if p.is_long() => todo!(),
-//         unhandled => warn!("Unhandled button: {unhandled:?}"),
-//     }
-// }

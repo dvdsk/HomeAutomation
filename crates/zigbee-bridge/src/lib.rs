@@ -21,7 +21,7 @@ const LIGHT_MODELS: [(&str, Model); 16] = [
     ("kitchen:hallway", Model::TradfriE27),
     ("kitchen:hood_left", Model::TradfriCandle),
     ("kitchen:hood_right", Model::TradfriCandle),
-    ("kitchen:ceiling", Model::HueGen1),
+    ("kitchen:ceiling", Model::TradfriE27),
     ("large_bedroom:cabinet", Model::TradfriGU10),
     ("large_bedroom:ceiling", Model::TradfriE27),
     ("large_bedroom:desk", Model::TradfriE27),
@@ -32,7 +32,7 @@ const LIGHT_MODELS: [(&str, Model); 16] = [
     ("small_bedroom:piano", Model::TradfriE27),
     ("bathroom:ceiling", Model::HueGen1),
     ("hallway:ceiling", Model::TradfriE27),
-    ("toilet:ceiling", Model::HueGen1),
+    ("toilet:ceiling", Model::HueGen2),
 ];
 const RADIATOR_NAMES: [&str; 2] =
     ["small_bedroom:radiator", "large_bedroom:radiator"];

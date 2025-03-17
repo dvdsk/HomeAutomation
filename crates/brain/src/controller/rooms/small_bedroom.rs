@@ -90,15 +90,18 @@ async fn handle_buttonpress(room: &mut Room, event: RelevantEvent) {
     use ButtonPanel as B;
     use RelevantEvent as E;
 
+    // Dots1 short: to sleep -> lights off
+    // Dots1 long: to nightlight always -> one lamp on
+    //
+    // Dots2 short: to nightlight at night, otherwise daylight -> lamp(s) on
+    // Dots2 long: to sleep, wakeup off -> lights off
     match event {
-        E::Button(B::BottomLeft(_)) => {
-            room.to_sleep_delayed().await;
-        }
-        E::PortableButton(P::Dots1InitialPress) => {
+        E::Button(B::BottomLeft(_)) => room.to_sleep_delayed().await,
+        E::PortableButton(P::Dots1ShortRelease) => {
             room.to_sleep_immediate().await
         }
         E::Button(B::BottomMiddle(_))
-        | E::PortableButton(P::Dots2InitialPress) => {
+        | E::PortableButton(P::Dots2ShortRelease) => {
             use crate::time;
             let now = time::now();
             match time(now.hour(), now.minute()) {
@@ -107,9 +110,9 @@ async fn handle_buttonpress(room: &mut Room, event: RelevantEvent) {
                 _ => room.to_daylight().await,
             }
         }
-        E::Button(B::BOttomRight(_)) => {
-            room.to_override().await;
-        }
+        E::Button(B::BOttomRight(_)) => room.to_override().await,
+        E::PortableButton(P::Dots2LongRelease) => room.to_sleep_no_wakeup().await,
+        E::PortableButton(P::Dots1LongRelease) => room.to_nightlight().await,
         _ => (),
     }
 }
@@ -128,6 +131,7 @@ pub(crate) fn goal_temp_now() -> f64 {
         ((10, 00), 20.0),
         ((11, 00), 20.5),
         ((12, 00), 21.0),
+        ((20, 00), 20.5),
         ((21, 00), 20.0),
         ((21, 30), 19.0),
         ((22, 00), 18.0),
@@ -139,7 +143,7 @@ pub(crate) fn goal_temp_now() -> f64 {
 fn air_filtration_now(pm2_5_measurement: &Option<(f32, Zoned)>) -> Option<u16> {
     let pm2_5_expiration = 10.minutes();
     let goals =
-        BTreeMap::from([((00, 00), 70), ((18, 00), 100), ((22, 30), 70)]);
+        BTreeMap::from([((00, 00), 80), ((18, 00), 100), ((22, 30), 80)]);
 
     let default = goal_now(goals, 80);
 
@@ -153,9 +157,9 @@ fn air_filtration_now(pm2_5_measurement: &Option<(f32, Zoned)>) -> Option<u16> {
         Some(default)
     } else {
         match pm2_5 {
-            0.0..2.0 => Some(0),
-            // Don't change anything
-            2.0..4.0 => None,
+            // 0.0..2.0 => Some(0),
+            // // Don't change anything
+            // 2.0..4.0 => None,
             _ => Some(default),
         }
     }
@@ -166,11 +170,11 @@ pub(super) fn daylight_now() -> (usize, f64) {
     let goals = BTreeMap::from([
         ((00, 00), (1800, 0.5)),
         ((08, 00), (2000, 0.5)),
-        ((09, 00), (4000, 1.0)),
-        ((19, 00), (3800, 1.0)),
-        ((19, 30), (3600, 1.0)),
-        ((19, 45), (3300, 1.0)),
-        ((20, 00), (3000, 1.0)),
+        ((09, 00), (3800, 1.0)),
+        ((19, 00), (3600, 1.0)),
+        ((19, 30), (3300, 1.0)),
+        ((19, 45), (3000, 1.0)),
+        ((20, 00), (2800, 1.0)),
         ((20, 15), (2500, 1.0)),
         ((20, 30), (2000, 1.0)),
         ((21, 00), (1900, 0.8)),
