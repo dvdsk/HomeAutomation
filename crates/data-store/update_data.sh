@@ -21,7 +21,7 @@ if [ ! -d data_updated ]; then
 	cp -r data data_updated
 	rm $(find data_updated | grep '.byteseries')
 else
-	echo "data_updated.tar.gz already exists skipping exporting"
+	echo "data_updated directory already exists skipping exporting"
 fi
 
 if [ ! -f data_updated.tar.gz ]; then 
