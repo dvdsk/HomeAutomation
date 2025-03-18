@@ -235,6 +235,7 @@ fn copy_over_content(
             .wrap_err("Could not parse timestamp as integer")
             .with_note(|| format!("timestamp: {ts}"))?;
 
+        encoded_line.fill(0);
         for (value, Meta { field, .. }) in line.split(',').zip(&meta_list) {
             let value: f32 =
                 value.parse().wrap_err("Could not parse field as f32")?;

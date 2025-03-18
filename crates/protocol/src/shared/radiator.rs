@@ -31,7 +31,7 @@ pub struct SetByLabelFormatter;
 
 #[cfg(feature = "alloc")]
 impl LabelFormatter for SetByLabelFormatter {
-    fn format(&self, value: f64, info: &reading::Info) -> String {
+    fn format(&self, value: f64, _info: &reading::Info) -> String {
         match value {
             0.0 => "Manual",
             1.0 => "Schedule",
