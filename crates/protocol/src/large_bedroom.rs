@@ -7,6 +7,7 @@ use crate::{affector, reading};
 pub mod bed;
 pub mod desk;
 pub mod radiator;
+pub mod airbox;
 
 #[derive(
     strum::EnumDiscriminants,
@@ -25,10 +26,11 @@ pub enum Reading {
     Bed(bed::Reading) = 0,
     Desk(desk::Reading) = 1,
     Radiator(radiator::Reading) = 2,
+    Airbox(airbox::Reading) = 3,
 }
 
 #[cfg(feature = "alloc")]
-reading::tree::all_nodes! {Reading; ReadingDiscriminants; Bed, Desk, Radiator}
+reading::tree::all_nodes! {Reading; ReadingDiscriminants; Bed, Desk, Radiator, Airbox}
 
 #[derive(
     strum::EnumDiscriminants,
@@ -44,6 +46,7 @@ reading::tree::all_nodes! {Reading; ReadingDiscriminants; Bed, Desk, Radiator}
 pub enum Error {
     Bed(bed::Error),
     Desk(desk::Error),
+    Airbox(airbox::Error),
 }
 
 impl Error {
@@ -52,6 +55,7 @@ impl Error {
         match self {
             Error::Bed(error) => Device::Bed(error.device()),
             Error::Desk(error) => Device::Desk(error.device()),
+            Error::Airbox(error) => Device::Airbox(error.device()),
         }
     }
 }
@@ -61,6 +65,7 @@ impl core::fmt::Display for Error {
         match self {
             Error::Bed(error) => write!(f, "{error}"),
             Error::Desk(error) => write!(f, "{error}"),
+            Error::Airbox(error) => write!(f, "{error}"),
         }
     }
 }
@@ -80,6 +85,7 @@ pub enum Device {
     Bed(bed::Device),
     Desk(desk::Device),
     Radiator(radiator::Device),
+    Airbox(airbox::Device),
 }
 
 impl Device {
@@ -89,6 +95,7 @@ impl Device {
             Self::Bed(dev) => dev.info(),
             Self::Desk(dev) => dev.info(),
             Self::Radiator(dev) => dev.info(),
+            Self::Airbox(dev) => dev.info(),
         }
     }
 }
@@ -109,15 +116,17 @@ impl Device {
 #[strum_discriminants(derive(Hash))]
 pub enum Affector {
     Bed(bed::Affector),
+    Airbox(airbox::Affector),
 }
 impl Affector {
     #[cfg(feature = "alloc")]
     pub(crate) fn controls(&mut self) -> Vec<affector::Control> {
         match self {
             Affector::Bed(a) => a.controls(),
+            Affector::Airbox(a) => a.controls(),
         }
     }
 }
 
 #[cfg(feature = "alloc")]
-affector::tree::all_nodes! {Affector; AffectorDiscriminants; Bed}
+affector::tree::all_nodes! {Affector; AffectorDiscriminants; Bed, Airbox}
