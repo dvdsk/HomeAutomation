@@ -195,6 +195,7 @@ pub async fn connection(mut controller: WifiController<'static>) {
             defmt::info!("Wifi started!");
         }
         defmt::info!("About to connect...");
+        defmt::info!("{}, {}", CONFIG.wifi_ssid, CONFIG.wifi_psk);
 
         match controller.connect_async().await {
             Ok(_) => defmt::info!("Wifi connected!"),

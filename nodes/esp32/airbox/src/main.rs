@@ -8,7 +8,6 @@ use esp_hal::rng::Rng;
 use esp_hal::timer::systimer::SystemTimer;
 use esp_hal::timer::timg::TimerGroup;
 
-use defmt::info;
 use esp_println as _;
 
 use embassy_executor::Spawner;
@@ -50,16 +49,12 @@ type Queue =
 
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
+    defmt::warn!("started");
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
     let fans = fans::Fans::new(peripherals.LEDC, peripherals.GPIO3);
 
     esp_alloc::heap_allocator!(size: 72 * 1024);
-
-    let timer0 = SystemTimer::new(peripherals.SYSTIMER);
-    esp_hal_embassy::init(timer0.alarm0);
-
-    info!("Embassy initialized!");
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     let mut rng = Rng::new(peripherals.RNG);
@@ -73,8 +68,8 @@ async fn main(spawner: Spawner) {
         esp_wifi::wifi::new(esp_wifi_ctrl, peripherals.WIFI).unwrap();
     let wifi_interface = interfaces.sta;
 
-    let timg1 = TimerGroup::new(peripherals.TIMG1);
-    esp_hal_embassy::init(timg1.timer0);
+    let systimer = SystemTimer::new(peripherals.SYSTIMER);
+    esp_hal_embassy::init(systimer.alarm0);
 
     let config = embassy_net::Config::dhcpv4(Default::default());
 
