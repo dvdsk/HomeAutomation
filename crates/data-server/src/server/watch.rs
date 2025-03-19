@@ -63,6 +63,13 @@ impl LastSeen {
                             ),
                         ))
                     }
+                    Reading::LargeBedroom(large_bedroom::Reading::Airbox(
+                        _,
+                    )) => Some(Affector::LargeBedroom(
+                        large_bedroom::Affector::Airbox(
+                            large_bedroom::airbox::Affector::ResetNode,
+                        ),
+                    )),
                     Reading::LargeBedroom(large_bedroom::Reading::Desk(_))
                     | Reading::LargeBedroom(
                         large_bedroom::Reading::Radiator(_),

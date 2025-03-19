@@ -2,6 +2,7 @@ use core::time::Duration;
 
 #[cfg(feature = "alloc")]
 use crate::affector::{self, Control, ControlValue};
+use crate::button::Press;
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
@@ -32,6 +33,7 @@ pub enum Reading {
     Temperature(f32) = 0,
     Pressure(f32) = 1,
     FanPower(f32) = 2,
+    Button(Press) = 3,
 }
 
 impl_is_same_as! {Reading; Temperature, Pressure}
@@ -73,6 +75,18 @@ impl Tree for Reading {
                 branch_id: self.branch_id(),
                 label_formatter: Box::new(FloatLabelFormatter),
             },
+            Reading::Button(press) => Info {
+                val: if press.is_long() { 2.0 } else { 1.0 },
+                device: crate::Device::LargeBedroom(super::Device::Airbox(
+                    Device::Gpio,
+                )),
+                description: "button",
+                range: 0.0..3.0,
+                resolution: 1.0,
+                unit: crate::Unit::None,
+                branch_id: self.branch_id(),
+                label_formatter: Box::new(crate::button::ButtonLabelFormatter),
+            },
         };
         Item::Leaf(leaf)
     }
@@ -87,8 +101,8 @@ impl Tree for Reading {
     Clone, Debug, defmt::Format, Serialize, Deserialize, MaxSize, Eq, PartialEq,
 )]
 pub enum Error {
-    Running(SensorError),
-    Setup(SensorError),
+    Running(DeviceError),
+    Setup(DeviceError),
     SetupTimedOut(Device),
     Timeout(Device),
 }
@@ -124,25 +138,27 @@ impl core::fmt::Display for Error {
 #[derive(
     Clone, Debug, defmt::Format, Serialize, Deserialize, Eq, PartialEq,
 )]
-pub enum SensorError {
+pub enum DeviceError {
     BmeError(heapless::String<200>),
+    Pwm(heapless::String<200>),
 }
 
-impl SensorError {
+impl DeviceError {
     fn device(&self) -> Device {
         Device::Bme280
     }
 }
 
-impl core::fmt::Display for SensorError {
+impl core::fmt::Display for DeviceError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            SensorError::BmeError(e) => write!(f, "{e}"),
+            DeviceError::BmeError(e) => write!(f, "Bme error: {e}"),
+            DeviceError::Pwm(e) => write!(f, "Pwm error: {e}"),
         }
     }
 }
 
-impl MaxSize for SensorError {
+impl MaxSize for DeviceError {
     const POSTCARD_MAX_SIZE: usize = 200 + 1;
 }
 
@@ -160,6 +176,7 @@ impl MaxSize for SensorError {
 pub enum Device {
     Bme280,
     Fans,
+    Gpio,
 }
 
 impl core::fmt::Display for Device {
@@ -201,6 +218,14 @@ impl Device {
                 affects_readings: &tree![Reading; Reading::FanPower(0.0) ],
                 temporal_resolution: Duration::from_secs(5), // unknown
                 min_sample_interval: Duration::from_secs(5), // unknown
+                max_sample_interval: Duration::MAX,
+                affectors: &[],
+            },
+            Self::Gpio => crate::DeviceInfo {
+                name: "Gpio",
+                affects_readings: &tree![Reading; Reading::Button(Press(0)) ],
+                temporal_resolution: Duration::from_millis(50), // unknown
+                min_sample_interval: Duration::from_millis(50), // unknown
                 max_sample_interval: Duration::MAX,
                 affectors: &[],
             },
