@@ -36,7 +36,7 @@ pub enum Reading {
     Button(Press) = 3,
 }
 
-impl_is_same_as! {Reading; Temperature, Pressure}
+impl_is_same_as! {Reading; Temperature, Pressure, FanPower, Button}
 
 #[cfg(feature = "alloc")]
 impl Tree for Reading {
@@ -153,7 +153,7 @@ impl core::fmt::Display for DeviceError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             DeviceError::BmeError(e) => write!(f, "Bme error: {e}"),
-            DeviceError::Pwm(e) => write!(f, "Pwm error: {e}"),
+            DeviceError::Pwm(e) => write!(f, "Pwm error:{e}"),
         }
     }
 }
