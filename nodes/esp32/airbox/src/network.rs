@@ -23,7 +23,7 @@ const fn max(a: usize, b: usize) -> usize {
 pub async fn handle(
     stack: &embassy_net::Stack<'_>,
     publish: &Queue,
-    fans: &Fans,
+    fans: &Fans<'_>,
 ) {
     let mut rx_buffer = [0; 1024];
     let mut tx_buffer =
@@ -38,6 +38,7 @@ pub async fn handle(
 
     debug!("Configured socket and connecting");
     loop {
+        info!("ip: {}", stack.config_v4().map(|config| config.address));
         debug!("socket state: {:?}", socket.state());
         if let Err(e) = socket.connect((host_addr, host_port)).await {
             warn!("connect error: {}", e);
@@ -121,7 +122,7 @@ enum ReadError {
 
 async fn receive_orders(
     mut tcp: TcpReader<'_>,
-    fans: &Fans,
+    fans: &Fans<'_>,
     publish: &Queue,
 ) -> ReadError {
     defmt::debug!("ready to receive orders");
@@ -159,7 +160,8 @@ async fn receive_orders(
                     power,
                 } => {
                     if let Err(e) = fans.set_power(power).await {
-                        publish.send(Err(e)).await;
+                        defmt::error!("could not set fan power: {}", e);
+                        let _ignore_err = publish.try_send(Err(e));
                     }
                 }
                 protocol::large_bedroom::airbox::Affector::ResetNode => todo!(),
@@ -198,9 +200,13 @@ pub async fn connection(mut controller: WifiController<'static>) {
         defmt::info!("{}, {}", CONFIG.wifi_ssid, CONFIG.wifi_psk);
 
         match controller.connect_async().await {
-            Ok(_) => defmt::info!("Wifi connected!"),
+            Ok(()) => {
+                defmt::info!("Wifi connected!")
+            }
             Err(e) => {
                 defmt::info!("Failed to connect to wifi: {}", e);
+                let scan_res = controller.scan_n_async::<12>().await;
+                defmt::info!("Scan results: {}", scan_res);
                 Timer::after(Duration::from_millis(5000)).await
             }
         }
