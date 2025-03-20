@@ -16,7 +16,7 @@ embassy-executor.workspace = true
 embassy-embedded-hal.workspace = true
 embassy-time.workspace = true
 embassy-futures.workspace = true
-embassy-usb = { version = "0.3.0", features = ["defmt"] }
+embassy-usb = { version = "0.4.0", features = ["defmt"] }
 
 defmt.workspace = true
 defmt-rtt.workspace = true
