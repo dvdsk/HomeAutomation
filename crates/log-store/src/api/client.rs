@@ -50,7 +50,7 @@ impl Client {
         }
     }
 
-    #[instrument(err, skip(self))]
+    #[instrument(skip(self))]
     pub async fn get_logs(
         &mut self,
         device: protocol::Device,

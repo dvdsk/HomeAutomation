@@ -19,7 +19,7 @@ impl From<eyre::Report> for Report {
         let detailed = format!("{value:?}");
         let mut detailed = strip_ansi_escapes::strip_str(&detailed);
         let last_paragraph = detailed
-            .find("Location:")
+            .rfind("Location:")
             .expect("Detailed report always lists a location");
         let backtrace_start = detailed[last_paragraph..]
             .find("\n\n")
@@ -100,7 +100,7 @@ impl Reports {
         let current = self.current.as_ref()?;
 
         Some(if self.show_details {
-            1 + current.detailed.lines().count() as u16
+            2 + current.detailed.lines().count() as u16
         } else {
             1 + current.short.lines().count() as u16
         })
