@@ -1,4 +1,5 @@
 use defmt::{debug, info, unwrap, warn};
+use embassy_executor::task;
 use embassy_futures::select::{self, select};
 use embassy_net::tcp::{TcpReader, TcpSocket, TcpWriter};
 use embassy_net::{Ipv4Address, Stack};
@@ -72,17 +73,18 @@ const fn max(a: usize, b: usize) -> usize {
     [a, b][(a < b) as usize]
 }
 
+#[task]
 pub async fn handle(
-    stack: &Stack<'_>,
-    publish: &Queues,
-    led: LedHandle<'_>,
-    driver_orderers: &slow::DriverOrderers,
+    stack: Stack<'static>,
+    publish: &'static Queues,
+    led: LedHandle,
+    driver_orderers: &'static slow::DriverOrderers,
 ) {
     let mut rx_buffer = [0; 1024];
     let mut tx_buffer =
         [0; max(SensMsg::ENCODED_SIZE, ErrorReport::ENCODED_SIZE) * 2];
 
-    let mut socket = TcpSocket::new(*stack, &mut rx_buffer, &mut tx_buffer);
+    let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
     socket.set_timeout(Some(Duration::from_secs(5)));
     socket.set_keep_alive(Some(Duration::from_secs(1)));
     let host_addr = Ipv4Address::new(192, 168, 1, 43);
@@ -114,7 +116,7 @@ pub async fn handle(
         let (reader, writer) = socket.split();
         match select(
             send_messages(writer, publish),
-            receive_orders(reader, &led, &driver_orderers),
+            receive_orders(reader, &led, driver_orderers),
         )
         .await
         {
@@ -200,7 +202,7 @@ enum ReadError {
 
 async fn receive_orders(
     mut tcp: TcpReader<'_>,
-    led: &LedHandle<'_>,
+    led: &LedHandle,
     driver_orderers: &slow::DriverOrderers,
 ) -> ReadError {
     defmt::debug!("ready to receive orders");

@@ -1,5 +1,5 @@
 use embassy_futures::select::{self, Either};
-use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::priority_channel::{self, PriorityChannel};
@@ -8,9 +8,14 @@ use heapless::HistoryBuffer;
 use protocol::large_bedroom::bed::Reading;
 
 pub struct Queues {
-    sensor_queue: PriorityChannel<NoopRawMutex, PriorityValue, priority_channel::Max, 20>,
-    error_queue: Channel<NoopRawMutex, sensors::Error, 20>,
-    recent_errors: Mutex<NoopRawMutex, HistoryBuffer<sensors::Error, 20>>,
+    sensor_queue: PriorityChannel<
+        ThreadModeRawMutex,
+        PriorityValue,
+        priority_channel::Max,
+        20,
+    >,
+    error_queue: Channel<ThreadModeRawMutex, sensors::Error, 20>,
+    recent_errors: Mutex<ThreadModeRawMutex, HistoryBuffer<sensors::Error, 20>>,
     recent_is_since: Instant,
 }
 
@@ -20,12 +25,12 @@ pub enum QueueItem {
 }
 
 impl Queues {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             sensor_queue: PriorityChannel::new(),
             error_queue: Channel::new(),
             recent_errors: Mutex::new(HistoryBuffer::new()),
-            recent_is_since: Instant::now(),
+            recent_is_since: Instant::MIN, // time since CPU start
         }
     }
 
@@ -39,7 +44,10 @@ impl Queues {
             return QueueItem::Reading(val);
         }
 
-        let race = select::select(self.sensor_queue.receive(), self.error_queue.receive());
+        let race = select::select(
+            self.sensor_queue.receive(),
+            self.error_queue.receive(),
+        );
         match race.await {
             Either::First(reading) => QueueItem::Reading(reading),
             Either::Second(error) => QueueItem::Error(error),

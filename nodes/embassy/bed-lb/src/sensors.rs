@@ -1,4 +1,5 @@
 use defmt::info;
+use embassy_executor::task;
 use embassy_futures::join;
 use embassy_stm32::i2c::I2c;
 use embassy_stm32::mode::{Async, Blocking};
@@ -8,9 +9,8 @@ use embassy_sync::mutex::Mutex;
 use fast::ButtonInputs;
 use protocol::large_bedroom::bed::Device;
 
-use crate::channel::Queues;
 use crate::rgb_led;
-use sensors::{Error, I2cWrapper, Nau7802DriverBlocking, SPS30_UART_BUF_SIZE};
+use sensors::{I2cWrapper, Nau7802DriverBlocking, SPS30_UART_BUF_SIZE};
 pub mod fast;
 pub mod slow;
 
@@ -23,17 +23,17 @@ fn local_dev(dev: protocol::large_bedroom::bed::Device) -> protocol::Device {
     protocol::Device::LargeBedroom(protocol::large_bedroom::Device::Bed(dev))
 }
 
+#[task]
 pub async fn init_then_measure(
-    publish: &Queues,
-    orderers: &slow::DriverOrderers,
-    rgb_led: rgb_led::LedHandle<'_>,
+    orderers: &'static slow::DriverOrderers,
+    rgb_led: rgb_led::LedHandle,
     i2c_1: Mutex<NoopRawMutex, I2c<'static, Async>>,
     i2c_2: Mutex<NoopRawMutex, I2c<'static, Blocking>>,
     i2c_3: Mutex<NoopRawMutex, I2c<'static, Async>>,
     usart_mhz: Uart<'static, Async>,
     usart_sps: Uart<'static, Async>,
     buttons: ButtonInputs,
-) -> Result<(), Error> {
+) -> ! {
     info!("initializing sensors");
     let bme = Bme680Driver::new(&i2c_3, local_dev(Device::Bme680));
     let max44009 = Max44Driver::new(&i2c_1, local_dev(Device::Max44));
@@ -54,14 +54,14 @@ pub async fn init_then_measure(
     let sps30 = Sps30Driver::init(tx, rx, local_dev(Device::Sps30));
 
     let sensors_fast =
-        fast::read(max44009, nau_right, nau_left, buttons, publish, rgb_led);
+        fast::read(max44009, nau_right, nau_left, buttons, rgb_led);
     let drivers = slow::Drivers {
         sht,
         bme,
         mhz,
         sps: sps30,
     };
-    let sensors_slow = slow::read(drivers, orderers, publish);
+    let sensors_slow = slow::read(drivers, orderers);
     join::join(sensors_fast, sensors_slow).await;
 
     defmt::unreachable!();

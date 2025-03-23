@@ -2,7 +2,6 @@
 #![no_main]
 
 use embassy_executor::Spawner;
-use embassy_futures::select::{self, Either4};
 use embassy_net::{Ipv4Address, Ipv4Cidr, StackResources};
 use embassy_net_wiznet::{chip::W5500, Device, Runner, State};
 use embassy_stm32::exti::ExtiInput;
@@ -15,18 +14,18 @@ use embassy_stm32::time::Hertz;
 use embassy_stm32::usart::{self, DataBits, Parity, StopBits, Uart};
 use embassy_stm32::wdg::IndependentWatchdog;
 use embassy_stm32::Config;
-use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+use embassy_sync::blocking_mutex::raw::{NoopRawMutex, ThreadModeRawMutex};
 use embassy_sync::channel::Channel;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Delay, Timer};
 use embedded_hal_bus::spi::ExclusiveDevice;
-use futures::pin_mut;
 use heapless::Vec;
+use rgb_led::{control_leds, LedHandle};
 use sensors::fast::ButtonInputs;
 use sensors::slow;
 use static_cell::StaticCell;
 
-use defmt::{error, trace, unwrap};
+use defmt::{trace, unwrap};
 use {defmt_rtt as _, panic_probe as _};
 
 mod channel;
@@ -65,6 +64,8 @@ async fn net_task(
 ) -> ! {
     runner.run().await
 }
+
+static PUBLISH: Queues = Queues::new();
 
 // 84 Mhz clock stm32f401
 fn config() -> Config {
@@ -220,19 +221,17 @@ async fn main(spawner: Spawner) {
     // Launch network task
     unwrap!(spawner.spawn(net_task(runner)));
 
-    let comms = Channel::new();
-    let (mut led_controller, led_handle) =
-        rgb_led::controller_and_handle(p.TIM1, p.PB14, p.PB13, p.PB15, &comms);
+    static LED_COMMS: Channel<ThreadModeRawMutex, rgb_led::Event, 5> =
+        Channel::new();
+    let control_leds = control_leds(p.TIM1, p.PB14, p.PB13, p.PB15, &LED_COMMS);
+    let led_handle = LedHandle::new(&LED_COMMS);
 
-    let driver_orderers = slow::DriverOrderers::new();
-    let publish = Queues::new();
+    static DRIVER_ORDERERS: slow::DriverOrderers = slow::DriverOrderers::new();
     let handle_network =
-        network::handle(&stack, &publish, led_handle.clone(), &driver_orderers);
-    pin_mut!(handle_network);
+        network::handle(stack, &PUBLISH, led_handle.clone(), &DRIVER_ORDERERS);
 
     let init_then_measure = sensors::init_then_measure(
-        &publish,
-        &driver_orderers,
+        &DRIVER_ORDERERS,
         led_handle,
         i2c_1,
         i2c_2,
@@ -242,27 +241,11 @@ async fn main(spawner: Spawner) {
         buttons,
     );
 
-    let res = select::select4(
-        &mut handle_network,
-        init_then_measure,
-        led_controller.control(),
-        keep_dog_happy(dog),
-    )
-    .await;
-    let unrecoverable_err = match res {
-        Either4::First(())
-        | Either4::Third(())
-        | Either4::Fourth(())
-        | Either4::Second(Ok(())) => {
-            defmt::unreachable!()
-        }
-        Either4::Second(Err(err)) => err,
-    };
+    spawner.must_spawn(init_then_measure);
+    spawner.must_spawn(handle_network);
+    spawner.must_spawn(control_leds);
 
-    // at this point no other errors have occurred
-    error!("unrecoverable error, resetting: {}", unrecoverable_err);
-    publish.queue_error(unrecoverable_err);
-    handle_network.await; // if this takes too long the dog will get us
+    keep_dog_happy(dog).await;
 }
 
 async fn keep_dog_happy(mut dog: IndependentWatchdog<'_, IWDG>) {

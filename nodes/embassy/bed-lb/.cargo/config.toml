@@ -1,7 +1,7 @@
 [target.'cfg(all(target_arch = "arm", target_os = "none"))']
 # replace STM32F103C8 with your chip as listed in `probe-rs chip list`
 # runner = "probe-rs run --chip STM32F103C8"
-runner = "probe-rs run --chip STM32F401CCUx"
+runner = "probe-rs run --chip STM32F401CCUx --host ws://192.168.1.43:3000 --token secret_token_redacted --probe c251:f001:202108120001"
 linker = "flip-link"
 
 [build]

@@ -1,9 +1,12 @@
+use embassy_executor::task;
 use embassy_stm32::gpio::OutputType;
 use embassy_stm32::peripherals::{PB13, PB14, PB15, TIM1};
 use embassy_stm32::time::khz;
 use embassy_stm32::timer;
-use embassy_stm32::timer::complementary_pwm::{ComplementaryPwm, ComplementaryPwmPin};
-use embassy_sync::blocking_mutex::raw::NoopRawMutex;
+use embassy_stm32::timer::complementary_pwm::{
+    ComplementaryPwm, ComplementaryPwmPin,
+};
+use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
 
 struct RgbLed {
@@ -84,17 +87,22 @@ pub(crate) enum Event {
 }
 
 #[derive(Clone)]
-pub struct LedHandle<'a> {
-    sender: &'a Channel<NoopRawMutex, Event, 5>,
+pub struct LedHandle {
+    led_comms: &'static Channel<ThreadModeRawMutex, Event, 5>,
 }
 
-impl<'a> LedHandle<'a> {
+impl LedHandle {
+    pub const fn new(
+        led_comms: &'static Channel<ThreadModeRawMutex, Event, 5>,
+    ) -> Self {
+        Self { led_comms }
+    }
     pub async fn set_color(&self, r: f32, g: f32, b: f32) {
-        self.sender.send(Event::SetColor { r, g, b }).await
+        self.led_comms.send(Event::SetColor { r, g, b }).await
     }
 
     pub async fn update_lux(&self, lux: f32) {
-        self.sender.send(Event::LuxChanged(lux)).await
+        self.led_comms.send(Event::LuxChanged(lux)).await
     }
 }
 
@@ -117,46 +125,30 @@ fn lookup_bri(lux: f32) -> f32 {
         .unwrap_or(0.6)
 }
 
-pub(crate) struct LedController<'a> {
-    orders: &'a Channel<NoopRawMutex, Event, 5>,
-    led: RgbLed,
-}
-
-impl<'a> LedController<'a> {
-    pub(crate) async fn control(&mut self) {
-        let mut bri = 0.01; // Start with minimal bri
-
-        loop {
-            let order = self.orders.receive().await;
-            match order {
-                Event::SetColor { r, g, b } => {
-                    self.led.r = r;
-                    self.led.g = g;
-                    self.led.b = b;
-                }
-                Event::LuxChanged(new) => {
-                    bri = lookup_bri(new);
-                }
-            }
-
-            self.led.update(bri);
-        }
-    }
-}
-
-pub fn controller_and_handle<'a>(
+#[task]
+pub(crate) async fn control_leds(
     timer: TIM1,
     r: PB14,
     g: PB13,
     b: PB15,
-    channel: &'a Channel<NoopRawMutex, Event, 5>,
-) -> (LedController<'a>, LedHandle<'a>) {
-    let led = RgbLed::new(timer, b, r, g);
-    (
-        LedController {
-            led,
-            orders: channel,
-        },
-        LedHandle { sender: channel },
-    )
+    led_comms: &'static Channel<ThreadModeRawMutex, Event, 5>,
+) {
+    let mut led = RgbLed::new(timer, b, r, g);
+    let mut bri = 0.01; // Start with minimal bri
+
+    loop {
+        let order = led_comms.receive().await;
+        match order {
+            Event::SetColor { r, g, b } => {
+                led.r = r;
+                led.g = g;
+                led.b = b;
+            }
+            Event::LuxChanged(new) => {
+                bri = lookup_bri(new);
+            }
+        }
+
+        led.update(bri);
+    }
 }

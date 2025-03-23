@@ -7,7 +7,7 @@ use embassy_time::{Duration, Instant, Timer};
 
 use protocol::large_bedroom::{bed::Button, bed::Reading};
 
-use crate::{channel::Queues, rgb_led};
+use crate::{rgb_led, PUBLISH};
 use sensors::{Max44Driver, Nau7802Driver, Nau7802DriverBlocking};
 
 fn sig_lux_diff(old: f32, new: f32) -> bool {
@@ -23,8 +23,7 @@ fn sig_weight_diff(old: u32, new: u32) -> bool {
 
 async fn report_lux(
     mut max44: Max44Driver<'_>,
-    publish: &Queues,
-    rgb_led: rgb_led::LedHandle<'_>,
+    rgb_led: rgb_led::LedHandle,
 ) {
     const MAX_INTERVAL: Duration = Duration::from_secs(5);
 
@@ -36,17 +35,17 @@ async fn report_lux(
         let lux = match max44.try_measure().await {
             Ok(lux) => lux,
             Err(err) if last_lux.elapsed() > MAX_INTERVAL => {
-                publish.queue_error(err);
+                PUBLISH.queue_error(err);
                 continue;
             }
             Err(_) => continue,
         };
 
         if sig_lux_diff(prev_lux, lux) {
-            publish.send_p2(Reading::Brightness(lux));
+            PUBLISH.send_p2(Reading::Brightness(lux));
             rgb_led.update_lux(lux).await;
         } else if last_lux.elapsed() > MAX_INTERVAL {
-            publish.send_p1(Reading::Brightness(lux));
+            PUBLISH.send_p1(Reading::Brightness(lux));
         } else {
             yield_now().await;
             continue;
@@ -82,7 +81,6 @@ async fn report_weight(
     mut nau: impl Nau,
     wrap_reading: impl Fn(u32) -> Reading,
     position: Position,
-    publish: &Queues,
 ) {
     const MAX_INTERVAL: Duration = Duration::from_secs(5);
 
@@ -99,16 +97,16 @@ async fn report_weight(
                 } else {
                     err // default is left
                 };
-                publish.queue_error(err);
+                PUBLISH.queue_error(err);
                 continue;
             }
             Err(_) => continue,
         };
 
         if sig_weight_diff(prev_weight, weight) {
-            publish.send_p2(wrap_reading(weight));
+            PUBLISH.send_p2(wrap_reading(weight));
         } else if reported_at.elapsed() > MAX_INTERVAL {
-            publish.send_p1(wrap_reading(weight));
+            PUBLISH.send_p1(wrap_reading(weight));
         } else {
             yield_now().await;
             continue;
@@ -122,7 +120,6 @@ async fn report_weight(
 async fn watch_button(
     mut input: ExtiInput<'static>,
     event: impl Fn(protocol::button::Press) -> Button,
-    channel: &Queues,
 ) {
     use sensors::{errors::PressTooLong, errors::SensorError, Error};
 
@@ -134,13 +131,13 @@ async fn watch_button(
             let Ok(press) = press.as_millis().try_into() else {
                 let event_for_printing = (event)(protocol::button::Press(0));
                 let name = event_for_printing.variant_name();
-                channel.queue_error(Error::Running(SensorError::Button(
+                PUBLISH.queue_error(Error::Running(SensorError::Button(
                     PressTooLong { button: name },
                 )));
                 continue;
             };
             let event = (event)(protocol::button::Press(press));
-            channel.send_p2(Reading::Button(event));
+            PUBLISH.send_p2(Reading::Button(event));
         } else {
             input.wait_for_high().await;
             Timer::after(Duration::from_millis(20)).await;
@@ -174,33 +171,28 @@ pub(crate) async fn read(
     nau_right: Nau7802DriverBlocking<'_>,
     nau_left: Nau7802Driver<'_>,
     inputs: ButtonInputs,
-    publish: &Queues,
-    rgb_led: rgb_led::LedHandle<'_>,
+    rgb_led: rgb_led::LedHandle,
 ) {
     use protocol::large_bedroom::bed::Button;
 
     let watch_buttons_1 = join4(
-        watch_button(inputs.top, Button::Top, publish),
-        watch_button(inputs.middle_inner, Button::MiddleInner, publish),
-        watch_button(inputs.middle_center, Button::MiddleCenter, publish),
-        watch_button(inputs.middle_outer, Button::MiddleOuter, publish),
+        watch_button(inputs.top, Button::Top),
+        watch_button(inputs.middle_inner, Button::MiddleInner),
+        watch_button(inputs.middle_center, Button::MiddleCenter),
+        watch_button(inputs.middle_outer, Button::MiddleOuter),
     );
 
     let watch_buttons_2 = join3(
-        watch_button(inputs.lower_inner, Button::LowerInner, publish),
-        watch_button(inputs.lower_center, Button::LowerCenter, publish),
-        watch_button(inputs.lower_outer, Button::LowerOuter, publish),
+        watch_button(inputs.lower_inner, Button::LowerInner),
+        watch_button(inputs.lower_center, Button::LowerCenter),
+        watch_button(inputs.lower_outer, Button::LowerOuter),
     );
 
-    let watch_lux = report_lux(max44, publish, rgb_led);
-    let report_right_weight = report_weight(
-        nau_right,
-        Reading::WeightRight,
-        Position::Right,
-        publish,
-    );
+    let watch_lux = report_lux(max44, rgb_led);
+    let report_right_weight =
+        report_weight(nau_right, Reading::WeightRight, Position::Right);
     let report_left_weight =
-        report_weight(nau_left, Reading::WeightLeft, Position::Left, publish);
+        report_weight(nau_left, Reading::WeightLeft, Position::Left);
 
     join::join5(
         report_left_weight,
