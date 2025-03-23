@@ -196,7 +196,9 @@ impl Log {
         &mut self,
         range: RangeInclusive<jiff::Timestamp>,
     ) -> GetLogResponse {
-        use byteseries::seek::Error::{EmptyFile, StopBeforeData};
+        use byteseries::seek::Error::{
+            EmptyFile, StartAfterData, StopBeforeData,
+        };
         use byteseries::series::Error::InvalidRange;
         const MAX_IN_ONE_READ: usize = 200;
 
@@ -226,10 +228,11 @@ impl Log {
             &mut data,
         ) {
             Ok(()) => (),
-            Err(InvalidRange(StopBeforeData | EmptyFile)) => {
-                return GetLogResponse::All(current.collect())
-            }
+            Err(InvalidRange(
+                StopBeforeData | StartAfterData { .. } | EmptyFile,
+            )) => return GetLogResponse::All(current.collect()),
             Err(other) => {
+                dbg!(&other);
                 let report = color_eyre::eyre::Report::new(other)
                     .wrap_err("Could not read log events from disk");
                 let report = format!("{report:?}");
