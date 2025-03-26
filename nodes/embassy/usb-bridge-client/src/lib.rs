@@ -1,3 +1,5 @@
+#![no_std]
+
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_sync::mutex::Mutex;
@@ -10,7 +12,8 @@ use protocol::{affector, usb};
 const MAX_RECV_ITEM_SIZE: usize = 1 + affector::Affector::ENCODED_SIZE;
 
 pub(crate) type RecvItem = heapless::Vec<u8, MAX_RECV_ITEM_SIZE>;
-type SendQueue = Mutex<NoopRawMutex, heapless::Deque<u8, { usb::SEND_BUFFER_SIZE }>>;
+type SendQueue =
+    Mutex<NoopRawMutex, heapless::Deque<u8, { usb::SEND_BUFFER_SIZE }>>;
 
 pub struct UsbControlHandler<'a> {
     pub if_num: Option<InterfaceNumber>,
@@ -44,8 +47,11 @@ impl embassy_usb::Handler for UsbControlHandler<'_> {
         }
 
         // Accept affector orders only.
-        if req.request == usb::AFFECTOR_ORDER && data.len() <= MAX_RECV_ITEM_SIZE {
-            let data = heapless::Vec::from_slice(data).expect("checked length above");
+        if req.request == usb::AFFECTOR_ORDER
+            && data.len() <= MAX_RECV_ITEM_SIZE
+        {
+            let data =
+                heapless::Vec::from_slice(data).expect("checked length above");
             if self.receive_queue.try_send(data).is_err() {
                 Some(OutResponse::Rejected)
             } else {
@@ -100,7 +106,8 @@ impl embassy_usb::Handler for UsbControlHandler<'_> {
 impl UsbControlHandler<'_> {
     fn send_affector_list(&mut self, buf: &mut [u8]) {
         buf[0] = protocol::Msg::<5>::AFFECTOR_LIST;
-        buf[1..1 + self.affector_list.len()].copy_from_slice(self.affector_list);
+        buf[1..1 + self.affector_list.len()]
+            .copy_from_slice(self.affector_list);
         buf[1 + self.affector_list.len()..].fill(0);
     }
 
@@ -124,11 +131,12 @@ impl UsbControlHandler<'_> {
 pub struct UsbHandle<'a> {
     send_queue: &'a SendQueue,
     ready_to_send: &'a Signal<NoopRawMutex, ()>,
-    receive_queue: &'a Channel<NoopRawMutex, heapless::Vec<u8, MAX_RECV_ITEM_SIZE>, 2>,
+    receive_queue:
+        &'a Channel<NoopRawMutex, heapless::Vec<u8, MAX_RECV_ITEM_SIZE>, 2>,
 }
 
 impl<'a> UsbHandle<'a> {
-    pub(crate) fn split(&self) -> (UsbSender<'a>, UsbReceiver<'a>) {
+    pub fn split(&self) -> (UsbSender<'a>, UsbReceiver<'a>) {
         (
             UsbSender {
                 send_queue: self.send_queue,
@@ -149,7 +157,7 @@ pub struct UsbSender<'a> {
 pub struct NoSpaceInQueue;
 
 impl UsbSender<'_> {
-    pub(crate) async fn send(
+    pub async fn send(
         &self,
         to_send: &[u8],
         is_low_prio: bool,
@@ -181,7 +189,7 @@ impl UsbSender<'_> {
         Ok(())
     }
 
-    pub(crate) async fn wait_till_queue_free(&self) {
+    pub async fn wait_till_queue_free(&self) {
         let wait_for_ready = self.ready_to_send.wait();
         if !self.send_queue.lock().await.is_full() {
             return;
@@ -191,11 +199,14 @@ impl UsbSender<'_> {
     }
 }
 
+#[allow(dead_code)]
 pub struct UsbReceiver<'a> {
-    receive_queue: &'a Channel<NoopRawMutex, heapless::Vec<u8, MAX_RECV_ITEM_SIZE>, 2>,
+    receive_queue:
+        &'a Channel<NoopRawMutex, heapless::Vec<u8, MAX_RECV_ITEM_SIZE>, 2>,
 }
+#[allow(dead_code)]
 impl UsbReceiver<'_> {
-    pub(crate) async fn recv(&self) -> RecvItem {
+    pub async fn recv(&self) -> RecvItem {
         self.receive_queue.receive().await
     }
 }
@@ -204,7 +215,7 @@ pub fn config() -> embassy_usb::Config<'static> {
     let mut config = embassy_usb::Config::new(0xc0de, 0xcafe);
     config.manufacturer = Some("Vid");
     config.product = Some(concat!("sensor node ", env!("CARGO_PKG_NAME")));
-    config.serial_number = Some("2139874"); // random, host driver finds device using this
+    config.serial_number = Some("2139874"); // Random, host driver finds device using this
 
     // Required for windows compatibility.
     // https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.9.1/kconfig/CONFIG_CDC_ACM_IAD.html#help
@@ -219,11 +230,12 @@ pub fn config() -> embassy_usb::Config<'static> {
 pub struct StackA {
     send_queue: SendQueue,
     ready_to_send: Signal<NoopRawMutex, ()>,
-    receive_queue: Channel<NoopRawMutex, heapless::Vec<u8, MAX_RECV_ITEM_SIZE>, 2>,
+    receive_queue:
+        Channel<NoopRawMutex, heapless::Vec<u8, MAX_RECV_ITEM_SIZE>, 2>,
 }
 
 impl StackA {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             send_queue: Mutex::new(heapless::Deque::new()),
             receive_queue: Channel::new(),
@@ -241,7 +253,7 @@ pub struct StackB<'a> {
 }
 
 impl<'a> StackB<'a> {
-    pub(crate) fn new(stack_a: &'a StackA, affector_list: &'a [u8]) -> Self {
+    pub fn new(stack_a: &'a StackA, affector_list: &'a [u8]) -> Self {
         Self {
             config_descriptor: [0u8; 256],
             bos_descriptor: [0u8; 256],
@@ -267,7 +279,7 @@ impl<'a, D: embassy_usb::driver::Driver<'a>> Usb<'a, D> {
     }
 }
 
-pub(crate) fn new<'a, D: embassy_usb::driver::Driver<'a>>(
+pub fn new<'a, D: embassy_usb::driver::Driver<'a>>(
     stack_a: &'a StackA,
     stack_b: &'a mut StackB<'a>,
     driver: D,
@@ -292,18 +304,20 @@ pub(crate) fn new<'a, D: embassy_usb::driver::Driver<'a>>(
     );
 
     // Add the Microsoft OS Descriptor (MSOS/MOD) descriptor.
-    // We tell Windows that this entire device is compatible with the "WINUSB" feature,
-    // which causes it to use the built-in WinUSB driver automatically, which in turn
+    // We tell Windows that this entire device is compatible with the "WINUSB" feature.
+    // This causes it to use the built-in WInUSB driver automatically, which in turn
     // can be used by libusb/rusb software without needing a custom driver or INF file.
     // In principle you might want to call msos_feature() just on a specific function,
     // if your device also has other functions that still use standard class drivers.
     builder.msos_descriptor(windows_version::WIN8_1, 0);
-    builder.msos_feature(msos::CompatibleIdFeatureDescriptor::new("WINUSB", ""));
+    builder
+        .msos_feature(msos::CompatibleIdFeatureDescriptor::new("WINUSB", ""));
 
     // Randomly generated UUID because Windows requires you provide one to use WinUSB.
     // In principle WinUSB-using software could find this device (or a specific interface
     // on it) by its GUID instead of using the VID/PID, but in practice that seems unhelpful.
-    const DEVICE_INTERFACE_GUIDS: &[&str] = &["{DAC2087C-63FA-458D-A55D-827C0762DEC7}"];
+    const DEVICE_INTERFACE_GUIDS: &[&str] =
+        &["{DAC2087C-63FA-458D-A55D-827C0762DEC7}"];
 
     builder.msos_feature(msos::RegistryPropertyFeatureDescriptor::new(
         "DeviceInterfaceGUIDs",

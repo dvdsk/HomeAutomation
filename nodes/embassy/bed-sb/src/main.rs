@@ -26,7 +26,6 @@ use {defmt_rtt as _, panic_probe as _};
 mod channel;
 mod comms;
 mod sensors;
-mod usb_wrapper;
 use crate::channel::Queues;
 
 embassy_stm32::bind_interrupts!(struct Irqs {
@@ -153,9 +152,9 @@ async fn main(_spawner: Spawner) {
     );
 
     let affector_list = comms::affector_list();
-    let stack_a = usb_wrapper::StackA::new();
-    let mut stack_b = usb_wrapper::StackB::new(&stack_a, &affector_list);
-    let (mut usb_bus, usb_handle) = usb_wrapper::new(&stack_a, &mut stack_b, usb_driver);
+    let stack_a = usb_bridge_client::StackA::new();
+    let mut stack_b = usb_bridge_client::StackB::new(&stack_a, &affector_list);
+    let (mut usb_bus, usb_handle) = usb_bridge_client::new(&stack_a, &mut stack_b, usb_driver);
 
     let driver_orderers = slow::DriverOrderers::new();
     let publish = Queues::new();

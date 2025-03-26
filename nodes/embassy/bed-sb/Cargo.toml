@@ -16,7 +16,7 @@ embassy-executor.workspace = true
 embassy-embedded-hal.workspace = true
 embassy-time.workspace = true
 embassy-futures.workspace = true
-embassy-usb = { version = "0.4.0", features = ["defmt"] }
+embassy-usb.workspace = true
 
 defmt.workspace = true
 defmt-rtt.workspace = true
@@ -28,10 +28,11 @@ embedded-io-async.workspace = true
 
 panic-probe.workspace = true
 futures.workspace = true
-heapless = { git = "https://github.com/rust-embedded/heapless", version = "0.8", rev = "0ebca23", default-features = false }
+heapless.workspace = true
 
 # sensors
 sensors = { path = "../sensors" }
 
 # encoding
-protocol = { workspace = true }
+protocol.workspace = true 
+usb-bridge-client = { path = "../usb-bridge-client" }

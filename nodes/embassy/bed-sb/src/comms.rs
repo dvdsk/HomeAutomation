@@ -7,7 +7,7 @@ use protocol::{affector, Affector, ErrorReport, SensorMessage};
 
 use crate::channel::{PriorityValue, QueueItem, Queues};
 use crate::sensors::slow;
-use crate::usb_wrapper::{NoSpaceInQueue, UsbHandle, UsbReceiver, UsbSender};
+use usb_bridge_client::{NoSpaceInQueue, UsbHandle, UsbReceiver, UsbSender};
 
 pub(crate) type SensMsg = SensorMessage<10>;
 type IsLowPrio = bool;

@@ -1,0 +1,15 @@
+[package]
+name = "usb-bridge-client"
+version = "0.1.0"
+rust-version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+embassy-sync.workspace = true
+embassy-usb.workspace = true
+defmt.workspace = true
+heapless.workspace = true
+
+protocol.workspace = true
