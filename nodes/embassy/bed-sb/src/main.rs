@@ -43,8 +43,8 @@ embassy_stm32::bind_interrupts!(struct Irqs {
 fn config() -> Config {
     use embassy_stm32::rcc::mux;
     use embassy_stm32::rcc::{
-        AHBPrescaler, APBPrescaler, Hse, HseMode, Pll, PllMul, PllPDiv, PllPreDiv, PllQDiv,
-        PllSource, Sysclk,
+        AHBPrescaler, APBPrescaler, Hse, HseMode, Pll, PllMul, PllPDiv,
+        PllPreDiv, PllQDiv, PllSource, Sysclk,
     };
 
     let mut config = Config::default();
@@ -71,7 +71,10 @@ fn config() -> Config {
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
     let p = embassy_stm32::init(config());
-    let dog = IndependentWatchdog::new(p.IWDG, Duration::from_secs(5).as_micros() as u32);
+    let dog = IndependentWatchdog::new(
+        p.IWDG,
+        Duration::from_secs(5).as_micros() as u32,
+    );
 
     let mut usart_config = usart::Config::default();
     usart_config.baudrate = 9600;
@@ -154,7 +157,12 @@ async fn main(_spawner: Spawner) {
     let affector_list = comms::affector_list();
     let stack_a = usb_bridge_client::StackA::new();
     let mut stack_b = usb_bridge_client::StackB::new(&stack_a, &affector_list);
-    let (mut usb_bus, usb_handle) = usb_bridge_client::new(&stack_a, &mut stack_b, usb_driver);
+    let (mut usb_bus, usb_handle) = usb_bridge_client::new(
+        &stack_a,
+        &mut stack_b,
+        usb_bridge_client::config!("small-bedroom-bed", "2478437"),
+        usb_driver,
+    );
 
     let driver_orderers = slow::DriverOrderers::new();
     let publish = Queues::new();
@@ -180,7 +188,10 @@ async fn main(_spawner: Spawner) {
     .await;
 
     let unrecoverable_err = match res {
-        Either4::First(_) | Either4::Second(Ok(())) | Either4::Third(()) | Either4::Fourth(_) => {
+        Either4::First(_)
+        | Either4::Second(Ok(()))
+        | Either4::Third(())
+        | Either4::Fourth(_) => {
             defmt::unreachable!()
         }
         Either4::Second(Err(err)) => err,
@@ -190,23 +201,6 @@ async fn main(_spawner: Spawner) {
     error!("unrecoverable error, resetting: {}", unrecoverable_err);
     publish.queue_error(unrecoverable_err);
     handle_network.await; // if this takes too long the dog will get us
-}
-
-pub fn usb_config() -> embassy_usb::Config<'static> {
-    // Create embassy-usb Config
-    let mut config = embassy_usb::Config::new(0x16c0, 0x27DD);
-    config.manufacturer = Some("Vid");
-    config.product = Some("Sensor node");
-    config.serial_number = Some("2478437");
-
-    // Required for windows compatibility.
-    // https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.9.1/kconfig/CONFIG_CDC_ACM_IAD.html#help
-    config.device_class = 0xEF;
-    config.device_sub_class = 0x02;
-    config.device_protocol = 0x01;
-    config.composite_with_iads = true;
-
-    config
 }
 
 async fn keep_dog_happy(mut dog: IndependentWatchdog<'_, IWDG>) -> ! {

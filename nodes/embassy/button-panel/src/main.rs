@@ -96,8 +96,12 @@ async fn main(_spawner: Spawner) {
     let affector_list = comms::affector_list();
     let stack_a = usb_bridge_client::StackA::new();
     let mut stack_b = usb_bridge_client::StackB::new(&stack_a, &affector_list);
-    let (mut usb_bus, usb_handle) =
-        usb_bridge_client::new(&stack_a, &mut stack_b, usb_driver);
+    let (mut usb_bus, usb_handle) = usb_bridge_client::new(
+        &stack_a,
+        &mut stack_b,
+        usb_bridge_client::config!("small-bedroom-panel", "87244"),
+        usb_driver,
+    );
 
     let handle_network = comms::handle(usb_handle);
     pin_mut!(handle_network);

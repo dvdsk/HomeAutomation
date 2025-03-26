@@ -211,20 +211,25 @@ impl UsbReceiver<'_> {
     }
 }
 
-pub fn config() -> embassy_usb::Config<'static> {
-    let mut config = embassy_usb::Config::new(0xc0de, 0xcafe);
-    config.manufacturer = Some("Vid");
-    config.product = Some(concat!("sensor node ", env!("CARGO_PKG_NAME")));
-    config.serial_number = Some("2139874"); // Random, host driver finds device using this
-
-    // Required for windows compatibility.
-    // https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.9.1/kconfig/CONFIG_CDC_ACM_IAD.html#help
-    config.device_class = 0xEF;
-    config.device_sub_class = 0x02;
-    config.device_protocol = 0x01;
-    config.composite_with_iads = true;
-
-    config
+/// Given a node name and a *random* serial returns a usb config
+#[macro_export]
+macro_rules! config {
+    ($node_name:literal, $serial:literal) => {
+        {
+            let mut config = embassy_usb::Config::new(0xc0de, 0xcafe);
+            config.manufacturer = Some("Vid");
+            config.product = Some(concat!("sensor node ", $node_name));
+            // Random, host driver finds device using this
+            config.serial_number = Some($serial);
+            // Required for windows compatibility.
+            // https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.9.1/kconfig/CONFIG_CDC_ACM_IAD.html#help
+            config.device_class = 0xEF;
+            config.device_sub_class = 0x02;
+            config.device_protocol = 0x01;
+            config.composite_with_iads = true;
+            config
+        }
+    };
 }
 
 pub struct StackA {
@@ -282,6 +287,7 @@ impl<'a, D: embassy_usb::driver::Driver<'a>> Usb<'a, D> {
 pub fn new<'a, D: embassy_usb::driver::Driver<'a>>(
     stack_a: &'a StackA,
     stack_b: &'a mut StackB<'a>,
+    config: embassy_usb::Config<'static>,
     driver: D,
 ) -> (Usb<'a, D>, UsbHandle<'a>) {
     use embassy_usb::msos::{self, windows_version};
@@ -296,7 +302,7 @@ pub fn new<'a, D: embassy_usb::driver::Driver<'a>>(
 
     let mut builder = embassy_usb::Builder::new(
         driver,
-        config(),
+        config,
         config_descriptor,
         bos_descriptor,
         msos_descriptor,
