@@ -48,7 +48,7 @@ impl ReconnectingUsb {
                 Ok(Some(msg)) => break msg,
                 Ok(None) => continue, // needs another call to decode more
                 Err(e) => {
-                    tracing::warn!("Error trying get affector list: {e}");
+                    tracing::warn!("Error trying get affector list: {e:?}");
                     sleep(Duration::from_secs(5)).await;
                 }
             }

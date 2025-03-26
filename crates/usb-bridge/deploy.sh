@@ -2,7 +2,8 @@
 set -e
 
 BUILD_ARG=--release
-SERVER="sgc"  # ssh config name or full address
+SERVER1="sgc"  # ssh config name or full address
+SERVER2="eva@192.168.1.101"  # ssh config name or full address
 NAME=usb-bridge
 
 cargo build --target=aarch64-unknown-linux-musl $BUILD_ARG
@@ -16,4 +17,5 @@ sudo chown ha:ha /home/ha/$NAME
 sudo systemctl restart $NAME.service
 "
 
-ssh -t $SERVER "$cmds"
+ssh -t $SERVER1 "$cmds"
+ssh -t $SERVER2 "$cmds"
