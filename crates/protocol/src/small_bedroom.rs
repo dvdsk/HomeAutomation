@@ -24,7 +24,7 @@ crate::button_enum! {
         TopRight,
         BottomLeft,
         BottomMiddle,
-        BOttomRight,
+        BottomRight,
     }
     crate::Device::SmallBedroom(crate::small_bedroom::Device::Gpio);
 }
@@ -128,7 +128,7 @@ impl Device {
                     ButtonPanel::TopRight(Press(0)),
                     ButtonPanel::BottomLeft(Press(0)),
                     ButtonPanel::BottomMiddle(Press(0)),
-                    ButtonPanel::BOttomRight(Press(0))
+                    ButtonPanel::BottomRight(Press(0))
                 ],
                 affectors: &[],
                 temporal_resolution: Duration::from_millis(1),

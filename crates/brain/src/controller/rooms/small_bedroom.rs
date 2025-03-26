@@ -110,7 +110,7 @@ async fn handle_buttonpress(room: &mut Room, event: RelevantEvent) {
                 _ => room.to_daylight().await,
             }
         }
-        E::Button(B::BOttomRight(_)) => room.to_override().await,
+        E::Button(B::BottomRight(_)) => room.to_override().await,
         E::PortableButton(P::Dots2LongRelease) => room.to_sleep_no_wakeup().await,
         E::PortableButton(P::Dots1LongRelease) => room.to_nightlight().await,
         _ => (),
