@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bed-sb", "bed-lb", "sensors"]
+members = ["bed-sb", "bed-lb", "button-panel", "sensors", "usb-bridge-client"]
 
 [workspace.dependencies]
 protocol = { path = "../../crates/protocol" }
