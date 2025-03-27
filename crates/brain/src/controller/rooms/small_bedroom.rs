@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::time::Duration;
 
+use audiocontrol::{AudioController, ForceRewind};
 use futures_concurrency::future::Race;
 use futures_util::FutureExt;
 use jiff::civil::Time;
@@ -9,7 +10,7 @@ use jiff::{ToSpan, Zoned};
 use protocol::small_bedroom::{portable_button_panel, ButtonPanel};
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
-use tracing::{debug, trace};
+use tracing::{debug, error, info, trace};
 
 use self::filter::{recv_filtered, RelevantEvent, Trigger};
 use self::state::Room;
@@ -18,6 +19,7 @@ use crate::controller::{Event, RestrictedSystem};
 use crate::input::jobs::Job;
 use crate::time;
 
+mod audiocontrol;
 mod filter;
 mod state;
 
@@ -65,7 +67,7 @@ pub async fn run(
                 event @ RelevantEvent::Button(_)
                 | event @ RelevantEvent::PortableButton(_),
             ) => {
-                handle_buttonpress(&mut room, event).await;
+                handle_button(&mut room, event).await;
             }
             Trigger::Event(RelevantEvent::RadiatorOverride) => {
                 // trace!("Starting radiator override");
@@ -85,7 +87,88 @@ pub async fn run(
     }
 }
 
-async fn handle_buttonpress(room: &mut Room, event: RelevantEvent) {
+async fn handle_button(room: &mut Room, event: RelevantEvent) {
+    use portable_button_panel::Reading as P;
+    use ButtonPanel as B;
+
+    match event {
+        event @ RelevantEvent::Button(button) => match button {
+            B::TopLeft(_) | B::TopMiddle(_) | B::TopRight(_) => {
+                handle_audio_button(room, event).await;
+            }
+            B::BottomLeft(_) | B::BottomMiddle(_) | B::BottomRight(_) => {
+                handle_light_button(room, event).await;
+            }
+        },
+        event @ RelevantEvent::PortableButton(button) => match button {
+            P::PlayPause
+            | P::TrackNext
+            | P::TrackPrevious
+            | P::VolumeUp
+            | P::VolumeUpHold
+            | P::VolumeDown
+            | P::VolumeDownHold => {
+                handle_audio_button(room, event).await;
+            }
+            P::Dots1ShortRelease
+            | P::Dots1LongRelease
+            | P::Dots2ShortRelease
+            | P::Dots2LongRelease => {
+                handle_light_button(room, event).await;
+            }
+            b => info!("Pressed unimplemented button: {b:?}")
+        },
+        _ => unreachable!(),
+    }
+}
+
+async fn handle_audio_button(room: &mut Room, button_press: RelevantEvent) {
+    use audiocontrol::AudioMode as A;
+    use portable_button_panel::Reading as P;
+    use ButtonPanel as B;
+
+    let mut audio = room.audio_controller.lock().await;
+    let RelevantEvent::Button(button_press) = button_press else {
+        error!(
+            "Tried handling non-button as audio button: {:?}",
+            button_press
+        );
+        return;
+    };
+    match (&audio.mode, button_press) {
+        (A::Music | A::Singing | A::Meditation, B::TopLeft(press))
+            if !press.is_long() =>
+        {
+            audio.previous()
+        }
+        (A::Podcast, B::TopLeft(press)) if !press.is_long() => audio.rewind(),
+
+        (A::Music | A::Singing | A::Meditation, B::TopRight(press))
+            if !press.is_long() =>
+        {
+            audio.next()
+        }
+        (A::Podcast, B::TopRight(press)) if !press.is_long() => audio.skip(),
+
+        (_, B::TopMiddle(press)) if !press.is_long() => audio.toggle_playback(),
+
+        (_, B::TopLeft(press)) if press.is_long() => {
+            audio.prev_playlist();
+            audio.play(ForceRewind::No)
+        }
+        (_, B::TopRight(press)) if press.is_long() => {
+            audio.next_playlist();
+            audio.play(ForceRewind::No)
+        }
+        (_, B::TopMiddle(press)) if press.is_long() => {
+            audio.next_mode();
+            audio.play(ForceRewind::No)
+        }
+        (_, b) => info!("Unrecognised button pressed: {b:?}"),
+    }
+}
+
+async fn handle_light_button(room: &mut Room, event: RelevantEvent) {
     use portable_button_panel::Reading as P;
     use ButtonPanel as B;
     use RelevantEvent as E;
@@ -96,6 +179,7 @@ async fn handle_buttonpress(room: &mut Room, event: RelevantEvent) {
     // Dots2 short: to nightlight at night, otherwise daylight -> lamp(s) on
     // Dots2 long: to sleep, wakeup off -> lights off
     match event {
+        // Light buttons
         E::Button(B::BottomLeft(_)) => room.to_sleep_delayed().await,
         E::PortableButton(P::Dots1ShortRelease) => {
             room.to_sleep_immediate().await
@@ -111,7 +195,9 @@ async fn handle_buttonpress(room: &mut Room, event: RelevantEvent) {
             }
         }
         E::Button(B::BottomRight(_)) => room.to_override().await,
-        E::PortableButton(P::Dots2LongRelease) => room.to_sleep_no_wakeup().await,
+        E::PortableButton(P::Dots2LongRelease) => {
+            room.to_sleep_no_wakeup().await
+        }
         E::PortableButton(P::Dots1LongRelease) => room.to_nightlight().await,
         _ => (),
     }
