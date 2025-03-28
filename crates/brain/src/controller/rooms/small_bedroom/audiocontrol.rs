@@ -157,7 +157,7 @@ impl AudioController {
         self.client.rescan().unwrap();
     }
 
-    fn playing(&mut self) -> bool {
+    pub fn playing(&mut self) -> bool {
         let playback_state = self.client.status().unwrap().state;
         playback_state == State::Play
     }
@@ -608,7 +608,7 @@ impl AudioController {
         Ok(())
     }
 
-    pub(crate) async fn play_mode_playlist(
+    pub(crate) async fn go_to_mode_playlist(
         &mut self,
         mode: &AudioMode,
         playlist: &str,
@@ -619,12 +619,6 @@ impl AudioController {
             Ok(()) => (),
             Err(e) => println!("{e}"),
         };
-        tokio::time::sleep(Duration::from_millis(100)).await;
-        self.load_playlist(playlist);
-        tokio::time::sleep(Duration::from_millis(100)).await;
-        self.load_position(None);
-        tokio::time::sleep(Duration::from_millis(100)).await;
-        self.play(ForceRewind::No);
     }
 
     pub(crate) async fn start_wakeup_music(&mut self) {
@@ -633,7 +627,14 @@ impl AudioController {
 
         let pl_name = "music_wakeup";
         self.create_wakeup_playlist(pl_name).await;
-        self.play_mode_playlist(&AudioMode::Music, pl_name).await;
+        self.go_to_mode_playlist(&AudioMode::Music, pl_name).await;
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        self.load_playlist(pl_name);
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        self.load_position(None);
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        self.play(ForceRewind::No);
     }
 
     async fn create_wakeup_playlist(&mut self, pl_name: &str) {
