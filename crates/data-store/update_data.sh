@@ -3,15 +3,20 @@
 set -e
 
 function download_and_export_to_csv {
+	if [ -d data_updated ]; then 
+		echo "nothing to do: data_updated directory already exists"
+		return
+	fi
+
 	if [ ! -d data ]; then 
 		ssh sgc -q <<- ENDSSH
-	set -e
-	sudo systemctl stop data-store
-	cd /home/ha
-	sudo tar -czf data.tar.gz data
-	sudo chown david:david data.tar.gz
-	cp data.tar.gz /tmp/data.tar.gz
-	ENDSSH
+			set -e
+			sudo systemctl stop data-store
+			cd /home/ha
+			sudo tar -czf data.tar.gz data
+			sudo chown david:david data.tar.gz
+			cp data.tar.gz /tmp/data.tar.gz
+		ENDSSH
 
 		rsync sgc:/tmp/data.tar.gz .
 		tar -xzf data.tar.gz
@@ -19,13 +24,10 @@ function download_and_export_to_csv {
 		echo "data directory already exists, skipping fetch data from server"
 	fi
 
-	if [ ! -d data_updated ]; then 
-		cargo r --release -- --data-dir data export
-		cp -r data data_updated
-		rm $(find data_updated | grep '.byteseries')
-	else
-		echo "data_updated directory already exists skipping exporting"
-	fi
+	cargo r --release -- --data-dir data export
+	cp -r data data_updated
+
+	rm $(find data_updated | grep '.byteseries')
 }
 
 function import_from_csv_and_upload {
