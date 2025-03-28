@@ -25,7 +25,7 @@ fn data_with_gap(buffer: &mut Vec<(f64, f64)>) -> ChartParts<'_> {
             ),
         ),
         resolution: 1.0,
-        range: 0.0..5.0,
+        range: 0.0..=5.0,
         unit: protocol::Unit::Ohm,
         description: "test data with gaps",
         branch_id: 0,

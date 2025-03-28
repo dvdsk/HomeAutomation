@@ -266,7 +266,7 @@ fn ybounds(chart: &ChartParts, layout: Rect) -> Bounds {
     let y_margin = f64::max(y_range * margin, resolution / 2.0);
     let bounds = [bounds[0] - y_margin, bounds[1] + y_margin];
     [
-        bounds[0].max(range.start as f64),
-        bounds[1].min(range.end as f64),
+        bounds[0].max(*range.start() as f64),
+        bounds[1].min(*range.end() as f64),
     ]
 }
