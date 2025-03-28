@@ -23,15 +23,28 @@ enum Direction {
     Previous,
 }
 
-#[derive(Default)]
 #[allow(clippy::struct_excessive_bools)]
 struct Settings {
     repeat: bool,
     random: bool,
     single: bool,
     consume: bool,
+    volume: i8,
 
     save_playlist: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            repeat: false,
+            random: false,
+            single: false,
+            consume: false,
+            volume: 90,
+            save_playlist: false,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, Clone)]
@@ -70,10 +83,12 @@ impl AudioMode {
             Podcast => Settings {
                 consume: true,
                 save_playlist: true,
+                volume: 100,
                 ..Settings::default()
             },
             Meditation => Settings {
                 single: true,
+                volume: 100,
                 ..Settings::default()
             },
         }
@@ -579,6 +594,7 @@ impl AudioController {
         self.client.random(audio_settings.random).unwrap();
         self.client.single(audio_settings.single).unwrap();
         self.client.consume(audio_settings.consume).unwrap();
+        self.client.volume(audio_settings.volume).unwrap();
         self.client.pause().unwrap();
     }
 
