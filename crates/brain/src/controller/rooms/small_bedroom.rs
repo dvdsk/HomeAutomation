@@ -116,54 +116,71 @@ async fn handle_button(room: &mut Room, event: RelevantEvent) {
             | P::Dots2LongRelease => {
                 handle_light_button(room, event).await;
             }
-            b => info!("Pressed unimplemented button: {b:?}")
+            b => info!("Pressed unimplemented button: {b:?}"),
         },
         _ => unreachable!(),
     }
 }
 
-async fn handle_audio_button(room: &mut Room, button_press: RelevantEvent) {
+async fn handle_audio_button(room: &mut Room, button_event: RelevantEvent) {
     use audiocontrol::AudioMode as A;
     use portable_button_panel::Reading as P;
     use ButtonPanel as B;
+    use RelevantEvent as E;
 
     let mut audio = room.audio_controller.lock().await;
-    let RelevantEvent::Button(button_press) = button_press else {
-        error!(
-            "Tried handling non-button as audio button: {:?}",
-            button_press
-        );
-        return;
-    };
-    match (&audio.mode, button_press) {
-        (A::Music | A::Singing | A::Meditation, B::TopLeft(press))
-            if !press.is_long() =>
-        {
-            audio.previous()
+    match (&audio.mode, button_event) {
+        // Music, Singing, Meditation back (short) = previous
+        (
+            A::Music | A::Singing | A::Meditation,
+            E::Button(B::TopLeft(press)),
+        ) if !press.is_long() => audio.previous(),
+        (
+            A::Music | A::Singing | A::Meditation,
+            E::PortableButton(P::TrackPrevious),
+        ) => audio.previous(),
+        // Podcast back (short) = rewind
+        (A::Podcast, E::Button(B::TopLeft(press))) if !press.is_long() => {
+            audio.rewind()
         }
-        (A::Podcast, B::TopLeft(press)) if !press.is_long() => audio.rewind(),
 
-        (A::Music | A::Singing | A::Meditation, B::TopRight(press))
-            if !press.is_long() =>
-        {
-            audio.next()
+        // Music, Singing, Meditation forward (short) = next
+        (
+            A::Music | A::Singing | A::Meditation,
+            E::Button(B::TopRight(press)),
+        ) if !press.is_long() => audio.next(),
+        (
+            A::Music | A::Singing | A::Meditation,
+            E::PortableButton(P::TrackNext),
+        ) => audio.next(),
+        // Podcast forward (short) = skip
+        (A::Podcast, E::Button(B::TopRight(press))) if !press.is_long() => {
+            audio.skip()
         }
-        (A::Podcast, B::TopRight(press)) if !press.is_long() => audio.skip(),
 
-        (_, B::TopMiddle(press)) if !press.is_long() => audio.toggle_playback(),
+        (_, E::Button(B::TopMiddle(press))) if !press.is_long() => {
+            audio.toggle_playback()
+        }
 
-        (_, B::TopLeft(press)) if press.is_long() => {
+        (_, E::Button(B::TopLeft(press))) if press.is_long() => {
             audio.prev_playlist();
             audio.play(ForceRewind::No)
         }
-        (_, B::TopRight(press)) if press.is_long() => {
+        (_, E::Button(B::TopRight(press))) if press.is_long() => {
             audio.next_playlist();
             audio.play(ForceRewind::No)
         }
-        (_, B::TopMiddle(press)) if press.is_long() => {
+        (_, E::Button(B::TopMiddle(press))) if press.is_long() => {
             audio.next_mode();
             audio.play(ForceRewind::No)
         }
+        (_, E::PortableButton(P::PlayPause)) => {
+            audio
+                .go_to_mode_playlist(&A::Meditation, "meditation_yoga-nidra")
+                .await;
+            audio.toggle_playback();
+        }
+
         (_, b) => info!("Unrecognised button pressed: {b:?}"),
     }
 }
