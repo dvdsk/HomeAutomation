@@ -11,11 +11,15 @@ use tokio::task::{self, JoinHandle};
 use tokio::time::sleep;
 use tracing::{trace, warn};
 
+use super::audiocontrol::AudioController;
 use super::{
     air_filtration_now, daylight_now, goal_temp_now, is_nap_time, NAP_TIME,
     OFF_DELAY,
 };
 use crate::controller::{Event, RestrictedSystem};
+
+const MPD_IP: &str = "192.168.1.101";
+const MPD_PORT: &str = "6600";
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub(crate) enum State {
@@ -36,6 +40,7 @@ pub(super) struct Room {
     system: RestrictedSystem,
     event_tx: broadcast::Sender<Event>,
     task_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
+    pub(super) audio_controller: Arc<Mutex<AudioController>>,
 }
 
 impl Room {
@@ -50,8 +55,12 @@ impl Room {
             system,
             event_tx,
             task_handle: Arc::new(Mutex::new(None)),
+            audio_controller: Arc::new(Mutex::new(AudioController::new(
+                MPD_IP, MPD_PORT,
+            ))),
         }
     }
+
 
     pub(super) async fn update_radiator(&mut self) {
         trace!("Updating radiator");
@@ -171,8 +180,11 @@ impl Room {
     async fn run_wakeup_then_daylight(mut self) {
         const LIGHT_NAME: &str = "small_bedroom:ceiling";
         const RUNTIME_MINS: i32 = 20;
+        const MUSIC_ON_AFTER_MINS: i32 = 13;
+
         const STEP_SIZE_SECS: i32 = 30;
         const N_STEPS: i32 = RUNTIME_MINS * 60 / STEP_SIZE_SECS;
+        const MUSIC_STEP: i32 = MUSIC_ON_AFTER_MINS * 60 / STEP_SIZE_SECS;
 
         const START_BRI: f64 = 1. / 254.;
         const START_CT: usize = 2000;
@@ -204,6 +216,11 @@ impl Room {
                 (START_CT as f64 * ct_growth.powi(step)).round() as usize;
 
             self.system.one_lamp_ct(LIGHT_NAME, new_ct, new_bri).await;
+
+            if step == MUSIC_STEP {
+                let mut audio = self.audio_controller.lock().await;
+                audio.start_wakeup_music().await;
+            }
         }
 
         self.to_state(State::Daylight).await;
