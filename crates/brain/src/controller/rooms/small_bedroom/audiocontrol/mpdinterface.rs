@@ -94,6 +94,7 @@ impl MpdInterface {
     ok_or_reconnect_one_arg! {consume, value, bool, ()}
     ok_or_reconnect_one_arg! {playlist, name, &str, Vec<Song>}
     ok_or_reconnect_one_arg! {push, path, &str, u32}
+    ok_or_reconnect_one_arg! {volume, volume, i8, ()}
 
     pub(crate) fn pause(&mut self) -> Result<()> {
         match self.client.pause(true) {
