@@ -7,7 +7,7 @@ use jiff::civil::Time;
 use mpdrs::error::Error;
 use mpdrs::status::State;
 use mpdrs::Playlist;
-use rand::seq::SliceRandom;
+use rand::seq::IndexedRandom;
 use tracing::{debug, info, instrument};
 
 use db::Db;
@@ -663,7 +663,7 @@ impl AudioController {
         tokio::time::sleep(Duration::from_millis(100)).await;
 
         let to_add = {
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
 
             slow_songs
                 .choose_multiple(&mut rng, 1)

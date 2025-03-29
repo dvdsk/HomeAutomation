@@ -49,8 +49,11 @@ impl CurrentError {
         let value = if buf.is_empty() {
             None
         } else {
-            match bincode::deserialize(&buf) {
-                Ok(value) => Some(value),
+            match bincode::serde::decode_from_slice(
+                &buf,
+                bincode::config::standard(),
+            ) {
+                Ok((value, _)) => Some(value),
                 Err(err) => {
                     tracing::debug!("Data was: {buf:?}");
                     warn!(
@@ -78,8 +81,9 @@ impl CurrentError {
 
     fn set(&mut self, report: protocol::Error) -> Result<()> {
         let value = (jiff::Timestamp::now(), report);
-        let bytes = bincode::serialize(&value)
-            .wrap_err("could not serialize current error")?;
+        let bytes =
+            bincode::serde::encode_to_vec(&value, bincode::config::standard())
+                .wrap_err("could not serialize current error")?;
         self.file
             .set_len(0)
             .wrap_err("Could not clear file prior to backing up value")?;
@@ -163,8 +167,11 @@ impl Log {
                 end: jiff::Timestamp::now(),
                 error: report.clone(),
             };
-            let line = bincode::serialize(&line)
-                .wrap_err("Could not serialize ErrorEvent")?;
+            let line = bincode::serde::encode_to_vec(
+                &line,
+                bincode::config::standard(),
+            )
+            .wrap_err("Could not serialize ErrorEvent")?;
             let payload_size = protocol::Error::max_size();
             let line: Vec<_> = line
                 .into_iter()
@@ -275,8 +282,9 @@ impl byteseries::Decoder for Decoder {
     type Item = StoredErrorEvent;
 
     fn decode_payload(&mut self, payload: &[u8]) -> Self::Item {
-        bincode::deserialize(payload)
+        bincode::serde::decode_from_slice(payload, bincode::config::standard())
             .expect("if its successfully serialized it should deserialize")
+            .0
     }
 }
 

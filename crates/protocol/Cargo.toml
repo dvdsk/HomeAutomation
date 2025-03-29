@@ -12,7 +12,7 @@ authors.workspace = true
 serde.workspace = true
 postcard = { version = "1.0.10", features = ["experimental-derive", "use-defmt"] }
 heapless = { version = "0.8.0", features = ["serde", "defmt-03"] }
-strum = { version = "0.26.2", default-features = false, features = ["derive"] }
+strum = { workspace = true, default-features = false, features = ["derive"] }
 thiserror = { workspace = true, optional = true }
 defmt = "0.3.6"
 

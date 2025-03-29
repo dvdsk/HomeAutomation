@@ -28,10 +28,10 @@ rpc = { workspace = true }
 tokio = { workspace = true, features = ["fs", "net", "rt-multi-thread", "sync"] }
 futures-concurrency = { workspace = true }
 serde.workspace = true
-bincode = "1.3.3"
-thiserror = { workspace = true }
+bincode.workspace = true
+thiserror.workspace = true
 futures.workspace = true
-smallvec = "2.0.0-alpha.6"
+smallvec.workspace = true
 hdrhistogram = "7.5.4"
 derivative = "2.2.0"
 
@@ -39,5 +39,5 @@ derivative = "2.2.0"
 futures-concurrency = { workspace = true }
 heapless = "0.8.0"
 nucleo-matcher = "0.3.1"
-reserve-port = "2.0.1"
+reserve-port.workspace = true
 temp-dir = "0.1.13"

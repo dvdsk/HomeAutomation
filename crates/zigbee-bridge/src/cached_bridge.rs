@@ -27,7 +27,7 @@ pub(super) async fn run(
     reading_callback: impl Fn(protocol::Reading),
 ) -> ! {
     // The id string must be random or subscribe does not work
-    let id = name + " " + &rand::random::<usize>().to_string();
+    let id = name + " " + &rand::random::<u32>().to_string();
     let mut options = MqttOptions::new(id, mqtt_ip.to_string(), MQTT_PORT);
     // Set max mqtt packet size to 4kB
     options.set_max_packet_size(Some(8192));

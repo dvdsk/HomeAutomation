@@ -11,7 +11,7 @@ color-eyre.workspace = true
 futures.workspace = true
 governor.workspace = true
 tokio = { workspace = true, features = ["net", "rt", "sync", "time"] }
-tokio-util = { version = "0.7.11", features = ["codec"] }
+tokio-util.workspace = true
 tracing.workspace = true
 
 serde.workspace = true

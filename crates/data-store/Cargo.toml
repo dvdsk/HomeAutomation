@@ -31,15 +31,15 @@ futures-concurrency = { workspace = true }
 serde.workspace = true
 thiserror = { workspace = true }
 futures.workspace = true
-smallvec = "2.0.0-alpha.6"
+smallvec.workspace = true
 num = "0.4.3"
-ron = "0.8.1"
+ron.workspace = true
 indicatif = "0.17.9"
 itertools.workspace = true
-rstest = "0.24.0"
+rstest = "0.25"
 
 [dev-dependencies]
-futures-concurrency = { workspace = true }
+futures-concurrency.workspace = true
 nucleo-matcher = "0.3.1"
-reserve-port = "2.0.1"
+reserve-port.workspace = true
 temp-dir = "0.1.13"

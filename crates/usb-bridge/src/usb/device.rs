@@ -64,7 +64,7 @@ pub(crate) fn get_usb_device(
             "Add a .rules file in /etc/udev/rules.d with line: \n\
             ATTRS{{serial}}==\"{serial_number}\", MODE=\"660\", GROUP=\"{}\", TAG+=\"uaccess\"\n\
             Then run: sudo udevadm control --reload && sudo udevadm trigger",
-            users::get_current_groupname()
+            uzers::get_current_groupname()
                 .expect("process should always run as a group")
                 .to_string_lossy()
         )
