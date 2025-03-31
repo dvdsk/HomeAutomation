@@ -34,19 +34,6 @@ struct Settings {
     save_playlist: bool,
 }
 
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            repeat: false,
-            random: false,
-            single: false,
-            consume: false,
-            volume: 90,
-            save_playlist: false,
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, Clone)]
 pub enum AudioMode {
     Music,
@@ -79,17 +66,29 @@ impl AudioMode {
     fn settings(&self) -> Settings {
         use AudioMode::*;
         match self {
-            Music | Singing => Settings::default(),
+            Music | Singing => Settings {
+                repeat: false,
+                random: false,
+                single: false,
+                consume: false,
+                volume: 70,
+                save_playlist: false,
+            },
             Podcast => Settings {
+                repeat: false,
+                random: false,
+                single: false,
                 consume: true,
-                save_playlist: true,
                 volume: 100,
-                ..Settings::default()
+                save_playlist: true,
             },
             Meditation => Settings {
+                repeat: false,
+                random: false,
+                consume: false,
                 single: true,
                 volume: 100,
-                ..Settings::default()
+                save_playlist: false,
             },
         }
     }
