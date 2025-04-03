@@ -45,7 +45,7 @@ pub async fn run(
     let mut next_update = Instant::now() + UPDATE_INTERVAL;
 
     let wakeup_job =
-        Job::every_day_at(10, 32, Event::WakeupSB, Some(WAKEUP_EXPIRATION));
+        Job::every_day_at(9, 30, Event::WakeupSB, Some(WAKEUP_EXPIRATION));
 
     let res = system
         .system
@@ -175,9 +175,14 @@ async fn handle_audio_button(room: &mut Room, button_event: RelevantEvent) {
             audio.play(ForceRewind::No)
         }
         (_, E::PortableButton(P::PlayPause)) => {
-            audio
-                .go_to_mode_playlist(&A::Meditation, "meditation_yoga-nidra")
-                .await;
+            if AudioController::is_meditation_time() {
+                audio
+                    .go_to_mode_playlist(
+                        &A::Meditation,
+                        "meditation_yoga-nidra",
+                    )
+                    .await;
+            }
             audio.toggle_playback();
         }
 
