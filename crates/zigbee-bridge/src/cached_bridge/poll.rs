@@ -32,7 +32,15 @@ pub(super) async fn poll_mqtt(
         let message = match parse_message(message) {
             Ok(message) => message,
             Err(err) => {
-                warn!("ZB error parsing mqtt message: {err:?}");
+                // zigbee2mqtt is quite fragile and frequently sends incorrect
+                // json. It seems to recover directly after though.
+                //
+                // The plan is to migrate away from zigbee2mqtt in the future to a
+                // custom build solution (because of the mentioned fragility).
+                //
+                // Until then this (zigbee bridge) is in maintenance only
+                // mode. For that reason we ignore any parsing error.
+                trace!("ZB error parsing mqtt message: {err:?}");
                 continue;
             }
         };
