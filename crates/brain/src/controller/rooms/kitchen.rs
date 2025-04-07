@@ -17,6 +17,7 @@ enum State {
     Sleep,
     Morning,
     Daylight,
+    Override,
 }
 
 trait RecvFiltered {
@@ -44,6 +45,7 @@ impl RecvFiltered for broadcast::Receiver<Event> {
 enum RelevantEvent {
     Sleep,
     Daylight,
+    Override,
 }
 
 fn filter(event: Event) -> Option<RelevantEvent> {
@@ -53,6 +55,9 @@ fn filter(event: Event) -> Option<RelevantEvent> {
         }
         Event::StateChangeSB(small_bedroom::State::Daylight) => {
             Some(RelevantEvent::Daylight)
+        }
+        Event::StateChangeSB(small_bedroom::State::Override) => {
+            Some(RelevantEvent::Override)
         }
         _ => None,
     }
@@ -91,6 +96,10 @@ pub async fn run(
                     update(&mut system).await;
                     system.all_lamps_but_one_on("kitchen:hallway").await;
                 }
+            }
+            Res::Event(RelevantEvent::Override) => {
+                state = State::Override;
+                system.all_lamps_ct(2000, 1.0).await;
             }
             Res::ShouldUpdate
                 if state == State::Daylight

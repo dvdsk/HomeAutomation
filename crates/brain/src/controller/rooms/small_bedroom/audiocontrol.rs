@@ -8,7 +8,7 @@ use mpdrs::error::Error;
 use mpdrs::status::State;
 use mpdrs::Playlist;
 use rand::seq::IndexedRandom;
-use tracing::{debug, info, instrument};
+use tracing::{debug, info, instrument, trace};
 
 use db::Db;
 use mpdinterface::MpdInterface;
@@ -32,19 +32,6 @@ struct Settings {
     volume: i8,
 
     save_playlist: bool,
-}
-
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            repeat: false,
-            random: false,
-            single: false,
-            consume: false,
-            volume: 90,
-            save_playlist: false,
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, Clone)]
@@ -79,17 +66,29 @@ impl AudioMode {
     fn settings(&self) -> Settings {
         use AudioMode::*;
         match self {
-            Music | Singing => Settings::default(),
+            Music | Singing => Settings {
+                repeat: false,
+                random: false,
+                single: false,
+                consume: false,
+                volume: 70,
+                save_playlist: false,
+            },
             Podcast => Settings {
+                repeat: false,
+                random: false,
+                single: false,
                 consume: true,
-                save_playlist: true,
                 volume: 100,
-                ..Settings::default()
+                save_playlist: true,
             },
             Meditation => Settings {
+                repeat: false,
+                random: false,
+                consume: false,
                 single: true,
                 volume: 100,
-                ..Settings::default()
+                save_playlist: false,
             },
         }
     }
@@ -423,8 +422,8 @@ impl AudioController {
     }
 
     /// Meditation mode is only enabled at night
-    fn is_meditation_time() -> bool {
-        const START_HOUR: i8 = 21;
+    pub fn is_meditation_time() -> bool {
+        const START_HOUR: i8 = 22;
         const START_MIN: i8 = 30;
         const END_HOUR: i8 = 9;
         const END_MIN: i8 = 0;
@@ -464,10 +463,10 @@ impl AudioController {
         self.mode.next();
         info!("Switching to mode {:?}", self.mode);
 
-        // if self.mode == AudioMode::Meditation && !Self::is_meditation_time() {
-        //     self.mode.next();
-        //     info!("Skipping meditation");
-        // }
+        if self.mode == AudioMode::Meditation && !Self::is_meditation_time() {
+            self.mode.next();
+            trace!("Skipping meditation");
+        }
 
         // Check if a playlist is stored in the db, and still exists
         let new_playlist_name = self.db.fetch_playlist_name(&self.mode);
