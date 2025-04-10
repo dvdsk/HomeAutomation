@@ -4,9 +4,9 @@ use std::fmt;
 use std::time::Duration;
 
 use jiff::civil::Time;
-use mpdrs::error::Error;
 use mpdrs::status::State;
 use mpdrs::Playlist;
+use mpdrs::{error::Error, Song};
 use rand::seq::IndexedRandom;
 use tracing::{debug, info, instrument, trace};
 
@@ -669,6 +669,13 @@ impl AudioController {
                 .chain(normal_songs.choose_multiple(&mut rng, 30))
         };
 
+        self.client.pl_push(
+            pl_name,
+            &Song {
+                file: "noise.ogg".to_string(),
+                ..Default::default()
+            },
+        ).unwrap();
         for song in to_add {
             self.client.pl_push(pl_name, song).unwrap();
             tokio::time::sleep(Duration::from_millis(10)).await;
