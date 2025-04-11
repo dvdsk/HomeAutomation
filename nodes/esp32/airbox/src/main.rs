@@ -3,7 +3,7 @@
 
 use core::net::Ipv4Addr;
 
-use embassy_futures::join::{self, join3};
+use embassy_futures::join::join3;
 use embassy_net::{Ipv4Cidr, StackResources};
 use esp_hal::clock::CpuClock;
 use esp_hal::rng::Rng;
@@ -57,49 +57,47 @@ async fn main(spawner: Spawner) {
 
     esp_alloc::heap_allocator!(size: 72 * 1024);
 
-    // let timg0 = TimerGroup::new(peripherals.TIMG0);
-    // let mut rng = Rng::new(peripherals.RNG);
+    let timg0 = TimerGroup::new(peripherals.TIMG0);
+    let mut rng = Rng::new(peripherals.RNG);
 
-    // let esp_wifi_ctrl = &*mk_static!(
-    //     EspWifiController<'static>,
-    //     esp_wifi::init(timg0.timer0, rng, peripherals.RADIO_CLK).unwrap()
-    // );
+    let esp_wifi_ctrl = &*mk_static!(
+        EspWifiController<'static>,
+        esp_wifi::init(timg0.timer0, rng, peripherals.RADIO_CLK).unwrap()
+    );
 
-    // let (controller, interfaces) =
-    //     esp_wifi::wifi::new(esp_wifi_ctrl, peripherals.WIFI).unwrap();
-    // let wifi_interface = interfaces.sta;
+    let (controller, interfaces) =
+        esp_wifi::wifi::new(esp_wifi_ctrl, peripherals.WIFI).unwrap();
+    let wifi_interface = interfaces.sta;
 
     let systimer = SystemTimer::new(peripherals.SYSTIMER);
     esp_hal_embassy::init(systimer.alarm0);
 
-    // let config =
-    //     embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
-    //         address: Ipv4Cidr::new(Ipv4Addr::new(192, 168, 1, 8), 24),
-    //         gateway: Some(Ipv4Addr::new(192, 168, 1, 1)),
-    //         dns_servers: heapless::Vec::new(),
-    //     });
-    //
-    // let seed = ((rng.random() as u64) << 32) | rng.random() as u64;
+    let config =
+        embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
+            address: Ipv4Cidr::new(Ipv4Addr::new(192, 168, 1, 8), 24),
+            gateway: Some(Ipv4Addr::new(192, 168, 1, 1)),
+            dns_servers: heapless::Vec::new(),
+        });
 
-    // // Init network stack
-    // let (stack, runner) = embassy_net::new(
-    //     wifi_interface,
-    //     config,
-    //     mk_static!(StackResources<3>, StackResources::<3>::new()),
-    //     seed,
-    // );
+    let seed = ((rng.random() as u64) << 32) | rng.random() as u64;
 
-    // spawner.spawn(network::connection(controller)).ok();
-    // spawner.spawn(network::net_task(runner)).ok();
+    // Init network stack
+    let (stack, runner) = embassy_net::new(
+        wifi_interface,
+        config,
+        mk_static!(StackResources<3>, StackResources::<3>::new()),
+        seed,
+    );
+
+    spawner.spawn(network::connection(controller)).ok();
+    spawner.spawn(network::net_task(runner)).ok();
 
     let queue = Channel::new();
     let fan_stack = fans::FanStack::new(peripherals.LEDC);
     let fans = fans::Fans::new(&fan_stack, peripherals.GPIO3);
-    join::join(
-        sensor::button(peripherals.GPIO10, &queue, &fans),
-        sensor::measure(peripherals.I2C0, &queue),
-    )
-    .await;
+
+    network::handle(&stack, &queue, &fans).await;
+
     // join3(
     //     network::handle(&stack, &queue, &fans),
     //     sensor::button(peripherals.GPIO10, &queue, &fans),

@@ -1,5 +1,6 @@
-[target.riscv32imc-unknown-none-elf]
-runner = "espflash flash --monitor --chip esp32c3 --log-format defmt"
+[target.riscv32imac-unknown-none-elf]
+# runner = "espflash flash --monitor --chip esp32c3 --log-format defmt"
+runner = "espflash flash --monitor --chip esp32c6 --log-format defmt"
 
 [env]
 DEFMT_LOG="info"
@@ -12,7 +13,7 @@ rustflags = [
   "-C", "force-frame-pointers",
 ]
 
-target = "riscv32imc-unknown-none-elf"
+target = "riscv32imac-unknown-none-elf"
 
 [unstable]
 build-std = ["alloc", "core"]
