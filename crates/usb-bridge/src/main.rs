@@ -3,16 +3,18 @@ use std::net::SocketAddr;
 use clap::Parser;
 
 use color_eyre::eyre::Context;
-use color_eyre::Section;
-use data_server::api::data_source::reconnecting;
-use tracing::debug;
+use data_server::api::data_source::reconnecting::SendError;
+use data_server::api::data_source::{reconnecting, SendPreEncodedError};
+use tracing::{debug, warn};
 
 mod usb;
 
 #[derive(Parser)]
 #[command(name = "usb-bridge")]
 #[command(version = "1.0")]
-#[command(about = "forwards sensor info from and affector orders to nodes attached to usb")]
+#[command(
+    about = "forwards sensor info from and affector orders to nodes attached to usb"
+)]
 struct Cli {
     /// Where to send the data on the local system
     #[arg(short, long("data-server"), default_value = "192.168.1.43:1234")]
@@ -36,18 +38,18 @@ async fn main() -> Result<(), color_eyre::Report> {
         .get_affectors()
         .await
         .wrap_err("Could not get affector list")?;
-    let mut server_client = reconnecting::Client::new(
-        args.data_server,
-        affectors,
-        Some(order_tx),
-    ).await?;
+    let mut server_client =
+        reconnecting::Client::new(args.data_server, affectors, Some(order_tx))
+            .await?;
 
     loop {
         let encoded_msg = usb.handle_usb().await;
-        server_client
-            .check_send_encoded(encoded_msg)
-            .await
-            .wrap_err("Should be correctly encoded")
-            .suggestion("Check if this needs to be updated")?;
+        match server_client.check_send_encoded(encoded_msg).await {
+            Ok(()) => (),
+            Err(SendPreEncodedError::Sending(SendError::Outdated)) => {
+                warn!("Did not send data because it is outdated")
+            }
+            other @ Err(_) => other?,
+        }
     }
 }
