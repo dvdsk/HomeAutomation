@@ -21,10 +21,7 @@ fn sig_weight_diff(old: u32, new: u32) -> bool {
     diff > 15
 }
 
-async fn report_lux(
-    mut max44: Max44Driver<'_>,
-    rgb_led: rgb_led::LedHandle,
-) {
+async fn report_lux(mut max44: Max44Driver<'_>, rgb_led: rgb_led::LedHandle) {
     const MAX_INTERVAL: Duration = Duration::from_secs(5);
 
     let mut prev_lux = f32::MAX;
@@ -123,37 +120,35 @@ async fn watch_button(
 ) {
     use sensors::{errors::PressTooLong, errors::SensorError, Error};
 
-    let mut went_high_at: Option<Instant> = None;
     loop {
-        if let Some(went_high_at) = went_high_at.take() {
-            input.wait_for_low().await;
-            let press = went_high_at.elapsed();
-            let Ok(press) = press.as_millis().try_into() else {
-                let event_for_printing = (event)(protocol::button::Press(0));
-                let name = event_for_printing.variant_name();
-                PUBLISH.queue_error(Error::Running(SensorError::Button(
-                    PressTooLong { button: name },
-                )));
-                continue;
-            };
-            let event = (event)(protocol::button::Press(press));
-            PUBLISH.send_p2(Reading::Button(event));
-        } else {
-            input.wait_for_high().await;
-            Timer::after(Duration::from_millis(20)).await;
-            if input.is_low() {
-                continue;
-            }
-            Timer::after(Duration::from_millis(20)).await;
-            if input.is_low() {
-                continue;
-            }
-            Timer::after(Duration::from_millis(10)).await;
-            if input.is_high() {
-                went_high_at = Some(Instant::now());
-            }
-        }
+        Timer::after(Duration::from_secs(200)).await;
     }
+    // let mut went_high_at: Option<Instant> = None;
+    // loop {
+    //     if let Some(went_high_at) = went_high_at.take() {
+    //         input.wait_for_low().await;
+    //         let press = went_high_at.elapsed();
+    //         let Ok(press) = press.as_millis().try_into() else {
+    //             let event_for_printing = (event)(protocol::button::Press(0));
+    //             let name = event_for_printing.variant_name();
+    //             PUBLISH.queue_error(Error::Running(SensorError::Button(
+    //                 PressTooLong { button: name },
+    //             )));
+    //             continue;
+    //         };
+    //         let event = (event)(protocol::button::Press(press));
+    //         PUBLISH.send_p2(Reading::Button(event));
+    //     } else {
+    //         input.wait_for_high().await;
+    //         let now = Instant::now();
+    //         Timer::after(Duration::from_millis(80)).await;
+    //         if input.is_low() {
+    //             continue;
+    //         } else {
+    //             went_high_at = Some(now);
+    //         }
+    //     }
+    // }
 }
 
 pub struct ButtonInputs {
