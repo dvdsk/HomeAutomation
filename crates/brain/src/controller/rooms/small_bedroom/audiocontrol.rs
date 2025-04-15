@@ -516,7 +516,9 @@ impl AudioController {
         direction: Direction,
         current_playlist_name: &String,
     ) -> Option<String> {
-        let playlist_names = self.get_playlists().into_iter().map(|pl| pl.name);
+        let playlists = self.get_playlists();
+        assert!(!playlists.is_empty());
+        let playlist_names = playlists.into_iter().map(|pl| pl.name);
         let mut playlist_names = playlist_names
             .filter(|pl| pl.starts_with(self.mode.to_prefix()))
             .collect::<Vec<_>>();
@@ -526,6 +528,7 @@ impl AudioController {
         if let Direction::Previous = direction {
             playlist_names.reverse();
         }
+        assert!(!playlist_names.is_empty());
         let mut playlist_names = playlist_names.iter().cycle().peekable();
 
         while *playlist_names.peek().unwrap() != current_playlist_name {
