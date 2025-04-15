@@ -25,7 +25,7 @@ mod state;
 
 const UPDATE_INTERVAL: Duration = Duration::from_secs(5);
 const OFF_DELAY: Duration = Duration::from_secs(60);
-const WAKEUP_EXPIRATION: Duration = Duration::from_secs(60);
+const WAKEUP_EXPIRATION: Duration = Duration::from_secs(1800);
 const NAP_TIME: Duration = Duration::from_secs(30 * 60);
 const RADIATOR_OVERRIDE_MINUTES: i32 = 60;
 
