@@ -1,3 +1,5 @@
+use tracing::warn;
+
 use super::AudioMode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -63,10 +65,17 @@ impl Db {
         playlist_name: &str,
     ) -> Option<Position> {
         let key = playlist_name.to_owned() + "_position";
-        self.database
+        let position = self
+            .database
             .get(key.as_bytes())
             .unwrap()
-            .map(|buffer| Position::from_bytes(buffer.as_ref()))
+            .map(|buffer| Position::from_bytes(buffer.as_ref()));
+        if playlist_name == "podcast_hank-and-john"
+            || playlist_name == "podcast_ross-and-carrie"
+        {
+            warn!("Fetched position: {key}, {position:?}");
+        }
+        position
     }
 
     pub(crate) fn store_position(
@@ -75,6 +84,11 @@ impl Db {
         position: &Position,
     ) {
         let key = playlist_name.to_owned() + "_position";
+        if playlist_name == "podcast_hank-and-john"
+            || playlist_name == "podcast_ross-and-carrie"
+        {
+            warn!("Storing position: {key}, {position:?}");
+        }
         self.database
             .insert(key.as_bytes(), position.to_bytes())
             .unwrap();
