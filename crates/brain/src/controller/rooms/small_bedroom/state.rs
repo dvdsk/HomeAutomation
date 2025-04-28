@@ -195,10 +195,6 @@ impl Room {
         let ct_growth =
             (END_CT as f64 / START_CT as f64).powf(1. / N_STEPS as f64);
 
-        if crate::time::now().weekday() == Weekday::Sunday {
-            // On Sunday, delay wakeup one hour
-            sleep(Duration::from_secs(60 * 60)).await;
-        }
         self.system
             .one_lamp_ct(LIGHT_NAME, START_CT, START_BRI)
             .await;
