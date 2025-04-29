@@ -541,13 +541,25 @@ impl AudioController {
         let pos_in_pl = if let Some(song) = self.client.status().unwrap().song {
             song.pos
         } else {
-            0
+            // Try again before we reset, because apparently sometimes
+            // this fails
+            if let Some(elapsed) = self.get_elapsed() {
+                elapsed.as_secs().try_into().unwrap()
+            } else {
+                0
+            }
         };
 
         let elapsed = if let Some(elapsed) = self.get_elapsed() {
             elapsed.as_secs().try_into().unwrap()
         } else {
-            0
+            // Try again before we reset, because apparently sometimes
+            // this fails
+            if let Some(elapsed) = self.get_elapsed() {
+                elapsed.as_secs().try_into().unwrap()
+            } else {
+                0
+            }
         };
 
         let position = db::Position { pos_in_pl, elapsed };
@@ -672,13 +684,15 @@ impl AudioController {
                 .chain(normal_songs.choose_multiple(&mut rng, 30))
         };
 
-        self.client.pl_push(
-            pl_name,
-            &Song {
-                file: "noise.ogg".to_string(),
-                ..Default::default()
-            },
-        ).unwrap();
+        self.client
+            .pl_push(
+                pl_name,
+                &Song {
+                    file: "noise.ogg".to_string(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
         for song in to_add {
             self.client.pl_push(pl_name, song).unwrap();
             tokio::time::sleep(Duration::from_millis(10)).await;
