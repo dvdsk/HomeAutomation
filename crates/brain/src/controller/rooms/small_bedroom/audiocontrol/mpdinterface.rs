@@ -78,7 +78,6 @@ impl MpdInterface {
     ok_or_reconnect_no_args! {play, ()}
     ok_or_reconnect_no_args! {prev, ()}
     ok_or_reconnect_no_args! {next, ()}
-    ok_or_reconnect_no_args! {status, Status}
     ok_or_reconnect_no_args! {playlists, Vec<Playlist>}
     ok_or_reconnect_no_args! {queue, Vec<Song>}
     ok_or_reconnect_no_args! {currentsong, Option<Song>}
@@ -95,6 +94,22 @@ impl MpdInterface {
     ok_or_reconnect_one_arg! {playlist, name, &str, Vec<Song>}
     ok_or_reconnect_one_arg! {push, path, &str, u32}
     ok_or_reconnect_one_arg! {volume, volume, i8, ()}
+
+    pub(crate) fn status(&mut self) -> Result<Status> {
+        match self.client.status() {
+            Err(Error::Io(_)) => (),
+            Err(Error::Parse(_)) => (),
+            // There is not always an error when something goes wrong
+            // Sometimes we just get the default status and we also
+            // need to retry, because this makes no sense in the logic
+            Ok(status) if status == Status::default() => (),
+            other => return other,
+        };
+
+        debug!("IOError or ParseError, reconnecting...");
+        self.client = mpdrs::Client::connect(&self.ip)?;
+        self.client.status()
+    }
 
     pub(crate) fn pause(&mut self) -> Result<()> {
         match self.client.pause(true) {
