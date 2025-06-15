@@ -17,7 +17,8 @@ mod usb;
 )]
 struct Cli {
     /// Where to send the data on the local system
-    #[arg(short, long("data-server"), default_value = "192.168.1.43:1234")]
+    #[arg(short, long("data-server"), 
+        default_value = "192.168.1.43:1234", value_parser = resolve_socketaddr)]
     data_server: SocketAddr,
     /// Serial number of the device to connect case insensitive
     #[arg(short, long)]
@@ -52,4 +53,14 @@ async fn main() -> Result<(), color_eyre::Report> {
             other @ Err(_) => other?,
         }
     }
+}
+
+pub fn resolve_socketaddr(arg: &str) -> Result<SocketAddr, std::io::Error> {
+    use std::net::ToSocketAddrs;
+
+    let mut addrs_iter = arg.to_socket_addrs()?;
+    addrs_iter.next().ok_or(std::io::Error::new(
+        std::io::ErrorKind::Other,
+        "Must pass one address",
+    ))
 }

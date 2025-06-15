@@ -45,28 +45,39 @@ pub(crate) fn get_usb_device(
         [dev] => dev,
         [] => {
             return Err(eyre!("No usb device found with the correct serial"))
-                .with_note(|| format!("looking for device with serial: {serial_number}"))
+                .with_note(|| {
+                    format!("looking for device with serial: {serial_number}")
+                })
                 .suggestion(
                     "Is the device working (sometimes programming fails) \
                     & connected?",
                 );
         }
         more => {
-            return Err(eyre!("Multiple usb devices have the same serial number")
-                .with_note(|| format!("they are: {more:?}")));
+            return Err(eyre!(
+                "Multiple usb devices have the same serial number"
+            )
+            .with_note(|| format!("they are: {more:?}")));
         }
     }
     .open()
     .wrap_err("Could not open the usb device")
     .suggestion("Try running as sudo")
-    .with_suggestion(|| {
+    .with_suggestion(|| edit_udev_rules_instruction(serial_number))
+}
+
+fn edit_udev_rules_instruction(serial_number: &str) -> String {
+    if let Some(group) = uzers::get_current_groupname() {
+        let group = group.to_string_lossy();
         format!(
-            "Add a .rules file in /etc/udev/rules.d with line: \n\
-            ATTRS{{serial}}==\"{serial_number}\", MODE=\"660\", GROUP=\"{}\", TAG+=\"uaccess\"\n\
+        "Add a .rules file in /etc/udev/rules.d with line: \n\
+            ATTRS{{serial}}==\"{serial_number}\", MODE=\"660\", GROUP=\"{group}\", TAG+=\"uaccess\"\n\
             Then run: sudo udevadm control --reload && sudo udevadm trigger",
-            uzers::get_current_groupname()
-                .expect("process should always run as a group")
-                .to_string_lossy()
-        )
-    })
+    )
+    } else {
+        "Look up this users primary group then add a .rules file 
+            in /etc/udev/rules.d, replace <group> with the primary group: \n\
+            ATTRS{{serial}}==\"{serial_number}\", MODE=\"660\", GROUP=\"<group>\", TAG+=\"uaccess\"\n\
+            Then run: sudo udevadm control --reload && sudo udevadm trigger".to_string()
+    }
 }
