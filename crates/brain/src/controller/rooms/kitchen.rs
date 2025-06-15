@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use futures_concurrency::future::Race;
 use futures_util::FutureExt;
-use jiff::civil::Time;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
 use tracing::warn;
@@ -15,7 +14,6 @@ const INTERVAL: Duration = Duration::from_secs(5);
 #[derive(PartialEq, Eq)]
 enum State {
     Sleep,
-    Morning,
     Daylight,
     Override,
 }
@@ -87,25 +85,15 @@ pub async fn run(
                 system.all_lamps_off().await;
             }
             Res::Event(RelevantEvent::Daylight) => {
-                if is_late_morning() {
-                    state = State::Daylight;
-                    update(&mut system).await;
-                    system.all_lamps_on().await;
-                } else {
-                    state = State::Morning;
-                    update(&mut system).await;
-                    system.all_lamps_but_one_on("kitchen:hallway").await;
-                }
+                state = State::Daylight;
+                update(&mut system).await;
+                system.all_lamps_on().await;
             }
             Res::Event(RelevantEvent::Override) => {
                 state = State::Override;
                 system.all_lamps_ct(2000, 1.0).await;
             }
-            Res::ShouldUpdate
-                if state == State::Daylight
-                    || (state == State::Morning && is_late_morning()) =>
-            {
-                state = State::Daylight;
+            Res::ShouldUpdate if state == State::Daylight => {
                 update(&mut system).await;
                 system.all_lamps_on().await;
                 next_update = Instant::now() + INTERVAL;
@@ -113,10 +101,6 @@ pub async fn run(
             _ => (),
         }
     }
-}
-
-fn is_late_morning() -> bool {
-    crate::time::now().datetime().time() > Time::new(10, 0, 0, 0).unwrap()
 }
 
 async fn update(system: &mut RestrictedSystem) {

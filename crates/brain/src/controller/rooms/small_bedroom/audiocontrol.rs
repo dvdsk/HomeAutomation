@@ -8,7 +8,7 @@ use mpdrs::status::State;
 use mpdrs::Playlist;
 use mpdrs::{error::Error, Song};
 use rand::seq::IndexedRandom;
-use tracing::{debug, info, instrument, trace};
+use tracing::{debug, info, instrument, trace, warn};
 
 use db::Db;
 use mpdinterface::MpdInterface;
@@ -172,7 +172,9 @@ impl AudioController {
     }
 
     pub fn playing(&mut self) -> bool {
-        let playback_state = self.client.status().unwrap().state;
+        let status = self.client.status();
+        info!("Status: {status:?}");
+        let playback_state = status.unwrap().state;
         playback_state == State::Play
     }
 
@@ -240,7 +242,7 @@ impl AudioController {
                     debug!(
                         "Song length: {length:?}, song position: {position:?}"
                     );
-                    let time_left = length - position;
+                    let time_left = length.saturating_sub(position);
                     if Duration::from_secs(Db::now_timestamp() - last_played)
                         > SONG_RESTART_THRESHOLD
                         && time_left > ALMOST_OVER
@@ -257,16 +259,19 @@ impl AudioController {
     pub fn toggle_playback(&mut self) {
         info!("Toggle playback");
         let was_playing = self.playing();
+        info!("Was playing: {was_playing}");
 
         if self.stopped() {
             self.client.play().unwrap();
         } else {
+            info!("Toggling pause");
             self.client.toggle_pause().unwrap();
         }
 
         if was_playing {
             self.store_current_pausing();
         } else {
+            info!("Rewinding after pause");
             self.rewind_after_pause();
         }
     }
@@ -541,12 +546,14 @@ impl AudioController {
         let pos_in_pl = if let Some(song) = self.client.status().unwrap().song {
             song.pos
         } else {
+            warn!("Unknown pos in ppl, resetting");
             0
         };
 
         let elapsed = if let Some(elapsed) = self.get_elapsed() {
             elapsed.as_secs().try_into().unwrap()
         } else {
+            warn!("Unknown elapsed, resetting");
             0
         };
 
@@ -672,13 +679,15 @@ impl AudioController {
                 .chain(normal_songs.choose_multiple(&mut rng, 30))
         };
 
-        self.client.pl_push(
-            pl_name,
-            &Song {
-                file: "noise.ogg".to_string(),
-                ..Default::default()
-            },
-        ).unwrap();
+        self.client
+            .pl_push(
+                pl_name,
+                &Song {
+                    file: "noise.ogg".to_string(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
         for song in to_add {
             self.client.pl_push(pl_name, song).unwrap();
             tokio::time::sleep(Duration::from_millis(10)).await;

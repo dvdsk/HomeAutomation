@@ -45,7 +45,7 @@ pub async fn run(
     let mut next_update = Instant::now() + UPDATE_INTERVAL;
 
     let wakeup_job =
-        Job::every_day_at(9, 30, Event::WakeupSB, Some(WAKEUP_EXPIRATION));
+        Job::every_day_at(8, 45, Event::WakeupSB, Some(WAKEUP_EXPIRATION));
 
     let res = system
         .system
@@ -239,8 +239,9 @@ pub(crate) fn goal_temp_now() -> f64 {
         ((10, 00), 20.0),
         ((11, 00), 20.5),
         ((12, 00), 21.0),
-        ((20, 00), 20.5),
-        ((21, 00), 20.0),
+        ((18, 00), 20.5),
+        ((19, 00), 20.0),
+        ((21, 00), 19.5),
         ((21, 30), 19.0),
         ((22, 00), 18.0),
     ]);
