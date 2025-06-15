@@ -1,0 +1,20 @@
+[Unit]
+Description=Usb bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+DynamicUser=yes
+User=desk-sensors
+Group=desk-sensors
+SupplementaryGroups=i2c
+Environment="RUST_BACKTRACE=1"
+Environment="RUST_LOG=nusb=warn,info"
+ExecStart=/usr/bin/desk-sensors \
+  --bedroom small \
+  --data-server sgc:1234
+ExecStop=/bin/kill -s SIGKILL $MAINPID
+
+[Install]
+WantedBy=multi-user.target

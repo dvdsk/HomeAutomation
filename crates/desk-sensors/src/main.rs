@@ -16,7 +16,8 @@ mod sensors;
 #[command(about = "reads sensors attached to rpi gpio pins and i2c perhipheral")]
 struct Cli {
     /// Where to send the data on the local system
-    #[arg(short, long("data-server"))]
+    #[arg(short, long("data-server"), 
+        default_value = "sgc:1234", value_parser = resolve_socketaddr)]
     data_server: SocketAddr,
     /// Is this the pi in the large bedroom or small bedroom?
     #[arg(short, long)]
@@ -54,4 +55,14 @@ async fn main() {
             tracing::warn!("{e}");
         }
     }
+}
+
+pub fn resolve_socketaddr(arg: &str) -> Result<SocketAddr, std::io::Error> {
+    use std::net::ToSocketAddrs;
+
+    let mut addrs_iter = arg.to_socket_addrs()?;
+    addrs_iter.next().ok_or(std::io::Error::new(
+        std::io::ErrorKind::Other,
+        "Must pass one address",
+    ))
 }
