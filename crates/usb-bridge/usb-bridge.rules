@@ -1,0 +1,2 @@
+ATTRS{serial}=="2139874", MODE="660", GROUP="plugdev", TAG+="uaccess"
+ATTRS{serial}=="87244", MODE="660", GROUP="plugdev", TAG+="uaccess"

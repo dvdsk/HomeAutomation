@@ -1,0 +1,20 @@
+[Unit]
+Description=Usb bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+DynamicUser=yes
+User=usb-bridge
+Group=usb-bridge
+SupplementaryGroups=plugdev
+Environment="RUST_BACKTRACE=1"
+Environment="RUST_LOG=nusb=warn,info"
+ExecStart=/usr/bin/usb-bridge \
+  --data-server sgc:1234 \
+  --serial-number 87244
+ExecStop=/bin/kill -s SIGKILL $MAINPID
+
+[Install]
+WantedBy=multi-user.target
