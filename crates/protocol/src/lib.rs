@@ -64,5 +64,6 @@ impl Display for Unit {
 /// Temperature(5) is the same as Temperature(6)
 pub trait IsSameAs {
     /// Is this the same variant as the other?
+    #[must_use]
     fn is_same_as(&self, other: &Self) -> bool;
 }

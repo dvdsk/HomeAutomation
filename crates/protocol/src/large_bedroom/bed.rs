@@ -92,7 +92,6 @@ pub enum Reading {
 
 #[cfg(feature = "alloc")]
 impl Tree for Reading {
-    #[must_use]
     #[allow(clippy::too_many_lines)]
     #[allow(clippy::cast_precision_loss)]
     fn inner(&self) -> Item<'_> {
@@ -260,7 +259,6 @@ impl Tree for Reading {
         })
     }
 
-    #[must_use]
     fn branch_id(&self) -> Id {
         ReadingDiscriminants::from(self) as Id
     }
@@ -521,7 +519,6 @@ pub enum Affector {
 }
 
 impl crate::IsSameAs for Affector {
-    #[must_use]
     fn is_same_as(&self, other: &Self) -> bool {
         #[allow(clippy::match_like_matches_macro)]
         match (self, other) {

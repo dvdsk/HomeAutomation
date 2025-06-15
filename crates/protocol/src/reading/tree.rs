@@ -8,6 +8,7 @@ pub enum Item<'a> {
 }
 
 pub trait Tree: core::fmt::Debug {
+    #[must_use]
     fn inner(&self) -> Item<'_>;
     fn leaf(&self) -> Info
     where
@@ -28,13 +29,13 @@ pub trait Tree: core::fmt::Debug {
             .map_or("_", |(name, _)| name)
             .to_string()
     }
+    #[must_use]
     fn branch_id(&self) -> Id;
 }
 
 macro_rules! impl_zero {
     ($name:ident; $($var:ident),*) => {
         impl crate::IsSameAs for $name {
-            #[must_use]
             fn is_same_as(&self, other: &Self) -> bool {
                 match (self, other) {
                     $(($name::$var(a), $name::$var(b)) => a.is_same_as(b),)*

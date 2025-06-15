@@ -34,7 +34,6 @@ pub enum Reading {
 
 #[cfg(feature = "alloc")]
 impl Tree for Reading {
-    #[must_use]
     fn inner(&self) -> Item<'_> {
         let leaf = match self {
             Reading::Temperature(val) => Info {
@@ -71,7 +70,6 @@ impl Tree for Reading {
         Item::Leaf(leaf)
     }
 
-    #[must_use]
     fn branch_id(&self) -> crate::reading::tree::Id {
         ReadingDiscriminants::from(self) as crate::reading::tree::Id
     }

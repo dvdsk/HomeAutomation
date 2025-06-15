@@ -40,7 +40,6 @@ impl_is_same_as! {Reading; Temperature, Pressure, FanPower, Button}
 
 #[cfg(feature = "alloc")]
 impl Tree for Reading {
-    #[must_use]
     fn inner(&self) -> Item<'_> {
         let leaf = match self {
             Reading::Temperature(val) => Info {
@@ -91,7 +90,6 @@ impl Tree for Reading {
         Item::Leaf(leaf)
     }
 
-    #[must_use]
     fn branch_id(&self) -> crate::reading::tree::Id {
         ReadingDiscriminants::from(self) as crate::reading::tree::Id
     }
@@ -253,7 +251,6 @@ pub enum Affector {
 }
 
 impl crate::IsSameAs for Affector {
-    #[must_use]
     fn is_same_as(&self, other: &Self) -> bool {
         match (self, other) {
             (Affector::FanPower { .. }, Affector::FanPower { .. }) => true,

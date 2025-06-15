@@ -43,7 +43,6 @@ pub enum Reading {
 
 #[cfg(feature = "alloc")]
 impl Tree for Reading {
-    #[must_use]
     fn inner(&self) -> Item<'_> {
         Item::Leaf(crate::reading::Info {
             val: 1.0,
@@ -64,7 +63,6 @@ impl Tree for Reading {
         dbg_repr
     }
 
-    #[must_use]
     fn branch_id(&self) -> crate::reading::tree::Id {
         ReadingDiscriminants::from(self) as crate::reading::tree::Id
     }

@@ -32,7 +32,6 @@ pub trait Tree: core::fmt::Debug {
 macro_rules! impl_zero {
     ($name:ident; $($var:ident),*) => {
         impl crate::IsSameAs for $name {
-            #[must_use]
             #[allow(unreachable_patterns)]
             fn is_same_as(&self, other: &Self) -> bool {
                 match (self, other) {
