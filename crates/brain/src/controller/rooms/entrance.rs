@@ -99,7 +99,8 @@ pub async fn run(
 
 async fn update(system: &mut RestrictedSystem) {
     let (new_ct, new_bri) = small_bedroom::daylight_now();
-    let new_bri = new_bri.clamp(0.8, 1.0);
+    let new_ct = new_ct.clamp(1000, 3000);
+    let new_bri = new_bri.clamp(0.5, 1.0);
     system.all_lamps_ct(new_ct, new_bri).await;
     tracing::trace!("updated lamps");
 }

@@ -546,14 +546,14 @@ impl AudioController {
         let pos_in_pl = if let Some(song) = self.client.status().unwrap().song {
             song.pos
         } else {
-            warn!("Unknown pos in ppl, resetting");
+            warn!("Unknown pos in pl {playlist_name}, resetting");
             0
         };
 
         let elapsed = if let Some(elapsed) = self.get_elapsed() {
             elapsed.as_secs().try_into().unwrap()
         } else {
-            warn!("Unknown elapsed, resetting");
+            warn!("Unknown elapsed for {playlist_name}, resetting");
             0
         };
 
