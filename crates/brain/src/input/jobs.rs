@@ -4,18 +4,18 @@ use jiff::{Span, ToSpan, Zoned};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, mpsc, Mutex};
 use tokio::{task, time};
-use tracing::{error, info, warn};
+use tracing::{error, info, trace};
 
 use crate::{controller::Event, time::to_next_datetime};
 
 #[derive(thiserror::Error, Debug)]
 pub(crate) enum Error {
     #[error("Could not store/edit job on disk")]
-    DbError(#[from] sled::Error),
+    Db(#[from] sled::Error),
     #[error("Could not inform event timer about new job")]
-    CommError(#[from] mpsc::error::SendError<()>),
+    Comm(#[from] mpsc::error::SendError<()>),
     #[error("Dbstruct error")]
-    DbStructError(#[from] dbstruct::Error<sled::Error>),
+    DbStruct(#[from] dbstruct::Error<sled::Error>),
     // #[error("Dbstruct error")]
     // DbStructDoubleError(#[from] dbstruct::Error<dbstruct::Error<sled::Error>>),
 }
@@ -31,6 +31,7 @@ pub(crate) struct Job {
 }
 
 impl Job {
+    #[allow(unused)]
     pub(crate) fn at_next(
         hour: i8,
         min: i8,
@@ -148,6 +149,8 @@ impl Jobs {
         self.job_change_tx.send(()).await?;
         Ok(removed_job)
     }
+
+    #[allow(unused)]
     pub(crate) async fn get(&self, id: i64) -> Result<Option<Job>, Error> {
         self.list.lock().await.get_job(id)
     }
@@ -185,7 +188,7 @@ impl JobList {
 
     fn peek_next(&mut self) -> Option<(i64, Job)> {
         let list: Vec<_> = self.jobs().iter().filter_map(|r| r.ok()).collect();
-        list.get(0).cloned()
+        list.first().cloned()
     }
 }
 
@@ -224,7 +227,7 @@ async fn event_timer(
                     return;
                 }
                 Err(_) => {
-                    warn!("Sending out event for job {current_job:#?}");
+                    trace!("Sending out event for job {current_job:#?}");
                     // time to send the job event
                     event_tx
                         .send(current_job.event.clone())
@@ -239,7 +242,9 @@ async fn event_timer(
                             .add_job(new_job.clone())
                             .await
                             .unwrap();
-                        warn!("Added repeat job {new_job:#?} with id {new_id}");
+                        trace!(
+                            "Added repeat job {new_job:#?} with id {new_id}"
+                        );
                     }
                     continue; //get next job
                 }

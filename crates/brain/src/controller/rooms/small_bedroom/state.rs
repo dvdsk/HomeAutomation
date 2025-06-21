@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use jiff::civil::Weekday;
 use jiff::Zoned;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
@@ -86,6 +85,8 @@ impl Room {
         self.radiator_override = None;
     }
 
+    #[allow(unused)]
+    //TODO: fix radiator override
     pub(crate) fn start_radiator_override(&mut self) {
         // Don't set if the radiator resends the manual state
         if self.radiator_override.is_none() {
@@ -95,18 +96,18 @@ impl Room {
         }
     }
 
-    pub(super) async fn to_sleep_immediate(&mut self) {
+    pub(super) async fn set_sleep_immediate(&mut self) {
         self.system.all_lamps_off().await;
-        self.to_state_cancel_prev(State::Sleep).await;
+        self.set_state_cancel_prev(State::Sleep).await;
     }
 
-    pub(super) async fn to_sleep_no_wakeup(&mut self) {
+    pub(super) async fn set_sleep_no_wakeup(&mut self) {
         self.system.all_lamps_off().await;
-        self.to_state_cancel_prev(State::SleepNoWakeup).await;
+        self.set_state_cancel_prev(State::SleepNoWakeup).await;
     }
 
-    pub(super) async fn to_sleep_delayed(&mut self) {
-        self.to_state_cancel_prev(State::DelayedOff).await;
+    pub(super) async fn set_sleep_delayed(&mut self) {
+        self.set_state_cancel_prev(State::DelayedOff).await;
 
         self.system.one_lamp_off("small_bedroom:bureau").await;
         self.system.one_lamp_off("small_bedroom:piano").await;
@@ -115,45 +116,45 @@ impl Room {
         *self.task_handle.lock().await = Some(task_handle);
     }
 
-    pub(super) async fn to_wakeup(&mut self) {
+    pub(super) async fn set_wakeup(&mut self) {
         if *self.state.read().await == State::SleepNoWakeup {
             warn!("Ignoring wakeup because of override");
             return;
         }
         warn!("Starting wakeup");
-        self.to_state_cancel_prev(State::Wakeup).await;
+        self.set_state_cancel_prev(State::Wakeup).await;
 
         let task_handle = task::spawn(self.clone().run_wakeup_then_daylight());
         *self.task_handle.lock().await = Some(task_handle);
     }
 
-    pub(super) async fn to_daylight(&mut self) {
-        self.to_state_cancel_prev(State::Daylight).await;
+    pub(super) async fn set_daylight(&mut self) {
+        self.set_state_cancel_prev(State::Daylight).await;
         self.all_lights_daylight().await;
         self.system.all_lamps_on().await;
     }
 
-    pub(super) async fn to_nightlight(&mut self) {
-        self.to_state_cancel_prev(State::Nightlight).await;
+    pub(super) async fn set_nightlight(&mut self) {
+        self.set_state_cancel_prev(State::Nightlight).await;
         self.system
             .one_lamp_ct("small_bedroom:ceiling", 1800, 0.1)
             .await;
         self.system.one_lamp_on("small_bedroom:ceiling").await;
     }
 
-    pub(super) async fn to_override(&mut self) {
-        self.to_state_cancel_prev(State::Override).await;
+    pub(super) async fn set_override(&mut self) {
+        self.set_state_cancel_prev(State::Override).await;
         self.system.all_lamps_ct(2000, 1.0).await;
         self.system.all_lamps_on().await;
     }
 
-    async fn to_state_cancel_prev(&mut self, state: State) {
+    async fn set_state_cancel_prev(&mut self, state: State) {
         self.cancel_task().await;
         *self.state.write().await = state.clone();
         let _ = self.event_tx.send(Event::StateChangeSB(state));
     }
 
-    async fn to_state(&mut self, state: State) {
+    async fn set_state(&mut self, state: State) {
         *self.state.write().await = state.clone();
         let _ = self.event_tx.send(Event::StateChangeSB(state));
     }
@@ -167,11 +168,11 @@ impl Room {
     async fn delayed_off_then_sleep(mut self) {
         sleep(OFF_DELAY).await;
         self.system.all_lamps_off().await;
-        self.to_state(State::Sleep).await;
+        self.set_state(State::Sleep).await;
 
         if is_nap_time() {
             sleep(NAP_TIME).await;
-            self.to_state(State::Daylight).await;
+            self.set_state(State::Daylight).await;
             self.all_lights_daylight().await;
             self.system.all_lamps_on().await;
         }
@@ -219,7 +220,7 @@ impl Room {
             }
         }
 
-        self.to_state(State::Daylight).await;
+        self.set_state(State::Daylight).await;
         self.all_lights_daylight().await;
         self.system.all_lamps_on().await;
         warn!("Wakeup done");

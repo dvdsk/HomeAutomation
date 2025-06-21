@@ -65,6 +65,7 @@ impl RestrictedSystem {
         }
     }
 
+    #[allow(unused)]
     async fn all_lamps_but_one_off(&mut self, leave_this_on: &str) {
         for name in &self.allowed_lights {
             if *name != leave_this_on {
@@ -73,6 +74,7 @@ impl RestrictedSystem {
         }
     }
 
+    #[allow(unused)]
     async fn all_lamps_but_one_on(&mut self, leave_this_off: &str) {
         for name in &self.allowed_lights {
             if *name != leave_this_off {

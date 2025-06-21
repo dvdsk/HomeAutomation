@@ -75,9 +75,9 @@ impl Model {
 
     pub(super) fn color_deviation(&self, color_temp: usize) -> f64 {
         let temp = color_temp.saturating_add_signed(
-            color_correction::temp_correction(&self, color_temp),
+            color_correction::temp_correction(self, color_temp),
         );
-        color_correction::blackbody_deviation(&self, temp)
+        color_correction::blackbody_deviation(self, temp)
     }
 
     pub(crate) fn is_hue(&self) -> bool {

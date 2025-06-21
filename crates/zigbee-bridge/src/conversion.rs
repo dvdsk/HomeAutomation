@@ -1,8 +1,5 @@
 use colorimetry::{cct::CCT, xyz::XYZ};
 
-// Deviation from black body, must be between -0.05 and 0.05
-const DUV_IKEA: f64 = -0.002;
-
 #[must_use]
 pub(super) fn mired_to_kelvin(mired: usize) -> usize {
     1_000_000 / mired

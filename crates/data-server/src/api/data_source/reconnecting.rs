@@ -55,7 +55,7 @@ async fn handle_conn(
     affectors: Vec<protocol::Affector>,
     msgs_to_send: mpsc::Receiver<SendItem>,
     msgs_recieved: Option<mpsc::Sender<Affector>>,
-) -> () {
+) {
     let mut to_send = SendQueue {
         rx: msgs_to_send,
         need_retry: VecDeque::new(),
