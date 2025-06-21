@@ -10,11 +10,12 @@ use jiff::{ToSpan, Zoned};
 use protocol::small_bedroom::{portable_button_panel, ButtonPanel};
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
-use tracing::{debug, error, info, trace};
+use tracing::{info, trace};
 
-use self::filter::{recv_filtered, RelevantEvent, Trigger};
+use self::filter::{RelevantEvent, Trigger};
 use self::state::Room;
 pub(crate) use self::state::State;
+use crate::controller::rooms::common::RecvFiltered;
 use crate::controller::{Event, RestrictedSystem};
 use crate::input::jobs::Job;
 use crate::time;
@@ -58,7 +59,9 @@ pub async fn run(
     trace!("Jobs returned: {res:#?}");
 
     loop {
-        let get_event = recv_filtered(&mut event_rx);
+        let get_event = event_rx
+            .recv_filter_mapped(filter::filter)
+            .map(Trigger::Event);
         let tick = sleep_until(next_update).map(|_| Trigger::ShouldUpdate);
 
         let trigger = (get_event, tick).race().await;

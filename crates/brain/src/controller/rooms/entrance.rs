@@ -5,6 +5,7 @@ use futures_concurrency::future::Race;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
 
+use crate::controller::rooms::common::RecvFiltered;
 use crate::controller::rooms::small_bedroom;
 use crate::controller::{Event, RestrictedSystem};
 
@@ -14,28 +15,6 @@ const INTERVAL: Duration = Duration::from_secs(5);
 enum State {
     Sleep,
     Daylight,
-}
-
-// TODO: deduplicate filter code with kitchen
-trait RecvFiltered {
-    async fn recv_filter_mapped<T>(
-        &mut self,
-        filter_map: impl Fn(Event) -> Option<T>,
-    ) -> T;
-}
-
-impl RecvFiltered for broadcast::Receiver<Event> {
-    async fn recv_filter_mapped<T>(
-        &mut self,
-        filter_map: impl Fn(Event) -> Option<T>,
-    ) -> T {
-        loop {
-            let event = self.recv().await.unwrap();
-            if let Some(relevant) = filter_map(event) {
-                return relevant;
-            }
-        }
-    }
 }
 
 #[derive(Debug)]

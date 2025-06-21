@@ -23,24 +23,7 @@ pub(super) enum RelevantEvent {
     Pm2_5(f32),
 }
 
-pub(super) async fn recv_filtered(event_rx: &mut Receiver<Event>) -> Trigger {
-    loop {
-        let event = match event_rx.recv().await {
-            Ok(event) => event,
-            Err(RecvError::Lagged(n)) => {
-                warn!("SB missed {n} events");
-                continue;
-            }
-            Err(err) => panic!("{err}"),
-        };
-        if let Some(relevant) = event_filter(event) {
-            trace!("SB received relevant event: {relevant:?}");
-            return Trigger::Event(relevant);
-        }
-    }
-}
-
-fn event_filter(event: Event) -> Option<RelevantEvent> {
+pub(super) fn filter(event: Event) -> Option<RelevantEvent> {
     match event {
         Event::Sensor(Reading::SmallBedroom(
             small_bedroom::Reading::ButtonPanel(button),
