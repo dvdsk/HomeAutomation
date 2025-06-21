@@ -65,7 +65,7 @@ pub(crate) fn portable_button_panel(
                 action_reading_mapping
                     .iter()
                     .find(|(a, _)| action == *a)
-                    .map(|(_, reading)| reading.clone())
+                    .map(|(_, reading)| *reading)
                     .map(small_bedroom::Reading::PortableButtonPanel)
                     .map(protocol::Reading::SmallBedroom)
                     .ok_or_eyre(
@@ -295,10 +295,10 @@ fn json_to_f64(json: &Value) -> Result<f64> {
 }
 
 fn json_to_str(json: &Value) -> Result<&str> {
-    Ok(json
+    json
         .as_str()
         .ok_or_eyre("Must be a string")
-        .with_note(|| format!("got: {json:?}"))?)
+        .with_note(|| format!("got: {json:?}"))
 }
 
 fn json_to_f32(json: &Value) -> Result<f32> {

@@ -252,11 +252,11 @@ pub enum Affector {
 
 impl crate::IsSameAs for Affector {
     fn is_same_as(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Affector::FanPower { .. }, Affector::FanPower { .. }) => true,
-            (Affector::ResetNode, Affector::ResetNode) => true,
-            _ => false,
-        }
+        matches!(
+            (self, other),
+            (Affector::FanPower { .. }, Affector::FanPower { .. })
+                | (Affector::ResetNode, Affector::ResetNode)
+        )
     }
 }
 

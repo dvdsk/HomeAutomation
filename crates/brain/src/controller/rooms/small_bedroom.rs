@@ -28,7 +28,6 @@ const UPDATE_INTERVAL: Duration = Duration::from_secs(5);
 const OFF_DELAY: Duration = Duration::from_secs(60);
 const WAKEUP_EXPIRATION: Duration = Duration::from_secs(1800);
 const NAP_TIME: Duration = Duration::from_secs(30 * 60);
-const RADIATOR_OVERRIDE_MINUTES: i32 = 60;
 
 const fn time(hour: i8, minute: i8) -> f64 {
     hour as f64 + minute as f64 / 60.
@@ -76,7 +75,7 @@ pub async fn run(
                 // trace!("Starting radiator override");
                 // room.start_radiator_override();
             }
-            Trigger::Event(RelevantEvent::Wakeup) => room.to_wakeup().await,
+            Trigger::Event(RelevantEvent::Wakeup) => room.set_wakeup().await,
             Trigger::Event(RelevantEvent::Pm2_5(val)) => {
                 room.pm2_5 = Some((val, crate::time::now()))
             }
@@ -205,9 +204,9 @@ async fn handle_light_button(room: &mut Room, event: RelevantEvent) {
     // Dots2 long: to sleep, wakeup off -> lights off
     match event {
         // Light buttons
-        E::Button(B::BottomLeft(_)) => room.to_sleep_delayed().await,
+        E::Button(B::BottomLeft(_)) => room.set_sleep_delayed().await,
         E::PortableButton(P::Dots1ShortRelease) => {
-            room.to_sleep_immediate().await
+            room.set_sleep_immediate().await
         }
         E::Button(B::BottomMiddle(_))
         | E::PortableButton(P::Dots2ShortRelease) => {
@@ -215,15 +214,15 @@ async fn handle_light_button(room: &mut Room, event: RelevantEvent) {
             let now = time::now();
             match time(now.hour(), now.minute()) {
                 // rust analyzer seems to think this illegal, its not
-                T23_00.. | T0_00..T9_00 => room.to_nightlight().await,
-                _ => room.to_daylight().await,
+                T23_00.. | T0_00..T9_00 => room.set_nightlight().await,
+                _ => room.set_daylight().await,
             }
         }
-        E::Button(B::BottomRight(_)) => room.to_override().await,
+        E::Button(B::BottomRight(_)) => room.set_override().await,
         E::PortableButton(P::Dots2LongRelease) => {
-            room.to_sleep_no_wakeup().await
+            room.set_sleep_no_wakeup().await
         }
-        E::PortableButton(P::Dots1LongRelease) => room.to_nightlight().await,
+        E::PortableButton(P::Dots1LongRelease) => room.set_nightlight().await,
         _ => (),
     }
 }
@@ -237,8 +236,8 @@ pub(super) fn is_nap_time() -> bool {
 
 pub(crate) fn goal_temp_now() -> f64 {
     let goals = BTreeMap::from([
-        ((00, 00), 18.0),
-        ((08, 30), 19.0),
+        ((0, 00), 18.0),
+        ((8, 30), 19.0),
         ((10, 00), 20.0),
         ((11, 00), 20.5),
         ((12, 00), 21.0),
@@ -268,6 +267,8 @@ fn air_filtration_now(pm2_5_measurement: &Option<(f32, Zoned)>) -> Option<u16> {
     if is_expired {
         Some(default)
     } else {
+        // TODO: use pm 2.5 value again
+        #[allow(clippy::match_single_binding)]
         match pm2_5 {
             // 0.0..2.0 => Some(0),
             // // Don't change anything
@@ -280,9 +281,9 @@ fn air_filtration_now(pm2_5_measurement: &Option<(f32, Zoned)>) -> Option<u16> {
 // TODO: move to jobs system and remove update trigger
 pub(super) fn daylight_now() -> (usize, f64) {
     let goals = BTreeMap::from([
-        ((00, 00), (1800, 0.5)),
-        ((08, 00), (2000, 0.5)),
-        ((09, 00), (3800, 1.0)),
+        ((0, 00), (1800, 0.5)),
+        ((8, 00), (2000, 0.5)),
+        ((9, 00), (3800, 1.0)),
         ((19, 00), (3600, 1.0)),
         ((19, 30), (3300, 1.0)),
         ((19, 45), (3000, 1.0)),

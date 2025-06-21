@@ -14,7 +14,6 @@ use db::Db;
 use mpdinterface::MpdInterface;
 
 mod db;
-mod db2;
 mod mpdinterface;
 
 #[derive(Debug)]
@@ -166,6 +165,7 @@ impl AudioController {
         Ok(())
     }
 
+    #[allow(unused)]
     pub fn rescan(&mut self) {
         info!("Rescanning mpd library");
         self.client.rescan().unwrap();
@@ -694,6 +694,7 @@ impl AudioController {
         }
     }
 
+    #[allow(unused)]
     pub(crate) fn insert_next(&mut self, song_path: &str) {
         if let Ok(id) = self.client.push(song_path) {
             let _ = self.client.prioid(id, 128);

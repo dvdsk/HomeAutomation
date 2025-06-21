@@ -1,5 +1,4 @@
-use tokio::sync::broadcast::{error::RecvError, Receiver};
-use tracing::{trace, warn};
+use tracing::trace;
 
 use crate::controller::Event;
 use protocol::{

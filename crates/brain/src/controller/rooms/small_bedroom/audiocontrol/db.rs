@@ -144,8 +144,8 @@ mod tests {
         let playlist = "test_playlist_name";
         let last_played = Db::now_timestamp();
 
-        db.store_last_played(&playlist, last_played);
-        let fetched = db.fetch_last_played(&playlist).unwrap();
+        db.store_last_played(playlist, last_played);
+        let fetched = db.fetch_last_played(playlist).unwrap();
         assert_eq!(fetched, last_played);
     }
 }
