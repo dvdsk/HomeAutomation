@@ -44,18 +44,12 @@ pub async fn run(
     let mut room = Room::new(event_tx, system.clone());
     let mut next_update = Instant::now() + UPDATE_INTERVAL;
 
-    let wakeup_job =
-        Job::every_day_at(8, 45, Event::WakeupSB, Some(WAKEUP_EXPIRATION));
-
     let res = system
         .system
         .jobs
         .remove_all_with_event(Event::WakeupSB)
         .await;
     trace!("Removing old SB wakeup jobs returned: {res:#?}");
-    let res = system.system.jobs.add(wakeup_job.clone()).await;
-    trace!("Tried to add job for SB wakeup: {wakeup_job:#?}");
-    trace!("Jobs returned: {res:#?}");
 
     loop {
         let get_event = event_rx
@@ -210,12 +204,11 @@ async fn handle_light_button(room: &mut Room, event: RelevantEvent) {
         }
         E::Button(B::BottomMiddle(_))
         | E::PortableButton(P::Dots2ShortRelease) => {
-            use crate::time;
-            let now = time::now();
+            let now = crate::time::now();
             match time(now.hour(), now.minute()) {
                 // rust analyzer seems to think this illegal, its not
                 T23_00.. | T0_00..T9_00 => room.set_nightlight().await,
-                _ => room.set_daylight().await,
+                _ => room.set_daylight_or_wakeup().await,
             }
         }
         E::Button(B::BottomRight(_)) => room.set_override().await,

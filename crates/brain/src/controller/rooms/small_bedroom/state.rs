@@ -60,7 +60,6 @@ impl Room {
         }
     }
 
-
     pub(super) async fn update_radiator(&mut self) {
         trace!("Updating radiator");
         // trace!(
@@ -128,10 +127,16 @@ impl Room {
         *self.task_handle.lock().await = Some(task_handle);
     }
 
-    pub(super) async fn set_daylight(&mut self) {
-        self.set_state_cancel_prev(State::Daylight).await;
-        self.all_lights_daylight().await;
-        self.system.all_lamps_on().await;
+    pub(super) async fn set_daylight_or_wakeup(&mut self) {
+        if *self.state.read().await == State::Sleep
+            || *self.state.read().await == State::SleepNoWakeup
+        {
+            self.set_wakeup().await;
+        } else {
+            self.set_state_cancel_prev(State::Daylight).await;
+            self.all_lights_daylight().await;
+            self.system.all_lamps_on().await;
+        }
     }
 
     pub(super) async fn set_nightlight(&mut self) {
@@ -180,8 +185,8 @@ impl Room {
 
     async fn run_wakeup_then_daylight(mut self) {
         const LIGHT_NAME: &str = "small_bedroom:ceiling";
-        const RUNTIME_MINS: i32 = 20;
-        const MUSIC_ON_AFTER_MINS: i32 = 13;
+        const RUNTIME_MINS: i32 = 5;
+        const MUSIC_ON_AFTER_MINS: i32 = 5;
 
         const STEP_SIZE_SECS: i32 = 30;
         const N_STEPS: i32 = RUNTIME_MINS * 60 / STEP_SIZE_SECS;
