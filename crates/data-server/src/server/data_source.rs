@@ -8,10 +8,9 @@ use futures_concurrency::future::Race;
 use governor::clock::Clock;
 use governor::{Quota, RateLimiter};
 use protocol::Affector;
-use socket2::TcpKeepalive;
+use socket2::{Socket, TcpKeepalive};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::tcp::OwnedReadHalf;
-use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::Sender;
 
@@ -28,17 +27,40 @@ pub async fn handle_nodes(
     share: &Sender<Event>,
     registar: Registar,
 ) -> Result<()> {
-    let listener = TcpListener::bind(addr)
-        .await
+    let socket =
+        Socket::new(socket2::Domain::IPV4, socket2::Type::STREAM, None)?;
+    socket
+        .set_tcp_nodelay(true)
+        .expect("should be able to disable nagle algorithm");
+    socket
+        .set_tcp_mss(2048)
+        .expect("should be able to set max segment size for outgoing packets");
+    socket
+        .bind(&addr.into())
+        .wrap_err("Could not bind to addr for new subscribers")
+        .with_note(|| format!("trying to listen on: {addr}"))?;
+    socket
+        .listen(128)
         .wrap_err("Could not start listening for new subscribers")
         .with_note(|| format!("trying to listen on: {addr}"))?;
+    let listener: std::net::TcpListener = socket.into();
+    listener
+        .set_nonblocking(true)
+        .expect("Should be able to set nonblocking mode");
+    let listener = tokio::net::TcpListener::from_std(listener)
+        .expect("Conversion from std to tokio listener should always succeed");
 
     loop {
         let res = listener.accept().await;
         match res {
             Ok((stream, source)) => {
                 info!("new data source connected from: {source}");
-                tokio::spawn(handle_node(stream, source, share.clone(), registar.clone()));
+                tokio::spawn(handle_node(
+                    stream,
+                    source,
+                    share.clone(),
+                    registar.clone(),
+                ));
             }
             Err(e) => {
                 warn!("new connection failed: {e}");
@@ -109,23 +131,32 @@ async fn handle_node(
     warn!("node removed (lost connection)");
 }
 
-async fn handshake(reader: &mut BufReader<OwnedReadHalf>) -> Result<Vec<Affector>, String> {
+async fn handshake(
+    reader: &mut BufReader<OwnedReadHalf>,
+) -> Result<Vec<Affector>, String> {
     let mut buf = Vec::new();
     let msg = match read_and_decode_packet(reader, &mut buf).await {
         Ok(decoded) => decoded,
         Err(e) => {
-            return Err(format!("Error while reading and decoding packet: {e}"));
+            return Err(format!(
+                "Error while reading and decoding packet: {e}"
+            ));
         }
     };
     let protocol::Msg::AffectorList(list) = msg else {
-        return Err("Must get affector list as first message (handshake)".to_owned());
+        return Err(
+            "Must get affector list as first message (handshake)".to_owned()
+        );
     };
 
     Ok(list.values.to_vec())
 }
 
 #[instrument(skip_all)]
-async fn receive_and_spread_updates(mut reader: BufReader<OwnedReadHalf>, queue: Sender<Event>) {
+async fn receive_and_spread_updates(
+    mut reader: BufReader<OwnedReadHalf>,
+    queue: Sender<Event>,
+) {
     let quota = Quota::per_second(NonZeroU32::new(40).unwrap())
         .allow_burst(NonZeroU32::new(200u32).unwrap());
     let limiter = RateLimiter::direct(quota);

@@ -28,7 +28,7 @@ serde.workspace = true
 futures-concurrency = { workspace = true }
 slotmap = "1.0.7"
 tracing-futures = "0.2.5"
-socket2 = "0.5.7"
+socket2 = { version = "0.6.0", features = ["all"] }
 governor.workspace = true
 
 [dev-dependencies]
