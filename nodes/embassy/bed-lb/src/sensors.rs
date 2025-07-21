@@ -1,7 +1,7 @@
 use defmt::info;
 use embassy_executor::task;
 use embassy_futures::join;
-use embassy_stm32::i2c::I2c;
+use embassy_stm32::i2c::{I2c, Master};
 use embassy_stm32::mode::{Async, Blocking};
 use embassy_stm32::usart::Uart;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
@@ -27,9 +27,9 @@ fn local_dev(dev: protocol::large_bedroom::bed::Device) -> protocol::Device {
 pub async fn init_then_measure(
     orderers: &'static slow::DriverOrderers,
     rgb_led: rgb_led::LedHandle,
-    i2c_1: Mutex<NoopRawMutex, I2c<'static, Async>>,
-    i2c_2: Mutex<NoopRawMutex, I2c<'static, Blocking>>,
-    i2c_3: Mutex<NoopRawMutex, I2c<'static, Async>>,
+    i2c_1: Mutex<NoopRawMutex, I2c<'static, Async, Master>>,
+    i2c_2: Mutex<NoopRawMutex, I2c<'static, Blocking, Master>>,
+    i2c_3: Mutex<NoopRawMutex, I2c<'static, Async, Master>>,
     usart_mhz: Uart<'static, Async>,
     usart_sps: Uart<'static, Async>,
     buttons: ButtonInputs,

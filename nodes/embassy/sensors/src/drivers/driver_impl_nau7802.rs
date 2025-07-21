@@ -1,5 +1,6 @@
 use embassy_embedded_hal::shared_bus;
 use embassy_stm32::i2c::I2c;
+use embassy_stm32::i2c::Master;
 use embassy_stm32::mode::{Async, Blocking};
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::mutex::Mutex;
@@ -12,7 +13,7 @@ use crate::ReInitableDriver;
 use super::{ConcreteBlockingI2c, ConcreteSharedI2c, I2cWrapper};
 
 impl<'a> ReInitableDriver for Nau7802<ConcreteSharedI2c<'a>, Delay> {
-    type Parts = &'a Mutex<NoopRawMutex, I2c<'static, Async>>;
+    type Parts = &'a Mutex<NoopRawMutex, I2c<'static, Async, Master>>;
     type Measurement = u32;
 
     async fn init(parts: Self::Parts) -> Result<Self, SensorError> {
@@ -31,7 +32,7 @@ impl<'a> ReInitableDriver for Nau7802<ConcreteSharedI2c<'a>, Delay> {
 }
 
 impl<'a> ReInitableDriver for Nau7802<ConcreteBlockingI2c<'a>, Delay> {
-    type Parts = &'a I2cWrapper<embassy_stm32::i2c::I2c<'static, Blocking>>;
+    type Parts = &'a I2cWrapper<embassy_stm32::i2c::I2c<'static, Blocking, Master>>;
     type Measurement = u32;
 
     async fn init(parts: Self::Parts) -> Result<Self, SensorError> {

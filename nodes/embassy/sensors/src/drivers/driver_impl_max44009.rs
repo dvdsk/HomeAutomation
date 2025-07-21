@@ -1,6 +1,7 @@
 use embassy_embedded_hal::shared_bus;
 use embassy_stm32::i2c::I2c;
 use embassy_stm32::mode::Async;
+use embassy_stm32::i2c::Master;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::mutex::Mutex;
 use max44009::{Max44009, SlaveAddr};
@@ -11,7 +12,7 @@ use crate::ReInitableDriver;
 use super::ConcreteSharedI2c;
 
 impl<'a> ReInitableDriver for Max44009<ConcreteSharedI2c<'a>> {
-    type Parts = &'a Mutex<NoopRawMutex, I2c<'static, Async>>;
+    type Parts = &'a Mutex<NoopRawMutex, I2c<'static, Async, Master>>;
     type Measurement = f32;
 
     async fn init(parts: Self::Parts) -> Result<Self, SensorError> {

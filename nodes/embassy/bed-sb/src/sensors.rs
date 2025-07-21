@@ -24,8 +24,8 @@ fn local_dev(dev: protocol::small_bedroom::bed::Device) -> protocol::Device {
 pub async fn init_then_measure(
     publish: &Queues,
     orderers: &slow::DriverOrderers,
-    i2c_1: Mutex<NoopRawMutex, I2c<'static, Async>>,
-    i2c_3: Mutex<NoopRawMutex, I2c<'static, Async>>,
+    i2c_1: Mutex<NoopRawMutex, I2c<'static, Async, Master>>,
+    i2c_3: Mutex<NoopRawMutex, I2c<'static, Async, Master>>,
     usart_mhz: Uart<'static, Async>,
     usart_sps: Uart<'static, Async>,
     buttons: ButtonInputs,

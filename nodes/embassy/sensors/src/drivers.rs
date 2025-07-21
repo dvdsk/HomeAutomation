@@ -13,14 +13,15 @@ use reinit_on_error::ReInitOnErrorDriver;
 
 use embassy_embedded_hal::shared_bus;
 use embassy_stm32::i2c::I2c;
+use embassy_stm32::i2c::Master;
 use embassy_stm32::mode::{Async, Blocking};
 use embassy_stm32::usart::{RingBufferedUartRx, UartTx};
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use shared_bus::asynch::i2c::I2cDevice;
 
 pub type ConcreteSharedI2c<'a> =
-    I2cDevice<'a, NoopRawMutex, I2c<'static, Async>>;
-pub type ConcreteBlockingI2c<'a> = &'a I2cWrapper<I2c<'static, Blocking>>;
+    I2cDevice<'a, NoopRawMutex, I2c<'static, Async, Master>>;
+pub type ConcreteBlockingI2c<'a> = &'a I2cWrapper<I2c<'static, Blocking, Master>>;
 pub type ConcreteTx<'a> = UartTx<'a, Async>;
 pub type ConcreteRx<'a> = RingBufferedUartRx<'a>;
 

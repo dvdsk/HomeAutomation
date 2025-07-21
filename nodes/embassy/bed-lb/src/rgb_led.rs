@@ -2,10 +2,10 @@ use embassy_executor::task;
 use embassy_stm32::gpio::OutputType;
 use embassy_stm32::peripherals::{PB13, PB14, PB15, TIM1};
 use embassy_stm32::time::khz;
-use embassy_stm32::timer;
 use embassy_stm32::timer::complementary_pwm::{
     ComplementaryPwm, ComplementaryPwmPin,
 };
+use embassy_stm32::{timer, Peri};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
 
@@ -17,12 +17,17 @@ struct RgbLed {
 }
 
 impl RgbLed {
-    fn new(timer: TIM1, b: PB15, r: PB14, g: PB13) -> Self {
+    fn new(
+        timer: Peri<'static, TIM1>,
+        b: Peri<'static, PB15>,
+        r: Peri<'static, PB14>,
+        g: Peri<'static, PB13>,
+    ) -> Self {
         use embassy_stm32::timer::Channel;
 
-        let b = ComplementaryPwmPin::new_ch3(b, OutputType::PushPull);
-        let r = ComplementaryPwmPin::new_ch2(r, OutputType::PushPull);
-        let g = ComplementaryPwmPin::new_ch1(g, OutputType::PushPull);
+        let b = ComplementaryPwmPin::new(b, OutputType::PushPull);
+        let r = ComplementaryPwmPin::new(r, OutputType::PushPull);
+        let g = ComplementaryPwmPin::new(g, OutputType::PushPull);
 
         let mut pwm = ComplementaryPwm::new(
             timer,
@@ -127,10 +132,10 @@ fn lookup_bri(lux: f32) -> f32 {
 
 #[task]
 pub(crate) async fn control_leds(
-    timer: TIM1,
-    r: PB14,
-    g: PB13,
-    b: PB15,
+    timer: Peri<'static, TIM1>,
+    r: Peri<'static, PB14>,
+    g: Peri<'static, PB13>,
+    b: Peri<'static, PB15>,
     led_comms: &'static Channel<ThreadModeRawMutex, Event, 5>,
 ) {
     let mut led = RgbLed::new(timer, b, r, g);

@@ -6,7 +6,7 @@ use embassy_stm32::adc::{Adc, Temperature, VrefInt};
 /// #Warning
 /// Should only be called before async tasks are spawned. This takes a lot of
 /// time to run and will disturb any async task running.
-pub async fn generate_seed_blocking(adc: ADC1) -> u64 {
+pub async fn generate_seed_blocking(adc: embassy_stm32::Peri<'_, ADC1>) -> u64 {
     let mut adc = Adc::new(adc);
 
     let mut vrefint = adc.enable_vrefint();
