@@ -211,8 +211,8 @@ async fn handle_light_button(room: &mut Room, event: RelevantEvent) {
                 _ => room.toggle_sleep_daylight().await,
             }
         }
-        E::Button(B::BottomMiddle(_))
-        | E::PortableButton(P::Dots2ShortRelease) => {
+        E::Button(B::BottomMiddle(_)) => room.set_daylight().await,
+        E::PortableButton(P::Dots2ShortRelease) => {
             room.set_wakeup().await;
         }
         E::Button(B::BottomRight(_)) => room.set_override().await,

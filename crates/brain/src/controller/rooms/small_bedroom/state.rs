@@ -96,7 +96,7 @@ impl Room {
     }
 
     pub(super) async fn toggle_sleep_daylight(&mut self) {
-        let state = self.state.read().await.clone();
+        let state = { self.state.read().await.clone() };
         match state {
             State::Sleep | State::SleepNoWakeup => {
                 self.set_daylight().await;
@@ -112,7 +112,7 @@ impl Room {
     }
 
     pub(super) async fn toggle_sleep_nightlight(&mut self) {
-        let state = self.state.read().await.clone();
+        let state = { self.state.read().await.clone() };
         match state {
             State::Sleep | State::SleepNoWakeup => {
                 self.set_nightlight().await;

@@ -72,6 +72,7 @@ pub async fn run(
             Res::Event(RelevantEvent::Override) => {
                 state = State::Override;
                 system.all_lamps_ct(2000, 1.0).await;
+                system.all_lamps_on().await;
             }
             Res::ShouldUpdate if state == State::Daylight => {
                 update(&mut system).await;
