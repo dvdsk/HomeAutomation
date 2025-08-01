@@ -183,6 +183,8 @@ async fn handle_audio_button(room: &mut Room, button_event: RelevantEvent) {
         (_, E::PortableButton(P::PlayPause)) => {
             audio.toggle_playback();
         }
+        (_, E::PortableButton(P::VolumeUp)) => audio.increase_volume(),
+        (_, E::PortableButton(P::VolumeDown)) => audio.decrease_volume(),
 
         (_, b) => info!("Unrecognised button pressed: {b:?}"),
     }

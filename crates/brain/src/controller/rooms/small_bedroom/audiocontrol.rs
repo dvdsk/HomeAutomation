@@ -293,6 +293,15 @@ impl AudioController {
         self.client.status().unwrap().elapsed
     }
 
+    fn get_volume(&mut self) -> Option<i8> {
+        let volume = self.client.status().unwrap().volume;
+        if volume == -1 {
+            None
+        } else {
+            Some(volume)
+        }
+    }
+
     /// # Panics
     ///
     /// Panics if new position is over 4,294,967,295 seconds into the song,
@@ -385,6 +394,20 @@ impl AudioController {
             self.client.random(random).unwrap();
         }
         self.client.pause().unwrap();
+    }
+
+    pub fn increase_volume(&mut self) {
+        if let Some(volume) = self.get_volume() {
+            let new_volume = volume.saturating_add(5).clamp(0, 100);
+            self.client.volume(new_volume).unwrap();
+        }
+    }
+
+    pub fn decrease_volume(&mut self) {
+        if let Some(volume) = self.get_volume() {
+            let new_volume = volume.saturating_sub(5).clamp(0, 100);
+            self.client.volume(new_volume).unwrap();
+        }
     }
 
     #[instrument]
