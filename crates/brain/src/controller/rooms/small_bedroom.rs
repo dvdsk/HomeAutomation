@@ -17,7 +17,6 @@ use self::state::Room;
 pub(crate) use self::state::State;
 use crate::controller::rooms::common::RecvFiltered;
 use crate::controller::{Event, RestrictedSystem};
-use crate::input::jobs::Job;
 use crate::time;
 
 mod audiocontrol;
@@ -33,8 +32,8 @@ const fn time(hour: i8, minute: i8) -> f64 {
     hour as f64 + minute as f64 / 60.
 }
 const T0_00: f64 = time(0, 0);
-const T9_00: f64 = time(9, 0);
-const T23_00: f64 = time(23, 0);
+const T10_00: f64 = time(10, 0);
+const T21_00: f64 = time(21, 0);
 
 pub async fn run(
     mut event_rx: broadcast::Receiver<Event>,
@@ -103,13 +102,12 @@ async fn handle_button(room: &mut Room, event: RelevantEvent) {
             | P::VolumeUp
             | P::VolumeUpHold
             | P::VolumeDown
-            | P::VolumeDownHold => {
+            | P::VolumeDownHold
+            | P::Dots1LongRelease
+            | P::Dots2LongRelease => {
                 handle_audio_button(room, event).await;
             }
-            P::Dots1ShortRelease
-            | P::Dots1LongRelease
-            | P::Dots2ShortRelease
-            | P::Dots2LongRelease => {
+            P::Dots1ShortRelease | P::Dots2ShortRelease => {
                 handle_light_button(room, event).await;
             }
             b => info!("Pressed unimplemented button: {b:?}"),
@@ -139,6 +137,7 @@ async fn handle_audio_button(room: &mut Room, button_event: RelevantEvent) {
         (A::Podcast, E::Button(B::TopLeft(press))) if !press.is_long() => {
             audio.rewind()
         }
+        (A::Podcast, E::PortableButton(P::TrackPrevious)) => audio.rewind(),
 
         // Music, Singing, Meditation forward (short) = next
         (
@@ -153,6 +152,7 @@ async fn handle_audio_button(room: &mut Room, button_event: RelevantEvent) {
         (A::Podcast, E::Button(B::TopRight(press))) if !press.is_long() => {
             audio.skip()
         }
+        (A::Podcast, E::PortableButton(P::TrackNext)) => audio.skip(),
 
         (_, E::Button(B::TopMiddle(press))) if !press.is_long() => {
             audio.toggle_playback()
@@ -162,23 +162,25 @@ async fn handle_audio_button(room: &mut Room, button_event: RelevantEvent) {
             audio.prev_playlist();
             audio.play(ForceRewind::No)
         }
+
         (_, E::Button(B::TopRight(press))) if press.is_long() => {
             audio.next_playlist();
             audio.play(ForceRewind::No)
         }
+        (_, E::PortableButton(P::Dots1LongRelease)) => {
+            audio.next_playlist();
+            audio.play(ForceRewind::No)
+        }
+
         (_, E::Button(B::TopMiddle(press))) if press.is_long() => {
             audio.next_mode();
             audio.play(ForceRewind::No)
         }
+        (_, E::PortableButton(P::Dots2LongRelease)) => {
+            audio.next_mode();
+            audio.play(ForceRewind::No)
+        }
         (_, E::PortableButton(P::PlayPause)) => {
-            if AudioController::is_meditation_time() {
-                audio
-                    .go_to_mode_playlist(
-                        &A::Meditation,
-                        "meditation_yoga-nidra",
-                    )
-                    .await;
-            }
             audio.toggle_playback();
         }
 
@@ -191,31 +193,27 @@ async fn handle_light_button(room: &mut Room, event: RelevantEvent) {
     use ButtonPanel as B;
     use RelevantEvent as E;
 
-    // Dots1 short: to sleep -> lights off
-    // Dots1 long: to nightlight always -> one lamp on
+    // Dots1 short: toggle sleep/daylight
     //
-    // Dots2 short: to nightlight at night, otherwise daylight -> lamp(s) on
-    // Dots2 long: to sleep, wakeup off -> lights off
+    // Dots2 short: wakeup
     match event {
         // Light buttons
         E::Button(B::BottomLeft(_)) => room.set_sleep_delayed().await,
         E::PortableButton(P::Dots1ShortRelease) => {
-            room.set_sleep_immediate().await
-        }
-        E::Button(B::BottomMiddle(_))
-        | E::PortableButton(P::Dots2ShortRelease) => {
             let now = crate::time::now();
             match time(now.hour(), now.minute()) {
                 // rust analyzer seems to think this illegal, its not
-                T23_00.. | T0_00..T9_00 => room.set_nightlight().await,
-                _ => room.set_daylight_or_wakeup().await,
+                T21_00.. | T0_00..T10_00 => {
+                    room.toggle_sleep_nightlight().await
+                }
+                _ => room.toggle_sleep_daylight().await,
             }
         }
-        E::Button(B::BottomRight(_)) => room.set_override().await,
-        E::PortableButton(P::Dots2LongRelease) => {
-            room.set_sleep_no_wakeup().await
+        E::Button(B::BottomMiddle(_))
+        | E::PortableButton(P::Dots2ShortRelease) => {
+            room.set_wakeup().await;
         }
-        E::PortableButton(P::Dots1LongRelease) => room.set_nightlight().await,
+        E::Button(B::BottomRight(_)) => room.set_override().await,
         _ => (),
     }
 }

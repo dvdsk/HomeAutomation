@@ -95,6 +95,38 @@ impl Room {
         }
     }
 
+    pub(super) async fn toggle_sleep_daylight(&mut self) {
+        let state = self.state.read().await.clone();
+        match state {
+            State::Sleep | State::SleepNoWakeup => {
+                self.set_daylight().await;
+            }
+            State::Daylight
+            | State::Wakeup
+            | State::Override
+            | State::DelayedOff
+            | State::Nightlight => {
+                self.set_sleep_immediate().await;
+            }
+        }
+    }
+
+    pub(super) async fn toggle_sleep_nightlight(&mut self) {
+        let state = self.state.read().await.clone();
+        match state {
+            State::Sleep | State::SleepNoWakeup => {
+                self.set_nightlight().await;
+            }
+            State::Daylight
+            | State::Wakeup
+            | State::Override
+            | State::DelayedOff
+            | State::Nightlight => {
+                self.set_sleep_immediate().await;
+            }
+        }
+    }
+
     pub(super) async fn set_sleep_immediate(&mut self) {
         self.system.all_lamps_off().await;
         self.set_state_cancel_prev(State::Sleep).await;
@@ -127,16 +159,10 @@ impl Room {
         *self.task_handle.lock().await = Some(task_handle);
     }
 
-    pub(super) async fn set_daylight_or_wakeup(&mut self) {
-        if *self.state.read().await == State::Sleep
-            || *self.state.read().await == State::SleepNoWakeup
-        {
-            self.set_wakeup().await;
-        } else {
-            self.set_state_cancel_prev(State::Daylight).await;
-            self.all_lights_daylight().await;
-            self.system.all_lamps_on().await;
-        }
+    pub(super) async fn set_daylight(&mut self) {
+        self.set_state_cancel_prev(State::Daylight).await;
+        self.all_lights_daylight().await;
+        self.system.all_lamps_on().await;
     }
 
     pub(super) async fn set_nightlight(&mut self) {
