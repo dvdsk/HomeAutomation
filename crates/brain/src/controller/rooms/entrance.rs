@@ -68,9 +68,9 @@ pub async fn run(
                 if state == State::Daylight {
                     update(&mut system).await;
                     system.all_lamps_on().await;
-
-                    next_update = Instant::now() + INTERVAL;
                 }
+
+                next_update = Instant::now() + INTERVAL;
             }
         }
     }

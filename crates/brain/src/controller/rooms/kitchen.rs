@@ -47,6 +47,7 @@ pub async fn run(
     _event_tx: broadcast::Sender<Event>,
     mut system: RestrictedSystem,
 ) {
+    #[derive(Debug)]
     enum Res {
         Event(RelevantEvent),
         ShouldUpdate,
@@ -74,9 +75,11 @@ pub async fn run(
                 system.all_lamps_ct(2000, 1.0).await;
                 system.all_lamps_on().await;
             }
-            Res::ShouldUpdate if state == State::Daylight => {
-                update(&mut system).await;
-                system.all_lamps_on().await;
+            Res::ShouldUpdate => {
+                if state == State::Daylight {
+                    update(&mut system).await;
+                    system.all_lamps_on().await;
+                }
                 next_update = Instant::now() + INTERVAL;
             }
             _ => (),
