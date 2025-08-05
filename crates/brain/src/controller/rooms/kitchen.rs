@@ -82,7 +82,6 @@ pub async fn run(
                 }
                 next_update = Instant::now() + INTERVAL;
             }
-            _ => (),
         }
     }
 }

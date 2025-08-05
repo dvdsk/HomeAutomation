@@ -2,13 +2,14 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::time::Duration;
 
-use audiocontrol::{AudioController, ForceRewind};
+use audiocontrol::ForceRewind;
 use futures_concurrency::future::Race;
 use futures_util::FutureExt;
 use jiff::civil::Time;
 use jiff::{ToSpan, Zoned};
 use protocol::small_bedroom::{portable_button_panel, ButtonPanel};
 use tokio::sync::broadcast;
+use tokio::task::{self, JoinHandle};
 use tokio::time::{sleep_until, Instant};
 use tracing::{info, trace};
 
@@ -42,6 +43,7 @@ pub async fn run(
 ) {
     let mut room = Room::new(event_tx, system.clone());
     let mut next_update = Instant::now() + UPDATE_INTERVAL;
+    let mut update_task: Option<JoinHandle<()>> = None;
 
     let res = system
         .system
@@ -73,13 +75,21 @@ pub async fn run(
                 room.pm2_5 = Some((val, crate::time::now()))
             }
             Trigger::ShouldUpdate => {
-                room.update_airbox().await;
-                room.update_radiator().await;
-                room.all_lights_daylight().await;
+                // We don't want this to block if it takes a while, so
+                // we spawn a separate task for it that we need to abort
+                // in case it hangs
+                update_task.map(|task| task.abort());
+                update_task = Some(task::spawn(update(room.clone())));
                 next_update = Instant::now() + UPDATE_INTERVAL;
             }
         }
     }
+}
+
+async fn update(mut room: Room) {
+    room.update_airbox().await;
+    room.update_radiator().await;
+    room.all_lights_daylight().await;
 }
 
 async fn handle_button(room: &mut Room, event: RelevantEvent) {
