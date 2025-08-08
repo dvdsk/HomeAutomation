@@ -80,9 +80,11 @@ pub async fn handle(
     led: LedHandle,
     driver_orderers: &'static slow::DriverOrderers,
 ) {
-    let mut rx_buffer = [0; 1024];
-    let mut tx_buffer =
-        [0; max(SensMsg::ENCODED_SIZE, ErrorReport::ENCODED_SIZE) * 2];
+    let mut rx_buffer = [0; 4096];
+    let mut tx_buffer = [0; max(
+        max(SensMsg::ENCODED_SIZE, ErrorReport::ENCODED_SIZE) * 2,
+        4096,
+    )];
 
     let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
     socket.set_timeout(Some(Duration::from_secs(5)));
