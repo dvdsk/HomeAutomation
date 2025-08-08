@@ -1,3 +1,5 @@
+nodes/esp32/airbox/cfg.toml
+
 # Compiled source #
 ###################
 *.com
