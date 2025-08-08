@@ -6,6 +6,7 @@ use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
 use tracing::warn;
 
+use crate::controller::rooms::common::RecvFiltered;
 use crate::controller::rooms::small_bedroom;
 use crate::controller::{Event, RestrictedSystem};
 
@@ -16,27 +17,6 @@ enum State {
     Sleep,
     Daylight,
     Override,
-}
-
-trait RecvFiltered {
-    async fn recv_filter_mapped<T>(
-        &mut self,
-        filter_map: impl Fn(Event) -> Option<T>,
-    ) -> T;
-}
-
-impl RecvFiltered for broadcast::Receiver<Event> {
-    async fn recv_filter_mapped<T>(
-        &mut self,
-        filter_map: impl Fn(Event) -> Option<T>,
-    ) -> T {
-        loop {
-            let event = self.recv().await.unwrap();
-            if let Some(relevant) = filter_map(event) {
-                return relevant;
-            }
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -67,6 +47,7 @@ pub async fn run(
     _event_tx: broadcast::Sender<Event>,
     mut system: RestrictedSystem,
 ) {
+    #[derive(Debug)]
     enum Res {
         Event(RelevantEvent),
         ShouldUpdate,
@@ -92,13 +73,15 @@ pub async fn run(
             Res::Event(RelevantEvent::Override) => {
                 state = State::Override;
                 system.all_lamps_ct(2000, 1.0).await;
-            }
-            Res::ShouldUpdate if state == State::Daylight => {
-                update(&mut system).await;
                 system.all_lamps_on().await;
+            }
+            Res::ShouldUpdate => {
+                if state == State::Daylight {
+                    update(&mut system).await;
+                    system.all_lamps_on().await;
+                }
                 next_update = Instant::now() + INTERVAL;
             }
-            _ => (),
         }
     }
 }

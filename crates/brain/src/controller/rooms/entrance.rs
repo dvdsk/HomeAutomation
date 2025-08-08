@@ -5,6 +5,7 @@ use futures_concurrency::future::Race;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
 
+use crate::controller::rooms::common::RecvFiltered;
 use crate::controller::rooms::small_bedroom;
 use crate::controller::{Event, RestrictedSystem};
 
@@ -14,28 +15,6 @@ const INTERVAL: Duration = Duration::from_secs(5);
 enum State {
     Sleep,
     Daylight,
-}
-
-// TODO: deduplicate filter code with kitchen
-trait RecvFiltered {
-    async fn recv_filter_mapped<T>(
-        &mut self,
-        filter_map: impl Fn(Event) -> Option<T>,
-    ) -> T;
-}
-
-impl RecvFiltered for broadcast::Receiver<Event> {
-    async fn recv_filter_mapped<T>(
-        &mut self,
-        filter_map: impl Fn(Event) -> Option<T>,
-    ) -> T {
-        loop {
-            let event = self.recv().await.unwrap();
-            if let Some(relevant) = filter_map(event) {
-                return relevant;
-            }
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -89,9 +68,9 @@ pub async fn run(
                 if state == State::Daylight {
                     update(&mut system).await;
                     system.all_lamps_on().await;
-
-                    next_update = Instant::now() + INTERVAL;
                 }
+
+                next_update = Instant::now() + INTERVAL;
             }
         }
     }
@@ -99,7 +78,8 @@ pub async fn run(
 
 async fn update(system: &mut RestrictedSystem) {
     let (new_ct, new_bri) = small_bedroom::daylight_now();
-    let new_bri = new_bri.clamp(0.8, 1.0);
+    let new_ct = new_ct.clamp(1000, 3000);
+    let new_bri = new_bri.clamp(0.5, 1.0);
     system.all_lamps_ct(new_ct, new_bri).await;
     tracing::trace!("updated lamps");
 }

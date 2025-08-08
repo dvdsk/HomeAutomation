@@ -22,7 +22,7 @@ impl Property {
     }
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub(crate) enum PropertyDiscriminants {
     Lamp(LampPropertyDiscriminants),
     Radiator(RadiatorPropertyDiscriminants),

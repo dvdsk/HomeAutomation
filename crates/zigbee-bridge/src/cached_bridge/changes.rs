@@ -7,7 +7,7 @@ use tracing::{debug, error, instrument};
 
 use super::mqtt::Mqtt;
 use super::{
-    CHANGE_ACCUMULATION_TIME, MQTT_MIGHT_BE_DOWN_TIMEOUT, WAIT_FOR_INIT_STATES,
+    CHANGE_ACCUMULATION_TIME, MQTT_MIGHT_BE_DOWN_TIMEOUT, OFFLINE_CHECK_INTERVAL, WAIT_FOR_INIT_STATES
 };
 use crate::device::{Device, Property};
 
@@ -81,13 +81,18 @@ async fn send_diff_get_timeout(
 
         if is_online {
             let merged_payloads = needed.needs_merged_payloads();
+            // This is where we can send changes, and thus the deadline can change
             let _ = mqtt
                 .send_diff_where_due(device_name, merged_payloads, &diff)
                 .await;
-        }
-
-        if let Some(deadline) = mqtt.next_deadline(device_name, &diff) {
-            device_deadlines.push(deadline);
+            // Only check what the next deadline is if it could have changed
+            if let Some(deadline) = mqtt.next_deadline(device_name, &diff) {
+                device_deadlines.push(deadline);
+            }
+        } else {
+            // If the device is offline, the deadline can't have changed, so
+            // we use the offline check interval
+            device_deadlines.push(Instant::now() + OFFLINE_CHECK_INTERVAL);
         }
     }
 

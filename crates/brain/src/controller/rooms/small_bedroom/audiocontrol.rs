@@ -14,7 +14,6 @@ use db::Db;
 use mpdinterface::MpdInterface;
 
 mod db;
-mod db2;
 mod mpdinterface;
 
 #[derive(Debug)]
@@ -166,6 +165,7 @@ impl AudioController {
         Ok(())
     }
 
+    #[allow(unused)]
     pub fn rescan(&mut self) {
         info!("Rescanning mpd library");
         self.client.rescan().unwrap();
@@ -293,6 +293,15 @@ impl AudioController {
         self.client.status().unwrap().elapsed
     }
 
+    fn get_volume(&mut self) -> Option<i8> {
+        let volume = self.client.status().unwrap().volume;
+        if volume == -1 {
+            None
+        } else {
+            Some(volume)
+        }
+    }
+
     /// # Panics
     ///
     /// Panics if new position is over 4,294,967,295 seconds into the song,
@@ -385,6 +394,20 @@ impl AudioController {
             self.client.random(random).unwrap();
         }
         self.client.pause().unwrap();
+    }
+
+    pub fn increase_volume(&mut self) {
+        if let Some(volume) = self.get_volume() {
+            let new_volume = volume.saturating_add(5).clamp(0, 100);
+            self.client.volume(new_volume).unwrap();
+        }
+    }
+
+    pub fn decrease_volume(&mut self) {
+        if let Some(volume) = self.get_volume() {
+            let new_volume = volume.saturating_sub(5).clamp(0, 100);
+            self.client.volume(new_volume).unwrap();
+        }
     }
 
     #[instrument]
@@ -546,14 +569,14 @@ impl AudioController {
         let pos_in_pl = if let Some(song) = self.client.status().unwrap().song {
             song.pos
         } else {
-            warn!("Unknown pos in ppl, resetting");
+            warn!("Unknown pos in pl {playlist_name}, resetting");
             0
         };
 
         let elapsed = if let Some(elapsed) = self.get_elapsed() {
             elapsed.as_secs().try_into().unwrap()
         } else {
-            warn!("Unknown elapsed, resetting");
+            warn!("Unknown elapsed for {playlist_name}, resetting");
             0
         };
 
@@ -694,6 +717,7 @@ impl AudioController {
         }
     }
 
+    #[allow(unused)]
     pub(crate) fn insert_next(&mut self, song_path: &str) {
         if let Ok(id) = self.client.push(song_path) {
             let _ = self.client.prioid(id, 128);

@@ -2,21 +2,22 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::time::Duration;
 
-use audiocontrol::{AudioController, ForceRewind};
+use audiocontrol::ForceRewind;
 use futures_concurrency::future::Race;
 use futures_util::FutureExt;
 use jiff::civil::Time;
 use jiff::{ToSpan, Zoned};
 use protocol::small_bedroom::{portable_button_panel, ButtonPanel};
 use tokio::sync::broadcast;
+use tokio::task::{self, JoinHandle};
 use tokio::time::{sleep_until, Instant};
-use tracing::{debug, error, info, trace};
+use tracing::{info, trace};
 
-use self::filter::{recv_filtered, RelevantEvent, Trigger};
+use self::filter::{RelevantEvent, Trigger};
 use self::state::Room;
 pub(crate) use self::state::State;
+use crate::controller::rooms::common::RecvFiltered;
 use crate::controller::{Event, RestrictedSystem};
-use crate::input::jobs::Job;
 use crate::time;
 
 mod audiocontrol;
@@ -27,14 +28,13 @@ const UPDATE_INTERVAL: Duration = Duration::from_secs(5);
 const OFF_DELAY: Duration = Duration::from_secs(60);
 const WAKEUP_EXPIRATION: Duration = Duration::from_secs(1800);
 const NAP_TIME: Duration = Duration::from_secs(30 * 60);
-const RADIATOR_OVERRIDE_MINUTES: i32 = 60;
 
 const fn time(hour: i8, minute: i8) -> f64 {
     hour as f64 + minute as f64 / 60.
 }
 const T0_00: f64 = time(0, 0);
-const T9_00: f64 = time(9, 0);
-const T23_00: f64 = time(23, 0);
+const T10_00: f64 = time(10, 0);
+const T21_00: f64 = time(21, 0);
 
 pub async fn run(
     mut event_rx: broadcast::Receiver<Event>,
@@ -43,9 +43,7 @@ pub async fn run(
 ) {
     let mut room = Room::new(event_tx, system.clone());
     let mut next_update = Instant::now() + UPDATE_INTERVAL;
-
-    let wakeup_job =
-        Job::every_day_at(8, 45, Event::WakeupSB, Some(WAKEUP_EXPIRATION));
+    let mut update_task: Option<JoinHandle<()>> = None;
 
     let res = system
         .system
@@ -53,12 +51,11 @@ pub async fn run(
         .remove_all_with_event(Event::WakeupSB)
         .await;
     trace!("Removing old SB wakeup jobs returned: {res:#?}");
-    let res = system.system.jobs.add(wakeup_job.clone()).await;
-    trace!("Tried to add job for SB wakeup: {wakeup_job:#?}");
-    trace!("Jobs returned: {res:#?}");
 
     loop {
-        let get_event = recv_filtered(&mut event_rx);
+        let get_event = event_rx
+            .recv_filter_mapped(filter::filter)
+            .map(Trigger::Event);
         let tick = sleep_until(next_update).map(|_| Trigger::ShouldUpdate);
 
         let trigger = (get_event, tick).race().await;
@@ -73,18 +70,26 @@ pub async fn run(
                 // trace!("Starting radiator override");
                 // room.start_radiator_override();
             }
-            Trigger::Event(RelevantEvent::Wakeup) => room.to_wakeup().await,
+            Trigger::Event(RelevantEvent::Wakeup) => room.set_wakeup().await,
             Trigger::Event(RelevantEvent::Pm2_5(val)) => {
                 room.pm2_5 = Some((val, crate::time::now()))
             }
             Trigger::ShouldUpdate => {
-                room.update_airbox().await;
-                room.update_radiator().await;
-                room.all_lights_daylight().await;
+                // We don't want this to block if it takes a while, so
+                // we spawn a separate task for it that we need to abort
+                // in case it hangs
+                update_task.map(|task| task.abort());
+                update_task = Some(task::spawn(update(room.clone())));
                 next_update = Instant::now() + UPDATE_INTERVAL;
             }
         }
     }
+}
+
+async fn update(mut room: Room) {
+    room.update_airbox().await;
+    room.update_radiator().await;
+    room.all_lights_daylight().await;
 }
 
 async fn handle_button(room: &mut Room, event: RelevantEvent) {
@@ -107,13 +112,12 @@ async fn handle_button(room: &mut Room, event: RelevantEvent) {
             | P::VolumeUp
             | P::VolumeUpHold
             | P::VolumeDown
-            | P::VolumeDownHold => {
+            | P::VolumeDownHold
+            | P::Dots1LongRelease
+            | P::Dots2LongRelease => {
                 handle_audio_button(room, event).await;
             }
-            P::Dots1ShortRelease
-            | P::Dots1LongRelease
-            | P::Dots2ShortRelease
-            | P::Dots2LongRelease => {
+            P::Dots1ShortRelease | P::Dots2ShortRelease => {
                 handle_light_button(room, event).await;
             }
             b => info!("Pressed unimplemented button: {b:?}"),
@@ -143,6 +147,7 @@ async fn handle_audio_button(room: &mut Room, button_event: RelevantEvent) {
         (A::Podcast, E::Button(B::TopLeft(press))) if !press.is_long() => {
             audio.rewind()
         }
+        (A::Podcast, E::PortableButton(P::TrackPrevious)) => audio.rewind(),
 
         // Music, Singing, Meditation forward (short) = next
         (
@@ -157,6 +162,7 @@ async fn handle_audio_button(room: &mut Room, button_event: RelevantEvent) {
         (A::Podcast, E::Button(B::TopRight(press))) if !press.is_long() => {
             audio.skip()
         }
+        (A::Podcast, E::PortableButton(P::TrackNext)) => audio.skip(),
 
         (_, E::Button(B::TopMiddle(press))) if !press.is_long() => {
             audio.toggle_playback()
@@ -166,25 +172,29 @@ async fn handle_audio_button(room: &mut Room, button_event: RelevantEvent) {
             audio.prev_playlist();
             audio.play(ForceRewind::No)
         }
+
         (_, E::Button(B::TopRight(press))) if press.is_long() => {
             audio.next_playlist();
             audio.play(ForceRewind::No)
         }
+        (_, E::PortableButton(P::Dots1LongRelease)) => {
+            audio.next_playlist();
+            audio.play(ForceRewind::No)
+        }
+
         (_, E::Button(B::TopMiddle(press))) if press.is_long() => {
             audio.next_mode();
             audio.play(ForceRewind::No)
         }
+        (_, E::PortableButton(P::Dots2LongRelease)) => {
+            audio.next_mode();
+            audio.play(ForceRewind::No)
+        }
         (_, E::PortableButton(P::PlayPause)) => {
-            if AudioController::is_meditation_time() {
-                audio
-                    .go_to_mode_playlist(
-                        &A::Meditation,
-                        "meditation_yoga-nidra",
-                    )
-                    .await;
-            }
             audio.toggle_playback();
         }
+        (_, E::PortableButton(P::VolumeUp)) => audio.increase_volume(),
+        (_, E::PortableButton(P::VolumeDown)) => audio.decrease_volume(),
 
         (_, b) => info!("Unrecognised button pressed: {b:?}"),
     }
@@ -195,32 +205,27 @@ async fn handle_light_button(room: &mut Room, event: RelevantEvent) {
     use ButtonPanel as B;
     use RelevantEvent as E;
 
-    // Dots1 short: to sleep -> lights off
-    // Dots1 long: to nightlight always -> one lamp on
+    // Dots1 short: toggle sleep/daylight
     //
-    // Dots2 short: to nightlight at night, otherwise daylight -> lamp(s) on
-    // Dots2 long: to sleep, wakeup off -> lights off
+    // Dots2 short: wakeup
     match event {
         // Light buttons
-        E::Button(B::BottomLeft(_)) => room.to_sleep_delayed().await,
+        E::Button(B::BottomLeft(_)) => room.set_sleep_delayed().await,
         E::PortableButton(P::Dots1ShortRelease) => {
-            room.to_sleep_immediate().await
-        }
-        E::Button(B::BottomMiddle(_))
-        | E::PortableButton(P::Dots2ShortRelease) => {
-            use crate::time;
-            let now = time::now();
+            let now = crate::time::now();
             match time(now.hour(), now.minute()) {
                 // rust analyzer seems to think this illegal, its not
-                T23_00.. | T0_00..T9_00 => room.to_nightlight().await,
-                _ => room.to_daylight().await,
+                T21_00.. | T0_00..T10_00 => {
+                    room.toggle_sleep_nightlight().await
+                }
+                _ => room.toggle_sleep_daylight().await,
             }
         }
-        E::Button(B::BottomRight(_)) => room.to_override().await,
-        E::PortableButton(P::Dots2LongRelease) => {
-            room.to_sleep_no_wakeup().await
+        E::Button(B::BottomMiddle(_)) => room.set_daylight().await,
+        E::PortableButton(P::Dots2ShortRelease) => {
+            room.set_wakeup().await;
         }
-        E::PortableButton(P::Dots1LongRelease) => room.to_nightlight().await,
+        E::Button(B::BottomRight(_)) => room.set_override().await,
         _ => (),
     }
 }
@@ -233,26 +238,27 @@ pub(super) fn is_nap_time() -> bool {
 }
 
 pub(crate) fn goal_temp_now() -> f64 {
-    let goals = BTreeMap::from([
-        ((00, 00), 18.0),
-        ((08, 30), 19.0),
-        ((10, 00), 20.0),
-        ((11, 00), 20.5),
-        ((12, 00), 21.0),
-        ((18, 00), 20.5),
-        ((19, 00), 20.0),
-        ((21, 00), 19.5),
-        ((21, 30), 19.0),
-        ((22, 00), 18.0),
-    ]);
-
-    goal_now(goals, 18.0)
+    // let goals = BTreeMap::from([
+    //     ((0, 00), 18.0),
+    //     ((8, 30), 19.0),
+    //     ((10, 00), 20.0),
+    //     ((11, 00), 20.5),
+    //     ((12, 00), 21.0),
+    //     ((18, 00), 20.5),
+    //     ((19, 00), 20.0),
+    //     ((21, 00), 19.5),
+    //     ((21, 30), 19.0),
+    //     ((22, 00), 18.0),
+    // ]);
+    //
+    // goal_now(goals, 18.0)
+    16.0
 }
 
 fn air_filtration_now(pm2_5_measurement: &Option<(f32, Zoned)>) -> Option<u16> {
     let pm2_5_expiration = 10.minutes();
     let goals =
-        BTreeMap::from([((00, 00), 80), ((18, 00), 100), ((22, 30), 80)]);
+        BTreeMap::from([((00, 00), 80), ((18, 00), 80), ((22, 30), 80)]);
 
     let default = goal_now(goals, 80);
 
@@ -265,6 +271,8 @@ fn air_filtration_now(pm2_5_measurement: &Option<(f32, Zoned)>) -> Option<u16> {
     if is_expired {
         Some(default)
     } else {
+        // TODO: use pm 2.5 value again
+        #[allow(clippy::match_single_binding)]
         match pm2_5 {
             // 0.0..2.0 => Some(0),
             // // Don't change anything
@@ -277,9 +285,9 @@ fn air_filtration_now(pm2_5_measurement: &Option<(f32, Zoned)>) -> Option<u16> {
 // TODO: move to jobs system and remove update trigger
 pub(super) fn daylight_now() -> (usize, f64) {
     let goals = BTreeMap::from([
-        ((00, 00), (1800, 0.5)),
-        ((08, 00), (2000, 0.5)),
-        ((09, 00), (3800, 1.0)),
+        ((0, 00), (1800, 0.5)),
+        ((8, 00), (2000, 0.5)),
+        ((9, 00), (3800, 1.0)),
         ((19, 00), (3600, 1.0)),
         ((19, 30), (3300, 1.0)),
         ((19, 45), (3000, 1.0)),
