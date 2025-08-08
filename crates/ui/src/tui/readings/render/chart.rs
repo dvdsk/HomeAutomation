@@ -228,7 +228,7 @@ fn fmt_reading(
         (&protocol::Reading, Color),
         Option<Result<f64, cursor::TooInaccurate>>,
     ),
-) -> Line {
+) -> Line<'_> {
     use protocol::reading::tree::{Item, Tree};
     let mut node = reading as &dyn Tree;
     let mut text = node.name();

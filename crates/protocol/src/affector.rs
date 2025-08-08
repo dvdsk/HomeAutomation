@@ -75,7 +75,7 @@ impl Affector {
 
     // Info() is explicitly not defined, use the tree impl to get at it
     #[cfg(feature = "alloc")]
-    pub fn controls(&mut self) -> Vec<Control> {
+    pub fn controls(&mut self) -> Vec<Control<'_>> {
         match self {
             Affector::LargeBedroom(a) => a.controls(),
             Affector::SmallBedroom(a) => a.controls(),

@@ -262,7 +262,7 @@ impl crate::IsSameAs for Affector {
 
 impl Affector {
     #[cfg(feature = "alloc")]
-    pub fn controls(&mut self) -> Vec<Control> {
+    pub fn controls(&mut self) -> Vec<Control<'_>> {
         match self {
             Affector::FanPower { power } => vec![Control {
                 name: "red",

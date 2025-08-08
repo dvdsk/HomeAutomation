@@ -13,7 +13,7 @@ pub(crate) fn get(request: u8) -> transfer::ControlIn {
     }
 }
 
-pub(crate) fn send(request: u8, data: &[u8]) -> transfer::ControlOut {
+pub(crate) fn send(request: u8, data: &[u8]) -> transfer::ControlOut<'_> {
     transfer::ControlOut {
         control_type: transfer::ControlType::Vendor,
         recipient: transfer::Recipient::Interface,

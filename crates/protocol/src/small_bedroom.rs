@@ -163,7 +163,7 @@ pub enum Affector {
 
 impl Affector {
     #[cfg(feature = "alloc")]
-    pub(crate) fn controls(&mut self) -> Vec<affector::Control> {
+    pub(crate) fn controls(&mut self) -> Vec<affector::Control<'_>> {
         match self {
             Affector::Bed(a) => a.controls(),
         }
