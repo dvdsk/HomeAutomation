@@ -11,6 +11,7 @@ protocol = { workspace = true }
 embassy-stm32.workspace = true
 embassy-sync.workspace = true
 embassy-time.workspace = true
+embassy-futures.workspace = true
 embassy-embedded-hal.workspace = true
 
 defmt.workspace = true

@@ -1,0 +1,36 @@
+[package]
+name = "small-bedroom-button-panel"
+version = "0.2.0"
+rust-version = "1.85"
+edition = "2024"
+license = "GPLv3"
+authors = ["David Kleingeld & Eva van Houten"]
+
+[dependencies]
+cortex-m.workspace = true
+cortex-m-rt.workspace = true
+
+embassy-stm32.workspace = true
+embassy-sync.workspace = true
+embassy-executor.workspace = true
+embassy-embedded-hal.workspace = true
+embassy-time.workspace = true
+embassy-futures.workspace = true
+embassy-usb.workspace = true
+
+defmt.workspace = true
+defmt-rtt.workspace = true
+
+embedded-hal.workspace = true
+embedded-hal-async.workspace = true
+embedded-hal-bus.workspace = true
+embedded-io-async.workspace = true
+
+panic-probe.workspace = true
+futures.workspace = true
+heapless.workspace = true
+
+# encoding
+protocol = { workspace = true }
+
+usb-bridge-client.workspace = true

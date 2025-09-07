@@ -1,8 +1,8 @@
 [package]
-name = "small-bedroom-sensor-node"
+name = "large-bedroom-bed"
 version = "0.2.0"
-rust-version = "1.78"
-edition = "2021"
+rust-version.workspace = true
+edition.workspace = true
 license = "GPLv3"
 authors = ["David Kleingeld & Eva van Houten"]
 
@@ -13,10 +13,11 @@ cortex-m-rt.workspace = true
 embassy-stm32.workspace = true
 embassy-sync.workspace = true
 embassy-executor.workspace = true
+embassy-net.workspace = true
+embassy-net-wiznet.workspace = true
 embassy-embedded-hal.workspace = true
 embassy-time.workspace = true
 embassy-futures.workspace = true
-embassy-usb.workspace = true
 
 defmt.workspace = true
 defmt-rtt.workspace = true
@@ -28,11 +29,12 @@ embedded-io-async.workspace = true
 
 panic-probe.workspace = true
 futures.workspace = true
-heapless.workspace = true
+static_cell = "2.0.0"
+rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
+heapless = { version = "0.8", default-features = false }
 
 # sensors
-sensors = { path = "../sensors" }
+sensors.workspace = true
 
 # encoding
-protocol.workspace = true 
-usb-bridge-client = { path = "../usb-bridge-client" }
+protocol = { workspace = true }

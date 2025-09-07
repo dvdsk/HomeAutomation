@@ -1,9 +1,12 @@
 [workspace]
 resolver = "2"
-members = ["bed-sb", "bed-lb", "button-panel", "sensors", "usb-bridge-client"]
+members = ["large-bedroom-bed", "small-bedroom-bed",
+"small-bedroom-button-panel", "large-bedroom-desk", "sensors", "usb-bridge-client", "test-wiznet"]
 
 [workspace.dependencies]
 protocol = { path = "../../crates/protocol" }
+sensors = { path = "sensors" }
+usb-bridge-client = { path = "usb-bridge-client" }
 
 cortex-m = { version = "0.7.6", features = ["inline-asm", "critical-section-single-core"] }
 cortex-m-rt = "0.7.0"

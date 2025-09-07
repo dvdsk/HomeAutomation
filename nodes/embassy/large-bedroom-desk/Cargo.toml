@@ -1,5 +1,5 @@
 [package]
-name = "button-panel"
+name = "large-bedroom-desk"
 version = "0.2.0"
 rust-version = "1.85"
 edition = "2024"
@@ -31,6 +31,8 @@ futures.workspace = true
 heapless.workspace = true
 
 # encoding
-protocol = { workspace = true }
 
-usb-bridge-client = { path = "../usb-bridge-client" }
+protocol.workspace = true
+sensors.workspace = true
+
+usb-bridge-client.workspace = true

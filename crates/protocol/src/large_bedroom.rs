@@ -4,10 +4,11 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "alloc")]
 use crate::{affector, reading};
 
+pub mod airbox;
 pub mod bed;
 pub mod desk;
+pub mod desk_right;
 pub mod radiator;
-pub mod airbox;
 
 #[derive(
     strum::EnumDiscriminants,
@@ -25,12 +26,13 @@ pub mod airbox;
 pub enum Reading {
     Bed(bed::Reading) = 0,
     Desk(desk::Reading) = 1,
+    DeskRight(desk_right::Reading) = 4,
     Radiator(radiator::Reading) = 2,
     Airbox(airbox::Reading) = 3,
 }
 
 #[cfg(feature = "alloc")]
-reading::tree::all_nodes! {Reading; ReadingDiscriminants; Bed, Desk, Radiator, Airbox}
+reading::tree::all_nodes! {Reading; ReadingDiscriminants; Bed, Desk, Radiator, Airbox, DeskRight}
 
 #[derive(
     strum::EnumDiscriminants,
@@ -84,6 +86,7 @@ impl core::fmt::Display for Error {
 pub enum Device {
     Bed(bed::Device),
     Desk(desk::Device),
+    DeskRight(desk_right::Device),
     Radiator(radiator::Device),
     Airbox(airbox::Device),
 }
@@ -94,6 +97,7 @@ impl Device {
         match self {
             Self::Bed(dev) => dev.info(),
             Self::Desk(dev) => dev.info(),
+            Self::DeskRight(dev) => dev.info(),
             Self::Radiator(dev) => dev.info(),
             Self::Airbox(dev) => dev.info(),
         }
