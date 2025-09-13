@@ -1,7 +1,8 @@
 #![no_std]
 
 mod drivers;
-pub mod buttons;
+pub mod button;
+pub mod pir;
 pub mod errors;
 pub mod measurements;
 

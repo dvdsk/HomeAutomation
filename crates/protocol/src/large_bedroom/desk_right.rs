@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "alloc")]
 use crate::reading::tree::Tree;
-use crate::IsSameAs;
+use crate::{pir, IsSameAs};
 
 crate::button_enum! {
     /// +----------------------------------------------------+
@@ -46,7 +46,7 @@ crate::button_enum! {
 #[repr(u8)]
 pub enum Reading {
     Button(Button),
-    PirActivation,
+    Pir(pir::Status),
 }
 
 #[cfg(feature = "alloc")]
@@ -54,20 +54,20 @@ impl Tree for Reading {
     fn inner(&self) -> crate::reading::tree::Item<'_> {
         match self {
             Reading::Button(button_panel) => button_panel.inner(),
-            Reading::PirActivation => {
+            Reading::Pir(status) => {
                 use crate::reading::tree::Item;
                 use crate::reading::Info;
 
                 Item::Leaf(Info {
-                    val: 1.0,
+                    val: *status as u8 as f32,
                     device: Device.rooted(),
-                    description: "button",
-                    range: 0.0..=1.0,
+                    description: "pir",
+                    range: 0.0..=2.0,
                     resolution: 1.0,
                     unit: crate::Unit::None,
                     branch_id: self.branch_id(),
                     label_formatter: Box::new(
-                        crate::button::ButtonLabelFormatter,
+                        crate::pir::PirLabelFormatter,
                     ),
                 })
             }
@@ -83,7 +83,7 @@ impl IsSameAs for Reading {
     fn is_same_as(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Button(a), Self::Button(b)) => a.is_same_as(b),
-            (Self::PirActivation, Self::PirActivation) => true,
+            (Self::Pir(_), Self::Pir(_)) => true,
             (_, _) => false,
         }
     }
@@ -124,7 +124,7 @@ impl Device {
             name: "Desk Buttons and Pir",
             affects_readings: &rtree![
                 Reading::Button(Button::LeftLeft(crate::button::Press(0))),
-                Reading::PirActivation
+                Reading::Pir(crate::pir::Status::Unknown)
             ],
             affectors: &[],
             min_sample_interval: Duration::from_secs(1),

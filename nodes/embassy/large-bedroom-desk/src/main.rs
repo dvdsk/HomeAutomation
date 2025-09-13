@@ -66,32 +66,44 @@ async fn main(_spawner: Spawner) {
         Duration::from_secs(5).as_micros() as u32,
     );
 
+    use protocol::large_bedroom::desk_right;
     use protocol::large_bedroom::desk_right::Button;
+    type IntoButton = fn(protocol::button::Press) -> Button;
     let buttons = [
         (
             ExtiInput::new(p.PC15, p.EXTI15, Pull::Down),
-            Button::LeftLeft,
+            Button::LeftLeft as IntoButton,
         ),
-        (ExtiInput::new(p.PB0, p.EXTI0, Pull::Down), Button::LeftLeft),
+        (
+            ExtiInput::new(p.PB0, p.EXTI0, Pull::Down),
+            Button::LeftMiddle as IntoButton,
+        ),
         (
             ExtiInput::new(p.PC14, p.EXTI14, Pull::Down),
-            Button::LeftLeft,
+            Button::LeftRight as IntoButton,
         ),
         (
             ExtiInput::new(p.PB12, p.EXTI12, Pull::Down),
-            Button::LeftLeft,
+            Button::RightLeftmost as IntoButton,
         ),
         (
             ExtiInput::new(p.PB13, p.EXTI13, Pull::Down),
-            Button::LeftLeft,
+            Button::RightLeft as IntoButton,
         ),
-        (ExtiInput::new(p.PB8, p.EXTI8, Pull::Down), Button::LeftLeft),
-        (ExtiInput::new(p.PB6, p.EXTI6, Pull::Down), Button::LeftLeft),
+        (
+            ExtiInput::new(p.PB8, p.EXTI8, Pull::Down),
+            Button::RightRight as IntoButton,
+        ),
+        (
+            ExtiInput::new(p.PB6, p.EXTI6, Pull::Down),
+            Button::RightRightmost as IntoButton,
+        ),
     ];
 
-    // let pir = buttons::Pir {
-    //     left_left: ExtiInput::new(p.PC11, p.EXTI11, Pull::Down),
-    // }; // TODO
+    let pirs = [(
+        ExtiInput::new(p.PA5, p.EXTI5, Pull::Down),
+        desk_right::Reading::Pir,
+    )];
 
     let mut usb_driver_config = embassy_stm32::usb::Config::default();
     // Do not enable vbus_detection. This is a safe default that works in all
@@ -123,13 +135,17 @@ async fn main(_spawner: Spawner) {
     let handle_network = comms::handle(usb_handle);
     pin_mut!(handle_network);
 
-    let init_then_measure = sensors::buttons::watch_array(buttons, |button| {
+    let watch_buttons = sensors::button::watch_array(buttons, |button| {
         let _err = PUBLISH.try_send(button_into_reading(button));
     });
+    let watch_pir = sensors::pir::watch_array(pirs, |pir| {
+        let _err = PUBLISH.try_send(into_reading(pir));
+    });
 
-    join::join4(
+    join::join5(
         &mut handle_network,
-        init_then_measure,
+        watch_buttons,
+        watch_pir,
         usb_bus.run(),
         keep_dog_happy(dog),
     )
@@ -168,5 +184,13 @@ fn button_into_reading(
         protocol::large_bedroom::Reading::DeskRight(
             protocol::large_bedroom::desk_right::Reading::Button(button),
         ),
+    )
+}
+
+fn into_reading(
+    pir: protocol::large_bedroom::desk_right::Reading,
+) -> protocol::Reading {
+    protocol::Reading::LargeBedroom(
+        protocol::large_bedroom::Reading::DeskRight(pir),
     )
 }

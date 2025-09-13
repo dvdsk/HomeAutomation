@@ -13,6 +13,7 @@ pub mod shared;
 pub mod affector;
 mod device;
 mod error;
+pub mod pir;
 pub mod reading;
 pub mod usb;
 
