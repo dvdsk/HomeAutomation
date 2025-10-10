@@ -11,6 +11,7 @@ pub enum Event {
     Sensor(Reading),
     WakeupLB,
     WakeupSB,
+    WakeupKitchen,
     StateChangeSB(rooms::small_bedroom::State),
 }
 
