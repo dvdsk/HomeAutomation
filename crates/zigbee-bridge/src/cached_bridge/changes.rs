@@ -3,11 +3,12 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::{mpsc, RwLock};
 use tokio::time::{sleep, timeout};
-use tracing::{debug, error, instrument};
+use tracing::{error, instrument, warn};
 
 use super::mqtt::Mqtt;
 use super::{
-    CHANGE_ACCUMULATION_TIME, MQTT_MIGHT_BE_DOWN_TIMEOUT, OFFLINE_CHECK_INTERVAL, WAIT_FOR_INIT_STATES
+    CHANGE_ACCUMULATION_TIME, MQTT_MIGHT_BE_DOWN_TIMEOUT,
+    OFFLINE_CHECK_INTERVAL, WAIT_FOR_INIT_STATES,
 };
 use crate::device::{Device, Property};
 
@@ -25,7 +26,6 @@ pub(super) async fn handle(
     let mut call_at_least_in = MQTT_MIGHT_BE_DOWN_TIMEOUT;
 
     loop {
-        debug!("timeout: {call_at_least_in:?}");
         match timeout(call_at_least_in, change_receiver.recv()).await {
             // On change, update needed, but only actually send the changes
             // after a timeout
@@ -33,7 +33,6 @@ pub(super) async fn handle(
                 let (device_name, change) =
                     update.expect("Channel should never close");
 
-                tracing::debug!("Received change order: {change:?} for device {device_name}");
                 apply_change_to_needed(device_name, change, &mut needed_states);
 
                 // When there hasn't been a new change in 100 milliseconds, we
