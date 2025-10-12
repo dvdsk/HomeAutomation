@@ -25,7 +25,7 @@ governor = "0.8"
 color-eyre = "0.6.3"
 tracing = "0.1.40"
 tracing-error = "0.2"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 futures = "0.3.31"
 futures-concurrency = "7.6.2"
 jiff = "0.1"
