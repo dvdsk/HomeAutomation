@@ -23,13 +23,14 @@ tokio = { workspace = true, features = ["rt", "macros", "net", "sync", "io-util"
 thiserror.workspace = true
 futures.workspace = true
 tokio-serde = { version = "0.9.0", features = ["bincode"] }
-tokio-util.workspace = true
+tokio-util = { workspace = true, features = ["time"] }
 serde.workspace = true
 futures-concurrency = { workspace = true }
 slotmap = "1.0.7"
 tracing-futures = "0.2.5"
 socket2 = { version = "0.6.0", features = ["all"] }
 governor.workspace = true
+tokio-utils = "0.1.2"
 
 [dev-dependencies]
 reserve-port = "2"

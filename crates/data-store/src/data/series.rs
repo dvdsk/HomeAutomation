@@ -121,20 +121,20 @@ impl Series {
             .info()
             .affects_readings
             .iter()
-            .map(|r| r.leaf().branch_id)
-            .position(|id_in_list| id_in_list == reading.leaf().branch_id);
+            .map(|r| r.info().branch_id)
+            .position(|id_in_list| id_in_list == reading.info().branch_id);
         let index = wrap_inder_err(res, reading)?;
 
         let meta = &mut self.meta_list[index];
-        if !reading.leaf().range.contains(&reading.leaf().val) {
+        if !reading.info().range.contains(&reading.info().val) {
             return Err(eyre!(
                 "value {} is out of range: {:?}",
-                reading.leaf().val,
-                reading.leaf().range
+                reading.info().val,
+                reading.info().range
             ));
         }
 
-        meta.field.encode(reading.leaf().val, &mut self.line);
+        meta.field.encode(reading.info().val, &mut self.line);
         meta.set_at = Some(Instant::now());
 
         let max_interval = reading.device().info().max_sample_interval;
@@ -147,7 +147,7 @@ impl Series {
         {
             let time = jiff::Timestamp::now();
 
-            let device_info = reading.leaf().device.info();
+            let device_info = reading.info().device.info();
             let scale_factor = millis_to_minimal_representation(device_info);
             let scaled_time = time.as_millisecond() as u64 / scale_factor;
             let new_ts = scaled_time;
@@ -186,7 +186,7 @@ impl Series {
         let device_info = readings
             .first()
             .expect("There is at least one reading to read")
-            .leaf()
+            .info()
             .device
             .info();
         let scale_factor = millis_to_minimal_representation(device_info);
@@ -259,7 +259,7 @@ fn wrap_inder_err(
     )
     .suggestion("In protocol lib, is every reading variant in the affected readings list?")
     .with_note(|| format!("reading: {reading:?}"))
-    .with_note(|| format!("reading branch id: {:?}", reading.leaf().branch_id))
+    .with_note(|| format!("reading branch id: {:?}", reading.info().branch_id))
     .with_note(|| {
         format!(
             "affected readings: {:?}",
@@ -268,7 +268,7 @@ fn wrap_inder_err(
                 .info()
                 .affects_readings
                 .into_iter()
-                .map(|r| r.leaf())
+                .map(|r| r.info())
                 .collect::<Vec<_>>()
         )
     })

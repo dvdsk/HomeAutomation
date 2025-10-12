@@ -30,27 +30,56 @@ pub enum Reading {
 }
 
 #[cfg(feature = "alloc")]
+/// Unique Id for a specific reading (not the value)
+#[derive(Debug, Hash, PartialEq, Eq)]
+pub struct ReadingId([tree::Id; 8]);
+
+#[cfg(feature = "alloc")]
 impl Reading {
     #[must_use]
     pub fn from_same_device(&self) -> &'static [Reading] {
         use tree::Tree;
-        self.leaf().from_same_device()
+        self.info().from_same_device()
     }
     #[must_use]
     pub fn range(&self) -> core::ops::RangeInclusive<f32> {
         use tree::Tree;
-        self.leaf().range
+        self.info().range
     }
     #[must_use]
     /// the step between the two closest data-points that are not the same
     pub fn resolution(&self) -> f32 {
         use tree::Tree;
-        self.leaf().resolution
+        self.info().resolution
     }
     #[must_use]
     pub fn device(&self) -> Device {
         use tree::Tree;
-        self.leaf().device
+        self.info().device
+    }
+    // This means the enum can not go deeper then 8
+    // but that seems reasonable
+    pub fn id(&self) -> ReadingId {
+        use crate::reading::tree::Tree;
+
+        let mut current = self as &dyn Tree;
+        let mut res = [0; 8];
+        for i in 0.. {
+            *res.get_mut(i)
+                .expect("Reading tree should not go deeper then 8") =
+                current.branch_id();
+            match current.inner() {
+                tree::Item::Node(node) => current = node,
+                tree::Item::Leaf(info) => {
+                    *res.get_mut(i + 1)
+                        .expect("Reading tree should not go deeper then 8") =
+                        info.branch_id;
+                    break;
+                }
+            }
+        }
+
+        ReadingId(res)
     }
 }
 impl Reading {
@@ -128,7 +157,7 @@ impl Info {
     /// let reading =
     /// Reading::LargeBedroom(large_bedroom::Reading::Desk(desk::Reading::Temperature(22.428124)));
     ///
-    /// let info = reading.leaf();
+    /// let info = reading.info();
     /// let printed = format!("{0:.1$}", info.val, info.precision());
     /// assert_eq!(printed, "22.43");
     /// ```

@@ -33,7 +33,7 @@ pub enum Unit {
     Lux,
     MicrogramPerM3,
     NanoMeter,
-    None, // for buttons
+    None, // for buttons & pir
     NumberPerCm3,
     Ohm,
     Pa,

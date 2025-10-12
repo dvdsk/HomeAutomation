@@ -3,7 +3,7 @@ use core::time::Duration;
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
-use crate::button_enum;
+use crate::button::Press;
 #[cfg(feature = "alloc")]
 use crate::reading::tree::{Item, Tree};
 #[cfg(feature = "alloc")]
@@ -13,6 +13,7 @@ use crate::reading::Info;
 use crate::shared::impl_is_same_as;
 #[cfg(feature = "alloc")]
 use crate::Unit;
+use crate::{button_enum, DeviceInfo};
 
 button_enum! {
     /// No these are not borg, these are buttons on a string of cat5.
@@ -52,7 +53,7 @@ pub enum Reading {
 #[cfg(feature = "alloc")]
 impl Tree for Reading {
     fn inner(&self) -> Item<'_> {
-        let leaf = match self {
+        let info = match self {
             Reading::Temperature(val) => Info {
                 val: *val,
                 device: Device::Bme280.rooted(),
@@ -85,7 +86,16 @@ impl Tree for Reading {
             },
             Reading::Button(val) => return Item::Node(val as &dyn Tree),
         };
-        Item::Leaf(leaf)
+
+        Item::Leaf(info)
+    }
+
+    fn inner_mut(&mut self) -> crate::reading::tree::ItemMut<'_> {
+        use crate::reading::tree::field_as_any;
+
+        let value =
+            field_as_any!(self, Temperature, Humidity, Pressure, Button);
+        crate::reading::tree::ItemMut::Leaf(value)
     }
 
     fn branch_id(&self) -> crate::reading::tree::Id {
@@ -216,7 +226,18 @@ impl Device {
                 max_sample_interval: Duration::from_secs(5),
                 temporal_resolution: Duration::from_secs(1),
             },
-            Device::Gpio => todo!(),
+            Device::Gpio => crate::DeviceInfo {
+                affects_readings: &rtree![
+                    Reading::Button(Button::OneOfFour(Press(0))),
+                    Reading::Button(Button::TwoOfFour(Press(0))),
+                    Reading::Button(Button::ThreeOfFour(Press(0))),
+                    Reading::Button(Button::FourOfFour(Press(0))),
+                    Reading::Button(Button::OneOfThree(Press(0))),
+                    Reading::Button(Button::TwoOfThree(Press(0))),
+                    Reading::Button(Button::ThreeOfThree(Press(0)))
+                ],
+                ..DeviceInfo::button_defaults()
+            },
         }
     }
 }

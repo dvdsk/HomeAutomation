@@ -170,14 +170,14 @@ impl Entry {
         Self {
             curr_value: None,
             last_updated_at: Instant::now(),
-            timeout_interval: reading.leaf().device.info().max_sample_interval
+            timeout_interval: reading.info().device.info().max_sample_interval
                 + Duration::from_secs(1),
         }
     }
 
     fn format(&self) -> String {
         if let Some(reading) = &self.curr_value {
-            let info = reading.leaf();
+            let info = reading.info();
             format!("{0:.1$} {2}", info.val, info.precision(), info.unit)
         } else {
             "X".to_string()
@@ -192,12 +192,12 @@ fn update_stdout_json(entries: &[Entry], used_queries: &[String]) {
         .map(|(query, Entry { curr_value, .. })| {
             let value = curr_value
                 .as_ref()
-                .map(|r| r.leaf())
+                .map(|r| r.info())
                 .map(|info| format!("{0:.1$}", info.val, info.precision()))
                 .unwrap_or("X".to_string());
             let unit = curr_value
                 .as_ref()
-                .map(|r| r.leaf().unit)
+                .map(|r| r.info().unit)
                 .unwrap_or(protocol::Unit::None);
 
             format!("\"{query}\": {}, \"{query}-unit\": \"{}\"", value, unit)

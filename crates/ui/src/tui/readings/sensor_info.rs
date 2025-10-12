@@ -77,11 +77,11 @@ impl SensorInfo {
         let recent_history = if is_placeholder {
             Vec::new()
         } else {
-            vec![(time, reading.leaf().val)]
+            vec![(time, reading.info().val)]
         };
 
         Self {
-            info: reading.leaf(),
+            info: reading.info(),
             reading: reading.clone(),
             timing: Histogram::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap(),
             percentiles_from_store: Vec::new(),
@@ -100,7 +100,7 @@ impl SensorInfo {
     fn new_err(error: &Error, broken: &Reading, ui_id: u16) -> Self {
         let logs = logs::Logs::new_from(error);
         SensorInfo {
-            info: broken.leaf(),
+            info: broken.info(),
             reading: broken.clone(),
             timing: Histogram::new_with_bounds(1, 60 * 60 * 1000, 2).unwrap(),
             percentiles_from_store: Vec::new(),
@@ -118,13 +118,13 @@ impl SensorInfo {
 
     fn update(&mut self, reading: &Reading) {
         let time = jiff::Timestamp::now();
-        self.info = reading.leaf();
+        self.info = reading.info();
         if let Some(last_reading) = self.last_at() {
             self.timing += (time - last_reading)
                 .total(Unit::Millisecond)
                 .expect("no calander units involved") as u64
         }
-        self.recent_history.push((time, reading.leaf().val));
+        self.recent_history.push((time, reading.info().val));
         self.is_placeholder = false;
         self.condition = Ok(());
     }

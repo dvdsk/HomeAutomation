@@ -78,7 +78,7 @@ macro_rules! button_enum {
         #[cfg(feature = "alloc")]
         impl crate::reading::tree::Tree for $name {
             fn inner(&self) -> crate::reading::tree::Item<'_> {
-                crate::reading::tree::Item::Leaf(crate::reading::Info {
+                let info = crate::reading::Info {
                     val: (*self).into(),
                     device: $device,
                     description: "button",
@@ -87,8 +87,13 @@ macro_rules! button_enum {
                     unit: crate::Unit::None,
                     branch_id: self.branch_id(),
                     label_formatter: Box::new(crate::button::ButtonLabelFormatter),
-                })
+                };
+                crate::reading::tree::Item::Leaf(info)
             }
+            fn inner_mut(&mut self) -> crate::reading::tree::ItemMut<'_> {
+                crate::reading::tree::ItemMut::Leaf(self as &mut dyn core::any::Any)
+            }
+
             fn name(&self) -> String {
                 self.variant_name().to_owned()
             }

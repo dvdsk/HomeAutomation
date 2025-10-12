@@ -13,7 +13,7 @@ mod watch;
 
 pub use affector::Registar as AffectorRegistar;
 pub use data_source::handle_nodes;
-pub use subscribe::spread_updates;
+pub use subscribe::handle_updates;
 pub use watch::node_watchdog;
 
 use crate::api::subscriber::{self, SubMessage};

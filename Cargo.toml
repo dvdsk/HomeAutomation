@@ -17,7 +17,7 @@ byteseries = { git = "https://github.com/dvdsk/byteseries", rev="a9da72e9585e5f5
 
 serde = { version = "1", features = ["derive"], default-features = false }
 tokio = { version = "1.38", features = ["rt-multi-thread"] }
-tokio-util = { version = "0.7.13", features = ["codec"] }
+tokio-util = { version = "0.7.16", features = ["codec"] }
 itertools = { version = "0.14" }
 bincode = { version = "2.0", default-features = false, features = ["serde", "std"] }
 gethostname = "0.5"

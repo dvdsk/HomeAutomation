@@ -44,8 +44,8 @@ pub enum Reading {
 #[cfg(feature = "alloc")]
 impl Tree for Reading {
     fn inner(&self) -> Item<'_> {
-        Item::Leaf(crate::reading::Info {
-            val: 1.0,
+        let info = crate::reading::Info {
+            val: 1.0, // This is wrong and should be treated like button
             device: crate::Device::SmallBedroom(
                 super::Device::PortableButtonPanel(Device),
             ),
@@ -55,7 +55,13 @@ impl Tree for Reading {
             unit: crate::Unit::None,
             branch_id: self.branch_id(),
             label_formatter: Box::new(FloatLabelFormatter),
-        })
+        };
+
+        Item::Leaf(info)
+    }
+
+    fn inner_mut(&mut self) -> crate::reading::tree::ItemMut<'_> {
+        crate::reading::tree::ItemMut::Leaf(self)
     }
 
     fn name(&self) -> String {

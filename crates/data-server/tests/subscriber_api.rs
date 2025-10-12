@@ -29,7 +29,7 @@ async fn run_server(
     select! {
         e = server::client::handle(client_addr.into(), tx.clone(), affectors.clone()) => e.unwrap(),
         e = server::handle_nodes(data_port.into(), &tx, affectors) => e.unwrap(),
-        e = server::spread_updates(rx) => e?,
+        e = server::handle_updates(rx) => e?,
     };
 
     Ok(Done::RunServer)

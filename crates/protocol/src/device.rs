@@ -39,3 +39,16 @@ pub struct Info {
     pub max_sample_interval: Duration,
     pub temporal_resolution: Duration,
 }
+
+impl Info {
+    pub(crate) const fn button_defaults() -> Self {
+        Self {
+            name: "Buttons",
+            affects_readings: &[],
+            temporal_resolution: Duration::from_millis(1),
+            min_sample_interval: Duration::from_millis(2),
+            max_sample_interval: Duration::MAX,
+            affectors: &[],
+        }
+    }
+}

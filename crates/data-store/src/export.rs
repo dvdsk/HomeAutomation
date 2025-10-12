@@ -133,7 +133,7 @@ fn copy_over_content(
     let mut read_start = 0;
     let precisions = readings
         .into_iter()
-        .map(|r| r.leaf().precision())
+        .map(|r| r.info().precision())
         .collect_vec();
 
     loop {

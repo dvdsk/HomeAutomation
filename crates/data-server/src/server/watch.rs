@@ -42,7 +42,7 @@ impl LastSeen {
 
     fn check_and_bite(&mut self, registar: &AffectorRegistar) {
         let to_reset = self.map.iter().filter(|(reading, last_seen)| {
-            let max_interval = reading.leaf().device.info().max_sample_interval;
+            let max_interval = reading.info().device.info().max_sample_interval;
             last_seen.elapsed() > max_interval.saturating_mul(10)
         });
 
@@ -71,6 +71,9 @@ impl LastSeen {
                         ),
                     )),
                     Reading::LargeBedroom(large_bedroom::Reading::Desk(_))
+                    | Reading::LargeBedroom(
+                        large_bedroom::Reading::DeskRight(_),
+                    )
                     | Reading::LargeBedroom(
                         large_bedroom::Reading::Radiator(_),
                     )

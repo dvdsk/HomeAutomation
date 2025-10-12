@@ -1,3 +1,5 @@
+use core::any::Any;
+
 use super::Info;
 
 pub type Id = u8;
@@ -7,10 +9,17 @@ pub enum Item<'a> {
     Node(&'a dyn Tree),
 }
 
+pub enum ItemMut<'a> {
+    Leaf(&'a mut dyn Any),
+    Node(&'a mut dyn Tree),
+}
+
 pub trait Tree: core::fmt::Debug {
     #[must_use]
     fn inner(&self) -> Item<'_>;
-    fn leaf(&self) -> Info
+    fn inner_mut(&mut self) -> ItemMut<'_>;
+
+    fn info(&self) -> Info
     where
         Self: Sized,
     {
@@ -18,7 +27,19 @@ pub trait Tree: core::fmt::Debug {
         loop {
             match current.inner() {
                 Item::Node(node) => current = node,
-                Item::Leaf(leaf) => return leaf,
+                Item::Leaf(info) => return info,
+            }
+        }
+    }
+    fn value_mut(&mut self) -> &mut (dyn Any + 'static)
+    where
+        Self: Sized,
+    {
+        let mut current = self as &mut dyn Tree;
+        loop {
+            match current.inner_mut() {
+                ItemMut::Node(node) => current = node,
+                ItemMut::Leaf(value) => return value,
             }
         }
     }
@@ -32,6 +53,17 @@ pub trait Tree: core::fmt::Debug {
     #[must_use]
     fn branch_id(&self) -> Id;
 }
+
+macro_rules! field_as_any {
+    ($self:ident, $($field_name:ident),+) => {
+        match $self {
+            $(
+                Reading::$field_name(inner) => inner as &mut dyn core::any::Any,
+            )+
+        }
+    };
+}
+pub(crate) use field_as_any;
 
 macro_rules! impl_zero {
     ($name:ident; $($var:ident),*) => {
@@ -59,6 +91,14 @@ macro_rules! all_nodes {
                     $name::$var(inner) => crate::reading::tree::Item::Node(inner as &dyn crate::reading::tree::Tree)
                     ),*
                 }
+            }
+            fn inner_mut(&mut self) -> crate::reading::tree::ItemMut<'_> {
+                match self {
+                    $(
+                    $name::$var(inner) => crate::reading::tree::ItemMut::Node(inner as &mut dyn crate::reading::tree::Tree)
+                    ),*
+                }
+
             }
 
             fn branch_id(&self) -> crate::reading::tree::Id {

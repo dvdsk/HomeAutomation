@@ -48,14 +48,14 @@ async fn main() -> Result<()> {
         select! {
             e = server::client::handle(subscribe_addr, tx.clone(), affectors.clone()) => e,
             e = server::handle_nodes(update_addr, &tx, affectors.clone()) => e,
-            e = server::spread_updates(rx) => e,
+            e = server::handle_updates(rx) => e,
             _ = server::node_watchdog(affectors, &tx) => Ok(()),
         }
     } else {
         select! {
             e = server::client::handle(subscribe_addr, tx.clone(), affectors.clone()) => e,
             e = server::handle_nodes(update_addr, &tx, affectors.clone()) => e,
-            e = server::spread_updates(rx) => e,
+            e = server::handle_updates(rx) => e,
         }
     }
 }

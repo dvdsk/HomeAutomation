@@ -38,7 +38,7 @@ async fn data_server(client_addr: impl Into<SocketAddr>, data_port: impl Into<So
     tokio::select! {
         e = server::client::handle(client_addr.into(), tx.clone(), affectors.clone()) => e.unwrap(),
         e = server::handle_nodes(data_port.into(), &tx, affectors) => e.unwrap(),
-        e = server::spread_updates(rx) => e.unwrap(),
+        e = server::handle_updates(rx) => e.unwrap(),
     };
 }
 

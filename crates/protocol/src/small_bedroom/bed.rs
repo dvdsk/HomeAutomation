@@ -4,7 +4,7 @@ use core::time::Duration;
 use crate::affector::{Control, ControlValue};
 use crate::button::Press;
 #[cfg(feature = "alloc")]
-use crate::reading::tree::{Id, Item, Tree};
+use crate::reading::tree::{Id, Item, ItemMut, Tree};
 #[cfg(feature = "alloc")]
 use crate::reading::FloatLabelFormatter;
 #[cfg(feature = "alloc")]
@@ -228,7 +228,7 @@ impl Tree for Reading {
             ),
         };
 
-        Item::Leaf(Info {
+        let info = Info {
             val,
             device,
             resolution,
@@ -237,7 +237,37 @@ impl Tree for Reading {
             description,
             branch_id: self.branch_id(),
             label_formatter: Box::new(FloatLabelFormatter),
-        })
+        };
+
+        Item::Leaf(info)
+    }
+
+    fn inner_mut(&mut self) -> ItemMut<'_> {
+        use crate::reading::tree::field_as_any;
+
+        let value = field_as_any!(
+            self,
+            Button,
+            Brightness,
+            Temperature,
+            Humidity,
+            GassResistance,
+            Pressure,
+            Co2,
+            Weight,
+            MassPm1_0,
+            MassPm2_5,
+            MassPm4_0,
+            MassPm10,
+            NumberPm0_5,
+            NumberPm1_0,
+            NumberPm2_5,
+            NumberPm4_0,
+            NumberPm10,
+            TypicalParticleSize
+        );
+
+        ItemMut::Leaf(value)
     }
 
     fn branch_id(&self) -> Id {
@@ -447,10 +477,7 @@ impl Device {
                     Reading::Button(Button::RightMiddle(Press(0))),
                     Reading::Button(Button::Right(Press(0)))
                 ],
-                temporal_resolution: Duration::from_millis(1),
-                min_sample_interval: Duration::from_millis(2),
-                max_sample_interval: Duration::MAX,
-                affectors: &[],
+                ..crate::DeviceInfo::button_defaults()
             },
         }
     }

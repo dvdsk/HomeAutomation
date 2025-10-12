@@ -1,6 +1,6 @@
-use postcard::experimental::max_size::MaxSize;
 #[cfg(feature = "alloc")]
 use crate::reading::LabelFormatter;
+use postcard::experimental::max_size::MaxSize;
 
 #[derive(
     strum::EnumDiscriminants,
@@ -15,12 +15,11 @@ use crate::reading::LabelFormatter;
 )]
 #[repr(u8)]
 pub enum Status {
-    Started = 2,
-    End = 0,
+    OngoingActivity = 2,
+    NoActivity = 0,
     /// because the node went offline
     Unknown = 1,
 }
-
 
 #[cfg(feature = "alloc")]
 #[derive(Debug)]

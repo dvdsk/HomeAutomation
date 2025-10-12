@@ -38,7 +38,7 @@ impl_is_same_as!(Reading; Temperature, Heating, SetBy, Setpoint);
 #[cfg(feature = "alloc")]
 impl Tree for Reading {
     fn inner(&self) -> Item<'_> {
-        let leaf = match self {
+        let info = match self {
             Reading::Temperature(val) => Info {
                 val: *val,
                 device: crate::Device::SmallBedroom(super::Device::Radiator(
@@ -90,7 +90,16 @@ impl Tree for Reading {
                 label_formatter: Box::new(FloatLabelFormatter),
             },
         };
-        Item::Leaf(leaf)
+
+        Item::Leaf(info)
+    }
+
+    fn inner_mut(&mut self) -> crate::reading::tree::ItemMut<'_> {
+        use crate::reading::tree::{field_as_any, ItemMut};
+
+        let value = field_as_any!(self, Temperature, Heating, SetBy, Setpoint);
+        ItemMut::Leaf(value)
+        
     }
 
     fn branch_id(&self) -> crate::reading::tree::Id {

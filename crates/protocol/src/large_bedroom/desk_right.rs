@@ -1,10 +1,8 @@
-use core::time::Duration;
-
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "alloc")]
-use crate::reading::tree::Tree;
+use crate::reading::tree::{self, Tree};
 use crate::{pir, IsSameAs};
 
 crate::button_enum! {
@@ -51,31 +49,37 @@ pub enum Reading {
 
 #[cfg(feature = "alloc")]
 impl Tree for Reading {
-    fn inner(&self) -> crate::reading::tree::Item<'_> {
+    fn inner(&self) -> tree::Item<'_> {
         match self {
             Reading::Button(button_panel) => button_panel.inner(),
             Reading::Pir(status) => {
-                use crate::reading::tree::Item;
                 use crate::reading::Info;
 
-                Item::Leaf(Info {
+                let info = Info {
                     val: *status as u8 as f32,
                     device: Device.rooted(),
-                    description: "pir",
+                    description: "Pir motion detector",
                     range: 0.0..=2.0,
                     resolution: 1.0,
                     unit: crate::Unit::None,
                     branch_id: self.branch_id(),
-                    label_formatter: Box::new(
-                        crate::pir::PirLabelFormatter,
-                    ),
-                })
+                    label_formatter: Box::new(crate::pir::PirLabelFormatter),
+                };
+
+                tree::Item::Leaf(info)
             }
         }
     }
 
-    fn branch_id(&self) -> crate::reading::tree::Id {
-        todo!()
+    fn inner_mut(&mut self) -> tree::ItemMut<'_> {
+        use crate::reading::tree::field_as_any;
+
+        let value = field_as_any!(self, Button, Pir);
+        tree::ItemMut::Leaf(value)
+    }
+
+    fn branch_id(&self) -> tree::Id {
+        ReadingDiscriminants::from(self) as tree::Id
     }
 }
 
@@ -126,10 +130,7 @@ impl Device {
                 Reading::Button(Button::LeftLeft(crate::button::Press(0))),
                 Reading::Pir(crate::pir::Status::Unknown)
             ],
-            affectors: &[],
-            min_sample_interval: Duration::from_secs(1),
-            max_sample_interval: Duration::MAX,
-            temporal_resolution: Duration::from_secs(1),
+            ..crate::DeviceInfo::button_defaults()
         }
     }
 }

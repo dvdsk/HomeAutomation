@@ -242,7 +242,7 @@ fn fmt_reading(
         text.push_str(&node.name());
     }
     match cursor_value {
-        Some(Ok(v)) => text.push_str(&format!(": {0:.1$}", v, reading.leaf().precision())),
+        Some(Ok(v)) => text.push_str(&format!(": {0:.1$}", v, reading.info().precision())),
         Some(Err(TooInaccurate)) => text.push_str(" x"),
         None => (),
     }

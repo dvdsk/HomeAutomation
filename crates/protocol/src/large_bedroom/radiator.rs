@@ -4,7 +4,7 @@ use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "alloc")]
-use crate::reading::tree::{Item, Tree};
+use crate::reading::tree::{Item, ItemMut, Tree};
 #[cfg(feature = "alloc")]
 use crate::reading::FloatLabelFormatter;
 #[cfg(feature = "alloc")]
@@ -38,7 +38,7 @@ impl_is_same_as!{Reading; Temperature, Heating, SetBy, Setpoint}
 #[cfg(feature = "alloc")]
 impl Tree for Reading {
     fn inner(&self) -> Item<'_> {
-        let leaf = match self {
+        let info = match self {
             Reading::Temperature(val) => Info {
                 val: *val,
                 device: crate::Device::LargeBedroom(super::Device::Radiator(
@@ -90,7 +90,14 @@ impl Tree for Reading {
                 label_formatter: Box::new(FloatLabelFormatter),
             },
         };
-        Item::Leaf(leaf)
+
+        Item::Leaf(info)
+    }
+    fn inner_mut(&mut self) -> ItemMut<'_> {
+        use crate::reading::tree::field_as_any;
+
+        let value = field_as_any!(self, Temperature, Heating, SetBy, Setpoint);
+        ItemMut::Leaf(value)
     }
 
     fn branch_id(&self) -> crate::reading::tree::Id {

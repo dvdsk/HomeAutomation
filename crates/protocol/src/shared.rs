@@ -1,8 +1,9 @@
 pub mod radiator;
 
+// doc test is no compile as macro is pub(crate)
 /// implements the `IsSameAs` trait for enum `thing` with variants `variant`
 /// example usage:
-/// ```rust
+/// ```no_compile
 /// impl_is_same_as!(Reading; Temperature, Heating, SetBy, Setpoint);
 /// ```
 macro_rules! impl_is_same_as {
