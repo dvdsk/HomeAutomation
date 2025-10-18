@@ -129,7 +129,6 @@ impl Mqtt {
     ) -> Result<(), ClientError> {
         let topic = format!("zigbee2mqtt/{friendly_name}/set");
 
-        trace!("Sending");
         self.publish(&topic, payload).await?;
         Ok(())
     }
