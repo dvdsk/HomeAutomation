@@ -107,16 +107,12 @@ pub async fn run(
 }
 
 async fn wakeup_some_lamps(system: &mut RestrictedSystem) {
-    const BRI: f64 = 10. / 254.;
+    const BRI: f64 = 2. / 254.;
     const CT: usize = 2000;
 
     system.one_lamp_ct("kitchen:hood_left", CT, BRI).await;
-    system.one_lamp_ct("kitchen:hood_right", CT, BRI).await;
-    system.one_lamp_ct("kitchen:fridge", CT, BRI).await;
 
     system.one_lamp_on("kitchen:hood_left").await;
-    system.one_lamp_on("kitchen:hood_right").await;
-    system.one_lamp_on("kitchen:fridge").await;
 }
 
 async fn update(system: &mut RestrictedSystem) {
