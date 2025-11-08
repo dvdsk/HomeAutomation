@@ -16,14 +16,10 @@ tokio = { workspace = true, features = ["full"] }
 
 serde.workspace = true
 serde_yaml = "0.9"
-bincode.workspace = true
 
 thiserror.workspace = true
 
 jiff = { workspace = true, features = ["serde"] }
-
-bytes = "1.5"
-byteorder = "1.4"
 
 sled = "0.34"
 
@@ -35,7 +31,6 @@ tracing = {workspace = true}
 logger.workspace = true
 clap = { workspace = true }
 futures-concurrency = { workspace = true }
-strum.workspace = true
 dbstruct = { git = "https://github.com/dvdsk/dbstruct" }
 color-eyre.workspace = true
 mpdrs = "0.1.0"

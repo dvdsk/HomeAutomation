@@ -244,9 +244,6 @@ dependencies = [
 name = "brain"
 version = "0.1.0"
 dependencies = [
- "bincode 2.0.1",
- "byteorder",
- "bytes",
  "clap",
  "color-eyre",
  "data-server",
@@ -263,7 +260,6 @@ dependencies = [
  "serde",
  "serde_yaml",
  "sled",
- "strum 0.27.1",
  "thiserror 2.0.12",
  "tokio",
  "tracing",
