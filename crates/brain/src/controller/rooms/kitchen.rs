@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use futures_concurrency::future::Race;
 use futures_util::FutureExt;
+use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
 use tracing::{trace, warn};
@@ -13,9 +14,10 @@ use crate::input::jobs::Job;
 
 const INTERVAL: Duration = Duration::from_secs(5);
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Default)]
 enum State {
     Sleep,
+    #[default]
     Daylight,
     Override,
     Wakeup,
@@ -45,19 +47,28 @@ fn filter(event: Event) -> Option<RelevantEvent> {
     }
 }
 
+#[dbstruct::dbstruct(db=sled)]
+struct Store {
+    #[dbstruct(Default)]
+    state: State,
+}
+
+super::impl_open_or_wipe!(Store);
+
 pub async fn run(
     mut event_rx: broadcast::Receiver<Event>,
     // todo if state change message everyone using this
     _event_tx: broadcast::Sender<Event>,
     mut system: RestrictedSystem,
-) {
+    tree: sled::Tree,
+) -> color_eyre::Result<()> {
     #[derive(Debug)]
     enum Res {
         Event(RelevantEvent),
         ShouldUpdate,
     }
 
-    let mut state = State::Daylight;
+    let db = open_or_wipe(tree)?;
     let mut next_update = Instant::now() + INTERVAL;
 
     let wakeup_job = Job::every_day_at(10, 0, Event::WakeupKitchen, None);
@@ -77,26 +88,26 @@ pub async fn run(
         let res = (get_event, tick).race().await;
         match res {
             Res::Event(RelevantEvent::Sleep) => {
-                state = State::Sleep;
+                db.state().set(&State::Sleep)?;
                 system.all_lamps_off().await;
             }
             Res::Event(RelevantEvent::Wakeup) => {
-                state = State::Wakeup;
+                db.state().set(&State::Wakeup)?;
                 trace!("Starting kitchen wakeup");
                 wakeup_some_lamps(&mut system).await;
             }
             Res::Event(RelevantEvent::Daylight) => {
-                state = State::Daylight;
+                db.state().set(&State::Daylight)?;
                 update(&mut system).await;
                 system.all_lamps_on().await;
             }
             Res::Event(RelevantEvent::Override) => {
-                state = State::Override;
+                db.state().set(&State::Override)?;
                 system.all_lamps_ct(2000, 1.0).await;
                 system.all_lamps_on().await;
             }
             Res::ShouldUpdate => {
-                if state == State::Daylight {
+                if db.state().get()? == State::Daylight {
                     update(&mut system).await;
                     system.all_lamps_on().await;
                 }

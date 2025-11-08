@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use futures::FutureExt;
 use futures_concurrency::future::Race;
+use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
 
@@ -11,9 +12,10 @@ use crate::controller::{Event, RestrictedSystem};
 
 const INTERVAL: Duration = Duration::from_secs(5);
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Default)]
 enum State {
     Sleep,
+    #[default]
     Daylight,
 }
 
@@ -35,18 +37,28 @@ fn filter(event: Event) -> Option<RelevantEvent> {
     }
 }
 
+#[dbstruct::dbstruct(db=sled)]
+struct Store {
+    #[dbstruct(Default)]
+    state: State,
+}
+
+super::impl_open_or_wipe!(Store);
+
 pub async fn run(
     mut event_rx: broadcast::Receiver<Event>,
     // todo if state change message everyone using this
     _event_tx: broadcast::Sender<Event>,
     mut system: RestrictedSystem,
-) {
+    db: sled::Tree,
+) -> color_eyre::Result<()> {
     enum Res {
         Event(RelevantEvent),
         ShouldUpdate,
     }
 
-    let mut state = State::Daylight;
+    let db = open_or_wipe(db)?;
+
     let mut next_update = Instant::now() + INTERVAL;
     loop {
         let get_event = event_rx.recv_filter_mapped(filter).map(Res::Event);
@@ -55,17 +67,17 @@ pub async fn run(
         let res = (get_event, tick).race().await;
         match res {
             Res::Event(RelevantEvent::Sleep) => {
-                state = State::Sleep;
+                db.state().set(&State::Sleep)?;
                 system.one_lamp_off("hallway:ceiling").await;
             }
             Res::Event(RelevantEvent::Daylight) => {
-                state = State::Daylight;
+                db.state().set(&State::Daylight)?;
 
                 update(&mut system).await;
                 system.all_lamps_on().await;
             }
             Res::ShouldUpdate => {
-                if state == State::Daylight {
+                if db.state().get()? == State::Daylight {
                     update(&mut system).await;
                     system.all_lamps_on().await;
                 }

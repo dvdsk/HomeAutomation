@@ -1,7 +1,8 @@
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use futures_concurrency::future::Race;
 use futures_util::FutureExt;
+use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
 use tracing::{info, warn};
@@ -9,11 +10,12 @@ use tracing::{info, warn};
 use crate::controller::rooms::common::RecvFiltered;
 use crate::controller::{Event, RestrictedSystem};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 enum State {
     // Sleep,
     // Wakeup,
-    FadeOut(Instant),
+    FadeOut(SystemTime),
+    #[default]
     Normal,
     Bright,
     Off,
@@ -51,18 +53,27 @@ fn filter(event: Event) -> Option<RelevantEvent> {
     })
 }
 
+#[dbstruct::dbstruct(db=sled)]
+struct Store {
+    #[dbstruct(Default)]
+    state: State,
+}
+
+super::impl_open_or_wipe!(Store);
+
 pub(crate) async fn run(
     mut event_rx: broadcast::Receiver<Event>,
     // todo if state change message everyone using this
     _event_tx: broadcast::Sender<Event>,
     mut system: RestrictedSystem,
-) {
+    tree: sled::Tree,
+) -> Result<(), color_eyre::Report> {
     enum Res {
         Event(RelevantEvent),
         ShouldUpdate,
     }
 
-    let mut state = State::Normal;
+    let db = open_or_wipe(tree)?;
     let mut next_update = Instant::now() + INTERVAL;
     loop {
         let get_event = event_rx.recv_filter_mapped(filter).map(Res::Event);
@@ -73,15 +84,15 @@ pub(crate) async fn run(
             Res::Event(e) => handle_event(e),
             Res::ShouldUpdate => {
                 next_update = Instant::now() + INTERVAL;
-                update(&mut system, &state).await
+                update(&mut system, &db.state().get()?).await
             }
         };
 
         if let Some(new) = new_state {
             info!("transitioning to new state: {new:?}");
-            state = new;
+            db.state().set(&new)?;
             next_update = Instant::now() + INTERVAL;
-            if update(&mut system, &state).await.is_some() {
+            if update(&mut system, &db.state().get()?).await.is_some() {
                 warn!("Transiting to a new state while in the first update is not allowed")
             }
         }
@@ -109,7 +120,7 @@ async fn update(system: &mut RestrictedSystem, state: &State) -> Option<State> {
             // TODO: this was set to 1 mired (= 1M(!!) Kelvin) and 100% brightness
             // not sure that is the intended behaviour
             system.all_lamps_ct(3900, 1.0).await;
-            if started.elapsed() > Duration::from_secs(40) {
+            if !started.elapsed().is_ok_and(|t| t < Duration::from_secs(40)) {
                 return Some(State::Off);
             }
         }
@@ -151,7 +162,7 @@ fn handle_desk_button(
     println!("button pressed: {b:?}");
     match b {
         Button::OneOfFour(press) if press.is_long() => Some(State::Off),
-        Button::OneOfFour(_) => Some(State::FadeOut(Instant::now())),
+        Button::OneOfFour(_) => Some(State::FadeOut(SystemTime::now())),
         Button::TwoOfFour(press) if press.is_long() => Some(State::Bright),
         Button::FourOfFour(press) if !press.is_long() => Some(State::Normal),
         // Button::TwoOfFour(_) => todo!(),
@@ -170,7 +181,7 @@ fn handle_bed_button(b: protocol::large_bedroom::bed::Button) -> Option<State> {
     match b {
         B::MiddleOuter(_) => Some(State::Bright),
         B::MiddleInner(_) => Some(State::Normal),
-        B::MiddleCenter(_) => Some(State::FadeOut(Instant::now())),
+        B::MiddleCenter(_) => Some(State::FadeOut(SystemTime::now())),
         _ => None,
     }
 }

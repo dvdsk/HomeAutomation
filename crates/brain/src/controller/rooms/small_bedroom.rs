@@ -36,11 +36,20 @@ const T0_00: f64 = time(0, 0);
 const T10_00: f64 = time(10, 0);
 const T21_00: f64 = time(21, 0);
 
+#[dbstruct::dbstruct(db=sled)]
+struct Store {
+    #[dbstruct(Default)]
+    state: State,
+}
+
+super::impl_open_or_wipe!(Store);
+
 pub async fn run(
     mut event_rx: broadcast::Receiver<Event>,
     event_tx: broadcast::Sender<Event>,
     system: RestrictedSystem,
-) {
+    db: sled::Tree,
+) -> color_eyre::Result<()> {
     let mut room = Room::new(event_tx, system.clone());
     let mut next_update = Instant::now() + UPDATE_INTERVAL;
     let mut update_task: Option<JoinHandle<()>> = None;

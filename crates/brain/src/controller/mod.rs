@@ -1,6 +1,7 @@
 mod rooms;
 
 use crate::system::System;
+use color_eyre::eyre::Context;
 pub use protocol::Reading;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
@@ -95,7 +96,8 @@ pub fn start(
     subscribed: [broadcast::Receiver<Event>; 4],
     sender: broadcast::Sender<Event>,
     system: System,
-) -> JoinSet<()> {
+    db: sled::Db,
+) -> Result<JoinSet<Result<(), color_eyre::Report>>, color_eyre::Report> {
     tracing::info!("starting");
     let mut tasks = JoinSet::new();
     let [rx1, rx2, rx3, rx4] = subscribed;
@@ -111,7 +113,15 @@ pub fn start(
         ],
         allowed_radiators: vec!["large_bedroom:radiator"],
     };
-    tasks.spawn(rooms::large_bedroom::run(rx1, sender.clone(), restricted));
+    let ds = db
+        .open_tree("large_bedroom")
+        .wrap_err("Opening db subtree for large_bedroom")?;
+    tasks.spawn(rooms::large_bedroom::run(
+        rx1,
+        sender.clone(),
+        restricted,
+        ds,
+    ));
 
     let restricted = RestrictedSystem {
         system: system.clone(),
@@ -122,7 +132,10 @@ pub fn start(
         ],
         allowed_radiators: vec!["small_bedroom:radiator"],
     };
-    tasks.spawn(rooms::small_bedroom::run(rx2, sender.clone(), restricted));
+    let ds = db
+        .open_tree("small_bedroom")
+        .wrap_err("Opening db subtree for small_bedroom")?;
+    tasks.spawn(rooms::small_bedroom::run(rx2, sender.clone(), restricted, ds));
 
     let restricted = RestrictedSystem {
         system: system.clone(),
@@ -135,7 +148,10 @@ pub fn start(
         ],
         allowed_radiators: vec![],
     };
-    tasks.spawn(rooms::kitchen::run(rx3, sender.clone(), restricted));
+    let ds = db
+        .open_tree("kitchen")
+        .wrap_err("Opening db subtree for kitchen")?;
+    tasks.spawn(rooms::kitchen::run(rx3, sender.clone(), restricted, ds));
 
     let restricted = RestrictedSystem {
         system: system.clone(),
@@ -146,7 +162,10 @@ pub fn start(
         ],
         allowed_radiators: vec![],
     };
-    tasks.spawn(rooms::entrance::run(rx4, sender, restricted));
+    let ds = db
+        .open_tree("entrance")
+        .wrap_err("Opening db subtree for entrance")?;
+    tasks.spawn(rooms::entrance::run(rx4, sender, restricted, ds));
 
-    tasks
+    Ok(tasks)
 }

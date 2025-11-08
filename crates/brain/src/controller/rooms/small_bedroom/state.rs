@@ -20,11 +20,12 @@ use crate::controller::{Event, RestrictedSystem};
 const MPD_IP: &str = "192.168.1.101";
 const MPD_PORT: &str = "6600";
 
-#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) enum State {
     Sleep,
     SleepNoWakeup,
     Wakeup,
+    #[default]
     Daylight,
     Override,
     DelayedOff,

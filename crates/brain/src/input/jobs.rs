@@ -86,9 +86,10 @@ struct JobList {
 impl Jobs {
     pub(crate) fn setup(
         event_tx: broadcast::Sender<Event>,
-        db_path: &str,
+        db: sled::Db,
     ) -> Result<Self, Error> {
-        let job_list = Arc::new(Mutex::new(JobList::new(db_path)?));
+        let db = db.open_tree("JobList")?;
+        let job_list = Arc::new(Mutex::new(JobList::open_tree(db)?));
 
         let (job_change_tx, job_change_rx) = mpsc::channel(250);
         let job_list_clone = job_list.clone();
@@ -106,7 +107,7 @@ impl Jobs {
     pub(crate) async fn add(&self, to_add: Job) -> Result<i64, Error> {
         let id = {
             let list = self.list.lock().await;
-            list.add_job(to_add).await?
+            list.add_job(to_add)?
         };
         //signal event timer to update its next job
         self.job_change_tx.send(()).await?;
@@ -164,7 +165,7 @@ impl JobList {
     // we decrease the id for the job until there is a place in the database
     // after a job gets an id it is never changed
     /// return the id for the job
-    async fn add_job(&self, new_job: Job) -> Result<i64, Error> {
+    fn add_job(&self, new_job: Job) -> Result<i64, Error> {
         let mut new_id = new_job.time.timestamp().as_millisecond();
 
         // create job entry if there is no job at this timestamp yet
@@ -240,7 +241,6 @@ async fn event_timer(
                             .lock()
                             .await
                             .add_job(new_job.clone())
-                            .await
                             .unwrap();
                         trace!(
                             "Added repeat job {new_job:#?} with id {new_id}"
