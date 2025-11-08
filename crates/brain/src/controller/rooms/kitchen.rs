@@ -4,11 +4,12 @@ use futures_concurrency::future::Race;
 use futures_util::FutureExt;
 use tokio::sync::broadcast;
 use tokio::time::{sleep_until, Instant};
-use tracing::warn;
+use tracing::{trace, warn};
 
 use crate::controller::rooms::common::RecvFiltered;
 use crate::controller::rooms::small_bedroom;
 use crate::controller::{Event, RestrictedSystem};
+use crate::input::jobs::Job;
 
 const INTERVAL: Duration = Duration::from_secs(5);
 
@@ -17,6 +18,7 @@ enum State {
     Sleep,
     Daylight,
     Override,
+    Wakeup,
 }
 
 #[derive(Debug)]
@@ -24,6 +26,7 @@ enum RelevantEvent {
     Sleep,
     Daylight,
     Override,
+    Wakeup,
 }
 
 fn filter(event: Event) -> Option<RelevantEvent> {
@@ -37,6 +40,7 @@ fn filter(event: Event) -> Option<RelevantEvent> {
         Event::StateChangeSB(small_bedroom::State::Override) => {
             Some(RelevantEvent::Override)
         }
+        Event::WakeupKitchen => Some(RelevantEvent::Wakeup),
         _ => None,
     }
 }
@@ -55,6 +59,17 @@ pub async fn run(
 
     let mut state = State::Daylight;
     let mut next_update = Instant::now() + INTERVAL;
+
+    let wakeup_job = Job::every_day_at(10, 0, Event::WakeupKitchen, None);
+    let res = system
+        .system
+        .jobs
+        .remove_all_with_event(Event::WakeupKitchen)
+        .await;
+    trace!("Kitchen wakeup job remove result: {res:?}");
+    let res = system.system.jobs.add(wakeup_job.clone()).await;
+    trace!("Kitchen wakeup job add result: {res:?}");
+
     loop {
         let get_event = event_rx.recv_filter_mapped(filter).map(Res::Event);
         let tick = sleep_until(next_update).map(|_| Res::ShouldUpdate);
@@ -64,6 +79,11 @@ pub async fn run(
             Res::Event(RelevantEvent::Sleep) => {
                 state = State::Sleep;
                 system.all_lamps_off().await;
+            }
+            Res::Event(RelevantEvent::Wakeup) => {
+                state = State::Wakeup;
+                trace!("Starting kitchen wakeup");
+                wakeup_some_lamps(&mut system).await;
             }
             Res::Event(RelevantEvent::Daylight) => {
                 state = State::Daylight;
@@ -84,6 +104,15 @@ pub async fn run(
             }
         }
     }
+}
+
+async fn wakeup_some_lamps(system: &mut RestrictedSystem) {
+    const BRI: f64 = 2. / 254.;
+    const CT: usize = 2000;
+
+    system.one_lamp_ct("kitchen:hood_left", CT, BRI).await;
+
+    system.one_lamp_on("kitchen:hood_left").await;
 }
 
 async fn update(system: &mut RestrictedSystem) {

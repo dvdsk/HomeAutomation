@@ -74,7 +74,7 @@ async fn update_state(
         }
         return;
     };
-    trace!("applying properties");
+
     for property in new {
         current_device.apply(property);
     }
