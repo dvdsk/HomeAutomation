@@ -108,6 +108,10 @@ impl ControllerTasks {
         self.tasks.spawn_local_on(future, &self.local_set);
     }
 
+    pub async fn await_tasks(self) {
+        self.local_set.await;
+    }
+
     pub async fn report_failed(&mut self) {
         while let Some(failure) = self.tasks.join_next().await {
             match failure {

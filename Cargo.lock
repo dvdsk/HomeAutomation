@@ -752,6 +752,7 @@ dependencies = [
 [[package]]
 name = "dbstruct"
 version = "0.6.0"
+source = "git+https://github.com/dvdsk/dbstruct#5ecca3460f19f34e816ae50f7b199c15f1b21b02"
 dependencies = [
  "bincode 2.0.1",
  "dbstruct-derive",
@@ -764,6 +765,7 @@ dependencies = [
 [[package]]
 name = "dbstruct-derive"
 version = "0.4.0"
+source = "git+https://github.com/dvdsk/dbstruct#5ecca3460f19f34e816ae50f7b199c15f1b21b02"
 dependencies = [
  "itertools 0.14.0",
  "proc-macro-error",

@@ -14,7 +14,7 @@ pub async fn subscribe(
     loop {
         match sub.next().await {
             SubMessage::Reading(reading) => {
-                event_tx.send(Event::Sensor(dbg!(reading))).unwrap();
+                event_tx.send(Event::Sensor(reading)).unwrap();
             }
             SubMessage::ErrorReport(_)
             | SubMessage::AffectorControlled { .. } => continue,

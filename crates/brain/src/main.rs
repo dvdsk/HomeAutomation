@@ -52,7 +52,7 @@ async fn main() -> Result<(), color_eyre::Report> {
     let jobs = Jobs::setup(event_tx.clone(), db.clone())?;
 
     let system = System::init(opt.mqtt_ip, jobs);
-    let mut tasks =
+    let tasks =
         controller::start(subscribed_rxs, event_tx.clone(), system, db)?;
 
     // This never returns, should be replaced by an endless loop if (re)moved
@@ -61,6 +61,9 @@ async fn main() -> Result<(), color_eyre::Report> {
         opt.data_server,
     ));
 
-    tasks.report_failed().await;
+    tasks.await_tasks().await;
+
+    // TODO: re-enable this by joining? with await_tasks
+    // tasks.report_failed().await;
     Err(eyre!("All tasks have failed! shutting down"))
 }

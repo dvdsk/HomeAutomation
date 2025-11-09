@@ -31,7 +31,6 @@ tracing = {workspace = true}
 logger.workspace = true
 clap = { workspace = true }
 futures-concurrency = { workspace = true }
-# dbstruct = { git = "https://github.com/dvdsk/dbstruct" }
-dbstruct = { path = "/home/david/Documents/dbstruct" }
+dbstruct = { git = "https://github.com/dvdsk/dbstruct" }
 color-eyre.workspace = true
 mpdrs = "0.1.0"

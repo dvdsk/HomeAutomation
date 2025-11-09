@@ -42,6 +42,7 @@ pub async fn run(
     system: RestrictedSystem,
     db: sled::Tree,
 ) -> color_eyre::Result<()> {
+    trace!("Running small bedroom task");
     let mut room = Room::new(event_tx, system.clone(), db)?;
     let mut next_update = Instant::now() + UPDATE_INTERVAL;
     let mut update_task: Option<JoinHandle<color_eyre::Result<()>>> = None;
