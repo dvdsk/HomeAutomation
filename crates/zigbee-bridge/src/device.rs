@@ -62,7 +62,7 @@ impl Clone for Box<dyn Device> {
     }
 }
 
-pub(crate) fn init_states() -> HashMap<String, Box<(dyn Device + 'static)>> {
+pub(crate) fn init_states() -> HashMap<String, Box<dyn Device + 'static>> {
     let mut states = HashMap::new();
     for (light_name, _) in LIGHT_MODELS {
         let device: Box<dyn Device> = Box::new(Lamp::new(light_name));

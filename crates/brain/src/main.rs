@@ -4,7 +4,6 @@ use std::net::{IpAddr, SocketAddr};
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use tokio::sync::broadcast;
-use tokio::task::JoinSet;
 
 use self::input::jobs::Jobs;
 use self::system::System;
@@ -46,11 +45,14 @@ async fn main() -> Result<(), color_eyre::Report> {
     let (event_tx, _event_rx) = broadcast::channel(250);
     let subscribed_rxs = array::from_fn(|_| event_tx.subscribe());
 
-    let db = sled::Config::default().path("database").open()?;
+    let db = sled::Config::default()
+        .cache_capacity(4_000_000)
+        .path("database")
+        .open()?;
     let jobs = Jobs::setup(event_tx.clone(), db.clone())?;
 
     let system = System::init(opt.mqtt_ip, jobs);
-    let tasks =
+    let mut tasks =
         controller::start(subscribed_rxs, event_tx.clone(), system, db)?;
 
     // This never returns, should be replaced by an endless loop if (re)moved
@@ -59,18 +61,6 @@ async fn main() -> Result<(), color_eyre::Report> {
         opt.data_server,
     ));
 
-    report_controller(tasks).await;
+    tasks.report_failed().await;
     Err(eyre!("All tasks have failed! shutting down"))
-}
-
-async fn report_controller(mut tasks: JoinSet<color_eyre::Result<()>>) {
-    while let Some(failure) = tasks.join_next().await {
-        match failure {
-            Ok(Ok(())) => {
-                tracing::error!("Task returned, tasks should never return!")
-            }
-            Ok(Err(e)) => tracing::error!("Task returned an error: {e}"),
-            Err(e) => tracing::error!("Task could not join: {e}"),
-        }
-    }
 }

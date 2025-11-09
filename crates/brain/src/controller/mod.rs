@@ -1,11 +1,13 @@
 mod rooms;
 
+use std::future::Future;
+
 use crate::system::System;
 use color_eyre::eyre::Context;
 pub use protocol::Reading;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
-use tokio::task::JoinSet;
+use tokio::task::{JoinSet, LocalSet};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Event {
@@ -92,14 +94,41 @@ impl RestrictedSystem {
     }
 }
 
+#[derive(Default)]
+pub struct ControllerTasks {
+    tasks: JoinSet<Result<(), color_eyre::Report>>,
+    local_set: LocalSet,
+}
+
+impl ControllerTasks {
+    fn spawn<F>(&mut self, future: F)
+    where
+        F: Future<Output = Result<(), color_eyre::Report>> + 'static,
+    {
+        self.tasks.spawn_local_on(future, &self.local_set);
+    }
+
+    pub async fn report_failed(&mut self) {
+        while let Some(failure) = self.tasks.join_next().await {
+            match failure {
+                Ok(Ok(())) => {
+                    tracing::error!("Task returned, tasks should never return!")
+                }
+                Ok(Err(e)) => tracing::error!("Task returned an error: {e}"),
+                Err(e) => tracing::error!("Task could not join: {e}"),
+            }
+        }
+    }
+}
+
 pub fn start(
     subscribed: [broadcast::Receiver<Event>; 4],
     sender: broadcast::Sender<Event>,
     system: System,
     db: sled::Db,
-) -> Result<JoinSet<Result<(), color_eyre::Report>>, color_eyre::Report> {
+) -> Result<ControllerTasks, color_eyre::Report> {
     tracing::info!("starting");
-    let mut tasks = JoinSet::new();
+    let mut tasks = ControllerTasks::default();
     let [rx1, rx2, rx3, rx4] = subscribed;
 
     let restricted = RestrictedSystem {
@@ -135,7 +164,12 @@ pub fn start(
     let ds = db
         .open_tree("small_bedroom")
         .wrap_err("Opening db subtree for small_bedroom")?;
-    tasks.spawn(rooms::small_bedroom::run(rx2, sender.clone(), restricted, ds));
+    tasks.spawn(rooms::small_bedroom::run(
+        rx2,
+        sender.clone(),
+        restricted,
+        ds,
+    ));
 
     let restricted = RestrictedSystem {
         system: system.clone(),

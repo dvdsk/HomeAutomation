@@ -26,7 +26,7 @@ mod state;
 
 const UPDATE_INTERVAL: Duration = Duration::from_secs(5);
 const OFF_DELAY: Duration = Duration::from_secs(60);
-const WAKEUP_EXPIRATION: Duration = Duration::from_secs(1800);
+
 const NAP_TIME: Duration = Duration::from_secs(30 * 60);
 
 const fn time(hour: i8, minute: i8) -> f64 {
@@ -36,23 +36,15 @@ const T0_00: f64 = time(0, 0);
 const T10_00: f64 = time(10, 0);
 const T21_00: f64 = time(21, 0);
 
-#[dbstruct::dbstruct(db=sled)]
-struct Store {
-    #[dbstruct(Default)]
-    state: State,
-}
-
-super::impl_open_or_wipe!(Store);
-
 pub async fn run(
     mut event_rx: broadcast::Receiver<Event>,
     event_tx: broadcast::Sender<Event>,
     system: RestrictedSystem,
     db: sled::Tree,
 ) -> color_eyre::Result<()> {
-    let mut room = Room::new(event_tx, system.clone());
+    let mut room = Room::new(event_tx, system.clone(), db)?;
     let mut next_update = Instant::now() + UPDATE_INTERVAL;
-    let mut update_task: Option<JoinHandle<()>> = None;
+    let mut update_task: Option<JoinHandle<color_eyre::Result<()>>> = None;
 
     let res = system
         .system
@@ -73,35 +65,36 @@ pub async fn run(
                 event @ RelevantEvent::Button(_)
                 | event @ RelevantEvent::PortableButton(_),
             ) => {
-                handle_button(&mut room, event).await;
+                handle_button(&mut room, event).await?;
             }
             Trigger::Event(RelevantEvent::RadiatorOverride) => {
                 // trace!("Starting radiator override");
                 // room.start_radiator_override();
             }
-            Trigger::Event(RelevantEvent::Wakeup) => room.set_wakeup().await,
+            Trigger::Event(RelevantEvent::Wakeup) => room.set_wakeup().await?,
             Trigger::Event(RelevantEvent::Pm2_5(val)) => {
-                room.pm2_5 = Some((val, crate::time::now()))
+                room.store.pm2_5().set(Some(&(val, crate::time::now())))?;
             }
             Trigger::ShouldUpdate => {
                 // We don't want this to block if it takes a while, so
                 // we spawn a separate task for it that we need to abort
                 // in case it hangs
                 update_task.map(|task| task.abort());
-                update_task = Some(task::spawn(update(room.clone())));
+                update_task = Some(task::spawn_local(update(room.clone())));
                 next_update = Instant::now() + UPDATE_INTERVAL;
             }
         }
     }
 }
 
-async fn update(mut room: Room) {
-    room.update_airbox().await;
-    room.update_radiator().await;
-    room.all_lights_daylight().await;
+async fn update(mut room: Room) -> color_eyre::Result<()> {
+    room.update_airbox().await?;
+    room.update_radiator().await?;
+    room.all_lights_daylight().await?;
+    Ok(())
 }
 
-async fn handle_button(room: &mut Room, event: RelevantEvent) {
+async fn handle_button(room: &mut Room, event: RelevantEvent) -> color_eyre::Result<()> {
     use portable_button_panel::Reading as P;
     use ButtonPanel as B;
 
@@ -111,7 +104,7 @@ async fn handle_button(room: &mut Room, event: RelevantEvent) {
                 handle_audio_button(room, event).await;
             }
             B::BottomLeft(_) | B::BottomMiddle(_) | B::BottomRight(_) => {
-                handle_light_button(room, event).await;
+                handle_light_button(room, event).await?;
             }
         },
         event @ RelevantEvent::PortableButton(button) => match button {
@@ -127,12 +120,13 @@ async fn handle_button(room: &mut Room, event: RelevantEvent) {
                 handle_audio_button(room, event).await;
             }
             P::Dots1ShortRelease | P::Dots2ShortRelease => {
-                handle_light_button(room, event).await;
+                handle_light_button(room, event).await?;
             }
             b => info!("Pressed unimplemented button: {b:?}"),
         },
         _ => unreachable!(),
     }
+    Ok(())
 }
 
 async fn handle_audio_button(room: &mut Room, button_event: RelevantEvent) {
@@ -209,7 +203,10 @@ async fn handle_audio_button(room: &mut Room, button_event: RelevantEvent) {
     }
 }
 
-async fn handle_light_button(room: &mut Room, event: RelevantEvent) {
+async fn handle_light_button(
+    room: &mut Room,
+    event: RelevantEvent,
+) -> color_eyre::Result<()> {
     use portable_button_panel::Reading as P;
     use ButtonPanel as B;
     use RelevantEvent as E;
@@ -219,24 +216,27 @@ async fn handle_light_button(room: &mut Room, event: RelevantEvent) {
     // Dots2 short: wakeup
     match event {
         // Light buttons
-        E::Button(B::BottomLeft(_)) => room.set_sleep_delayed().await,
+        E::Button(B::BottomLeft(_)) => room.set_sleep_delayed().await?,
         E::PortableButton(P::Dots1ShortRelease) => {
             let now = crate::time::now();
             match time(now.hour(), now.minute()) {
                 // rust analyzer seems to think this illegal, its not
                 T21_00.. | T0_00..T10_00 => {
-                    room.toggle_sleep_nightlight().await
+
+                    room.toggle_sleep_nightlight().await?
                 }
-                _ => room.toggle_sleep_daylight().await,
+                _ => room.toggle_sleep_daylight().await?,
             }
         }
-        E::Button(B::BottomMiddle(_)) => room.set_daylight().await,
+        E::Button(B::BottomMiddle(_)) => room.set_daylight().await?,
         E::PortableButton(P::Dots2ShortRelease) => {
-            room.set_wakeup().await;
+            room.set_wakeup().await?;
         }
-        E::Button(B::BottomRight(_)) => room.set_override().await,
+        E::Button(B::BottomRight(_)) => room.set_override().await?,
         _ => (),
     }
+
+    Ok(())
 }
 
 pub(super) fn is_nap_time() -> bool {

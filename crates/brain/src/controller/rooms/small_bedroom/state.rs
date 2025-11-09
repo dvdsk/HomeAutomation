@@ -1,11 +1,12 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use color_eyre::Result;
 use jiff::Zoned;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
-use tokio::sync::{broadcast, Mutex, RwLock};
+use tokio::sync::{broadcast, Mutex};
 use tokio::task::{self, JoinHandle};
 use tokio::time::sleep;
 use tracing::{trace, warn};
@@ -32,36 +33,44 @@ pub(crate) enum State {
     Nightlight,
 }
 
-#[derive(Clone)]
-pub(super) struct Room {
-    state: Arc<RwLock<State>>,
+#[dbstruct::dbstruct(db=sled)]
+pub(super) struct Store {
+    #[dbstruct(Default)]
+    state: State,
     radiator_override: Option<Zoned>,
     pub(super) pm2_5: Option<(f32, Zoned)>,
+}
+
+#[derive(Clone)]
+pub(super) struct Room {
+    pub(super) store: Arc<Store>,
     system: RestrictedSystem,
     event_tx: broadcast::Sender<Event>,
-    task_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
+    task_handle: Arc<Mutex<Option<JoinHandle<Result<()>>>>>,
     pub(super) audio_controller: Arc<Mutex<AudioController>>,
 }
+
+super::super::impl_open_or_wipe!(Store);
 
 impl Room {
     pub(super) fn new(
         event_tx: broadcast::Sender<Event>,
         system: RestrictedSystem,
-    ) -> Self {
-        Self {
-            state: Arc::new(RwLock::new(State::Daylight)),
-            radiator_override: None,
-            pm2_5: None,
+        db: sled::Tree,
+    ) -> Result<Self> {
+        let store = Arc::new(open_or_wipe(db)?);
+        Ok(Self {
+            store,
             system,
             event_tx,
             task_handle: Arc::new(Mutex::new(None)),
             audio_controller: Arc::new(Mutex::new(AudioController::new(
                 MPD_IP, MPD_PORT,
             ))),
-        }
+        })
     }
 
-    pub(super) async fn update_radiator(&mut self) {
+    pub(super) async fn update_radiator(&mut self) -> Result<()> {
         trace!("Updating radiator");
         // trace!(
         //     "Room radiator override state: {:?}",
@@ -82,113 +91,124 @@ impl Room {
         let goal_temp = goal_temp_now();
         // trace!("Override is either not set or expired, set to goal temp: {goal_temp}");
         self.system.set_radiators_setpoint(goal_temp).await;
-        self.radiator_override = None;
+        self.store.radiator_override().set(None)?;
+
+        Ok(())
     }
 
     #[allow(unused)]
     //TODO: fix radiator override
-    pub(crate) fn start_radiator_override(&mut self) {
+    pub(crate) fn start_radiator_override(&mut self) -> Result<()> {
         // Don't set if the radiator resends the manual state
-        if self.radiator_override.is_none() {
+        if self.store.radiator_override().is_none()? {
             warn!("Setting radiator override to now");
             let now = crate::time::now();
-            self.radiator_override = Some(now);
+            self.store.radiator_override().set(Some(&now));
         }
+
+        Ok(())
     }
 
-    pub(super) async fn toggle_sleep_daylight(&mut self) {
-        let state = { self.state.read().await.clone() };
+    pub(super) async fn toggle_sleep_daylight(&mut self) -> Result<()> {
+        let state = self.store.state().get()?;
         match state {
             State::Sleep | State::SleepNoWakeup => {
-                self.set_daylight().await;
+                self.set_daylight().await?;
             }
             State::Daylight
             | State::Wakeup
             | State::Override
             | State::DelayedOff
             | State::Nightlight => {
-                self.set_sleep_immediate().await;
+                self.set_sleep_immediate().await?;
             }
         }
+        Ok(())
     }
 
-    pub(super) async fn toggle_sleep_nightlight(&mut self) {
-        let state = { self.state.read().await.clone() };
+    pub(super) async fn toggle_sleep_nightlight(&mut self) -> Result<()> {
+        let state = self.store.state().get()?;
         match state {
             State::Sleep | State::SleepNoWakeup => {
-                self.set_nightlight().await;
+                self.set_nightlight().await?;
             }
             State::Daylight
             | State::Wakeup
             | State::Override
             | State::DelayedOff
             | State::Nightlight => {
-                self.set_sleep_immediate().await;
+                self.set_sleep_immediate().await?;
             }
         }
+        Ok(())
     }
 
-    pub(super) async fn set_sleep_immediate(&mut self) {
+    pub(super) async fn set_sleep_immediate(&mut self) -> Result<()> {
         self.system.all_lamps_off().await;
-        self.set_state_cancel_prev(State::Sleep).await;
+        self.set_state_cancel_prev(State::Sleep).await?;
+        Ok(())
     }
 
-    pub(super) async fn set_sleep_no_wakeup(&mut self) {
-        self.system.all_lamps_off().await;
-        self.set_state_cancel_prev(State::SleepNoWakeup).await;
-    }
-
-    pub(super) async fn set_sleep_delayed(&mut self) {
-        self.set_state_cancel_prev(State::DelayedOff).await;
+    pub(super) async fn set_sleep_delayed(&mut self) -> Result<()> {
+        self.set_state_cancel_prev(State::DelayedOff).await?;
 
         self.system.one_lamp_off("small_bedroom:bureau").await;
         self.system.one_lamp_off("small_bedroom:piano").await;
 
-        let task_handle = task::spawn(self.clone().delayed_off_then_sleep());
+        let task_handle =
+            task::spawn_local(self.clone().delayed_off_then_sleep());
         *self.task_handle.lock().await = Some(task_handle);
+        Ok(())
     }
 
-    pub(super) async fn set_wakeup(&mut self) {
-        if *self.state.read().await == State::SleepNoWakeup {
+    pub(super) async fn set_wakeup(&mut self) -> Result<()> {
+        if self.store.state().get()? == State::SleepNoWakeup {
             warn!("Ignoring wakeup because of override");
-            return;
+            return Ok(());
         }
         warn!("Starting wakeup");
-        self.set_state_cancel_prev(State::Wakeup).await;
+        self.set_state_cancel_prev(State::Wakeup).await?;
 
-        let task_handle = task::spawn(self.clone().run_wakeup_then_daylight());
+        let task_handle =
+            task::spawn_local(self.clone().run_wakeup_then_daylight());
         *self.task_handle.lock().await = Some(task_handle);
+        Ok(())
     }
 
-    pub(super) async fn set_daylight(&mut self) {
-        self.set_state_cancel_prev(State::Daylight).await;
-        self.all_lights_daylight().await;
+    pub(super) async fn set_daylight(&mut self) -> Result<()> {
+        self.set_state_cancel_prev(State::Daylight).await?;
+        self.all_lights_daylight().await?;
         self.system.all_lamps_on().await;
+        Ok(())
     }
 
-    pub(super) async fn set_nightlight(&mut self) {
-        self.set_state_cancel_prev(State::Nightlight).await;
+    pub(super) async fn set_nightlight(&mut self) -> Result<()> {
+        self.set_state_cancel_prev(State::Nightlight).await?;
         self.system
             .one_lamp_ct("small_bedroom:ceiling", 1800, 0.1)
             .await;
         self.system.one_lamp_on("small_bedroom:ceiling").await;
+        Ok(())
     }
 
-    pub(super) async fn set_override(&mut self) {
-        self.set_state_cancel_prev(State::Override).await;
+    pub(super) async fn set_override(&mut self) -> Result<()> {
+        self.set_state_cancel_prev(State::Override).await?;
         self.system.all_lamps_ct(2000, 1.0).await;
         self.system.all_lamps_on().await;
+        Ok(())
     }
 
-    async fn set_state_cancel_prev(&mut self, state: State) {
+    async fn set_state_cancel_prev(&mut self, state: State) -> Result<()> {
         self.cancel_task().await;
-        *self.state.write().await = state.clone();
+        self.store.state().set(&state)?;
         let _ = self.event_tx.send(Event::StateChangeSB(state));
+        Ok(())
     }
 
-    async fn set_state(&mut self, state: State) {
-        *self.state.write().await = state.clone();
+    async fn set_state(&mut self, state: State) -> Result<()> {
+        self.store.state().set(&state)?;
         let _ = self.event_tx.send(Event::StateChangeSB(state));
+        Ok(())
     }
 
     async fn cancel_task(&mut self) {
@@ -197,20 +217,23 @@ impl Room {
         }
     }
 
-    async fn delayed_off_then_sleep(mut self) {
+    async fn delayed_off_then_sleep(mut self) -> Result<()> {
         sleep(OFF_DELAY).await;
         self.system.all_lamps_off().await;
-        self.set_state(State::Sleep).await;
+        self.set_state(State::Sleep).await?;
 
         if is_nap_time() {
             sleep(NAP_TIME).await;
-            self.set_state(State::Daylight).await;
-            self.all_lights_daylight().await;
+            self.set_state(State::Daylight).await?;
+            self.all_lights_daylight().await?;
             self.system.all_lamps_on().await;
         }
+        Ok(())
     }
 
-    async fn run_wakeup_then_daylight(mut self) {
+    // Returns result simply so the task handle when this is spawned as a task
+    // is the same as for the other function
+    async fn run_wakeup_then_daylight(mut self) -> Result<()> {
         const LIGHT_NAME: &str = "small_bedroom:ceiling";
         const RUNTIME_MINS: i32 = 5;
         const MUSIC_ON_AFTER_MINS: i32 = 5;
@@ -252,28 +275,33 @@ impl Room {
             }
         }
 
-        self.set_state(State::Daylight).await;
-        self.all_lights_daylight().await;
+        self.set_state(State::Daylight).await?;
+        self.all_lights_daylight().await?;
         self.system.all_lamps_on().await;
         warn!("Wakeup done");
+
+        Ok(())
     }
 
     // TODO: make private once updates are in job system
-    pub(super) async fn all_lights_daylight(&mut self) {
-        if *self.state.read().await == State::Daylight {
+    pub(super) async fn all_lights_daylight(&mut self) -> Result<()> {
+        if self.store.state().get()? == State::Daylight {
             let (new_ct, new_bri) = daylight_now();
             self.system.all_lamps_ct(new_ct, new_bri).await;
         }
+        Ok(())
     }
 
-    pub(crate) async fn update_airbox(&self) {
-        let Some(setting) = air_filtration_now(&self.pm2_5) else {
-            return;
+    pub(crate) async fn update_airbox(&self) -> Result<()> {
+        let Some(setting) = air_filtration_now(&self.store.pm2_5().get()?)
+        else {
+            return Ok(());
         };
 
         if let Ok(mut stream) = TcpStream::connect("192.168.1.103:4444").await {
             let message: u16 = 0xDD00 + setting;
             let _ = stream.write(&message.to_le_bytes()).await;
         }
+        Ok(())
     }
 }
