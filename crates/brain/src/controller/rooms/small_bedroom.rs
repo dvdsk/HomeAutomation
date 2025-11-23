@@ -249,16 +249,15 @@ pub(super) fn is_nap_time() -> bool {
 
 pub(crate) fn goal_temp_now() -> f64 {
     let goals = BTreeMap::from([
-        ((0, 00), 18.0),
-        ((10, 00), 19.0),
+        ((0, 00), 19.0),
+        ((10, 00), 19.5),
         ((11, 00), 21.0),
         ((12, 00), 22.0),
-        ((18, 00), 20.5),
         ((19, 00), 10.0),
-        ((21, 00), 18.0),
+        ((21, 00), 19.0),
     ]);
 
-    goal_now(goals, 18.0)
+    goal_now(goals, 19.0)
 }
 
 fn air_filtration_now(pm2_5_measurement: &Option<(f32, Zoned)>) -> Option<u16> {
