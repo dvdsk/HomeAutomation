@@ -95,8 +95,7 @@
         }) // {
 			overlays.default = _: prev: {
 				text-widget = self.defaultPackage.${prev.system};
-				ui = self.${prev.system}.ui;
+				ui = self.${prev.system};
 			};
-			  # nixosModules.break-enforcer = ./nix_module.nix;
 		};
 }
