@@ -95,7 +95,7 @@
         }) // {
 			overlays.default = _: prev: {
 				text-widget = self.defaultPackage.${prev.system};
-				ui = self.${prev.system};
+				ui = self.ui.${prev.system};
 			};
 		};
 }
