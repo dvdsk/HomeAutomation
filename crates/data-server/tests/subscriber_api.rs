@@ -80,7 +80,7 @@ async fn subscribe_and_receive_inner(sub_port: u16) -> Result<Done> {
 }
 
 async fn list_affectors_inner(sub_port: u16) -> Result<Done> {
-    tokio::time::sleep(Duration::from_millis(500)).await;
+    tokio::time::sleep(Duration::from_millis(1000)).await;
     let list = Client::connect(
         (Ipv4Addr::LOCALHOST, sub_port),
         "api_integration_tests".to_owned(),

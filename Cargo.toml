@@ -3,6 +3,7 @@ resolver = "2"
 members = ["crates/*"]
 exclude = ["nodes/embassy/bed-lb", "nodes/embassy/bed-sb",
 "nodes/esp32/airbox"]
+description = "services and ui/interfaces to home automation system"
 
 [workspace.dependencies]
 data-server = { path = "crates/data-server" }
