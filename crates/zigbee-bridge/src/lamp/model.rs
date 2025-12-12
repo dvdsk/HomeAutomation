@@ -26,6 +26,10 @@ pub(crate) enum Model {
     /// 800 lm
     /// LCT007
     HueGen2,
+    /// 9290038536H Hue white ambiance and color
+    /// 1600 lm
+    /// LCA012
+    Hue1600Lm,
     #[allow(unused)]
     TradfriOther(String),
     #[allow(unused)]
@@ -52,6 +56,7 @@ impl Model {
             | Model::TradfriE14Color
             | Model::HueGen1
             | Model::HueGen2
+            | Model::Hue1600Lm
             | Model::TradfriGU10 => true,
             Model::TradfriCandle | Model::TradfriE14White => false,
             // We assume no so that things at least don't break
@@ -66,7 +71,7 @@ impl Model {
             Model::TradfriCandle | Model::TradfriGU10 => 2200..4000,
             Model::TradfriE27 | Model::TradfriE14Color => 1780..4000,
             Model::TradfriE14White => 2000..4000,
-            Model::HueGen1 | Model::HueGen2 => 2000..6500,
+            Model::HueGen1 | Model::HueGen2 | Model::Hue1600Lm => 2000..6500,
             Model::TradfriOther(_) => 2200..4000,
             Model::HueOther(_) => 2200..6500,
             Model::Other(_) => 2200..4000,
@@ -88,7 +93,10 @@ impl Model {
             | Model::TradfriE14Color
             | Model::TradfriE14White
             | Model::TradfriOther(_) => false,
-            Model::HueGen1 | Model::HueGen2 | Model::HueOther(_) => true,
+            Model::HueGen1
+            | Model::HueGen2
+            | Model::Hue1600Lm
+            | Model::HueOther(_) => true,
             // I guess we default to sending payloads separately
             Model::Other(_) => false,
         }

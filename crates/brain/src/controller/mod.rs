@@ -159,7 +159,7 @@ pub fn start(
     let restricted = RestrictedSystem {
         system: system.clone(),
         allowed_lights: vec![
-            "small_bedroom:ceiling",
+            "small_bedroom:table",
             "small_bedroom:bureau",
             "small_bedroom:piano",
         ],

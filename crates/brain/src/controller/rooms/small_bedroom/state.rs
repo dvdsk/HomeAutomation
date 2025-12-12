@@ -185,9 +185,9 @@ impl Room {
     pub(super) async fn set_nightlight(&mut self) -> Result<()> {
         self.set_state_cancel_prev(State::Nightlight).await?;
         self.system
-            .one_lamp_ct("small_bedroom:ceiling", 1800, 0.1)
+            .one_lamp_ct("small_bedroom:table", 1800, 0.1)
             .await;
-        self.system.one_lamp_on("small_bedroom:ceiling").await;
+        self.system.one_lamp_on("small_bedroom:table").await;
         Ok(())
     }
 
@@ -234,7 +234,7 @@ impl Room {
     // Returns result simply so the task handle when this is spawned as a task
     // is the same as for the other function
     async fn run_wakeup_then_daylight(mut self) -> Result<()> {
-        const LIGHT_NAME: &str = "small_bedroom:ceiling";
+        const LIGHT_NAME: &str = "small_bedroom:table";
         const RUNTIME_MINS: i32 = 5;
         const MUSIC_ON_AFTER_MINS: i32 = 5;
 

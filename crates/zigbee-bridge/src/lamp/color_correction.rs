@@ -40,7 +40,10 @@ fn blackbody_table(model: &Model) -> BTreeMap<usize, f64> {
             (4113, 0.0037),
         ],
         // LCA005 data
-        Model::HueGen1 | Model::HueGen2 | Model::HueOther(_) => vec![
+        Model::HueGen1
+        | Model::HueGen2
+        | Model::Hue1600Lm
+        | Model::HueOther(_) => vec![
             (1998, 0.0005),
             (2197, 0.00000),
             (2519, -0.0004),
@@ -87,7 +90,10 @@ fn temp_table(model: &Model) -> BTreeMap<usize, f64> {
             vec![(2200, 70.), (2700, -40.), (4000, 20.)]
         }
         // A19 Color 9.5W data
-        Model::HueGen1 | Model::HueGen2 | Model::HueOther(_) => {
+        Model::HueGen1
+        | Model::HueGen2
+        | Model::Hue1600Lm
+        | Model::HueOther(_) => {
             vec![
                 (2200, 2.),
                 (2700, 5.),
@@ -124,8 +130,8 @@ fn interpolate(temp: usize, table: BTreeMap<usize, f64>) -> f64 {
     if let (Some(smaller), Some(larger)) = (smaller, larger) {
         // Linear interpolation
         return smaller.1
-                + (temp - smaller.0) as f64 * (larger.1 - smaller.1)
-                    / (*larger.0 as f64 - *smaller.0 as f64);
+            + (temp - smaller.0) as f64 * (larger.1 - smaller.1)
+                / (*larger.0 as f64 - *smaller.0 as f64);
     }
 
     match smaller.or(larger) {
